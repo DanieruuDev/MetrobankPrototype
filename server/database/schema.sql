@@ -26,7 +26,6 @@ CREATE TABLE Document (
     Doc_Type VARCHAR(100),
     Path TEXT,
     size INTEGER,
-    Document_File TEXT,
     Upload_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -39,25 +38,42 @@ CREATE TABLE Workflow (
     Completed_at TIMESTAMP,
     Request_Date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status VARCHAR(50) CHECK (Status IN ('PENDING', 'APPROVED', 'REJECTED', 'OVER_DUE')) NOT NULL DEFAULT 'PENDING',
-
+    Current_Approver INT,
     CONSTRAINT fk_document FOREIGN KEY (Document_ID) REFERENCES Document(Document_ID) ON DELETE CASCADE,
     CONSTRAINT fk_author FOREIGN KEY (Author_ID) REFERENCES Admin(Admin_ID) ON DELETE SET NULL
 );
 
-CREATE TABLE Approvers (
+CREATE TABLE Approver (
     Approver_ID SERIAL PRIMARY KEY,
     User_ID INT NOT NULL,
     Workflow_ID INT NOT NULL,
     Approver_Order INT NOT NULL,
-    Response VARCHAR(10) CHECK (Response IN ('APPROVE', 'REJECT')) DEFAULT NULL,
-    State VARCHAR(100),
-    Comments TEXT,
-    Due_Date TIMESTAMP,
-    Response_Time TIMESTAMP,
+    Status VARCHAR(50) CHECK (Status IN ('PENDING', 'CURRENT', 'REPLACED', 'MISSED', 'DONE')),
+    Due_Date DATE,
+    Is_Reassigned BOOLEAN DEFAULT FALSE,
 
     CONSTRAINT fk_user FOREIGN KEY (User_ID) REFERENCES Admin(Admin_ID) ON DELETE SET NULL,
     CONSTRAINT fk_workflow FOREIGN KEY (Workflow_ID) REFERENCES Workflow(Workflow_ID) ON DELETE CASCADE
-); 
+);
+
+CREATE TABLE Approver_Response (
+    Response_ID SERIAL PRIMARY KEY,
+    Approver_ID INT REFERENCES Approver(Approver_ID) ON DELETE CASCADE,
+    Response VARCHAR(50) CHECK (Response IN ('APPROVE', 'REJECT')),
+    Comment TEXT,
+    Response_Time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Reassignment_Log (
+    ReLog_ID SERIAL PRIMARY KEY,
+    Workflow_ID INT REFERENCES Workflow(Workflow_ID) ON DELETE CASCADE,
+    Old_Approver_ID INT REFERENCES Approver(Approver_ID) ON DELETE CASCADE,
+    New_Approver_ID INT REFERENCES Approver(Approver_ID) ON DELETE CASCADE,
+    Reason TEXT,
+    Reassigned_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 CREATE TABLE Workflow_Log (
     Log_ID SERIAL PRIMARY KEY,
@@ -70,7 +86,7 @@ CREATE TABLE Workflow_Log (
     Changed_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_workflow FOREIGN KEY (Workflow_ID) REFERENCES Workflow(Workflow_ID) ON DELETE CASCADE,
-    CONSTRAINT fk_approver FOREIGN KEY (Approver_ID) REFERENCES Approvers(Approver_ID) ON DELETE SET NULL
+    CONSTRAINT fk_approver FOREIGN KEY (Approver_ID) REFERENCES Approver(Approver_ID) ON DELETE SET NULL
 );
 
 

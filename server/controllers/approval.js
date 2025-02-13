@@ -78,11 +78,18 @@ const createApproval = async (req, res) => {
     const approverQueries = await Promise.all(
       appr.map(async (approval) => {
         const approvalList = await pool.query(
-          "INSERT INTO approvers (workflow_id, user_id, approver_order, due_date) VALUES ($1, $2, $3, $4) RETURNING *",
+          "INSERT INTO approver (workflow_id, user_id, approver_order, due_date) VALUES ($1, $2, $3, $4) RETURNING *",
           [workflowID, approval.id, approval.order, approval.date]
         );
+        const initializeResponse = await pool.query(
+          "INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *",
+          [approvalList.rows[0].approver_id]
+        );
 
-        return approvalList.rows[0];
+        return {
+          approvers: approvalList.rows[0],
+          approval_response: initializeResponse.rows[0],
+        };
       })
     );
     //query
