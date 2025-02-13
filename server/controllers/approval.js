@@ -13,7 +13,7 @@ const getApprovals = async (req, res) => {};
 const createApproval = async (req, res) => {
   const file = req.file;
   try {
-    const { author_id, due_date } = req.body;
+    const { author_id, title, due_date } = req.body;
 
     const { approvers } = req.body;
     let appr;
@@ -23,6 +23,7 @@ const createApproval = async (req, res) => {
       if (file) fs.unlinkSync(file.path);
       return res.status(400).json({ message: "Invalid approvers format" });
     }
+
     //validations
     const checkID = await pool.query(
       "SELECT * FROM admin WHERE admin_id = $1",
@@ -31,7 +32,7 @@ const createApproval = async (req, res) => {
     if (!checkID) {
       return res.status(400).json({ message: "User not valid" });
     }
-    if (!author_id || !file || !due_date) {
+    if (!author_id || !file || !title || !due_date) {
       if (file) fs.unlinkSync(file.path);
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -67,37 +68,28 @@ const createApproval = async (req, res) => {
     );
     const docId = insertDocumentQuery.rows[0].document_id;
 
-    const insertApprovalWorkflowQuery = await pool.query(
-      "INSERT INTO approval_workflow(document_id, author_id, due_date) VALUES ($1, $2, $3) RETURNING *",
-      [docId, author_id, due_date]
+    const insertWorkflowQuery = await pool.query(
+      "INSERT INTO workflow(document_id, title, author_id, due_date) VALUES ($1, $2, $3, $4) RETURNING *",
+      [docId, title, author_id, due_date]
     );
 
-    const workflowID = insertApprovalWorkflowQuery.rows[0].workflow_id;
+    const workflowID = insertWorkflowQuery.rows[0].workflow_id;
 
     const approverQueries = await Promise.all(
       appr.map(async (approval) => {
         const approvalList = await pool.query(
-          "INSERT INTO approvers (workflow_id, approver_id, approver_order) VALUES ($1, $2, $3) RETURNING *",
-          [workflowID, approval.id, approval.order]
-        );
-        const approverID = approvalList.rows[0].approver_record_id;
-
-        const approvalTime = await pool.query(
-          "INSERT INTO approvers_timeline (approver_record_id, apr_due_date) VALUES ($1, $2) RETURNING *",
-          [approverID, approval.date]
+          "INSERT INTO approvers (workflow_id, user_id, approver_order, due_date) VALUES ($1, $2, $3, $4) RETURNING *",
+          [workflowID, approval.id, approval.order, approval.date]
         );
 
-        return {
-          approver: approvalList.rows[0],
-          timeline: approvalTime.rows[0],
-        };
+        return approvalList.rows[0];
       })
     );
     //query
 
     return res.status(201).json({
       message: "File uploaded successfully!",
-      workflow: insertApprovalWorkflowQuery.rows[0],
+      workflow: insertWorkflowQuery.rows[0],
       document: insertDocumentQuery.rows[0],
       approverQueries: approverQueries,
     });

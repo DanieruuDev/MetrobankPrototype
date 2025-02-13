@@ -30,34 +30,49 @@ CREATE TABLE Document (
     Upload_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE Approval_Workflow (
+CREATE TABLE Workflow (
     Workflow_ID SERIAL PRIMARY KEY,
     Document_ID INT NOT NULL,
     Author_ID INT NOT NULL,
-    State VARCHAR(100),
-    Due_Date DATE,
-    Approved_at TIMESTAMP,
-    FOREIGN KEY (Document_ID) REFERENCES Document(Document_ID) ON DELETE CASCADE,
-    FOREIGN KEY (Author_ID) REFERENCES Admin(Admin_ID) ON DELETE CASCADE
+    Title VARCHAR(255) NOT NULL,
+    Due_Date TIMESTAMP,
+    Completed_at TIMESTAMP,
+    Request_Date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Status VARCHAR(50) CHECK (Status IN ('PENDING', 'APPROVED', 'REJECTED', 'OVER_DUE')) NOT NULL DEFAULT 'PENDING',
+
+    CONSTRAINT fk_document FOREIGN KEY (Document_ID) REFERENCES Document(Document_ID) ON DELETE CASCADE,
+    CONSTRAINT fk_author FOREIGN KEY (Author_ID) REFERENCES Admin(Admin_ID) ON DELETE SET NULL
 );
 
 CREATE TABLE Approvers (
-    Approver_Record_ID SERIAL PRIMARY KEY,
-    Approver_id INT NOT NULL,
+    Approver_ID SERIAL PRIMARY KEY,
+    User_ID INT NOT NULL,
     Workflow_ID INT NOT NULL,
     Approver_Order INT NOT NULL,
+    Response VARCHAR(10) CHECK (Response IN ('APPROVE', 'REJECT')) DEFAULT NULL,
     State VARCHAR(100),
     Comments TEXT,
-    FOREIGN KEY (Workflow_ID) REFERENCES Approval_Workflow(Workflow_ID) ON DELETE CASCADE,
-    FOREIGN KEY (Approver_id) REFERENCES Admin(Admin_ID)
+    Due_Date TIMESTAMP,
+    Response_Time TIMESTAMP,
+
+    CONSTRAINT fk_user FOREIGN KEY (User_ID) REFERENCES Admin(Admin_ID) ON DELETE SET NULL,
+    CONSTRAINT fk_workflow FOREIGN KEY (Workflow_ID) REFERENCES Workflow(Workflow_ID) ON DELETE CASCADE
+); 
+
+CREATE TABLE Workflow_Log (
+    Log_ID SERIAL PRIMARY KEY,
+    Workflow_ID INT NOT NULL,
+    Approver_ID INT NOT NULL,
+    Action VARCHAR(255) NOT NULL,
+    Comments TEXT,
+    Old_Status VARCHAR(100),
+    New_Status VARCHAR(100),
+    Changed_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_workflow FOREIGN KEY (Workflow_ID) REFERENCES Workflow(Workflow_ID) ON DELETE CASCADE,
+    CONSTRAINT fk_approver FOREIGN KEY (Approver_ID) REFERENCES Approvers(Approver_ID) ON DELETE SET NULL
 );
 
-
-CREATE TABLE Approvers_Timeline (
-    Approver_Record_ID INT NOT NULL,
-    Apr_Due_Date DATE,
-    FOREIGN KEY (Approver_Record_ID) REFERENCES Approvers(Approver_Record_ID) ON DELETE CASCADE
-);
 
 CREATE TABLE Schedule (
     Schedule_ID SERIAL PRIMARY KEY,

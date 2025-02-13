@@ -7,7 +7,7 @@ dotenv.config();
 const registerAdmin = async (req, res) => {
   try {
     const { name, affiliation, role, password } = req.body;
-
+    console.log(req.body);
     const existingUser = await pool.query(
       `SELECT name FROM admin WHERE name = $1`,
       [name]
