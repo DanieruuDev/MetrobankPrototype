@@ -1,25 +1,36 @@
-import React from "react";
-import { useState } from "react";
+import React, { useContext, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 function Login() {
-  const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const auth = useContext(AuthContext);
+  if (!auth) throw new Error("AuthContext must be used within an AuthProvider");
+
+  const { login } = auth;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
       const response = await axios.post("http://localhost:5000/admin/login", {
-        name,
+        email,
         password,
       });
       if (response.status === 200) {
+        const { token, email } = response.data;
+        login(token, email); // Save token in context and localStorage
+      }
+
+      if (response.status === 200) {
         console.log("Login successful:", response.data);
-        navigate("/admin");
+
+        // Navigate to the protected page
+        navigate("/workflow-approval");
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -47,11 +58,11 @@ function Login() {
           <div className="mb-4">
             <label className="text-gray-700 font-medium mb-2 ">Email</label>
             <input
-              type="text"
+              type="email"
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
               placeholder="Enter your email"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>

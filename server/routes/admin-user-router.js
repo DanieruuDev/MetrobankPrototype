@@ -1,15 +1,23 @@
 const express = require("express");
 const multer = require("multer");
+
 const {
-  registerAdmin,
-  loginAdmin,
+  registerUser,
+  loginUser,
 } = require("../controllers/admin-user-controller.js");
-const { uploadFile, createApproval } = require("../controllers/approval.js");
+const {
+  uploadFile,
+  createApproval,
+  getApprovals,
+  getApproval,
+  deleteApproval,
+  changeApprover,
+} = require("../controllers/approval.js");
 const userAdminRouter = express.Router();
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    return cb(null, "./public/image");
+    return cb(null, "./public/images");
   },
   filename: function (req, file, cb) {
     return cb(null, `${Date.now()}_${file.originalname}`);
@@ -17,8 +25,17 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-userAdminRouter.post("/registration", registerAdmin);
-userAdminRouter.post("/login", loginAdmin);
+userAdminRouter.post("/registration", registerUser);
+userAdminRouter.post("/login", loginUser);
+
 userAdminRouter.post("/upload", upload.single("file"), uploadFile);
+userAdminRouter.get("/get-approvals/:user_id", getApprovals);
+userAdminRouter.get("/get-approval/:user_id/:workflow_id", getApproval);
 userAdminRouter.post("/create-approval", upload.single("file"), createApproval);
-module.exports = { userAdminRouter };
+userAdminRouter.delete(
+  "/delete-approval/:user_id/:workflow_id",
+  deleteApproval
+);
+userAdminRouter.put("/change-approval/:requester_id", changeApprover);
+
+module.exports = userAdminRouter;

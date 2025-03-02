@@ -1,6 +1,6 @@
 const express = require("express");
 const pool = require("./database/dbConnect.js");
-const { userAdminRouter } = require("./routes/admin-user-router.js");
+const userAdminRouter = require("./routes/admin-user-router.js");
 
 const app = express();
 const cors = require("cors");
