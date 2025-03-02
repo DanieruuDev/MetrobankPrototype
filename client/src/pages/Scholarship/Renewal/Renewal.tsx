@@ -13,7 +13,7 @@ function ScholarshipSystem() {
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
-  const [selectedScholar, setSelectedScholar] = useState<number | null>(null);
+  const [, setSelectedScholar] = useState<number | null>(null);
 
   // Function to navigate back
   const goBack = () => {
@@ -474,10 +474,10 @@ function ScholarshipSystem() {
                       </label>
                       <select
                         name="goodMoralValidationStatus"
-                        value={scholar.goodMoralValidationStatus}
+                        value={scholar.goodMoralValidation}
                         onChange={(e) => handleChange(e, scholar.id)}
                         className={`rounded-md p-1 text-sm ${
-                          scholar.goodMoralValidationStatus === "Passed"
+                          scholar.goodMoralValidation === "Passed"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
@@ -492,10 +492,10 @@ function ScholarshipSystem() {
                       <label className="text-sm text-gray-600">Full Load</label>
                       <select
                         name="fullLoadValidationStatus"
-                        value={scholar.fullLoadValidationStatus}
+                        value={scholar.fullLoadValidation}
                         onChange={(e) => handleChange(e, scholar.id)}
                         className={`rounded-md p-1 text-sm ${
-                          scholar.fullLoadValidationStatus === "Passed"
+                          scholar.fullLoadValidation === "Passed"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
@@ -512,10 +512,10 @@ function ScholarshipSystem() {
                       </label>
                       <select
                         name="enrollmentValidationStatus"
-                        value={scholar.enrollmentValidationStatus}
+                        value={scholar.enrollmentValidation}
                         onChange={(e) => handleChange(e, scholar.id)}
                         className={`rounded-md p-1 text-sm ${
-                          scholar.enrollmentValidationStatus === "Passed"
+                          scholar.enrollmentValidation === "Passed"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}

@@ -117,8 +117,14 @@ function Approval({
         <div className="mt-4 flex flex-col space-y-4">
           {workflow?.approvers?.length ? (
             workflow.approvers
-              .filter((approver) => approver.approver_status !== "replaced")
-              .sort((a, b) => (a.approver_order || 0) - (b.approver_order || 0))
+              .filter(
+                (approver: { approver_status: string }) =>
+                  approver.approver_status !== "replaced"
+              )
+              .sort(
+                (a: { approver_order: any }, b: { approver_order: any }) =>
+                  (a.approver_order || 0) - (b.approver_order || 0)
+              )
               .map((approver: Approver) => (
                 <div
                   key={approver.approver_id}
