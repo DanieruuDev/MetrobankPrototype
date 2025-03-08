@@ -1,13 +1,13 @@
 import { useState } from "react";
-import Dashboard from "../components/Dashboard";
-import Sidebar from "../components/Sidebar";
+import Financial from "../../components/financial/Financial";
+import Sidebar from "../../components/Sidebar";
 
-interface HomeProps {
+interface FinancialPageProps {
   sidebarToggle: boolean;
   setSidebarToggle: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const Home: React.FC<HomeProps> = () => {
+const FinancialPage: React.FC<FinancialPageProps> = () => {
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
 
   return (
@@ -16,9 +16,9 @@ const Home: React.FC<HomeProps> = () => {
         sidebarToggle={sidebarToggle}
         setSidebarToggle={setSidebarToggle}
       />
-      <Dashboard sidebarToggle={sidebarToggle} />
+      <Financial sidebarToggle={sidebarToggle} />
     </div>
   );
 };
 
-export default Home;
+export default FinancialPage;

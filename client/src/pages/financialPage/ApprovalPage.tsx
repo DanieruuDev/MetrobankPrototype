@@ -1,13 +1,13 @@
 import { useState } from "react";
-import Dashboard from "../components/Dashboard";
-import Sidebar from "../components/Sidebar";
+import Approvals from "../../components/financial/Approvals";
+import Sidebar from "../../components/Sidebar";
 
-interface HomeProps {
+interface ApprovalPageProps {
   sidebarToggle: boolean;
   setSidebarToggle: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const Home: React.FC<HomeProps> = () => {
+const ApprovalPage: React.FC<ApprovalPageProps> = () => {
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
 
   return (
@@ -16,9 +16,9 @@ const Home: React.FC<HomeProps> = () => {
         sidebarToggle={sidebarToggle}
         setSidebarToggle={setSidebarToggle}
       />
-      <Dashboard sidebarToggle={sidebarToggle} />
+      <Approvals sidebarToggle={sidebarToggle} />
     </div>
   );
 };
 
-export default Home;
+export default ApprovalPage;

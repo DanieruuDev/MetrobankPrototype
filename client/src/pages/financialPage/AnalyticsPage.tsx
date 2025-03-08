@@ -1,13 +1,13 @@
 import { useState } from "react";
-import Dashboard from "../components/Dashboard";
-import Sidebar from "../components/Sidebar";
+import Analytics from "../../components/financial/Analytics";
+import Sidebar from "../../components/Sidebar";
 
-interface HomeProps {
+interface AnalyticsPageProps {
   sidebarToggle: boolean;
   setSidebarToggle: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const Home: React.FC<HomeProps> = () => {
+const AnalyticsPage: React.FC<AnalyticsPageProps> = () => {
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
 
   return (
@@ -16,9 +16,9 @@ const Home: React.FC<HomeProps> = () => {
         sidebarToggle={sidebarToggle}
         setSidebarToggle={setSidebarToggle}
       />
-      <Dashboard sidebarToggle={sidebarToggle} />
+      <Analytics sidebarToggle={sidebarToggle} />
     </div>
   );
 };
 
-export default Home;
+export default AnalyticsPage;
