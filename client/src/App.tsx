@@ -2,12 +2,11 @@ import { Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
-import NotFound from "./pages/NotFound";
+import NotFound from "./NotFound";
 import AnalyticsPage from "./pages/financialPage/AnalyticsPage";
 import ApprovalPage from "./pages/financialPage/ApprovalPage";
 import ManagementPage from "./pages/financialPage/ManagementPage";
 import FinancialPage from "./pages/financialPage/FinancialPage";
-import Sidebar from "./components/Sidebar";
 import { useState } from "react";
 
 function App() {
@@ -16,17 +15,8 @@ function App() {
   return (
     <>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/admin" element={<Admin />} />
-      </Routes>
-
-      <Sidebar
-        sidebarToggle={sidebarToggle}
-        setSidebarToggle={setSidebarToggle}
-      />
-      <Routes>
         <Route
-          path="/home"
+          path="/"
           element={
             <Home
               sidebarToggle={sidebarToggle}
@@ -34,7 +24,8 @@ function App() {
             />
           }
         />
-
+        <Route path="/login" element={<Login />} />
+        <Route path="/admin" element={<Admin />} />
         <Route
           path="/financialpage/analyticspage"
           element={
