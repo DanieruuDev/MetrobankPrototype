@@ -56,6 +56,7 @@ function Workflow() {
   const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [noApproval, setNoApproval] = useState<boolean>(false);
+  const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -137,123 +138,133 @@ function Workflow() {
   }, [page]); // ✅ Only one useEffect watching `page`
 
   return (
-    <div className="pl-[300px]">
-      <nav className="h-[80px] border-b-1">
+    <div className="flex">
+      <Sidebar
+        sidebarToggle={sidebarToggle}
+        setSidebarToggle={setSidebarToggle}
+      />
+
+      <div
+        className={`transition-all duration-300 ease-in-out w-full  ${
+          sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
+        }`}
+      >
         <Navbar />
-      </nav>
-      <Sidebar />
-
-      {detailedWorkflow ? (
-        <Approval
-          detailedWorkflow={detailedWorkflow}
-          setDetailedWorkflow={setDetailedWorkflow}
-          fetchWorkflow={fetchWorkflow}
-        />
-      ) : (
-        <div className="px-5 pt-5">
-          <div className="flex justify-between">
-            <h2 className="font-bold text-[20px] text-[#024FA8]">
-              Approvals Overview
-            </h2>
-            <button
-              className="p-2 bg-[#0f61c0] rounded-md text-[14px] text-white cursor-pointer hover:opacity-90"
-              onClick={() => setIsModal(!isModal)}
-            >
-              Create Approval
-            </button>
-          </div>
-          {isModal && (
-            <CreateApproval
-              setIsModalOpen={setIsModal}
-              requester_id={3}
-              setWorkflowDisplay={setWorkflowDisplay}
-              fetchWorkflows={fetchWorkflows}
-            />
-          )}
-          <div className="mt-10">
-            {/* Table Header */}
-            <div className="grid grid-cols-7 bg-gray-100 text-gray-600 p-3 font-medium rounded-md">
-              <div className="text-left">Request Title</div>
-              <div className="text-left">Document</div>
-              <div className="text-left">Status</div>
-              <div className="text-left">Approver</div>
-              <div className="text-left">Due Date</div>
-              <div className="text-left">Details</div>
-              <div className="text-center">Action</div>{" "}
-              {/* New column for delete button */}
+        <h1 className="text-3xl font-semibold mb-6 mt-4">Workflow</h1>
+        {detailedWorkflow ? (
+          <Approval
+            detailedWorkflow={detailedWorkflow}
+            setDetailedWorkflow={setDetailedWorkflow}
+            fetchWorkflow={fetchWorkflow}
+          />
+        ) : (
+          <div className="px-5 pt-5">
+            <div className="flex justify-between">
+              <h2 className="font-bold text-[20px] text-[#024FA8]">
+                Approvals Overview
+              </h2>
+              <button
+                className="p-2 bg-[#0f61c0] rounded-md text-[14px] text-white cursor-pointer hover:opacity-90"
+                onClick={() => setIsModal(!isModal)}
+              >
+                Create Approval
+              </button>
             </div>
+            {isModal && (
+              <CreateApproval
+                setIsModalOpen={setIsModal}
+                requester_id={3}
+                setWorkflowDisplay={setWorkflowDisplay}
+                fetchWorkflows={fetchWorkflows}
+              />
+            )}
+            <div className="mt-10">
+              {/* Table Header */}
+              <div className="grid grid-cols-7 bg-gray-100 text-gray-600 p-3 font-medium rounded-md">
+                <div className="text-left">Request Title</div>
+                <div className="text-left">Document</div>
+                <div className="text-left">Status</div>
+                <div className="text-left">Approver</div>
+                <div className="text-left">Due Date</div>
+                <div className="text-left">Details</div>
+                <div className="text-center">Action</div>{" "}
+                {/* New column for delete button */}
+              </div>
 
-            {/* Table Rows */}
-            <div className="divide-y mt-2 divide-gray-200">
-              {noApproval ? (
-                <div className="text-center text-gray-500 p-5">
-                  No approval workflows found.
-                </div>
-              ) : workflowDisplay.length > 0 ? (
-                workflowDisplay.map((workflow, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-7 p-3 items-center hover:bg-gray-50 transition cursor-pointer z-10"
-                    onClick={() => fetchWorkflow(3, workflow.workflow_id)}
-                  >
-                    <div className="truncate max-w-[160px]">
-                      {workflow.rq_title}
-                    </div>
-                    <div className="truncate max-w-[160px]">
-                      {workflow.doc_name}
-                    </div>
-                    <div
-                      className={`font-semibold ${
-                        workflow.status === "Pending"
-                          ? "text-yellow-500"
-                          : workflow.status === "Ongoing"
-                          ? "text-blue-500"
-                          : "text-green-500"
-                      }`}
-                    >
-                      {workflow.status}
-                    </div>
-                    <div className="truncate">{workflow.current_approver}</div>
-                    <div className="truncate">
-                      {formatDate(workflow.due_date)}
-                    </div>
-                    <div className="truncate">
-                      <span>{workflow.school_details}</span>
-                    </div>
-
-                    {/* Delete Button */}
-                    <div className="flex justify-center">
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation(); // Prevent parent onClick from triggering
-                          deleteWorkflow(3, workflow.workflow_id);
-                        }}
-                        className="px-2 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition z-20 cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </div>
+              {/* Table Rows */}
+              <div className="divide-y mt-2 divide-gray-200">
+                {noApproval ? (
+                  <div className="text-center text-gray-500 p-5">
+                    No approval workflows found.
                   </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 p-5">
-                  Loading approvals...
-                </div>
+                ) : workflowDisplay.length > 0 ? (
+                  workflowDisplay.map((workflow, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-7 p-3 items-center hover:bg-gray-50 transition cursor-pointer z-10"
+                      onClick={() => fetchWorkflow(3, workflow.workflow_id)}
+                    >
+                      <div className="truncate max-w-[160px]">
+                        {workflow.rq_title}
+                      </div>
+                      <div className="truncate max-w-[160px]">
+                        {workflow.doc_name}
+                      </div>
+                      <div
+                        className={`font-semibold ${
+                          workflow.status === "Pending"
+                            ? "text-yellow-500"
+                            : workflow.status === "Ongoing"
+                            ? "text-blue-500"
+                            : "text-green-500"
+                        }`}
+                      >
+                        {workflow.status}
+                      </div>
+                      <div className="truncate">
+                        {workflow.current_approver}
+                      </div>
+                      <div className="truncate">
+                        {formatDate(workflow.due_date)}
+                      </div>
+                      <div className="truncate">
+                        <span>{workflow.school_details}</span>
+                      </div>
+
+                      {/* Delete Button */}
+                      <div className="flex justify-center">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation(); // Prevent parent onClick from triggering
+                            deleteWorkflow(3, workflow.workflow_id);
+                          }}
+                          className="px-2 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition z-20 cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 p-5">
+                    Loading approvals...
+                  </div>
+                )}
+              </div>
+
+              {/* Show More Button */}
+              {hasMore && workflowDisplay.length > 0 && !noApproval && (
+                <button
+                  onClick={() => setPage((prev) => prev + 1)}
+                  className="mt-5 p-2 bg-[#0f61c0] text-white rounded-md hover:opacity-90 w-full"
+                >
+                  Show More
+                </button>
               )}
             </div>
-
-            {/* Show More Button */}
-            {hasMore && workflowDisplay.length > 0 && !noApproval && (
-              <button
-                onClick={() => setPage((prev) => prev + 1)}
-                className="mt-5 p-2 bg-[#0f61c0] text-white rounded-md hover:opacity-90 w-full"
-              >
-                Show More
-              </button>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

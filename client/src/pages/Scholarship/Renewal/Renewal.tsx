@@ -14,6 +14,7 @@ function ScholarshipSystem() {
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [, setSelectedScholar] = useState<number | null>(null);
+  const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
 
   // Function to navigate back
   const goBack = () => {
@@ -601,25 +602,25 @@ function ScholarshipSystem() {
   };
 
   return (
-    <div className="pl-[300px]">
-      <div className="">
-        <Sidebar />
-      </div>
-
-      <div className="flex-1 ">
-        <nav className="h-[80px] border-b-1">
+    <>
+      <div className="flex">
+        <Sidebar
+          sidebarToggle={sidebarToggle}
+          setSidebarToggle={setSidebarToggle}
+        />
+        <div
+          className={`transition-all duration-300 ease-in-out w-full  ${
+            sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
+          }`}
+        >
           <Navbar />
-        </nav>
-
-        <div className="p-6">
           <h1 className="text-3xl font-semibold mb-6">
             Scholarship Renewal Management
           </h1>
-
           {renderContent()}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

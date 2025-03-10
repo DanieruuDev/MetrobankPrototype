@@ -6,6 +6,7 @@ import NotFound from "./pages/NotFound";
 import Renewal from "./pages/Scholarship/Renewal/Renewal";
 
 import Approval from "./pages/Workflow/SpecificApproval/Approval";
+import RenewalView from "./pages/RenewalHistory/RenewalView";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
 
       <Route path="/login" element={<Login />} />
       <Route path="/renewal-scholarship" element={<Renewal />} />
+      <Route path="/renewal-status" element={<RenewalView />} />
       <Route path="/workflow-approval" element={<Workflow />} />
       <Route
         path="/approval/:admin_id/:workflow_id"
