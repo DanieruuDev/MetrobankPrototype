@@ -6,6 +6,7 @@ import { IoMdArrowDropdown } from "react-icons/io";
 
 const RenewalView = () => {
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
+  const [showAlert, setShowAlert] = useState(false);
   const [fgstatus, fgsetStatus] = useState<string>("");
   const [gmstatus, gmsetStatus] = useState<string>("");
   const [flstatus, flsetStatus] = useState<string>("");
@@ -27,7 +28,7 @@ const RenewalView = () => {
           }`}
         >
           <Navbar />
-          <div className="flex mt-4 justify-between text-sm">
+          <div className="flex mt-4 justify-between text-sm ">
             <div className="flex items-center">
               <div className="border-r-2 pr-10 border-gray-300 mr-13">
                 <p className="text-xl py-2 text-gray-700 font-medium">
@@ -67,10 +68,10 @@ const RenewalView = () => {
             <Settings className="mt-8 hidden sm:block" />
           </div>
 
-          <h1 className="lg:ml-8 text-lg mt-5 text-blue-500 py-3 font-semibold">
+          <h1 className="lg:ml-8 text-lg mt-5 text-blue-500 py-3 font-semibold ">
             Validation Status
           </h1>
-          <div className="bg-gray-100 px-5 rounded-2xl pb-5 w-full py-2 mx-auto">
+          <div className="bg-gray-100 px-5 rounded-2xl pb-5 w-full py-2 mx-auto mb-5">
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
               <div className="flex items-center gap-5">
                 <p className="text-lg font-semibold text-gray-600">GPA:</p>
@@ -90,7 +91,6 @@ const RenewalView = () => {
               </div>
             </div>
 
-            {/* Status Selection */}
             <div className="grid lg:grid-cols-4 md:grid-cols-2 sm:grid-cols-1">
               <div className="grid lg:mr-25 mb-7">
                 <label className="text-sm text-gray-600">
@@ -309,15 +309,41 @@ const RenewalView = () => {
               </div>
             </div>
 
-            <div className="flex justify-end mt-4">
-              <button className="text-white bg-blue-500 px-7 py-2 text-sm rounded-lg hover:bg-blue-400">
-                Save Changes
-              </button>
+            <div className="relative">
+              {showAlert && (
+                <div className="fixed inset-0 flex items-center ml-20 justify-center bg-opacity-50 backdrop-blur-xs">
+                  <div className="bg-white p-5 rounded-3xl shadow-lg ">
+                    <p className="text-lg font-medium  mb-1">Save Changes?</p>
+                    <div className="flex flex-wrap gap-3 sm:justify-start lg:ml-30 ml-10">
+                      <button
+                        onClick={() => setShowAlert(false)}
+                        className="mt-4 bg-blue-500 text-white px-6 sm:px-10 py-2 rounded-lg hover:bg-blue-300 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setShowAlert(false)}
+                        className="mt-4 bg-blue-500 text-white px-6 sm:px-7 py-2 rounded-lg hover:bg-blue-300 transition"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={() => setShowAlert(true)}
+                  className="text-white bg-blue-500 px-7 py-2 text-sm rounded-lg hover:bg-blue-400"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="hidden sm:flex flex-col">
-            <h1 className="text-lg mt-5 text-blue-500 py-3 font-semibold lg:ml-8 ">
+            <h1 className="text-lg text-blue-500 py-3 font-semibold lg:ml-8 ">
               Validation History
             </h1>
 
