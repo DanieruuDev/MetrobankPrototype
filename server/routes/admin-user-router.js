@@ -13,6 +13,11 @@ const {
   deleteApproval,
   changeApprover,
 } = require("../controllers/approval.js");
+const {
+  uploadScholarRenewals,
+  getScholarRenewals,
+  fetchAllScholarRenewal,
+} = require("../controllers/renewal-scholar-controller.js");
 const userAdminRouter = express.Router();
 
 const storage = multer.diskStorage({
@@ -36,6 +41,15 @@ userAdminRouter.delete(
   "/delete-approval/:user_id/:workflow_id",
   deleteApproval
 );
+
+//renewals
 userAdminRouter.put("/change-approval/:requester_id", changeApprover);
+
+userAdminRouter.post("/generate-renewal", uploadScholarRenewals);
+userAdminRouter.get(
+  "/get-renewals/:school_year/:year_level/:semester",
+  getScholarRenewals
+);
+userAdminRouter.get("/fetch-renewals/", fetchAllScholarRenewal);
 
 module.exports = userAdminRouter;

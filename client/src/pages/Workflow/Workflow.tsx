@@ -28,7 +28,6 @@ export interface Approver {
   response_time: string;
   response_updated_at: string;
 }
-
 export interface DetailedWorkflow {
   workflow_id: number;
   requester_id: number;
@@ -64,7 +63,6 @@ function Workflow() {
       year: "numeric",
     });
   };
-
   const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
     try {
       const response = await axios.get(

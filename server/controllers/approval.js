@@ -1,6 +1,5 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
-const path = require("path");
 
 //get specific approval (author id/ workflow id)
 const getApproval = async (req, res) => {
