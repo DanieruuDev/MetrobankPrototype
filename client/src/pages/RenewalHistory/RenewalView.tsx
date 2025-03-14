@@ -309,9 +309,9 @@ const RenewalView = () => {
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative z-20">
               {showAlert && (
-                <div className="fixed inset-0 flex items-center ml-20 justify-center bg-opacity-50 backdrop-blur-xs">
+                <div className="fixed inset-0 flex items-center justify-center bg-opacity-50 backdrop-blur-xs">
                   <div className="bg-white p-5 rounded-3xl shadow-lg ">
                     <p className="text-lg font-medium  mb-1">Save Changes?</p>
                     <div className="flex flex-wrap gap-3 sm:justify-start lg:ml-30 ml-10">
