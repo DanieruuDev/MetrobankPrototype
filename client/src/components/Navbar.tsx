@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 
 const Navbar = () => {
@@ -8,14 +8,31 @@ const Navbar = () => {
 
   if (!auth) throw new Error("AuthContext must be used within an AuthProvider");
 
+  const location = useLocation();
+
+  const getNavbarTitle = (pathname: string) => {
+    const pageTitles: Record<string, string> = {
+      "/renewal-status": "Renewal Status",
+      "/workflow-approval": "Workflow Approval",
+      "/renewal-scholarship": "Scholarship Renewal",
+    };
+
+    return pageTitles[pathname] || "";
+  };
+
+  const navbarTitle = getNavbarTitle(location.pathname);
+
   return (
     <nav className="bg-white py-2 flex justify-between relative border-b-3 border-solid border-blue-600">
-      <button className="text-gray-600 cursor-pointer ">
-        <ArrowLeft size={25} />
-      </button>
+      <div className="flex items-center gap-10">
+        <button className="text-gray-600 cursor-pointer ">
+          <ArrowLeft size={25} />
+        </button>
+        <div className="text-3xl text-blue-800 font-medium">{navbarTitle}</div>
+      </div>
       <div className="flex items-center gap-x-5 m-5">
         <div className="flex items-center text-xl ml-4 gap-x-5 text-gray-500">
-          <div className="text-sm font-semibold">Metrobank, Admin 1</div>
+          <div className="text-sm   font-semibold">Metrobank, Admin 1</div>
           <div className="relative">
             <button className="group cursor-pointer">
               <ChevronDown size={25} />

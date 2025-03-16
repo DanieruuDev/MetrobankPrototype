@@ -256,7 +256,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   }`
                 }
               >
-                <li className="flex items-center">
+                <li className="flex gap-2 items-center">
                   <FileUser size={32} />
                   Financial
                 </li>
@@ -269,7 +269,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   }`
                 }
               >
-                <li className=" flex  items-center">
+                <li className=" flex gap-2  items-center">
                   <FileUser size={32} />
                   Approver
                 </li>
@@ -283,7 +283,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   }`
                 }
               >
-                <li className=" flex  items-center">
+                <li className=" flex gap-2 items-center">
                   <FileUser size={32} />
                   Approvals
                 </li>
@@ -296,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   }`
                 }
               >
-                <li className=" flex  items-center">
+                <li className=" flex gap-2 items-center">
                   <FileUser size={32} />
                   Management
                 </li>
