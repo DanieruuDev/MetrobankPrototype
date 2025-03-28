@@ -324,7 +324,7 @@ CREATE TABLE renewal_validation (
     delisting_root_cause TEXT DEFAULT 'Not Started'
 );
 
-CREATE VIEW vw_renewal_details AS
+CREATE OR REPLACE VIEW vw_renewal_details AS
 SELECT 
     -- Renewal Information
     rs.renewal_id,
@@ -339,6 +339,8 @@ SELECT
     s.semester AS renewal_semester_basis,
     sy.school_year AS renewal_school_year_basis,
 
+    -- Validation ID
+    rv.validation_id,  -- Include validation_id here
     
     -- GPA and Renewal Validation Status
     rv.gpa,
@@ -356,14 +358,12 @@ SELECT
     y2.yr_lvl AS year_level,
     s2.semester AS semester,
     sy2.school_year AS school_year,
-    
     -- Delisting Information
     rv.delisted_date,
     rv.delisting_root_cause
-
 FROM renewal_scholar rs
 LEFT JOIN masterlist m ON rs.student_id = m.student_id
-LEFT JOIN renewal_validation rv ON rs.renewal_id = rv.renewal_id
+LEFT JOIN renewal_validation rv ON rs.renewal_id = rv.renewal_id  -- Ensuring we include validation_id
 LEFT JOIN batch_maintenance b ON rs.batch_code = b.batch_code
 LEFT JOIN yr_lvl_maintenance y ON rs.renewal_yr_lvl_basis = y.yr_lvl_code
 LEFT JOIN semester_maintenance s ON rs.renewal_sem_basis = s.semester_code
@@ -371,3 +371,45 @@ LEFT JOIN sy_maintenance sy ON rs.renewal_school_year_basis = sy.sy_code
 LEFT JOIN yr_lvl_maintenance y2 ON rs.yr_lvl = y2.yr_lvl_code
 LEFT JOIN semester_maintenance s2 ON rs.semester = s2.semester_code
 LEFT JOIN sy_maintenance sy2 ON rs.school_year = sy2.sy_code;
+
+
+--Scholarship summary
+SELECT 
+    m.student_id,
+    m.scholar_name,
+    m.scholarship_status,
+    m.course,
+    y.yr_lvl,
+    m.campus,
+    s.semester,
+    sy.school_year,
+    b.batch_number,
+    rv.validation_id,
+    rs.renewal_date,
+    rv.gpa,
+    rv.gpa_validation_stat,
+    rv.no_failing_grd_validation,
+    rv.goodmoral_validation,
+    rv.full_load_validation,
+    rv.enrollment_validation,
+    rv.no_other_scholar_validation,
+    rv.no_police_record_validation,
+    rv.withdrawal_change_course_validation,
+    rv.scholarship_status AS validation_scholarship_status,
+    rs.renewal_id,
+    rs.renewal_date AS renewal_date_history,
+    yl.yr_lvl AS renewal_year_level,
+    sm.semester AS renewal_semester,
+    syb.school_year AS renewal_school_year,
+    rv.scholarship_status AS renewal_status,
+    rv.delisting_root_cause
+FROM masterlist m
+LEFT JOIN renewal_scholar rs ON m.student_id = rs.student_id
+LEFT JOIN renewal_validation rv ON rs.renewal_id = rv.renewal_id
+LEFT JOIN batch_maintenance b ON m.batch_code = b.batch_code
+LEFT JOIN yr_lvl_maintenance y ON m.yr_lvl_code = y.yr_lvl_code
+LEFT JOIN semester_maintenance s ON m.semester_code = s.semester_code
+LEFT JOIN sy_maintenance sy ON m.school_year_code = sy.sy_code
+LEFT JOIN yr_lvl_maintenance yl ON rs.yr_lvl = yl.yr_lvl_code
+LEFT JOIN semester_maintenance sm ON rs.semester = sm.semester_code
+LEFT JOIN sy_maintenance syb ON rs.school_year = syb.sy_code;

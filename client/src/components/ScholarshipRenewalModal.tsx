@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 interface ScholarshipRenewalModalProps {
   isOpen: boolean;
   onClose: () => void;
+  getRenewalData: () => void;
 }
 
 export interface RenewalFormData {
@@ -15,6 +16,7 @@ export interface RenewalFormData {
 const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
   isOpen,
   onClose,
+  getRenewalData,
 }) => {
   const [schoolYear, setSchoolYear] = useState<string>("");
   const [yearLevel, setYearLevel] = useState<string>("");
@@ -27,12 +29,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const schoolYearOptions = [
-    "2023-2024",
-    "2024-2025",
-    "2025-2026",
-    "2026-2027",
-  ];
+  const schoolYearOptions = ["2023-2024", "2024-2025", "2025-2026"];
   const yearLevelOptions: string[] = [
     "1st Year",
     "2nd Year",
@@ -40,6 +37,25 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     "4th Year",
   ];
   const semesterOptions: string[] = ["1st Semester", "2nd Semester"];
+  const handleClose = () => {
+    resetFormValues();
+    onClose();
+  };
+  const resetFormValues = () => {
+    setSchoolYear("");
+    setYearLevel("");
+    setSemester("");
+    setYearLevelDropdownOpen(false);
+    setSemesterDropdownOpen(false);
+    setSchoolYearDropdownOpen(false);
+    setError("");
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetFormValues();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -64,7 +80,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
       );
 
       console.log("Renewal data retrieved:", response.data);
-
+      getRenewalData();
       setSchoolYear("");
       setYearLevel("");
       setSemester("");
@@ -115,7 +131,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             Generate New Scholarship Renewal
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-xl text-gray-400 hover:text-gray-600"
           >
             ×

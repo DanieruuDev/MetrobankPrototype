@@ -15,8 +15,11 @@ const {
 } = require("../controllers/approval.js");
 const {
   uploadScholarRenewals,
-  getScholarRenewals,
   fetchAllScholarRenewal,
+  getScholarRenewal,
+  updateScholarRenewal,
+  getExcelRenewalReport,
+  filteredScholarRenewal,
 } = require("../controllers/renewal-scholar-controller.js");
 const userAdminRouter = express.Router();
 
@@ -46,10 +49,15 @@ userAdminRouter.delete(
 userAdminRouter.put("/change-approval/:requester_id", changeApprover);
 
 userAdminRouter.post("/generate-renewal", uploadScholarRenewals);
-userAdminRouter.get(
-  "/get-renewals/:school_year/:year_level/:semester",
-  getScholarRenewals
-);
-userAdminRouter.get("/fetch-renewals/", fetchAllScholarRenewal);
 
+userAdminRouter.get("/fetch-renewals", fetchAllScholarRenewal);
+userAdminRouter.get("/get-renewal/:student_id/:renewal_id", getScholarRenewal);
+userAdminRouter.put("/update-renewal", updateScholarRenewal);
+
+userAdminRouter.get(
+  "/get-renewal-report/:yr_lvl/:school_year/:semester",
+  getExcelRenewalReport
+);
+
+userAdminRouter.get("/get-filter-renewal", filteredScholarRenewal);
 module.exports = userAdminRouter;

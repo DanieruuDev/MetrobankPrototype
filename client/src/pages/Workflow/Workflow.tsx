@@ -135,10 +135,9 @@ function Workflow() {
   }, [page]); // ✅ Only one useEffect watching `page`
 
   return (
-    <div className="pl-[300px]">
-      <nav className="h-[80px] border-b-1">
-        <Navbar />
-      </nav>
+    <div className="pl-[250px]">
+      <Navbar pageName="Workflow Approval" />
+
       <Sidebar />
 
       {detailedWorkflow ? (
