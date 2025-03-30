@@ -7,6 +7,8 @@ import Renewal from "./pages/Scholarship/Renewal/Renewal";
 
 import Approval from "./pages/Workflow/SpecificApproval/Approval";
 import RenewalView from "./pages/RenewalHistory/RenewalView";
+import Approver from "./pages/Approvers/AllWorkflows/Approver";
+import ApproverView from "./pages/Approvers/MyApprover/ApproverView";
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/renewal-scholarship" element={<Renewal />} />
       <Route path="/renewal-status" element={<RenewalView />} />
+      <Route path="/approver" element={<Approver />} />
+      <Route path="/approver-view" element={<ApproverView />} />
       <Route path="/workflow-approval" element={<Workflow />} />
       <Route
         path="/approval/:admin_id/:workflow_id"

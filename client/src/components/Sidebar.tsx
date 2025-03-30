@@ -262,7 +262,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </li>
               </NavLink>
               <NavLink
-                to="/"
+                to="/approver"
                 className={({ isActive }) =>
                   `py-3 mb-2 hover:bg-white hover:text-blue-700 rounded pl-2 flex gap-2 items-center group ${
                     isActive ? "bg-white text-blue-700" : ""
