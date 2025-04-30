@@ -5,7 +5,8 @@ import Workflow from "./pages/Workflow/Workflow";
 import NotFound from "./pages/NotFound";
 import Renewal from "./pages/Scholarship/Renewal/Renewal";
 import Approval from "./pages/Workflow/SpecificApproval/Approval";
-
+import Schedule from "./pages/SchedulingTracking/Schedule";
+import FinancialAdministration from "./pages/FinancialAdministration/FinancialAdministration";
 function App() {
   return (
     <Routes>
@@ -13,6 +14,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/renewal-scholarship" element={<Renewal />} />
       <Route path="/workflow-approval" element={<Workflow />} />
+      <Route path="/schedule" element={<Schedule />} />
       <Route
         path="/approval/:admin_id/:workflow_id"
         element={
@@ -29,7 +31,7 @@ function App() {
           />
         }
       />
-
+      <Route path="/financial" element={<FinancialAdministration />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import ScholarshipFilterModal from "../../../../components/ScholarshipFilterModal";
-import ScholarshipRenewalModal from "../../../../components/ScholarshipRenewalModal";
+import ScholarshipFilterModal from "../../../../components/renewal/ScholarshipFilterModal";
+import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import { RenewalDetails } from "../../../../Interface/IRenewal";
 import axios from "axios";
-import GenerateReportModal from "../../../../components/GenerateReport";
+import GenerateReportModal from "../../../../components/renewal/GenerateReport";
 import { validation, tableHead } from "../../../../Interface/IRenewal";
 import { ListFilterPlus } from "lucide-react";
 
@@ -16,7 +16,6 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterBtnOpen, SetIsFilterBtnOpen] = useState(false);
   const [renewalData, setRenewalData] = useState<RenewalDetails[]>([]);
-
   const [isEdit, setIsEdit] = useState(false);
   const [isGnrtRprtOpen, setIsGnrtRprtOpen] = useState(false);
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetails[]>([]);

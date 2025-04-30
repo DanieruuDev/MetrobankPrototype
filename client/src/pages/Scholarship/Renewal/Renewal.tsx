@@ -1,5 +1,5 @@
-import Sidebar from "../../../components/Sidebar";
-import Navbar from "../../../components/Navbar";
+import Sidebar from "../../../components/shared/Sidebar";
+import Navbar from "../../../components/shared/Navbar";
 import { useState } from "react";
 
 import SpecificRenewal from "./RenewalComponents/SpecificRenewal";
