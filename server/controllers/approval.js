@@ -1,5 +1,6 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
+const path = require("path");
 
 //get specific approval (author id/ workflow id)
 const getApproval = async (req, res) => {
@@ -12,7 +13,7 @@ const getApproval = async (req, res) => {
         .json({ message: "user ID and Workflow ID are required" });
     }
     const approvalsQuery = await pool.query(
-      `SELECT * FROM workflow_full_detail_view WHERE requester_id = $1 AND workflow_id = $2`,
+      `SELECT * FROM vw_wf_full_detail WHERE requester_id = $1 AND workflow_id = $2`,
       [user_id, workflow_id]
     );
 
@@ -44,7 +45,7 @@ const getApprovals = async (req, res) => {
     const offset = (page - 1) * limit; // Calculate offset for pagination
 
     const approvalsQuery = await pool.query(
-      "SELECT * FROM workflow_display_view WHERE requester_id = $1 LIMIT $2 OFFSET $3",
+      "SELECT * FROM vw_workflow_display WHERE requester_id = $1 LIMIT $2 OFFSET $3",
       [user_id, limit, offset]
     );
 
@@ -183,9 +184,6 @@ const changeApprover = async (req, res) => {
   }
 };
 
-//When approving the approval
-const approveApproval = async (req, res) => {};
-
 //create approval
 const createApproval = async (req, res) => {
   const file = req.file;
@@ -205,20 +203,29 @@ const createApproval = async (req, res) => {
     const {
       requester_id,
       req_type_id,
-      rq_description,
+      description,
       due_date,
       school_year,
       semester,
       scholar_level,
       approvers,
     } = req.body;
-
+    console.log(
+      requester_id,
+      req_type_id,
+      description,
+      due_date,
+      school_year,
+      semester,
+      scholar_level,
+      approvers
+    );
     // Validate required fields
     if (
       !requester_id ||
       !file ||
       !req_type_id ||
-      !rq_description ||
+      !description ||
       !due_date ||
       !school_year ||
       !semester ||
@@ -238,19 +245,16 @@ const createApproval = async (req, res) => {
       return res.status(400).json({ message: "Invalid approvers format" });
     }
 
-    // Begin transaction
     await client.query("BEGIN");
 
-    // Insert document
     const insertDocumentQuery = await client.query(
       "INSERT INTO document(doc_name, path, size, doc_type) VALUES ($1, $2, $3, $4) RETURNING *",
       [file.originalname, file.path, file.size, file.mimetype]
     );
     const docId = insertDocumentQuery.rows[0].doc_id;
 
-    // Insert workflow
     const insertWorkflowQuery = await client.query(
-      "INSERT INTO workflow(document_id, rq_type_id, requester_id, due_date, school_year, semester, scholar_level) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+      "INSERT INTO workflow(document_id, rq_type_id, requester_id, due_date, school_year, semester, scholar_level, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
       [
         docId,
         req_type_id,
@@ -259,6 +263,7 @@ const createApproval = async (req, res) => {
         school_year,
         semester,
         scholar_level,
+        description,
       ]
     );
     const workflowID = insertWorkflowQuery.rows[0].workflow_id;
@@ -299,7 +304,6 @@ const createApproval = async (req, res) => {
         [workflowID, userId, approval.email, approval.order, approval.date]
       );
 
-      // Insert into approver_response
       const initializeResponse = await client.query(
         "INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *",
         [approvalList.rows[0].approver_id]
@@ -311,10 +315,9 @@ const createApproval = async (req, res) => {
       });
     }
 
-    // Set first approver as "current"
     if (approverQueries.length > 0) {
       await client.query(
-        "UPDATE wf_approver SET status = 'current' WHERE approver_id = $1",
+        "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
       );
     }
@@ -323,8 +326,6 @@ const createApproval = async (req, res) => {
       [req_type_id]
     );
     await client.query("COMMIT");
-
-    // Fetch the request title based on req_type_id
 
     const rq_title =
       getRequestTitleQuery.rows.length > 0
@@ -358,6 +359,163 @@ const createApproval = async (req, res) => {
   }
 };
 
+const fetchApproverApprovalList = async (req, res) => {
+  const { user_id } = req.params;
+
+  if (!user_id) {
+    return res.status(400).json({ message: "User ID is required" });
+  }
+
+  try {
+    const query = `
+      SELECT * FROM vw_approver_workflows
+      WHERE user_id = $1
+    `;
+
+    const { rows } = await pool.query(query, [user_id]);
+
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error fetching approver approvals:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const fetchApproverApproval = async (req, res) => {
+  try {
+    const { approver_id } = req.params;
+
+    const query = `
+        SELECT * FROM vw_approver_detailed
+        WHERE approver_id = $1;
+    `;
+
+    const { rows } = await pool.query(query, [approver_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Approver not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+//When approving the approval
+const approveApproval = async (req, res) => {
+  const { approver_id, response, comment } = req.body;
+
+  if (!approver_id || !response) {
+    return res
+      .status(400)
+      .json({ message: "Approver ID and response are required" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const update_response = await client.query(
+      "UPDATE approver_response SET response = $1, comment = $2, updated_at = NOW() WHERE approver_id = $3",
+      [response, comment, approver_id]
+    );
+
+    await client.query(
+      "UPDATE wf_approver SET status = $1 WHERE approver_id = $2",
+      ["Completed", approver_id]
+    );
+
+    const updateCurrentApprover = await client.query(
+      `UPDATE wf_approver 
+      SET is_current = FALSE 
+      WHERE workflow_id = (SELECT workflow_id FROM wf_approver WHERE approver_id = $1) 
+      AND is_current = TRUE`,
+      [approver_id]
+    );
+
+    if (response === "Approved" || response === "Reject") {
+      const nextApproverQuery = await client.query(
+        `SELECT approver_id FROM wf_approver 
+        WHERE workflow_id = (SELECT workflow_id FROM wf_approver WHERE approver_id = $1) 
+        AND status = 'Pending' AND approver_order > 
+        (SELECT approver_order FROM wf_approver WHERE approver_id = $1)
+        ORDER BY approver_order LIMIT 1`,
+        [approver_id]
+      );
+      if (nextApproverQuery.rows.length > 0) {
+        const nextApproverId = nextApproverQuery.rows[0].approver_id;
+
+        await client.query(
+          `UPDATE wf_approver SET is_current = TRUE WHERE approver_id = $1`,
+          [nextApproverId]
+        );
+      }
+    }
+
+    const workflowQuery = `SELECT workflow_id FROM wf_approver WHERE approver_id = $1`;
+    const { rows } = await client.query(workflowQuery, [approver_id]);
+    const workflow_id = rows[0]?.workflow_id;
+    if (!workflow_id) throw new Error("Workflow not found");
+
+    const pendingCheckQuery = `SELECT COUNT(*) AS pending_count FROM wf_approver WHERE workflow_id = $1 AND status NOT IN ('Completed', 'Missed')`;
+    const pendingResult = await client.query(pendingCheckQuery, [workflow_id]);
+    const pendingCount = parseInt(pendingResult.rows[0].pending_count);
+
+    if (pendingCount === 0) {
+      const updateWorkflowQuery = `
+        UPDATE workflow
+        SET status = 'Completed', completed_at = NOW()
+        WHERE workflow_id = $1;
+      `;
+      await client.query(updateWorkflowQuery, [workflow_id]);
+    }
+    await client.query("COMMIT");
+    const detailedQuery = `
+    SELECT workflow_status, approver_response, approver_comment 
+    FROM vw_approver_detailed 
+    WHERE approver_id = $1
+  `;
+    const result = await client.query(detailedQuery, [approver_id]);
+
+    if (result.rows.length > 0) {
+      const { workflow_status, approver_response, approver_comment } =
+        result.rows[0];
+      res.status(200).json({
+        message: "Approval recorded successfully",
+        workflow_status,
+        approver_response,
+        approver_comment,
+      });
+    } else {
+      res.status(404).json({ message: "Approver details not found" });
+    }
+  } catch (error) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+const downloadFile = async (req, res) => {
+  const file_path = decodeURIComponent(req.params.file_path);
+  if (!file_path) {
+    return res.status(400).send("Invalid file path");
+  }
+  console.log(file_path);
+  const fullPath = path.join(__dirname, "../", file_path);
+  console.log("Downloading file from:", fullPath);
+
+  res.download(fullPath, (err) => {
+    if (err) {
+      console.error("Error downloading file:", err);
+      res.status(500).send("Error downloading file");
+    }
+  });
+};
+
 const uploadFile = async (req, res) => {
   try {
     console.log(req.body);
@@ -376,4 +534,8 @@ module.exports = {
   getApprovals,
   getApproval,
   deleteApproval,
+  fetchApproverApprovalList,
+  fetchApproverApproval,
+  downloadFile,
+  approveApproval,
 };

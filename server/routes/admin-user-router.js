@@ -12,6 +12,10 @@ const {
   getApproval,
   deleteApproval,
   changeApprover,
+  fetchApproverApprovalList,
+  fetchApproverApproval,
+  downloadFile,
+  approveApproval,
 } = require("../controllers/approval.js");
 const {
   uploadScholarRenewals,
@@ -44,7 +48,15 @@ userAdminRouter.delete(
   "/delete-approval/:user_id/:workflow_id",
   deleteApproval
 );
+userAdminRouter.get(
+  "/get-specific-request/:approver_id",
+  fetchApproverApproval
+);
+userAdminRouter.get("/get-request/:user_id", fetchApproverApprovalList);
 
+userAdminRouter.get("/download/:file_path", downloadFile);
+
+userAdminRouter.put("/approve-approval", approveApproval);
 //renewals
 userAdminRouter.put("/change-approval/:requester_id", changeApprover);
 

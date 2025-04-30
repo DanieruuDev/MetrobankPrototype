@@ -7,11 +7,11 @@ const ExcelJS = require("exceljs");
 //Upload new renewal
 const uploadScholarRenewals = async (req, res) => {
   const { school_year, year_level, semester } = req.body;
-  console.log(typeof school_year);
+
   if (!school_year || !year_level || !semester) {
     return res.status(400).json({ message: "All fields are required" });
   }
-  console.log(school_year, year_level, semester);
+
   let previousSemester = semester === 1 ? 2 : 1;
   let previousYearLevel = year_level;
   let previousSY = school_year;
@@ -33,7 +33,7 @@ const uploadScholarRenewals = async (req, res) => {
       .status(400)
       .json({ message: "Invalid previous year level or semester." });
   }
-  console.log(previousYearLevel, previousSemester, previousSchoolYear);
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -45,38 +45,11 @@ const uploadScholarRenewals = async (req, res) => {
       "SELECT sy_code FROM sy_maintenance WHERE sy_code = $1",
       [previousSchoolYear]
     );
-    console.log(previousSchoolYear, currentSchoolYear);
 
-    console.log(
-      "This is query result: ",
-      currentSY.rows[0].sy_code,
-      prevSY.rows[0].sy_code
-    );
-
-    console.log("Postman Iput: ", school_year, year_level, semester);
-    console.log(
-      "previousYearLevel:",
-      previousYearLevel,
-      typeof previousYearLevel
-    );
-    console.log("previousSemester:", previousSemester, typeof previousSemester);
-    console.log(
-      "prevSY.rows[0].sy_code:",
-      prevSY.rows[0].sy_code,
-      typeof prevSY.rows[0].sy_code
-    );
-
-    console.log(
-      "Eligible Student Query: ",
-      previousYearLevel,
-      previousSemester,
-      prevSY.rows[0].sy_code
-    );
     const studentsResult = await client.query(
       "SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus FROM masterlist WHERE yr_lvl_code = $1 AND semester_code =$2 AND school_year_code = $3 AND scholarship_status != 'DELISTED'",
       [previousYearLevel, previousSemester, prevSY.rows[0].sy_code]
     );
-    console.log(studentsResult.rows[0]);
 
     if (studentsResult.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -197,6 +170,7 @@ const fetchAllScholarRenewal = async (req, res) => {
     client.release();
   }
 };
+
 //fetching renewal
 const filteredScholarRenewal = async (req, res) => {
   const client = await pool.connect();
@@ -400,7 +374,7 @@ const updateScholarRenewal = async (req, res) => {
       WHERE renewal_id = $13 AND validation_id = $14
       RETURNING *;
     `;
-
+    //Automatic generation of disbursement details
     const validationResult = await client.query(updateValidationQuery, [
       gpa,
       gpa_validation_stat,

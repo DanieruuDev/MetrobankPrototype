@@ -156,7 +156,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             }}
           >
             <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
-              Year Level Renewal
+              School Year Renewal
             </div>
             <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">

@@ -149,20 +149,18 @@ CREATE TABLE workflow (
     workflow_id SERIAL PRIMARY KEY,
     document_id INT,
     requester_id INT NOT NULL,
-    rq_type_id VARCHAR,
-    school_year VARCHAR NOT NULL,
-    semester VARCHAR NOT NULL,
-    scholar_level VARCHAR NOT NULL,
-    status VARCHAR NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Ongoing', 'Completed')),
+    rq_type_id VARCHAR(50), 
+    school_year VARCHAR(15) NOT NULL, 
+    semester VARCHAR(15) NOT NULL,
+    scholar_level VARCHAR(15) NOT NULL,
+    status VARCHAR(15) NOT NULL DEFAULT 'Not Started' CHECK (status IN ('Not Started', 'On Progress', 'Completed')),
     due_date DATE NOT NULL,
     completed_at DATE,
     rq_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description VARCHAR(255), 
     CONSTRAINT fk_document FOREIGN KEY (document_id) REFERENCES document(doc_id) ON DELETE CASCADE,
     CONSTRAINT fk_request_type FOREIGN KEY (rq_type_id) REFERENCES request_type_maintenance(rq_type_id) ON DELETE SET NULL
 );
-
-
-
 -- Table for Workflow Approvers
 CREATE TABLE wf_approver (
     approver_id SERIAL PRIMARY KEY,
@@ -170,26 +168,150 @@ CREATE TABLE wf_approver (
     user_email VARCHAR NOT NULL,
     workflow_id INT NOT NULL,
     approver_order INT NOT NULL,
-    status VARCHAR NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'missed', 'current', 'reassigned', 'finish', 'replaced')),
+    is_current BOOLEAN DEFAULT FALSE,
+    status VARCHAR NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Completed', 'Missed', 'Replaced')),
     due_date DATE NOT NULL,
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
     is_reassigned BOOLEAN DEFAULT FALSE,
     CONSTRAINT fk_workflow FOREIGN KEY (workflow_id) REFERENCES workflow(workflow_id) ON DELETE CASCADE,
     CONSTRAINT unique_approver_per_workflow UNIQUE (workflow_id, user_id)  -- Prevents duplicate approvers per workflow
 );
-
-
-
 -- Table for Approver Responses
 CREATE TABLE approver_response (
     response_id SERIAL PRIMARY KEY,
     approver_id INT,
-    response VARCHAR NOT NULL DEFAULT 'pending' CHECK (response IN ('pending', 'approved', 'reject')),
+    response VARCHAR NOT NULL DEFAULT 'Pending' CHECK (response IN ('Pending', 'Approved', 'Reject')),
     comment TEXT,
     response_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- No ON UPDATE here
     CONSTRAINT fk_approver FOREIGN KEY (approver_id) REFERENCES wf_approver(approver_id) ON DELETE CASCADE
 );
+
+-- workflow_display_view
+CREATE OR REPLACE VIEW vw_wf_full_detail AS
+SELECT 
+    w.workflow_id,
+    u.user_id AS requester_id,
+    u.email AS requester_email,
+    rtm.rq_title,
+    w.description AS rq_description, -- ✅ Using workflow.description as rq_description
+    w.school_year, 
+    w.semester,  
+    w.scholar_level, 
+    w.due_date,
+    w.status,
+    d.doc_id, 
+    d.doc_name,
+    d.doc_type,
+    d.path AS doc_path,
+    d.size AS doc_size,
+    d.upload_at AS doc_uploaded_at,
+    COALESCE(
+        json_agg(
+            json_build_object(
+                'approver_id', wa.approver_id,
+                'approver_email', wa.user_email,
+                'approver_status', wa.status,
+                'approver_due_date', wa.due_date,
+                'approver_assigned_at', wa.assigned_at,
+                'approver_order', wa.approver_order,
+                'response_id', ar.response_id,
+                'response', ar.response,
+                'comment', ar.comment,
+                'response_time', ar.response_time,
+                'response_updated_at', ar.updated_at,
+                'is_current', wa.is_current
+            ) 
+        ) FILTER (WHERE wa.approver_id IS NOT NULL), 
+        '[]'::json
+    ) AS approvers
+FROM workflow w
+LEFT JOIN "user" u ON w.requester_id = u.user_id
+LEFT JOIN request_type_maintenance rtm ON w.rq_type_id = rtm.rq_type_id
+LEFT JOIN document d ON w.document_id = d.doc_id
+LEFT JOIN wf_approver wa ON w.workflow_id = wa.workflow_id
+LEFT JOIN approver_response ar ON wa.approver_id = ar.approver_id
+GROUP BY 
+    w.workflow_id, u.user_id, u.email, 
+    rtm.rq_title, 
+    w.description, -- ✅ Grouping by workflow.description
+    w.due_date, w.status, 
+    w.school_year, w.semester, w.scholar_level, 
+    d.doc_id, d.doc_name, d.doc_type, d.path, d.size, d.upload_at;
+
+-- approver_detailed_view
+-- to add comment and descriptions here
+CREATE VIEW vw_approver_detailed AS
+SELECT wa.approver_id,
+    wa.user_id,
+    wa.user_email,
+    wa.workflow_id,
+    wa.approver_order,
+    wa.status AS approver_status,
+    w.status AS workflow_status,
+    w.description,
+    wa.due_date AS approver_due_date,
+    wa.assigned_at,
+    wa.is_reassigned,
+    w.requester_id,
+    (requester.first_name::text || ' '::text) || requester.last_name::text AS requester_name,
+    requester.role AS requester_role,
+    w.rq_date AS date_started,
+    w.due_date,
+    w.school_year,
+    w.scholar_level AS year_level,
+    w.semester,
+    rtm.rq_title AS request_title,
+    d.doc_id,
+    d.doc_name,
+    d.doc_type,
+    d.path AS file_path,
+    d.size AS file_size,
+    d.upload_at AS document_uploaded_at,
+    ar.response AS approver_response,
+    ar.comment AS approver_comment,
+    ar.response_time
+   FROM wf_approver wa
+     JOIN workflow w ON wa.workflow_id = w.workflow_id
+     LEFT JOIN request_type_maintenance rtm ON w.rq_type_id::text = rtm.rq_type_id::text
+     LEFT JOIN document d ON w.document_id = d.doc_id
+     LEFT JOIN approver_response ar ON wa.approver_id = ar.approver_id
+     LEFT JOIN "user" requester ON w.requester_id = requester.user_id;
+-- approver_workflows
+CREATE VIEW vw_approver_workflows AS
+SELECT wa.user_id,
+    wa.approver_id,
+    rt.rq_title AS request_title,
+    wa.status AS approver_status,
+    concat(u.first_name, ' ', u.last_name) AS requester,
+    wf.rq_date AS date_started,
+    wa.due_date AS approver_due_date,
+    wf.school_year,
+    wf.scholar_level AS year_level,
+    wf.semester
+   FROM wf_approver wa
+     JOIN workflow wf ON wa.workflow_id = wf.workflow_id
+     JOIN request_type_maintenance rt ON wf.rq_type_id::text = rt.rq_type_id::text
+     JOIN "user" u ON wf.requester_id = u.user_id;
+
+CREATE VIEW vw_approver_requests AS
+SELECT 
+    wa.user_id,
+    w.workflow_id,
+    rt.rq_title AS request_title,
+    w.status,
+    u.requester_name AS requester,
+    w.rq_date AS date_started,
+    w.due_date,
+    w.school_year,
+    w.scholar_level AS year_level,
+    w.semester
+FROM wf_approver wa
+JOIN workflow w ON wa.workflow_id = w.workflow_id
+JOIN request_type_maintenance rt ON w.rq_type_id = rt.rq_type_id
+JOIN "user" u ON w.requester_id = u.user_id;
+
+
 
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
@@ -234,13 +356,6 @@ CREATE TABLE workflow_log (
 );
 
 
-CREATE TABLE Schedule (
-    Schedule_ID SERIAL PRIMARY KEY,
-    Schedule_Date DATE NOT NULL,
-    Status VARCHAR(100),
-    Coordinator INT NOT NULL,
-    FOREIGN KEY (Coordinator) REFERENCES Admin(Admin_ID) ON DELETE CASCADE
-);
 
 
 
@@ -267,8 +382,6 @@ CREATE TABLE masterlist (
     absorbed BOOLEAN DEFAULT FALSE,
     hire_date DATE
 );
-
-
 
 CREATE TABLE batch_maintenance (
     batch_code SERIAL PRIMARY KEY,
@@ -413,3 +526,172 @@ LEFT JOIN sy_maintenance sy ON m.school_year_code = sy.sy_code
 LEFT JOIN yr_lvl_maintenance yl ON rs.yr_lvl = yl.yr_lvl_code
 LEFT JOIN semester_maintenance sm ON rs.semester = sm.semester_code
 LEFT JOIN sy_maintenance syb ON rs.school_year = syb.sy_code;
+
+-----------------
+
+CREATE TABLE valid_sy_sem(
+   val_sysem_id SERIAL
+);
+
+CREATE TABLE disbursement_type (
+    disbursement_type_id SERIAL PRIMARY KEY,
+    disbursement_label VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE disbursement_tracking(
+    disbursement_id SERIAL PRIMARY KEY,
+    renewal_id INTEGER REFERENCES renewal_scholar (renewal_id) ON DELETE CASCADE
+);
+
+CREATE TABLE disbursement_detail (
+    disb_detail_id SERIAL PRIMARY KEY,
+    disbursement_id INTEGER REFERENCES disbursement_tracking(disbursement_id) ON DELETE CASCADE NOT NULL,
+    disbursement_type_id INTEGER REFERENCES disbursement_type(disbursement_type_id) NOT NULL,
+    disb_sched_id INTEGER REFERENCES disbursement_schedule(disb_sched_id),
+    disbursement_status disbursement_status_enum DEFAULT 'Not Started' NOT NULL,
+    required_hours INTEGER,
+    completed_at TIMESTAMP
+);
+
+CREATE TABLE disbursement_schedule (
+    disb_sched_id SERIAL PRIMARY KEY,
+    disbursement_type_id INTEGER REFERENCES disbursement_type(disbursement_type_id),
+    disb_title VARCHAR(255) NOT NULL,
+    disbursement_date DATE NOT NULL,
+    status disbursement_status_enum DEFAULT 'Not Started',
+    amount NUMERIC(10, 2) NOT NULL,
+    quantity INTEGER NOT NULL,
+    yr_lvl_code INTEGER REFERENCES yr_lvl_maintenance(yr_lvl_code) NOT NULL,
+    sy_code INTEGER REFERENCES sy_maintenance(sy_code) NOT NULL,
+    semester_code INTEGER REFERENCES semester_maintenance(semester_code) NOT NULL,
+    branch VARCHAR(100) NOT NULL,
+    created_by INTEGER REFERENCES "user"(user_id) NOT NULL,
+    updated_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION handle_disbursement_tracking()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_disb_id INTEGER;
+BEGIN
+    
+    IF NEW.scholarship_status = 'Passed' AND OLD.scholarship_status <> 'Passed' THEN
+       
+        INSERT INTO disbursement_tracking (renewal_id)
+        VALUES (NEW.renewal_id)
+        RETURNING disbursement_id INTO new_disb_id;
+
+       
+        INSERT INTO disbursement_detail (disbursement_id, disbursement_type_id, disbursement_status)
+        VALUES 
+            (new_disb_id, 1, 'Not Started'),
+            (new_disb_id, 2, 'Not Started'), 
+            (new_disb_id, 3, 'Not Started'), 
+            (new_disb_id, 4, 'Not Started'); 
+
+    ELSIF OLD.scholarship_status = 'Passed' AND NEW.scholarship_status <> 'Passed' THEN
+
+        SELECT disbursement_id INTO new_disb_id
+        FROM disbursement_tracking
+        WHERE renewal_id = NEW.renewal_id;
+
+        DELETE FROM disbursement_details
+        WHERE disbursement_id = new_disb_id;
+
+        DELETE FROM disbursement_tracking
+        WHERE disbursement_id = new_disb_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_handle_disbursement_tracking
+AFTER UPDATE OF scholarship_status
+ON renewal_validation
+FOR EACH ROW
+EXECUTE FUNCTION handle_disbursement_tracking();
+
+-- Calendar view
+CREATE OR REPLACE VIEW vw_disb_calendar_sched AS 
+SELECT 
+  ds.disb_sched_id,
+  ds.status,
+  ds.disb_title AS title,
+  dt.disbursement_label AS type,
+  ds.disbursement_date AS date,
+  ds.quantity AS student_count
+FROM disbursement_schedule ds
+JOIN disbursement_type dt 
+  ON ds.disbursement_type_id = dt.disbursement_type_id;
+
+
+
+CREATE INDEX idx_sched_type_id ON disbursement_schedule(disbursement_type_id);
+CREATE INDEX idx_sched_yr_lvl_code ON disbursement_schedule(yr_lvl_code);
+CREATE INDEX idx_sched_sy_code ON disbursement_schedule(sy_code);
+CREATE INDEX idx_sched_semester_code ON disbursement_schedule(semester_code);
+CREATE INDEX idx_sched_created_by ON disbursement_schedule(created_by);
+CREATE INDEX idx_sched_disbursement_date ON disbursement_schedule(disbursement_date);
+
+CREATE INDEX idx_detail_disbursement_id ON disbursement_detail(disbursement_id);
+CREATE INDEX idx_detail_type_id ON disbursement_detail(disbursement_type_id);
+CREATE INDEX idx_detail_type_date ON disbursement_detail(disbursement_type_id, disbursement_date);
+
+CREATE INDEX idx_tracking_renewal_id ON disbursement_tracking(renewal_id);
+
+CREATE INDEX idx_validation_renewal_id ON renewal_validation(renewal_id);
+CREATE INDEX idx_validation_scholarship_status ON renewal_validation(scholarship_status);
+
+CREATE OR REPLACE VIEW vw_disb_sched_summary AS  
+SELECT 
+    ds.disb_sched_id,
+    ds.disb_title,
+    dt.disbursement_label AS disbursement_type,
+    sem.semester,
+    sy.school_year,
+    yl.yr_lvl AS year_level,
+    ds.disbursement_date,
+    ds.status
+FROM disbursement_schedule ds
+JOIN disbursement_type dt ON ds.disbursement_type_id = dt.disbursement_type_id
+JOIN semester_maintenance sem ON ds.semester_code = sem.semester_code
+JOIN sy_maintenance sy ON ds.sy_code = sy.sy_code
+JOIN yr_lvl_maintenance yl ON ds.yr_lvl_code = yl.yr_lvl_code
+LEFT JOIN disbursement_detail dd ON dd.disbursement_type_id = ds.disbursement_type_id
+LEFT JOIN disbursement_tracking dtk ON dd.disbursement_id = dtk.disbursement_id
+LEFT JOIN renewal_scholar rs ON dtk.renewal_id = rs.renewal_id
+GROUP BY 
+    ds.disb_sched_id, ds.disb_title, dt.disbursement_label,
+    sem.semester, sy.school_year, yl.yr_lvl, ds.disbursement_date, ds.status;
+
+
+CREATE OR REPLACE VIEW vw_disbursement_schedule_detailed AS
+SELECT 
+    ds.disb_sched_id,
+    dt.disbursement_label AS disbursement_type,
+    ds.disbursement_date,
+    ds.disb_title AS title,
+    ds.status AS schedule_status,
+    ds.amount,
+    yl.yr_lvl,
+    sm.semester,
+    sy.school_year,
+    ds.branch,
+
+    -- Creator details
+    u.user_id AS created_by_id,
+    CONCAT(u.first_name, ' ', u.last_name) AS created_by,
+
+    -- Use quantity directly instead of COUNT
+    ds.quantity AS total_scholar
+
+FROM disbursement_schedule ds
+
+JOIN disbursement_type dt ON ds.disbursement_type_id = dt.disbursement_type_id
+LEFT JOIN yr_lvl_maintenance yl ON ds.yr_lvl_code = yl.yr_lvl_code
+LEFT JOIN semester_maintenance sm ON ds.semester_code = sm.semester_code
+LEFT JOIN sy_maintenance sy ON ds.sy_code = sy.sy_code
+LEFT JOIN "user" u ON ds.created_by = u.user_id;
+

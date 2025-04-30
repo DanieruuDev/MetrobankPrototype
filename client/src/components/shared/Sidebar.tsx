@@ -12,7 +12,7 @@ function Sidebar() {
         />
         <span className="font-black pt-1 text-[16px]">
           Metrobank <br />
-          S.T.R.O.N.G.
+          S.T.R.O.N.G. Administration
         </span>
       </div>
       <ul className="mt-[40px] space-y-2">
@@ -56,6 +56,34 @@ function Sidebar() {
             }
           >
             Approvals
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/schedule"
+            className={({ isActive }) =>
+              `block text-[16px] p-2 rounded-sm cursor-pointer transition ${
+                isActive
+                  ? "bg-white text-[#0376C0] font-bold"
+                  : "text-[#FFFAFA] hover:bg-white hover:text-[#0376C0]"
+              }`
+            }
+          >
+            Schedule
+          </NavLink>
+        </li>
+        <li>
+          <NavLink
+            to="/financial"
+            className={({ isActive }) =>
+              `block text-[16px] p-2 rounded-sm cursor-pointer transition ${
+                isActive
+                  ? "bg-white text-[#0376C0] font-bold"
+                  : "text-[#FFFAFA] hover:bg-white hover:text-[#0376C0]"
+              }`
+            }
+          >
+            Expense Monitoring
           </NavLink>
         </li>
       </ul>

@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useState } from "react";
-import { WorkflowDisplaySchema } from "../pages/Workflow/Workflow";
+import { WorkflowDisplaySchema } from "../../pages/Workflow/Workflow";
 
 interface CreateApprovalProps {
   setIsModalOpen: (isOpen: boolean) => void;
@@ -33,7 +33,7 @@ const requestTypeMap: { [key: string]: string } = {
   AFP: "Allowance Fee Processing",
   AFD: "Allowance Fee Disbursement",
   TF: "Thesis Fee",
-  thesis_fee_disbursement: "Thesis Fee Disbursement",
+  TFD: "Thesis Fee Disbursement",
   IA: "Internship Allowance",
   IAD: "Internship Allowance Disbursement",
 };
@@ -126,7 +126,6 @@ function CreateApproval({
       setFormData((prev) => ({ ...prev, file: selectedFile }));
     }
   };
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -161,6 +160,9 @@ function CreateApproval({
 
     if (formData.file) {
       formDataToSend.append("file", formData.file);
+    }
+    for (const [key, value] of formDataToSend.entries()) {
+      console.log(`${key}: ${value}`);
     }
     try {
       const response = await axios.post(
