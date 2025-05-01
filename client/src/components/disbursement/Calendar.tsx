@@ -84,7 +84,7 @@ function Calendar({
   }, [currentDate, setVisibleMonth]);
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4">
+    <div className="w-full mx-auto p-4">
       <div className="flex justify-between items-center mb-6 px-2">
         <h2
           className={`text-2xl font-semibold ${

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RenewalDetails } from "../Interface/IRenewal";
+import { RenewalDetails } from "../../Interface/IRenewal";
 import axios from "axios";
 //to be deleted
 const tableHead = {

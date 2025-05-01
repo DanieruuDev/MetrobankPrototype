@@ -62,7 +62,8 @@ function Schedule() {
     setError(null);
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
-
+    // const apiUrl = import.meta.env.VITE_LOCAL_API_URL;
+    // console.log(apiUrl);
     try {
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/schedule/${year}/${month}`

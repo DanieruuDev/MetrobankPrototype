@@ -5,6 +5,7 @@ const path = require("path");
 const disbursementRouter = require("./routes/disbursment-schedule.js");
 const app = express();
 const cors = require("cors");
+const expenseMonitoring = require("./routes/expense-monitoring-routes.js");
 const bodyParser = require("body-parser");
 
 app.use(cors());
@@ -22,6 +23,8 @@ app.use("/sample", async (req, res) => {
 
 app.use("/admin", userAdminRouter);
 app.use("/api/disbursement", disbursementRouter);
+app.use("/api/expense", expenseMonitoring);
+
 app.use("/public", express.static(path.join(__dirname, "public")));
 
 app.listen(5000, () => {
