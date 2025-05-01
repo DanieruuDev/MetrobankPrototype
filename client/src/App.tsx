@@ -8,6 +8,8 @@ import Approval from "./pages/Workflow/SpecificApproval/Approval";
 import Schedule from "./pages/SchedulingTracking/Schedule";
 import FinancialAdministration from "./pages/FinancialAdministration/FinancialAdministration";
 import ExpensesMonitoring from "./pages/Expenses/ExpensesMonitoring";
+import ExpenseView from "./pages/Expenses/ExpenseView";
+import Disbursement from "./pages/Disbursement/Disbursement";
 function App() {
   return (
     <Routes>
@@ -17,6 +19,8 @@ function App() {
       <Route path="/workflow-approval" element={<Workflow />} />
       <Route path="/schedule" element={<Schedule />} />
       <Route path="/expenses" element={<ExpensesMonitoring />} />
+      <Route path="/expenses/:studentId" element={<ExpenseView />} />
+      <Route path="/disbursement" element={<Disbursement />} />
       <Route
         path="/approval/:admin_id/:workflow_id"
         element={

@@ -286,3 +286,97 @@ export const scholarshipData: ScholarshipData = {
     },
   ],
 };
+
+export interface Student {
+  name: string;
+  id: string;
+  year: string;
+  semester: string;
+  schoolYear: string;
+  branch: string;
+  received: string;
+}
+
+export const Students: Student[] = [
+  {
+    name: "Panturas, Daniel A.",
+    id: "02000721123",
+    year: "3rd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Ortigas - Cainta",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Asuncion, Jaime Martin P.",
+    id: "02000722123",
+    year: "3rd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Cubao",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Kjellberg, Felix Arvid U.",
+    id: "02000723323",
+    year: "1st Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Fairview",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Panturas, Daniel A.",
+    id: "02000723423",
+    year: "2nd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Global City",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Kjellberg, Felix Arvid U.",
+    id: "02000725123",
+    year: "1st Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Passy - EDSA",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Panturas, Daniel A.",
+    id: "02000723623",
+    year: "2nd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Sha, Mexa",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Asuncion, Jaime Martin P.",
+    id: "02000723723",
+    year: "3rd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Novaliches",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Panturas, Daniel A.",
+    id: "02000728123",
+    year: "2nd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Sha, Mexa",
+    received: "₽ 000,000.00",
+  },
+  {
+    name: "Asuncion, Jaime Martin P.",
+    id: "02000723923",
+    year: "3rd Year",
+    semester: "2nd Semester",
+    schoolYear: "2024 - 2025",
+    branch: "Novaliches",
+    received: "₽ 000,000.00",
+  },
+];

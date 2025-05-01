@@ -380,6 +380,40 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </li>
           </NavLink>
+          <NavLink
+            to="/disbursement"
+            className={({ isActive }) =>
+              `mb-2 rounded hover:shadow relative  ml-0.5 hover:bg-white hover:text-blue-700 py-2 flex items-center group ${
+                sidebarToggle ? "justify-end mb-7" : ""
+              } ${isActive ? "bg-white text-blue-700" : ""}`
+            }
+          >
+            <li className="flex items-center">
+              <CalendarCheck
+                className={`inline-block w-7 h-8 transition-all mr-1.5 ${
+                  sidebarToggle ? "m-0" : "m-3"
+                }`}
+              />
+
+              {!sidebarToggle && (
+                <span className="ml-1.5">
+                  <a href="">Disbursement</a>
+                </span>
+              )}
+              {sidebarToggle && (
+                <div
+                  className={`
+                  absolute left-full rounded-md px-2 py-1 ml-6
+                  bg-indigo-100 text-indigo-800 text-sm
+                  invisible opacity-20 -translate-x-3 transition-all
+                  group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
+              `}
+                >
+                  Disbursement
+                </div>
+              )}
+            </li>
+          </NavLink>
 
           <NavLink
             to="/"

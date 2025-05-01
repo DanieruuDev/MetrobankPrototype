@@ -2,92 +2,11 @@ import { useState } from "react";
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
 import { Search } from "lucide-react";
+import { Students } from "../../mock-data/mockdata";
+import { useNavigate } from "react-router-dom";
 
 const ExpensesMonitoring = () => {
-  const Students = [
-    {
-      name: "Panturas, Daniel A.",
-      id: "02000723123",
-      year: "3rd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Ortigas - Cainta",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Asuncion, Jaime Martin P.",
-      id: "02000723123",
-      year: "3rd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Cubao",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Kjellberg, Felix Arvid U.",
-      id: "02000723123",
-      year: "1st Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Fairview",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Panturas, Daniel A.",
-      id: "02000723123",
-      year: "2nd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Global City",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Kjellberg, Felix Arvid U.",
-      id: "02000723123",
-      year: "1st Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Passy - EDSA",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Panturas, Daniel A.",
-      id: "02000723123",
-      year: "2nd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Sha, Mexa",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Asuncion, Jaime Martin P.",
-      id: "02000723123",
-      year: "3rd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Novaliches",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Panturas, Daniel A.",
-      id: "02000723123",
-      year: "2nd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Sha, Mexa",
-      received: "₽ 000,000.00",
-    },
-    {
-      name: "Asuncion, Jaime Martin P.",
-      id: "02000723123",
-      year: "3rd Year",
-      semester: "2nd Semester",
-      schoolYear: "2024 - 2025",
-      branch: "Novaliches",
-      received: "₽ 000,000.00",
-    },
-  ];
-
+  const navigate = useNavigate();
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filters, setFilters] = useState({
@@ -95,7 +14,9 @@ const ExpensesMonitoring = () => {
     branch: "",
     year: "",
   });
-
+  const handleRowClick = (studentId: string) => {
+    navigate(`/expenses/${studentId}`);
+  };
   // Get unique values for dropdowns
   // Get unique values for dropdowns and sort years
   const schoolYears = [
@@ -240,7 +161,7 @@ const ExpensesMonitoring = () => {
                   name="schoolYear"
                   value={filters.schoolYear}
                   onChange={handleFilterChange}
-                  className="w-full bg-transparent border-none focus:ring-0 focus:outline-none focus:border-none"
+                  className="w-full bg-transparent cursor-pointer border-none focus:ring-0 focus:outline-none focus:border-none"
                 >
                   <option value="" className="pr-4">
                     All School Years
@@ -261,7 +182,7 @@ const ExpensesMonitoring = () => {
                   name="branch"
                   value={filters.branch}
                   onChange={handleFilterChange}
-                  className="w-full bg-transparent border-none focus:ring-0 focus:outline-none focus:border-none"
+                  className="w-full bg-transparent cursor-pointer border-none focus:ring-0 focus:outline-none focus:border-none"
                 >
                   <option value="">All Branch</option>
                   {branches.map((branch, index) => (
@@ -280,7 +201,7 @@ const ExpensesMonitoring = () => {
                   name="year"
                   value={filters.year}
                   onChange={handleFilterChange}
-                  className="w-full bg-transparent border-none focus:ring-0 focus:outline-none focus:border-none"
+                  className="w-full bg-transparent cursor-pointer border-none focus:ring-0 focus:outline-none focus:border-none"
                 >
                   <option value="">All Year</option>
                   {years.map((year, index) => (
@@ -324,7 +245,11 @@ const ExpensesMonitoring = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredStudents.map((student, index) => (
-                    <tr key={index}>
+                    <tr
+                      key={index}
+                      onClick={() => handleRowClick(student.id)}
+                      className="cursor-pointer hover:bg-gray-50"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {student.name}
                       </td>
