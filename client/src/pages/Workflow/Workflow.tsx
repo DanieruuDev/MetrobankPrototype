@@ -59,6 +59,7 @@ function Workflow() {
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
   >();
+  const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState<boolean>(true);
@@ -140,170 +141,178 @@ function Workflow() {
   }, [page]); // ✅ Only one useEffect watching `page`
 
   return (
-    <div className="pl-[250px]">
-      <Navbar pageName="Workflow Approval" />
+    <div className="flex">
+      <Sidebar
+        setSidebarToggle={setSidebarToggle}
+        sidebarToggle={sidebarToggle}
+      />
+      <div
+        className={`transition-all duration-300 ease-in-out w-full ${
+          sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
+        }`}
+      >
+        <Navbar pageName="Workflow Approval" sidebarToggle={sidebarToggle} />
 
-      <Sidebar />
+        {detailedWorkflow ? (
+          <Approval
+            detailedWorkflow={detailedWorkflow}
+            setDetailedWorkflow={setDetailedWorkflow}
+            fetchWorkflow={fetchWorkflow}
+          />
+        ) : (
+          <div className="px-5 pt-5 mt-20">
+            <div className="flex gap-4 mb-4">
+              <button
+                className={`text-[16px] cursor-pointer ${
+                  activeTab === "my-approval"
+                    ? "text-[#024FA8] font-bold border-b-3 border-[#024FA8]"
+                    : "text-gray-600"
+                }`}
+                onClick={() => setActiveTab("my-approval")}
+              >
+                My Approval
+              </button>
+              <button
+                className={`text-[16px] cursor-pointer ${
+                  activeTab === "requests"
+                    ? "text-[#024FA8] font-bold border-b-3 border-[#024FA8]"
+                    : "text-gray-600"
+                }`}
+                onClick={() => setActiveTab("requests")}
+              >
+                Approval Requests
+              </button>
+            </div>
 
-      {detailedWorkflow ? (
-        <Approval
-          detailedWorkflow={detailedWorkflow}
-          setDetailedWorkflow={setDetailedWorkflow}
-          fetchWorkflow={fetchWorkflow}
-        />
-      ) : (
-        <div className="px-5 pt-5">
-          <div className="flex gap-4 mb-4">
-            <button
-              className={`text-[16px] cursor-pointer ${
-                activeTab === "my-approval"
-                  ? "text-[#024FA8] font-bold border-b-3 border-[#024FA8]"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("my-approval")}
-            >
-              My Approval
-            </button>
-            <button
-              className={`text-[16px] cursor-pointer ${
-                activeTab === "requests"
-                  ? "text-[#024FA8] font-bold border-b-3 border-[#024FA8]"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("requests")}
-            >
-              Approval Requests
-            </button>
-          </div>
-
-          {activeTab === "requests" ? (
-            <Request />
-          ) : (
-            <>
-              <p>Current Account: sample@gmail.com REQUESTER</p>
-              <div className="flex justify-between">
-                <button></button>
-                <button
-                  className="p-2 bg-[#0f61c0] rounded-md text-[14px] text-white cursor-pointer hover:opacity-90"
-                  onClick={() => setIsModal(!isModal)}
-                >
-                  Create Approval
-                </button>
-              </div>
-              <div className=" rounded-md  inline-block text-[14px] mt-2">
-                <div className="flex flex-row items-center gap-6">
-                  {statuses.map((status, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div
-                        className={`w-4 h-4 rounded-full ${workflowStatusBG(
-                          status.label
-                        )}`}
-                      ></div>
-                      <span>{status.label}</span>
-                    </div>
-                  ))}
+            {activeTab === "requests" ? (
+              <Request />
+            ) : (
+              <>
+                <p>Current Account: sample@gmail.com REQUESTER</p>
+                <div className="flex justify-between">
+                  <button></button>
+                  <button
+                    className="p-2 bg-[#0f61c0] rounded-md text-[14px] text-white cursor-pointer hover:opacity-90"
+                    onClick={() => setIsModal(!isModal)}
+                  >
+                    Create Approval
+                  </button>
                 </div>
-              </div>
-              {isModal && (
-                <CreateApproval2
-                  setIsModal={setIsModal}
-                  fetchWorkflows={fetchWorkflows}
-                  // setIsModalOpen={setIsModal}
-                  // requester_id={3}
-                  // setWorkflowDisplay={setWorkflowDisplay}
-                  // fetchWorkflows={fetchWorkflows}
-                />
-              )}
-              <div className="mt-2">
-                <div
-                  className="grid text-[#565656] text-[14px] font-bold rounded-md bg-[#EFEFEF] h-[58px] items-center"
-                  style={{
-                    gridTemplateColumns:
-                      "1.5fr 1fr min-content 1fr 2fr min-content",
-                  }}
-                >
-                  <div className="text-left px-6 max-w-[255px]">
-                    Request Title
-                  </div>
-                  <div className="text-left px-6">Document</div>
-                  <div className="text-left px-2">Status</div>
-                  <div className="text-left px-6">Due Date</div>
-                  <div className="text-left px-6">Details</div>
-                  <div className="text-left p-5 max-w-[40px]"></div>{" "}
-                  {/* Empty column for delete button */}
-                </div>
-
-                <div className="divide-y mt-2 divide-gray-200">
-                  {noApproval ? (
-                    <div className="text-center text-gray-500 p-5">
-                      No approval workflows found.
-                    </div>
-                  ) : workflowDisplay.length > 0 ? (
-                    workflowDisplay.map((workflow, index) => (
-                      <div
-                        key={index}
-                        className="grid py-2 items-center hover:bg-gray-50 transition cursor-pointer z-10 text-[14px] border-b border-b-[#c7c7c792]"
-                        style={{
-                          gridTemplateColumns:
-                            "1.5fr 1fr min-content 1fr 2fr min-content",
-                        }}
-                        onClick={() => fetchWorkflow(3, workflow.workflow_id)}
-                      >
-                        <div className="truncate px-6 max-w-[255px]">
-                          {workflow.rq_title}
-                        </div>
-                        <div className="truncate max-w-[160px] px-6">
-                          {workflow.doc_name}
-                        </div>
+                <div className=" rounded-md  inline-block text-[14px] mt-2">
+                  <div className="flex flex-row items-center gap-6">
+                    {statuses.map((status, index) => (
+                      <div key={index} className="flex items-center gap-2">
                         <div
-                          className={`font-semibold py-1 rounded-md min-w-[56px] `}
-                        >
-                          <div
-                            className={`w-5 h-5 rounded-[20px] mx-auto ${workflowStatusBG(
-                              workflow.status
-                            )}`}
-                          ></div>
-                        </div>
-
-                        <div className="truncate px-6">
-                          {formatDate(workflow.due_date)}
-                        </div>
-                        <div className="truncate px-6">
-                          {workflow.school_details}
-                        </div>
-
-                        {/* Delete Button - Shrinks to fit content */}
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            deleteWorkflow(3, workflow.workflow_id);
-                          }}
-                          className="p-2 text-red-500 rounded-md transition cursor-pointer flex-shrink-0  max-w-[40px]"
-                        >
-                          <Trash2 size={20} />
-                        </button>
+                          className={`w-4 h-4 rounded-full ${workflowStatusBG(
+                            status.label
+                          )}`}
+                        ></div>
+                        <span>{status.label}</span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-500 p-5">
-                      Loading approvals...
+                    ))}
+                  </div>
+                </div>
+                {isModal && (
+                  <CreateApproval2
+                    setIsModal={setIsModal}
+                    fetchWorkflows={fetchWorkflows}
+                    // setIsModalOpen={setIsModal}
+                    // requester_id={3}
+                    // setWorkflowDisplay={setWorkflowDisplay}
+                    // fetchWorkflows={fetchWorkflows}
+                  />
+                )}
+                <div className="mt-2">
+                  <div
+                    className="grid text-[#565656] text-[14px] font-bold rounded-md bg-[#EFEFEF] h-[58px] items-center"
+                    style={{
+                      gridTemplateColumns:
+                        "1.5fr 1fr min-content 1fr 2fr min-content",
+                    }}
+                  >
+                    <div className="text-left px-6 max-w-[255px]">
+                      Request Title
                     </div>
+                    <div className="text-left px-6">Document</div>
+                    <div className="text-left px-2">Status</div>
+                    <div className="text-left px-6">Due Date</div>
+                    <div className="text-left px-6">Details</div>
+                    <div className="text-left p-5 max-w-[40px]"></div>{" "}
+                    {/* Empty column for delete button */}
+                  </div>
+
+                  <div className="divide-y mt-2 divide-gray-200">
+                    {noApproval ? (
+                      <div className="text-center text-gray-500 p-5">
+                        No approval workflows found.
+                      </div>
+                    ) : workflowDisplay.length > 0 ? (
+                      workflowDisplay.map((workflow, index) => (
+                        <div
+                          key={index}
+                          className="grid py-2 items-center hover:bg-gray-50 transition cursor-pointer z-10 text-[14px] border-b border-b-[#c7c7c792]"
+                          style={{
+                            gridTemplateColumns:
+                              "1.5fr 1fr min-content 1fr 2fr min-content",
+                          }}
+                          onClick={() => fetchWorkflow(3, workflow.workflow_id)}
+                        >
+                          <div className="truncate px-6 max-w-[255px]">
+                            {workflow.rq_title}
+                          </div>
+                          <div className="truncate max-w-[160px] px-6">
+                            {workflow.doc_name}
+                          </div>
+                          <div
+                            className={`font-semibold py-1 rounded-md min-w-[56px] `}
+                          >
+                            <div
+                              className={`w-5 h-5 rounded-[20px] mx-auto ${workflowStatusBG(
+                                workflow.status
+                              )}`}
+                            ></div>
+                          </div>
+
+                          <div className="truncate px-6">
+                            {formatDate(workflow.due_date)}
+                          </div>
+                          <div className="truncate px-6">
+                            {workflow.school_details}
+                          </div>
+
+                          {/* Delete Button - Shrinks to fit content */}
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              deleteWorkflow(3, workflow.workflow_id);
+                            }}
+                            className="p-2 text-red-500 rounded-md transition cursor-pointer flex-shrink-0  max-w-[40px]"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-500 p-5">
+                        Loading approvals...
+                      </div>
+                    )}
+                  </div>
+
+                  {hasMore && workflowDisplay.length > 0 && !noApproval && (
+                    <button
+                      onClick={() => setPage((prev) => prev + 1)}
+                      className="mt-5 p-2 bg-[#0f61c0] text-white rounded-md hover:opacity-90 w-full"
+                    >
+                      Show More
+                    </button>
                   )}
                 </div>
-
-                {hasMore && workflowDisplay.length > 0 && !noApproval && (
-                  <button
-                    onClick={() => setPage((prev) => prev + 1)}
-                    className="mt-5 p-2 bg-[#0f61c0] text-white rounded-md hover:opacity-90 w-full"
-                  >
-                    Show More
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

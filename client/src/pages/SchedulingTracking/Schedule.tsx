@@ -20,6 +20,7 @@ export interface DisbursementSchedule {
 }
 
 function Schedule() {
+  const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
   const [schedules, setSchedules] = useState<DisbursementSchedule[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -94,79 +95,91 @@ function Schedule() {
     console.log(schedules);
   };
   return (
-    <div className="pl-[250px] pt-[73px]">
-      <div className="fixed top-0 right-0 left-[250px] h-[73px]">
-        <Navbar pageName="Schedule and Tracking" />
-      </div>
+    <div className="flex">
+      <Sidebar
+        setSidebarToggle={setSidebarToggle}
+        sidebarToggle={sidebarToggle}
+      />
+      <div
+        className={`transition-all duration-300 ease-in-out w-full ${
+          sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
+        }`}
+      >
+        <Navbar
+          pageName="Schedule and Tracking"
+          sidebarToggle={sidebarToggle}
+        />
+        <ScheduleSidebar
+          getBadgeColor={getBadgeColor}
+          sidebarToggle={sidebarToggle}
+        />
 
-      <Sidebar />
-      <ScheduleSidebar getBadgeColor={getBadgeColor} />
+        <div className="pl-[240px] pt-2 mt-20">
+          <div className="flex justify-between">
+            <div className="inline-flex items-center border border-gray-400 rounded-md overflow-hidden text-sm ml-4">
+              <button
+                className={`flex items-center gap-1 px-4 py-2 cursor-pointer ${
+                  viewMode === "month"
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-700 hover:text-blue-600"
+                }`}
+                onClick={() => setViewMode("month")}
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span>Month</span>
+              </button>
 
-      <div className="pl-[270px] pt-2 pr-4">
-        <div className="flex justify-between">
-          <div className="inline-flex items-center border border-gray-400 rounded-md overflow-hidden text-sm ml-4">
-            <button
-              className={`flex items-center gap-1 px-4 py-2 cursor-pointer ${
-                viewMode === "month"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-700 hover:text-blue-600"
-              }`}
-              onClick={() => setViewMode("month")}
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span>Month</span>
-            </button>
+              <div className="h-6 w-px bg-gray-300" />
 
-            <div className="h-6 w-px bg-gray-300" />
+              <button
+                className={`flex items-center gap-1 px-4 py-2 cursor-pointer ${
+                  viewMode === "agenda"
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-700 hover:text-blue-600"
+                }`}
+                onClick={() => setViewMode("agenda")}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>Agenda</span>
+              </button>
+            </div>
 
-            <button
-              className={`flex items-center gap-1 px-4 py-2 cursor-pointer ${
-                viewMode === "agenda"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-700 hover:text-blue-600"
-              }`}
-              onClick={() => setViewMode("agenda")}
-            >
-              <ClipboardList className="w-4 h-4" />
-              <span>Agenda</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button className="bg-[#F1F1F1] py-2 px-3 rounded-md group cursor-pointer">
+                <Bell className="text-[#565656] group-hover:text-[#2a2a2a]" />
+              </button>
+              <button
+                className="bg-[#3B89FD] text-white rounded-md gap-2 py-2 px-4 flex items-center cursor-pointer hover:bg-[#3b62fd]"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <Plus />
+                <span className="text-[14px]">Schedule</span>
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button className="bg-[#F1F1F1] py-2 px-3 rounded-md group cursor-pointer">
-              <Bell className="text-[#565656] group-hover:text-[#2a2a2a]" />
-            </button>
-            <button
-              className="bg-[#3B89FD] text-white rounded-md gap-2 py-2 px-4 flex items-center cursor-pointer hover:bg-[#3b62fd]"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <Plus />
-              <span className="text-[14px]">Schedule</span>
-            </button>
-          </div>
-        </div>
-        {isModalOpen && (
-          <EventModal
-            onClose={onClose}
-            fetchSchedules={() => fetchSchedules(visibleMonth)}
-            selectedDate={selectedDate}
-          />
-        )}
-        {loading && <div>Loading schedules...</div>}{" "}
-        {error && <div className="text-red-500">{error} </div>}{" "}
-        <div>
-          {viewMode === "month" ? (
-            <Calendar
-              handleDateSelect={handleDateSelect}
+          {isModalOpen && (
+            <EventModal
+              onClose={onClose}
+              fetchSchedules={() => fetchSchedules(visibleMonth)}
               selectedDate={selectedDate}
-              schedules={schedules}
-              setVisibleMonth={setVisibleMonth}
-              getBadgeColor={getBadgeColor}
-              removeScheduleById={removeScheduleById}
             />
-          ) : (
-            <AgendaView getBadgeColor={getBadgeColor} />
           )}
+          {loading && <div>Loading schedules...</div>}{" "}
+          {error && <div className="text-red-500">{error} </div>}{" "}
+          <div>
+            {viewMode === "month" ? (
+              <Calendar
+                handleDateSelect={handleDateSelect}
+                selectedDate={selectedDate}
+                schedules={schedules}
+                setVisibleMonth={setVisibleMonth}
+                getBadgeColor={getBadgeColor}
+                removeScheduleById={removeScheduleById}
+              />
+            ) : (
+              <AgendaView getBadgeColor={getBadgeColor} />
+            )}
+          </div>
         </div>
       </div>
     </div>

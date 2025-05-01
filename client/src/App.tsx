@@ -7,6 +7,7 @@ import Renewal from "./pages/Scholarship/Renewal/Renewal";
 import Approval from "./pages/Workflow/SpecificApproval/Approval";
 import Schedule from "./pages/SchedulingTracking/Schedule";
 import FinancialAdministration from "./pages/FinancialAdministration/FinancialAdministration";
+import ExpensesMonitoring from "./pages/Expenses/ExpensesMonitoring";
 function App() {
   return (
     <Routes>
@@ -15,6 +16,7 @@ function App() {
       <Route path="/renewal-scholarship" element={<Renewal />} />
       <Route path="/workflow-approval" element={<Workflow />} />
       <Route path="/schedule" element={<Schedule />} />
+      <Route path="/expenses" element={<ExpensesMonitoring />} />
       <Route
         path="/approval/:admin_id/:workflow_id"
         element={

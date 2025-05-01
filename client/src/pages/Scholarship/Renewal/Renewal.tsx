@@ -11,6 +11,7 @@ export interface SpecificRenewalDetail {
 }
 
 function Renewal() {
+  const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
   const [detailedRenewal, setDetailedRenewal] =
     useState<SpecificRenewalDetail | null>(null);
 
@@ -19,21 +20,27 @@ function Renewal() {
   };
 
   return (
-    <div className="pl-[250px]">
-      <nav className="h-[80px]">
-        <Navbar pageName="Scholarship Renewal" />
-      </nav>
-      <Sidebar />
-
-      {detailedRenewal === null ? (
-        <RenewalList handleRowClick={handleRowClick} />
-      ) : (
-        <SpecificRenewal
-          student_id={detailedRenewal.student_id}
-          renewal_id={detailedRenewal.renewal_id}
-          setDetailedRenewal={setDetailedRenewal}
-        />
-      )}
+    <div className="flex">
+      <Sidebar
+        sidebarToggle={sidebarToggle}
+        setSidebarToggle={setSidebarToggle}
+      />
+      <div
+        className={`transition-all duration-300 ease-in-out w-full ${
+          sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
+        } overflow-x-auto mt-16`} // Added mt-16 to account for fixed navbar height
+      >
+        <Navbar pageName="Renewal Scholarship" sidebarToggle={sidebarToggle} />
+        {detailedRenewal === null ? (
+          <RenewalList handleRowClick={handleRowClick} />
+        ) : (
+          <SpecificRenewal
+            student_id={detailedRenewal.student_id}
+            renewal_id={detailedRenewal.renewal_id}
+            setDetailedRenewal={setDetailedRenewal}
+          />
+        )}
+      </div>
     </div>
   );
 }

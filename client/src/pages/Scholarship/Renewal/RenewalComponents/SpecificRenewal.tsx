@@ -188,7 +188,7 @@ function SpecificRenewal({
 
   console.log(selectedStatus, renewalDetails);
   return (
-    <div className="mt-[15px]">
+    <div className="mt-[15px] overflow-x-auto">
       {student_id === null || renewal_id === null ? (
         "None"
       ) : (

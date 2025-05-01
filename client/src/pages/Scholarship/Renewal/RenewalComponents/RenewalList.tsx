@@ -330,7 +330,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   }, []);
 
   return (
-    <div className="mt-10 mx-[20px]">
+    <div className="mt-10 mx-[20px] overflow-x-auto">
       <div className="flex justify-between">
         <div className="flex gap-2">
           <button

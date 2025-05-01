@@ -18,8 +18,12 @@ export interface DisbursementScheduleSummary {
 }
 interface ScheduleSidebarProps {
   getBadgeColor: (type: string) => string;
+  sidebarToggle: boolean;
 }
-const ScheduleSidebar = ({ getBadgeColor }: ScheduleSidebarProps) => {
+const ScheduleSidebar = ({
+  getBadgeColor,
+  sidebarToggle,
+}: ScheduleSidebarProps) => {
   const [sidebarSchedule, setSidebarSchedule] = useState<
     DisbursementSchedule[] | null
   >([]);
@@ -72,7 +76,11 @@ const ScheduleSidebar = ({ getBadgeColor }: ScheduleSidebarProps) => {
   }, []);
 
   return (
-    <div className="max-w-[250px] w-full overflow-y-auto h-[89.5vh] pb-4 overflow-x-hidden border-[#EBEBEB] border-r-3 pt-2 ml-4 fixed left-[250px] top-[73px] bottom-0 bg-white">
+    <div
+      className={`max-w-[250px] w-full overflow-y-auto h-[89.5vh] pb-4 pl-2 overflow-x-hidden border-[#EBEBEB] border-r-3 pt-2 ml-4 fixed top-[73px] bottom-0 bg-white transition-all duration-300 ease-in-out ${
+        sidebarToggle ? "left-[70px]" : "left-[250px]"
+      }`}
+    >
       <SideBarCalendar
         fetchSidebarSchedules={fetchSidebarSchedules}
         sidebarSchedule={sidebarSchedule}
