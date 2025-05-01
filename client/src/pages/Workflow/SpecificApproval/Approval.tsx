@@ -137,7 +137,7 @@ function Approval({
           sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
         }`}
       >
-        <Navbar pageName="Workflow Approval" sidebarToggle={sidebarToggle} />
+        <Navbar pageName="Approval" sidebarToggle={sidebarToggle} />
         <div className="p-10 bg-white rounded-sm max-w-[900px] mx-auto">
           <button
             onClick={handleBack}
