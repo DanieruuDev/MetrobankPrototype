@@ -1,12 +1,18 @@
 import { useState } from "react";
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { Search } from "lucide-react";
+import { Search, UserRound } from "lucide-react";
 import { ComboChartData, Students } from "../../mock-data/mockdata";
 import { useNavigate } from "react-router-dom";
 import { ComboChart } from "../../components/chart/ComboChart";
+import DonutChart from "../../components/chart/DonutChart";
 
 const ExpensesMonitoring = () => {
+  const totalActiveScholars =
+    ComboChartData.length > 0
+      ? ComboChartData[ComboChartData.length - 1].total_scholars
+      : 0;
+
   const navigate = useNavigate();
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -78,35 +84,20 @@ const ExpensesMonitoring = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             {/* Left Column */}
             <div className="bg-white rounded-lg shadow p-6 text-sm ">
-              <h3 className="text-lg font-semibold mb-4 text-center">
-                Budget Allocation
+              <h3 className="text-lg font-semibold mb-4 ">
+                Total Active Scholars
               </h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="font-medium">Total Allocated Budget</p>
-                  <ul className="list-disc pl-5 mt-1">
-                    <li>Thesis Fee</li>
-                    <li>Allowance Fee</li>
-                  </ul>
-                </div>
+
+              <div className="flex gap-5">
+                <UserRound size={33} />
+                <p className="text-3xl font-bold">{totalActiveScholars}</p>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow w-full max-w-[600px] h-[250px] mx-auto ">
               <ComboChart data={ComboChartData} />
             </div>
             <div className="bg-white rounded-lg shadow p-6 text-sm">
-              <h3 className="text-lg font-semibold mb-4">
-                Total Allocated Budget
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <p>₽ 17,500,000.00</p>
-                </div>
-                <div>
-                  <p className="font-medium">Total Budget Spent</p>
-                  <p>₽ 9,312,482.00</p>
-                </div>
-              </div>
+              <DonutChart />
             </div>
           </div>
 
