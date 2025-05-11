@@ -380,3 +380,42 @@ export const Students: Student[] = [
     received: "₽ 000,000.00",
   },
 ];
+
+export interface ComboData {
+  semester_label: string;
+  total_scholars: number;
+  total_disbursement: number;
+}
+
+export const ComboChartData: ComboData[] = [
+  {
+    semester_label: "2023-2024 1st Semester",
+    total_scholars: 80,
+    total_disbursement: 4000000.0,
+  },
+  {
+    semester_label: "2023-2024 2nd Semester",
+    total_scholars: 85,
+    total_disbursement: 4500000.0,
+  },
+  {
+    semester_label: "2024-2025 1st Semester",
+    total_scholars: 95,
+    total_disbursement: 5500000.0,
+  },
+  {
+    semester_label: "2024-2025 2nd Semester",
+    total_scholars: 110,
+    total_disbursement: 6000000.0,
+  },
+  {
+    semester_label: "2025-2026 1st Semester",
+    total_scholars: 130,
+    total_disbursement: 7000000.0,
+  },
+  {
+    semester_label: "2025-2026 2nd Semester",
+    total_scholars: 125,
+    total_disbursement: 6800000.0,
+  },
+];

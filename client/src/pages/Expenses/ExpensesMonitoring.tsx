@@ -2,8 +2,9 @@ import { useState } from "react";
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
 import { Search } from "lucide-react";
-import { Students } from "../../mock-data/mockdata";
+import { ComboChartData, Students } from "../../mock-data/mockdata";
 import { useNavigate } from "react-router-dom";
+import { ComboChart } from "../../components/chart/ComboChart";
 
 const ExpensesMonitoring = () => {
   const navigate = useNavigate();
@@ -71,26 +72,12 @@ const ExpensesMonitoring = () => {
         <Navbar pageName="Expense Monitoring" sidebarToggle={sidebarToggle} />
 
         {/* Main Content */}
-        <div className="md:ml-4 ml-1 mt-12">
+        <div className="md:ml-4 ml-1 mt-20">
           {/* Header Section */}
-          <div className="columns-1 md:columns-3">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold">Total Active Scholars</h1>
-              <h2 className="text-4xl font-bold">123</h2>
-            </div>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold">Total Active Scholars</h1>
-              <h2 className="text-4xl font-bold">123</h2>
-            </div>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold">Total Active Scholars</h1>
-              <h2 className="text-4xl font-bold">123</h2>
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             {/* Left Column */}
-            <div className="bg-white rounded-lg shadow p-6 text-sm">
+            <div className="bg-white rounded-lg shadow p-6 text-sm ">
               <h3 className="text-lg font-semibold mb-4 text-center">
                 Budget Allocation
               </h3>
@@ -104,19 +91,8 @@ const ExpensesMonitoring = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 text-sm">
-              <h3 className="text-lg font-semibold mb-4 text-center">
-                Budget Allocation
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="font-medium">Total Allocated Budget</p>
-                  <ul className="list-disc pl-5 mt-1">
-                    <li>Thesis Fee</li>
-                    <li>Allowance Fee</li>
-                  </ul>
-                </div>
-              </div>
+            <div className="bg-white rounded-lg shadow w-full max-w-[600px] h-[250px] mx-auto ">
+              <ComboChart data={ComboChartData} />
             </div>
             <div className="bg-white rounded-lg shadow p-6 text-sm">
               <h3 className="text-lg font-semibold mb-4">
