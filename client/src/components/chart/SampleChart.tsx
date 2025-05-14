@@ -78,16 +78,16 @@ const SampleChart: React.FC<SampleChartProps> = ({
       <div
         style={{
           position: "absolute",
-          top: "50%",
+          top: "45%",
           left: "50%",
           transform: "translate(-50%, -50%)",
           textAlign: "center",
         }}
       >
         <div style={{ fontSize: "24px", fontWeight: "bold", color: "#36A2EB" }}>
-          R.OI {roi}%
+          ROI {roi}%
         </div>
-        <div style={{ fontSize: "16px", marginTop: "8px", color: "#666" }}>
+        <div style={{ fontSize: "16px", color: "#666" }}>
           ${profit.toLocaleString()}
         </div>
         <div style={{ fontSize: "12px", color: "#999" }}>Profit</div>

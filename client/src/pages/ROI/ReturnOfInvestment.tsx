@@ -9,14 +9,16 @@ const ReturnOfInvestment = () => {
   const [sidebarToggle, setSidebarToggle] = useState<boolean>(false);
 
   return (
-    <div className="flex">
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar
         sidebarToggle={sidebarToggle}
         setSidebarToggle={setSidebarToggle}
       />
+
+      {/* Main Content Area */}
       <div
-        className={`transition-all duration-300 ease-in-out w-full ${
-          sidebarToggle ? "ml-30 mr-10" : "ml-70 mr-10"
+        className={`flex-1 transition-all duration-300 ease-in-out ${
+          sidebarToggle ? "ml-[75px]" : "ml-[250px]"
         }`}
       >
         <Navbar
@@ -24,37 +26,36 @@ const ReturnOfInvestment = () => {
           sidebarToggle={sidebarToggle}
         />
 
-        <div className="mt-25">
-          <div className="flex gap-4">
-            <div
-              className={`grid  gap-4 col-span-1 h-[300px] transition-all duration-300 ease-in-out w-full ${
-                sidebarToggle ? "lg:w-[1050px]" : "md:w-[900px]"
-              }`}
-            >
-              <div className="border-none shadow rounded-xl col-span-3">
-                <ROITrendChart />
+        <div className="p-5 mt-20">
+          <div className="flex flex-col lg:flex-row gap-4 w-full">
+            <div className="flex-1 min-w-0">
+              <div className="bg-white shadow rounded-xl h-full p-4">
+                <ROITrendChart sidebarToggle={sidebarToggle} />
               </div>
             </div>
-            <div className="border-none rounded-xl shadow w-[310px]">
-              <SampleChart revenue={958977} cost={2739935} roi={-65} />
+
+            <div className="w-auto">
+              <div className="bg-white shadow rounded-xl h-full p-4">
+                <SampleChart revenue={958977} cost={2739935} roi={-65} />
+              </div>
             </div>
           </div>
-          <div className="mt-10">
-            <div
-              className="border border-gray-200 rounded-lg overflow-hidden pt-5 mb-10
-             px-5"
-            >
+
+          {/* Table Section */}
+          <div className="mt-8 bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="p-5">
               <div className="flex items-center justify-between mb-4">
-                <h1 className="text-xl font-bold mb-6 text-blue-700">
+                <h1 className="text-xl font-bold text-blue-700">
                   Branch Investments
                 </h1>
-                <div className=" text-sm text-gray-500 border-0 rounded-2xl px-3 py-1 bg-blue-100">
+                <div className="text-sm text-gray-500 rounded-2xl px-3 py-1 bg-blue-100">
                   Active Investments
                 </div>
               </div>
+
               <table className="w-full">
-                <thead className="">
-                  <tr>
+                <thead>
+                  <tr className="border-b border-gray-200">
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Branch
                     </th>
@@ -72,10 +73,10 @@ const ReturnOfInvestment = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200">
                   {branchData.map((branch) => (
                     <tr key={branch.branch}>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm  text-gray-500">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {branch.branch}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
