@@ -10,6 +10,7 @@ import FinancialAdministration from "./pages/FinancialAdministration/FinancialAd
 import ExpensesMonitoring from "./pages/Expenses/ExpensesMonitoring";
 import ExpenseView from "./pages/Expenses/ExpenseView";
 import Disbursement from "./pages/Disbursement/Disbursement";
+import ReturnOfInvestment from "./pages/ROI/ReturnOfInvestment";
 function App() {
   return (
     <Routes>
@@ -21,6 +22,7 @@ function App() {
       <Route path="/expenses" element={<ExpensesMonitoring />} />
       <Route path="/expenses/:studentId" element={<ExpenseView />} />
       <Route path="/disbursement" element={<Disbursement />} />
+      <Route path="/roi" element={<ReturnOfInvestment />} />
       <Route
         path="/approval/:admin_id/:workflow_id"
         element={

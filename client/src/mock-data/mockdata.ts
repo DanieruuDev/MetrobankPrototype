@@ -419,3 +419,41 @@ export const ComboChartData: ComboData[] = [
     total_disbursement: 6800000.0,
   },
 ];
+
+export const branchData = [
+  {
+    branch: "Novaliches",
+    percentage: "20%",
+    investment: "9,900,000",
+    returns: "5,280,000",
+    roi: "-53.23",
+  },
+  {
+    branch: "Ortigas - Cainta",
+    percentage: "25%",
+    investment: "12,500,000",
+    returns: "6,250,000",
+    roi: "-50.00",
+  },
+  {
+    branch: "Cubao",
+    percentage: "15%",
+    investment: "7,500,000",
+    returns: "3,750,000",
+    roi: "-50.00",
+  },
+  {
+    branch: "Global City",
+    percentage: "10%",
+    investment: "5,000,000",
+    returns: "2,500,000",
+    roi: "-50.00",
+  },
+  {
+    branch: "Fairview",
+    percentage: "30%",
+    investment: "15,000,000",
+    returns: "7,500,000",
+    roi: "-50.00",
+  },
+];
