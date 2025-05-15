@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import Calendar from "../../components/disbursement/Calendar";
-import Navbar from "../../components/shared/Navbar";
+import Calendar from "../../../components/disbursement/Calendar";
+import Navbar from "../../../components/shared/Navbar";
 import ScheduleSidebar from "./ScheduleSidebar";
-import Sidebar from "../../components/shared/Sidebar";
-import EventModal from "../../components/disbursement/EventModal";
+import Sidebar from "../../../components/shared/Sidebar";
+import EventModal from "../../../components/disbursement/EventModal";
 import { Bell, CalendarDays, ClipboardList, Plus } from "lucide-react";
 import axios from "axios";
 import { isBefore, startOfDay } from "date-fns";
-import AgendaView from "../../components/disbursement/Agenda";
+import AgendaView from "../../../components/disbursement/Agenda";
 
 export interface DisbursementSchedule {
   created_by: number;

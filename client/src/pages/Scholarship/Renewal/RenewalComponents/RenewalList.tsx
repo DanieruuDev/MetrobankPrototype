@@ -21,7 +21,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetails[]>([]);
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
-
+  console.log(renewalData);
   const scrollRef = useRef<HTMLDivElement>(null);
   const getRenewalData = async () => {
     try {
@@ -46,7 +46,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
 
         setRenewalData(sortedData);
       } else {
-        console.error("Unexpected response status:", response.status);
+        console.error("Unexpected response status:", response.data);
       }
     } catch (error) {
       console.error("Error fetching renewal data:", error);
@@ -619,7 +619,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
           </tbody>
         </table>
       </div>
-      {tempRenewalData.length === 0 && <p>No renewal data</p>}
+      {renewalData.length === 0 && <p>No renewal data</p>}
     </div>
   );
 };

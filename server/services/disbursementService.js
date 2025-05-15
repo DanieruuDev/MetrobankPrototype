@@ -49,7 +49,14 @@ const updateDisbursementDetails = async (client, payload) => {
     required_hours = null,
     disb_sched_id, // new param
   } = payload;
-
+  console.log(
+    disbursement_type_id,
+    yr_lvl_code,
+    sy_code,
+    semester_code,
+    required_hours,
+    disb_sched_id
+  );
   let query = `
     UPDATE disbursement_detail dd
     SET 
@@ -64,9 +71,9 @@ const updateDisbursementDetails = async (client, payload) => {
     WHERE 
       dd.disbursement_id = dt.disbursement_id AND
       dd.disbursement_type_id = $2 AND
-      rs.renewal_yr_lvl_basis = $3 AND
-      rs.renewal_school_year_basis = $4 AND
-      rs.renewal_sem_basis = $5
+      rs.yr_lvl = $3 AND
+      rs.school_year = $4 AND
+      rs.semester = $5
   `;
 
   const params =

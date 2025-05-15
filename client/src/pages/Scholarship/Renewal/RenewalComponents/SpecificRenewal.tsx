@@ -211,7 +211,7 @@ function SpecificRenewal({
 
             <div
               className={`px-3 py-1  text-white text-[10px] rounded-[20px] stretch font-bold ${
-                renewalDetails.scholarship_status === "ACTIVE"
+                renewalDetails.scholarship_status === "Active"
                   ? "bg-green-500"
                   : "bg-red-500"
               }`}
@@ -257,7 +257,7 @@ function SpecificRenewal({
                 Batch
               </span>
               <span className="text-[14px] font-bold min-w-[150px]">
-                {renewalDetails.batch_number}
+                {renewalDetails.batch}
               </span>
             </div>
           </div>

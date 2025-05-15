@@ -248,7 +248,7 @@ const createApproval = async (req, res) => {
     await client.query("BEGIN");
 
     const insertDocumentQuery = await client.query(
-      "INSERT INTO document(doc_name, path, size, doc_type) VALUES ($1, $2, $3, $4) RETURNING *",
+      "INSERT INTO wf_document(doc_name, path, size, doc_type) VALUES ($1, $2, $3, $4) RETURNING *",
       [file.originalname, file.path, file.size, file.mimetype]
     );
     const docId = insertDocumentQuery.rows[0].doc_id;
@@ -273,7 +273,7 @@ const createApproval = async (req, res) => {
 
     for (const approval of appr) {
       const findId = await client.query(
-        `SELECT user_id FROM "user" WHERE email = $1`,
+        `SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1`,
         [approval.email]
       );
 
@@ -284,8 +284,8 @@ const createApproval = async (req, res) => {
           .json({ message: `Approver with email ${approval.email} not found` });
       }
 
-      const userId = findId.rows[0].user_id;
-
+      const userId = findId.rows[0].admin_id;
+      console.log(findId.rows[0]);
       const existingApprover = await client.query(
         "SELECT 1 FROM wf_approver WHERE workflow_id = $1 AND user_id = $2",
         [workflowID, userId]
@@ -322,7 +322,7 @@ const createApproval = async (req, res) => {
       );
     }
     const getRequestTitleQuery = await client.query(
-      `SELECT rq_title FROM request_type_maintenance WHERE rq_type_id = $1`,
+      `SELECT rq_title FROM wf_request_type_maintenance WHERE rq_type_id = $1`,
       [req_type_id]
     );
     await client.query("COMMIT");

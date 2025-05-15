@@ -5,7 +5,7 @@ export interface RenewalDetails {
   student_id: number;
   scholar_name: string;
   campus: string;
-  batch_number: string;
+  batch: string;
   renewal_date: string; // ISO Date String (e.g., '2025-03-10')
 
   // Renewal Basis
@@ -39,7 +39,7 @@ export const tableHead = {
   student_id: "Student ID",
   scholar_name: "Scholar Name",
   campus: "Campus",
-  batch_number: "Batch",
+  batch: "Batch",
   renewal_date: "Renewal Date",
   renewal_year_level_basis: "Renewal Year Level Basis",
   renewal_semester_basis: "Renewal Semester Basis",
@@ -82,7 +82,7 @@ export interface ScholarshipSummary {
   campus: string;
   semester: string;
   school_year: string;
-  batch_number: string;
+  batch: string;
 
   validation_id: number | null;
   gpa: number | null;

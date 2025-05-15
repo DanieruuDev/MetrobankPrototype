@@ -23,7 +23,6 @@ const createDisbursementSchedule = async (req, res) => {
     required_hours,
     quantity,
   } = req.body;
-
   const client = await pool.connect();
 
   try {
@@ -60,7 +59,7 @@ const createDisbursementSchedule = async (req, res) => {
       created_by,
       quantity,
     });
-
+    console.log(disb_sched_id);
     const scheduledCount = await updateDisbursementDetails(client, {
       disbursement_type_id,
       yr_lvl_code,
@@ -69,6 +68,7 @@ const createDisbursementSchedule = async (req, res) => {
       required_hours: disbursement_type_id === 4 ? required_hours : null,
       disb_sched_id,
     });
+    console.log(scheduledCount);
 
     await client.query("COMMIT");
 
@@ -110,9 +110,9 @@ const getEligibleScholarCount = async (req, res) => {
       JOIN disbursement_tracking dt ON dd.disbursement_id = dt.disbursement_id
       JOIN renewal_scholar rs ON dt.renewal_id = rs.renewal_id
       JOIN disbursement_type dty ON dd.disbursement_type_id = dty.disbursement_type_id
-      WHERE rs.renewal_yr_lvl_basis = $1
-        AND rs.renewal_sem_basis = $2
-        AND rs.renewal_school_year_basis = $3
+      WHERE rs.yr_lvl = $1
+        AND rs.semester = $2
+        AND rs.school_year = $3
         AND dd.disb_sched_id IS NULL
     `;
 
@@ -319,9 +319,7 @@ const deleteDisbursementSchedule = async (req, res) => {
       UPDATE disbursement_detail
       SET 
         disb_sched_id = NULL,
-        amount = NULL,
         disbursement_status = 'Not Started',
-        disbursement_date = NULL,
         completed_at = NULL
       WHERE disb_sched_id = $1
       `,
@@ -436,6 +434,7 @@ const updateDisbursementSchedule = async (req, res) => {
       ]
     );
     console.log(currentTypeId, newTypeId);
+
     //change the renewal basis to be the actual yr lvl, semester,
     if (currentTypeId !== newTypeId) {
       await client.query(
@@ -448,9 +447,9 @@ const updateDisbursementSchedule = async (req, res) => {
         WHERE dd.disbursement_id = dt.disbursement_id
           AND dd.disbursement_type_id = $1
           AND dd.disb_sched_id = $2
-          AND rs.renewal_yr_lvl_basis = $3
-          AND rs.renewal_sem_basis = $4
-          AND rs.renewal_school_year_basis = $5
+          AND rs.yr_lvl = $3
+          AND rs.semester = $4
+          AND rs.school_year = $5
         `,
         [currentTypeId, id, yr_lvl, semester, school_year]
       );
@@ -465,9 +464,9 @@ const updateDisbursementSchedule = async (req, res) => {
         WHERE dd.disbursement_id = dt.disbursement_id
           AND dd.disbursement_type_id = $2
           AND dd.disb_sched_id IS NULL
-          AND rs.renewal_yr_lvl_basis = $3
-          AND rs.renewal_sem_basis = $4
-          AND rs.renewal_school_year_basis = $5
+          AND rs.yr_lvl = $3
+          AND rs.semester = $4
+          AND rs.school_year = $5
         `,
         [id, newTypeId, yr_lvl, semester, school_year]
       );

@@ -14,7 +14,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { useMemo } from "react";
-import { DisbursementSchedule } from "../../pages/SchedulingTracking/Schedule";
+import { DisbursementSchedule } from "../../pages/Disbursement/Scheduling/Schedule";
 
 interface fetchSidebarSchedulesProps {
   fetchSidebarSchedules: (date: Date) => void;

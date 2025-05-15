@@ -1,11 +1,12 @@
 const { Pool } = require("pg");
-
+require("dotenv").config();
+console.log(process.env.DB_USER, process.env.DB_PASSWORD);
 const pool = new Pool({
-  user: "postgres",
-  password: "-Panturas09",
-  host: "localhost",
-  port: "5432",
-  database: "prototype",
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
 });
 
 pool.on("connect", () => {
@@ -13,11 +14,6 @@ pool.on("connect", () => {
 });
 
 module.exports = pool;
-
-// database identifier: sampledatabase
-// Host name: thesisdatabase.c34628u0ijay.ap-southeast-2.rds.amazonaws.com
-// Master username: sungjinwoh
-// Master password: mastersungjinwoo
 
 // user: "postgres",
 // password: "-Panturas09",

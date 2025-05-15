@@ -57,8 +57,8 @@ userAdminRouter.get("/get-request/:user_id", fetchApproverApprovalList);
 userAdminRouter.get("/download/:file_path", downloadFile);
 
 userAdminRouter.put("/approve-approval", approveApproval);
-//renewals
 userAdminRouter.put("/change-approval/:requester_id", changeApprover);
+//renewals
 
 userAdminRouter.post("/generate-renewal", uploadScholarRenewals);
 

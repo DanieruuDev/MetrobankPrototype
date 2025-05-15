@@ -326,8 +326,6 @@ BEFORE UPDATE ON approver_response
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
-
-
 -- Table for Reassignment Logs
 CREATE TABLE reassignment_log (
     relog_id SERIAL PRIMARY KEY,
@@ -417,7 +415,8 @@ CREATE TABLE renewal_scholar (
     renewal_school_year_basis INT REFERENCES sy_maintenance(sy_code),
     yr_lvl INT REFERENCES yr_lvl_maintenance(yr_lvl_code),
     semester INT REFERENCES semester_maintenance(semester_code),
-    school_year INT REFERENCES sy_maintenance(sy_code)
+    school_year INT REFERENCES sy_maintenance(sy_code),
+    is_initial BOOLEAN DEFAULT false
 );
 
 CREATE TABLE renewal_validation (
@@ -540,9 +539,8 @@ CREATE TABLE disbursement_type (
 
 CREATE TABLE disbursement_tracking(
     disbursement_id SERIAL PRIMARY KEY,
-    renewal_id INTEGER REFERENCES renewal_scholar (renewal_id) ON DELETE CASCADE
+    renewal_id INTEGER REFERENCES renewal_scholar (renewal_id) ON DELETE CASCADE 
 );
-
 CREATE TABLE disbursement_detail (
     disb_detail_id SERIAL PRIMARY KEY,
     disbursement_id INTEGER REFERENCES disbursement_tracking(disbursement_id) ON DELETE CASCADE NOT NULL,
@@ -695,3 +693,192 @@ LEFT JOIN semester_maintenance sm ON ds.semester_code = sm.semester_code
 LEFT JOIN sy_maintenance sy ON ds.sy_code = sy.sy_code
 LEFT JOIN "user" u ON ds.created_by = u.user_id;
 
+
+
+
+
+
+CREATE OR REPLACE VIEW vw_student_disbursement_summary AS
+SELECT
+    m.scholar_name AS student_name,
+    m.student_id,
+    rs.yr_lvl AS student_year_lvl,
+    rs.semester AS student_semester,
+    rs.school_year AS student_school_year,
+    rs.campus_code AS student_branch,
+    dd.disbursement_status,
+    ds.amount
+FROM
+    masterlist m
+LEFT JOIN
+    renewal_scholar rs ON rs.student_id = m.student_id
+LEFT JOIN
+    disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
+LEFT JOIN
+    disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
+LEFT JOIN
+    disbursement_schedule ds ON ds.disb_sched_id = dd.disb_sched_id
+WHERE
+    m.scholarship_status = 'ACTIVE';
+
+
+
+CREATE OR REPLACE VIEW vw_scholar_disbursement_history AS
+WITH ranked_sched AS (
+    SELECT 
+        rs.student_id,
+        ds.yr_lvl_code AS current_yr_lvl_code,
+        ds.semester_code AS current_semester_code,
+        ds.sy_code AS current_sy_code,
+        ROW_NUMBER() OVER (PARTITION BY rs.student_id ORDER BY ds.sy_code DESC, ds.semester_code DESC) AS rn
+    FROM disbursement_detail dd
+    JOIN disbursement_schedule ds ON dd.disb_sched_id = ds.disb_sched_id
+    JOIN disbursement_tracking dtr ON dd.disbursement_id = dtr.disbursement_id
+    JOIN renewal_scholar rs ON dtr.renewal_id = rs.renewal_id
+    WHERE dd.completed_at IS NOT NULL
+),
+latest_sched AS (
+    SELECT * FROM ranked_sched WHERE rn = 1
+)
+SELECT 
+    m.student_id,
+    m.scholar_name,
+    m.campus AS branch,
+
+    -- Disbursement Info
+    y.yr_lvl AS year_level,
+    sy.school_year,
+    sem.semester,
+    dt.disbursement_label,
+    ds.amount,
+    dd.disbursement_status,
+    dd.completed_at,
+
+    -- Current Academic Info
+    cy.yr_lvl AS current_year_level,
+    csy.school_year AS current_school_year,
+    csem.semester AS current_semester
+
+FROM disbursement_detail dd
+JOIN disbursement_tracking dtr ON dd.disbursement_id = dtr.disbursement_id
+JOIN renewal_scholar rs ON dtr.renewal_id = rs.renewal_id
+JOIN masterlist m ON rs.student_id = m.student_id
+JOIN disbursement_schedule ds ON dd.disb_sched_id = ds.disb_sched_id
+JOIN disbursement_type dt ON dd.disbursement_type_id = dt.disbursement_type_id
+JOIN yr_lvl_maintenance y ON ds.yr_lvl_code = y.yr_lvl_code
+JOIN sy_maintenance sy ON ds.sy_code = sy.sy_code
+JOIN semester_maintenance sem ON ds.semester_code = sem.semester_code
+
+-- Current status joins
+LEFT JOIN latest_sched ls ON rs.student_id = ls.student_id
+LEFT JOIN yr_lvl_maintenance cy ON ls.current_yr_lvl_code = cy.yr_lvl_code
+LEFT JOIN sy_maintenance csy ON ls.current_sy_code = csy.sy_code
+LEFT JOIN semester_maintenance csem ON ls.current_semester_code = csem.semester_code;
+
+
+
+
+CREATE OR REPLACE PROCEDURE add_initial_scholar(
+    p_scholar_name TEXT,
+    p_yr_lvl_code SMALLINT,
+    p_school_year_code INT,
+    p_semester_code SMALLINT,
+    p_batch_code INT,
+    p_scholarship_status VARCHAR,
+    p_course VARCHAR,
+    p_campus VARCHAR,
+    p_school_email VARCHAR,
+    p_secondary_email VARCHAR,
+    p_contact_number CHAR(11),
+    p_internship_year SMALLINT,
+    p_graduation_year SMALLINT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_student_id INT;
+    v_renewal_id INT;
+BEGIN
+    -- Ensure referenced keys exist
+
+
+    IF NOT EXISTS (SELECT 1 FROM yr_lvl_maintenance WHERE yr_lvl_code = p_yr_lvl_code) THEN
+        RAISE EXCEPTION 'Year level code % does not exist in yr_lvl_maintenance', p_yr_lvl_code;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM semester_maintenance WHERE semester_code = p_semester_code) THEN
+        RAISE EXCEPTION 'Semester code % does not exist in semester_maintenance', p_semester_code;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM sy_maintenance WHERE sy_code = p_school_year_code) THEN
+        RAISE EXCEPTION 'School year code % does not exist in sy_maintenance', p_school_year_code;
+    END IF;
+
+    -- Step 1: Insert into masterlist
+    INSERT INTO masterlist (
+        scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code,
+        scholarship_status, course, campus, school_email, secondary_email,
+        contact_number, internship_year, graduation_year
+    ) VALUES (
+        p_scholar_name, p_yr_lvl_code, p_school_year_code, p_semester_code, p_batch_code,
+        p_scholarship_status, p_course, p_campus, p_school_email, p_secondary_email,
+        p_contact_number, p_internship_year, p_graduation_year
+    )
+    RETURNING student_id INTO v_student_id;
+
+    -- Step 2: Insert into renewal_scholar
+    INSERT INTO renewal_scholar (
+        student_id, batch_code, campus_code,
+        renewal_yr_lvl_basis, renewal_sem_basis, renewal_school_year_basis,
+        yr_lvl, semester, school_year, is_initial
+    ) VALUES (
+        v_student_id, p_batch_code, p_campus,
+        p_yr_lvl_code, p_semester_code, p_school_year_code,
+        p_yr_lvl_code, p_semester_code, p_school_year_code, TRUE
+    )
+    RETURNING renewal_id INTO v_renewal_id;
+
+    -- Step 3: Insert into renewal_validation
+    INSERT INTO renewal_validation (
+        renewal_id, scholarship_status
+    ) VALUES (
+        v_renewal_id, 'Passed'
+    );
+END;
+-- $$;
+-- prototype=# CALL add_initial_scholar(
+-- prototype(#     'Juan Dela Cruz'::TEXT,
+-- prototype(#     3::SMALLINT,
+-- prototype(#     20242025::INT,
+-- prototype(#     2::SMALLINT,
+-- prototype(#     5::INT,
+-- prototype(#     'Passed'::VARCHAR,
+-- prototype(#     'BSCS'::VARCHAR,
+-- prototype(#     'Ortigas-Cainta'::VARCHAR,
+-- prototype(#     'juan.delacruz@school.edu'::VARCHAR,
+-- prototype(#     'juandelacruz@gmail.com'::VARCHAR,
+-- prototype(#     '09171234567'::CHAR(11),
+-- prototype(#     2026::SMALLINT,
+-- prototype(#     2027::SMALLINT
+-- prototype(# );
+    -- IF NOT EXISTS (SELECT 1 FROM batch_maintenance WHERE batch_code = p_batch_code) THEN
+    --     RAISE EXCEPTION 'Batch code % does not exist in batch_maintenance', p_batch_code;
+    -- END IF;
+
+    CREATE OR REPLACE VIEW view_tracking_summary AS
+SELECT 
+    dt.disbursement_label AS disb_type,
+    ds.sy_code,
+    ds.semester_code,
+    COUNT(DISTINCT ds.disb_sched_id) AS sched_disbursement_quantity,
+    COUNT(DISTINCT ml.student_id) AS recepients,
+    SUM(ds.amount * ds.quantity) AS total
+FROM disbursement_schedule ds
+JOIN disbursement_type dt ON dt.disbursement_type_id = ds.disbursement_type_id
+
+LEFT JOIN disbursement_detail dd ON dd.disb_sched_id = ds.disb_sched_id
+LEFT JOIN disbursement_tracking dtrack ON dtrack.disbursement_id = dd.disbursement_id
+LEFT JOIN renewal_scholar rs ON rs.renewal_id = dtrack.renewal_id
+LEFT JOIN masterlist ml ON ml.student_id = rs.student_id
+
+GROUP BY dt.disbursement_label, ds.sy_code, ds.semester_code;

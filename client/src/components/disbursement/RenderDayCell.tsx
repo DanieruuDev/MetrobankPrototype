@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
-import { DisbursementSchedule } from "../../pages/SchedulingTracking/Schedule";
+import { DisbursementSchedule } from "../../pages/Disbursement/Scheduling/Schedule";
 import { Eye, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import axios from "axios";
 import { formatDate } from "../../utils/DateConvertionFormat";

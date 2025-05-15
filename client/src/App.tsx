@@ -5,8 +5,11 @@ import Workflow from "./pages/Workflow/Workflow";
 import NotFound from "./pages/NotFound";
 import Renewal from "./pages/Scholarship/Renewal/Renewal";
 import Approval from "./pages/Workflow/SpecificApproval/Approval";
-import Schedule from "./pages/SchedulingTracking/Schedule";
-import FinancialAdministration from "./pages/FinancialAdministration/FinancialAdministration";
+import Schedule from "./pages/Disbursement/Scheduling/Schedule";
+import DisbursementOverview from "./pages/Disbursement/Overview/DisbursementOverview";
+import ScheduleTracking from "./pages/Disbursement/Tracking/ScheduleTracking";
+import DetailedOverview from "./pages/Disbursement/Overview/DetailedOverview";
+import DetailedTracking from "./pages/Disbursement/Tracking/DetailedTracking";
 function App() {
   return (
     <Routes>
@@ -15,6 +18,11 @@ function App() {
       <Route path="/renewal-scholarship" element={<Renewal />} />
       <Route path="/workflow-approval" element={<Workflow />} />
       <Route path="/schedule" element={<Schedule />} />
+      <Route path="/tracking" element={<ScheduleTracking />} />
+      <Route
+        path="/financial-overview/detailed/:id"
+        element={<DetailedOverview />}
+      />
       <Route
         path="/approval/:admin_id/:workflow_id"
         element={
@@ -31,7 +39,11 @@ function App() {
           />
         }
       />
-      <Route path="/financial" element={<FinancialAdministration />} />
+      <Route
+        path="/tracking/detailed/:disbursement_id"
+        element={<DetailedTracking />}
+      />
+      <Route path="/financial-overview" element={<DisbursementOverview />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

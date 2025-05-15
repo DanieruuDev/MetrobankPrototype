@@ -1,7 +1,7 @@
 import Sidebar from "../../../components/shared/Sidebar";
 import Navbar from "../../../components/shared/Navbar";
 import { useState } from "react";
-
+import SYSemesterDropdown from "../../../components/shared/SYSemesterDropdown";
 import SpecificRenewal from "./RenewalComponents/SpecificRenewal";
 import RenewalList from "./RenewalComponents/RenewalList";
 
@@ -26,7 +26,15 @@ function Renewal() {
       <Sidebar />
 
       {detailedRenewal === null ? (
-        <RenewalList handleRowClick={handleRowClick} />
+        <>
+          <div className="flex justify-end px-4">
+            <SYSemesterDropdown
+              onChange={(val) => console.log("Selected:", val)}
+            />
+          </div>
+
+          <RenewalList handleRowClick={handleRowClick} />
+        </>
       ) : (
         <SpecificRenewal
           student_id={detailedRenewal.student_id}

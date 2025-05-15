@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { DisbursementScheduleSummary } from "../../pages/SchedulingTracking/ScheduleSidebar";
+import { DisbursementScheduleSummary } from "../../pages/Disbursement/Scheduling/ScheduleSidebar";
 
 interface ScheduleSectionProps {
   title: string;

@@ -11,7 +11,7 @@ import {
   isSameMonth,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DisbursementSchedule } from "../../pages/SchedulingTracking/Schedule";
+import { DisbursementSchedule } from "../../pages/Disbursement/Scheduling/Schedule";
 import RenderDayCell from "./RenderDayCell";
 
 interface CalendarProps {

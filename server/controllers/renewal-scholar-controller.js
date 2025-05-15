@@ -38,16 +38,16 @@ const uploadScholarRenewals = async (req, res) => {
   try {
     await client.query("BEGIN");
     const currentSY = await client.query(
-      "SELECT sy_code FROM sy_maintenance WHERE sy_code = $1",
+      "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [currentSchoolYear]
     );
     const prevSY = await client.query(
-      "SELECT sy_code FROM sy_maintenance WHERE sy_code = $1",
+      "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [previousSchoolYear]
     );
 
     const studentsResult = await client.query(
-      "SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus FROM masterlist WHERE yr_lvl_code = $1 AND semester_code =$2 AND school_year_code = $3 AND scholarship_status != 'DELISTED'",
+      "SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus FROM masterlist WHERE yr_lvl_code = $1 AND semester_code =$2 AND school_year_code = $3 AND scholarship_status != 'Delisted'",
       [previousYearLevel, previousSemester, prevSY.rows[0].sy_code]
     );
 
@@ -74,7 +74,7 @@ const uploadScholarRenewals = async (req, res) => {
     const newStudents = studentsResult.rows.filter(
       (student) => !existingStudentIds.has(student.student_id)
     );
-
+    console.log(newStudents);
     if (newStudents.length === 0) {
       await client.query("ROLLBACK");
       return res.status(400).json({
@@ -86,7 +86,7 @@ const uploadScholarRenewals = async (req, res) => {
     //edit campus code to be reference on campus maintenance
     const insertRenewalQuery = `
     INSERT INTO renewal_scholar (
-      student_id, batch_code, campus_code, 
+      student_id, batch_id, campus_name, 
       renewal_yr_lvl_basis, renewal_sem_basis, renewal_school_year_basis, 
       yr_lvl, semester, school_year
     )
@@ -143,17 +143,14 @@ const uploadScholarRenewals = async (req, res) => {
   }
 };
 
-//fetching renewals
-
 const fetchAllScholarRenewal = async (req, res) => {
-  const client = await pool.connect();
   try {
     const query = `
       SELECT *
       FROM vw_renewal_details
     `;
 
-    const result = await client.query(query);
+    const result = await pool.query(query);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "No renewal records found." });
@@ -166,8 +163,6 @@ const fetchAllScholarRenewal = async (req, res) => {
   } catch (error) {
     console.error("Error fetching renewal data:", error);
     res.status(500).json({ message: "Internal Server Error." });
-  } finally {
-    client.release();
   }
 };
 
@@ -228,8 +223,9 @@ const getScholarRenewal = async (req, res) => {
   console.log(student_id, renewal_id);
   const client = await pool.connect();
   try {
+    //scholarship_summary LOCALHOST
     const studentQuery = `
-      SELECT * FROM scholarship_summary
+      SELECT * FROM vw_scholarship_detailed
       WHERE student_id = $1 AND renewal_id = $2;
     `;
     const studentResult = await client.query(studentQuery, [
@@ -246,7 +242,7 @@ const getScholarRenewal = async (req, res) => {
     const historyQuery = `
       SELECT renewal_id, renewal_date_history, renewal_year_level, renewal_semester, 
              renewal_school_year, renewal_status, delisting_root_cause
-      FROM scholarship_summary
+      FROM vw_scholarship_detailed
       WHERE student_id = $1 AND renewal_id != $2;
     `;
     const historyResult = await client.query(historyQuery, [
@@ -393,16 +389,39 @@ const updateScholarRenewal = async (req, res) => {
     ]);
 
     // Update Masterlist only if scholarship status changes
-    const updateMasterlistQuery = `
-      UPDATE masterlist
-      SET scholarship_status = $1, 
-          delistment_date = $2, 
-          delistment_reason = $3
-      WHERE student_id = (SELECT student_id FROM renewal_scholar WHERE renewal_id = $4);
-    `;
+    let updateMasterlistQuery = `
+   
+  `;
+    if (validation_scholarship_status === "Delisted") {
+      updateMasterlistQuery = `
+    UPDATE masterlist
+    SET scholarship_status = $1,
+        delistment_date = $2,
+        delistment_reason = $3,
+        yr_lvl_code = rs.renewal_yr_lvl_basis,
+        school_year_code = rs.renewal_school_year_basis,
+        semester_code = rs.renewal_sem_basis
+    FROM renewal_scholar rs
+    WHERE masterlist.student_id = rs.student_id
+      AND rs.renewal_id = $4;
+  `;
+    } else {
+      updateMasterlistQuery = `
+    UPDATE masterlist
+    SET scholarship_status = $1,
+        delistment_date = $2,
+        delistment_reason = $3,
+        yr_lvl_code = rs.yr_lvl,
+        school_year_code = rs.school_year,
+        semester_code = rs.semester
+    FROM renewal_scholar rs
+    WHERE masterlist.student_id = rs.student_id
+      AND rs.renewal_id = $4;
+  `;
+    }
 
     await client.query(updateMasterlistQuery, [
-      validation_scholarship_status === "Delisted" ? "DELISTED" : "ACTIVE",
+      validation_scholarship_status === "Delisted" ? "Delisted" : "Active",
       delisted_date || null,
       delisting_root_cause || null,
       renewal_id,

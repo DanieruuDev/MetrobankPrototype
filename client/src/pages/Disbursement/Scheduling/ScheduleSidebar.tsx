@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 
-import SideBarCalendar from "../../components/disbursement/SideBarCalendar";
+import SideBarCalendar from "../../../components/disbursement/SideBarCalendar";
 import { DisbursementSchedule } from "./Schedule";
 import axios from "axios";
-import ScheduleSection from "../../components/disbursement/ScheduleSelection";
+import ScheduleSection from "../../../components/disbursement/ScheduleSelection";
 
 export interface DisbursementScheduleSummary {
   disb_sched_id: number;
