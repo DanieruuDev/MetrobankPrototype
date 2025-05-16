@@ -40,7 +40,7 @@ const DetailedOverview: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTermIndex, setSelectedTermIndex] = useState<number>(0);
-
+  const [collapsed, setCollapsed] = useState(false);
   const fetchDisbursementData = async (): Promise<void> => {
     setIsLoading(true);
     try {
@@ -190,13 +190,15 @@ const DetailedOverview: React.FC = () => {
 
   return (
     <div className="flex">
-      <Sidebar />
-      <div className="transition-all duration-300 ease-in-out w-full pl-[250px]">
-        <div className="fixed top-0 right-0 left-[250px] h-[73px] z-10">
-          <Navbar pageName="Disbursement Overview" />
-        </div>
+      <div
+        className={`${
+          collapsed ? "pl-20" : "pl-[250px]"
+        } transition-all duration-300 ease-in-out w-full`}
+      >
+        <Navbar pageName="Disbursement Overview" />
 
-        <div className="mt-24 px-8 pb-12 max-w-6xl mx-auto">
+        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+        <div className="mt-4 px-8 pb-12 max-w-6xl mx-auto">
           {/* Scholar Profile Summary */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center">

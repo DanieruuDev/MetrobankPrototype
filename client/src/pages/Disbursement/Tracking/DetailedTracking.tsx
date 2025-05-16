@@ -23,6 +23,7 @@ function DetailedTracking() {
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
@@ -105,12 +106,14 @@ function DetailedTracking() {
   }
 
   return (
-    <div className="pl-[250px] pt-[73px] min-h-screen bg-gray-50">
-      <div className="fixed top-0 right-0 left-[250px] h-[73px] z-10 bg-white shadow">
-        <Navbar pageName="Disbursement Tracking" />
-      </div>
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-[padding-left] duration-300  bg-gray-50`}
+    >
+      <Navbar pageName="Disbursement Tracking" />
 
-      <Sidebar />
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">

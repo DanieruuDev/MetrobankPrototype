@@ -1,4 +1,3 @@
-import Sidebar from "../../../components/shared/Sidebar";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Approver, DetailedWorkflow } from "../Workflow";
@@ -125,8 +124,6 @@ function Approval({
 
   return (
     <div className="bg-[#ededed] min-h-[88vh] pt-3">
-      <Sidebar />
-
       <div className="p-10 bg-white rounded-sm max-w-[900px] mx-auto">
         <button
           onClick={handleBack}

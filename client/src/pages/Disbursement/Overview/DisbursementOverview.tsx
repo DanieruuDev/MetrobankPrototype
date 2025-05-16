@@ -39,6 +39,7 @@ const DisbursementOverview = () => {
     branch: "",
     year: "",
   });
+  const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -119,13 +120,13 @@ const DisbursementOverview = () => {
   return (
     <div className="flex">
       <div
-        className={`transition-all duration-300 ease-in-out w-full pl-[250px] pt-[73px]`}
+        className={`${
+          collapsed ? "pl-20" : "pl-[250px]"
+        } transition-all duration-300 ease-in-out w-full `}
       >
-        <div className="fixed top-0 right-0 left-[250px] h-[73px] z-40">
-          <Navbar pageName="Disbursement Overview" />
-        </div>
+        <Navbar pageName="Disbursement Overview" />
 
-        <Sidebar />
+        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
         {/* Main Content */}
         <div className="md:ml-4 mx-4 mt-12">

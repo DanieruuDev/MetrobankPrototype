@@ -30,7 +30,11 @@ const ScheduleTracking = () => {
   const [trackingSummary, setTrackingSummary] = useState<
     TrackingSummary[] | null
   >([]);
+<<<<<<< HEAD
   const [searchTerm, setSearchTerm] = useState(""); // State for the search input
+=======
+  const [collapsed, setCollapsed] = useState(false);
+>>>>>>> 9539c76ab56d2dfba6e35fd3d5944214f48a61a0
   const navigate = useNavigate();
 
   // State for pagination (frontend structure only for now)
@@ -149,8 +153,11 @@ const ScheduleTracking = () => {
     <div className="flex">
       {/* Reverted main content padding to fixed */}
       <div
-        className={`transition-all duration-300 ease-in-out w-full pl-[250px]`}
+        className={`${
+          collapsed ? "pl-20" : "pl-[250px]"
+        } transition-[padding-left] duration-300 ease-in-out w-full`}
       >
+<<<<<<< HEAD
         {/* Navbar positioning reverted to fixed */}
         <div className="fixed top-0 right-0 left-[250px] h-[73px] z-10">
           <Navbar pageName="Disbursement Tracking" />
@@ -164,6 +171,15 @@ const ScheduleTracking = () => {
           {/* Dropdown menus */}
           {/* Removed flex-wrap and gap from this container */}
           <div className="flex gap-4 mb-10">
+=======
+        <Navbar pageName="Disbursement Tracking" />
+
+        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+
+        <div className="mt-5 px-4">
+          {/* Dropdown menus */}
+          <div className="flex flex-wrap gap-4 mt-4">
+>>>>>>> 9539c76ab56d2dfba6e35fd3d5944214f48a61a0
             <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
             {/* Removed the status dropdown div */}
           </div>
