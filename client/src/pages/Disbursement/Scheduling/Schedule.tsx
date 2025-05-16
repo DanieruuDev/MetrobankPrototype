@@ -27,7 +27,7 @@ function Schedule() {
   const [error, setError] = useState<string | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
-
+  const [collapsed, setCollapsed] = useState(false);
   const onClose = (isClosed: boolean) => {
     setIsModalOpen(isClosed);
     setSelectedDate(null);
@@ -95,15 +95,23 @@ function Schedule() {
     console.log(schedules);
   };
   return (
-    <div className="pl-[250px] pt-[73px]">
-      <div className="fixed top-0 right-0 left-[250px] h-[73px]">
-        <Navbar pageName="Schedule and Tracking" />
-      </div>
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-[padding-left] duration-300`}
+    >
+      <Navbar pageName="Schedule and Tracking" />
 
-      <Sidebar />
-      <ScheduleSidebar getBadgeColor={getBadgeColor} />
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <ScheduleSidebar getBadgeColor={getBadgeColor} collapsed={collapsed} />
 
-      <div className="pl-[270px] pt-2 pr-4">
+      <div
+        className="pl-[270px] pt-2 pr-4 "
+        style={{
+          height: "calc(100vh - 64px)", // viewport height minus navbar height
+          overflowY: "auto",
+        }}
+      >
         <div className="flex justify-between">
           <div className="inline-flex items-center border border-gray-400 rounded-md overflow-hidden text-sm ml-4">
             <button

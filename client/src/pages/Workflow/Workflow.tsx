@@ -69,6 +69,7 @@ function Workflow() {
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
   >();
+  const [collapsed, setCollapsed] = useState(false);
   const requesterId = 3;
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
@@ -178,10 +179,14 @@ function Workflow() {
   };
 
   return (
-    <div className="pl-[250px]">
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-[padding-left] duration-300`}
+    >
       <Navbar pageName="Workflow Approval" />
 
-      <Sidebar />
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
       {detailedWorkflow ? (
         <Approval

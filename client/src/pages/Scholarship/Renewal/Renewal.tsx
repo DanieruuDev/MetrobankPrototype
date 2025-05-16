@@ -13,17 +13,19 @@ export interface SpecificRenewalDetail {
 function Renewal() {
   const [detailedRenewal, setDetailedRenewal] =
     useState<SpecificRenewalDetail | null>(null);
-
+  const [collapsed, setCollapsed] = useState(false);
   const handleRowClick = (student_id: number, renewal_id: number) => {
     setDetailedRenewal({ student_id, renewal_id });
   };
 
   return (
-    <div className="pl-[250px]">
-      <nav className="h-[80px]">
-        <Navbar pageName="Scholarship Renewal" />
-      </nav>
-      <Sidebar />
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-[padding-left] duration-300`}
+    >
+      <Navbar pageName="Scholarship Renewal" />
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
       {detailedRenewal === null ? (
         <>
