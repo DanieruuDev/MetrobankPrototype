@@ -24,6 +24,7 @@ const ScheduleTracking = () => {
   const [trackingSummary, setTrackingSummary] = useState<
     TrackingSummary[] | null
   >([]);
+  const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   // Data for disbursement types
 
@@ -92,17 +93,17 @@ const ScheduleTracking = () => {
   return (
     <div className="flex">
       <div
-        className={`transition-all duration-300 ease-in-out w-full pl-[250px]`}
+        className={`${
+          collapsed ? "pl-20" : "pl-[250px]"
+        } transition-[padding-left] duration-300 ease-in-out w-full`}
       >
-        <div className="fixed top-0 right-0 left-[250px] h-[73px]">
-          <Navbar pageName="Disbursement Tracking" />
-        </div>
+        <Navbar pageName="Disbursement Tracking" />
 
-        <Sidebar />
+        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
-        <div className="mt-25 p-4">
+        <div className="mt-5 px-4">
           {/* Dropdown menus */}
-          <div className="flex flex-wrap gap-4 mb-10">
+          <div className="flex flex-wrap gap-4 mt-4">
             <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
 
             <div className="relative">
