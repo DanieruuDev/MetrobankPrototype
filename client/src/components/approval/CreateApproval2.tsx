@@ -6,7 +6,7 @@ import axios from "axios";
 
 interface CreateApproval2Props {
   setIsModal: (isOpen: boolean) => void;
-  fetchWorkflows: () => void;
+  fetchWorkflows: (page: number) => void;
 }
 
 const requestTypeMap: { [key: string]: string } = {
@@ -115,7 +115,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         }
       );
       alert("Success");
-      fetchWorkflows();
+      fetchWorkflows(1);
       setIsModal(false);
       console.log(response.data);
     } catch (error) {

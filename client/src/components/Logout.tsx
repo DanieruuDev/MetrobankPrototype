@@ -9,8 +9,8 @@ const Logout = () => {
   if (!auth) throw new Error("AuthContext must be used within an AuthProvider");
 
   const handleLogout = () => {
-    auth.logout();
-    navigate("/login");
+    auth.logout(); // Clears auth state and localStorage
+    navigate("/login"); // Redirect to login page
   };
 
   return <button onClick={handleLogout}>Logout</button>;

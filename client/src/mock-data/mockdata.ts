@@ -1,288 +1,246 @@
-interface Scholar {
-  id: number;
-  name: string;
-  schoolId: string;
-  campus: string;
-  batch: string;
-
-  // Current status information
-  yearLevel: string;
-  semester: string;
-  schoolYear: string;
-  scholarshipStatus: string;
-  delistedDate?: string;
-  delistingRootCause?: string;
-
-  // Renewal information
-  renewalDate?: string;
-  renewalYearLevelBasis?: string;
-  renewalSemesterBasis?: string;
-  renewalSchoolYearBasis?: string;
-
-  // Academic validation
-  gpa?: string;
-  gpaValidationStatus?: string;
-  noFailingGradeValidationStatus?: string;
-  noOtherScholarshipValidationStatus?: string;
-  goodMoralValidation?: string;
-  noPoliceRecordValidation?: string;
-  fullLoadValidation?: string;
-  withdrawalOrChangeCourseValidation?: string;
-  enrollmentValidation?: string;
-
-  // Financial information
-  contractRenewal: string;
-  scholarshipFee: string;
-  scholarshipFeeDisbursementStatus: string;
-  scholarshipFeeDisbursementDate: string;
-  allowanceFeeAmount: string;
-  allowanceFeeDisbursementStatus: string;
-  allowanceFeeDisbursementDate: string;
-  thesisFeeAmount: string;
-  thesisFeeDisbursementStatus: string;
-  thesisFeeDisbursementDate: string;
-
-  // Internship information
-  internshipRequiredHours: string;
-  internshipAllowanceAmount: string;
-}
-
-interface ScholarshipData {
-  branches: {
-    id: string;
-    name: string;
-    courses: {
-      id: string;
-      name: string;
-      code: string;
-      years: {
-        id: string;
-        name: string;
-        scholars: Scholar[];
-      }[];
-    }[];
-  }[];
-}
-
-export const scholarshipData: ScholarshipData = {
-  branches: [
+export const mockWorkflowData = {
+  data: [
     {
-      id: "sti-ortigas",
-      name: "STI Ortigas",
-      courses: [
-        {
-          id: "it",
-          name: "Information Technology",
-          code: "SY2425-2T",
-          years: [
-            {
-              id: "year-1",
-              name: "Year 1",
-              scholars: [
-                {
-                  id: 1,
-                  name: "John Doe",
-                  schoolId: "STI-2024-0001",
-                  campus: "STI Ortigas",
-                  batch: "2024",
-                  yearLevel: "1st Year",
-                  semester: "2nd Semester",
-                  schoolYear: "2024-2025",
-                  scholarshipStatus: "Active",
-
-                  // Renewal information
-                  renewalDate: "2024-11-15",
-                  renewalYearLevelBasis: "1st Year",
-                  renewalSemesterBasis: "1st Semester",
-                  renewalSchoolYearBasis: "2024-2025",
-
-                  // Academic validation
-                  gpa: "3.5",
-                  gpaValidationStatus: "Passed",
-                  noFailingGradeValidationStatus: "Passed",
-                  noOtherScholarshipValidationStatus: "Passed",
-                  goodMoralValidation: "Passed",
-                  noPoliceRecordValidation: "Passed",
-                  fullLoadValidation: "Passed",
-                  withdrawalOrChangeCourseValidation: "Passed",
-                  enrollmentValidation: "Passed",
-
-                  // Financial information
-                  contractRenewal: "Pending",
-                  scholarshipFee: "50000",
-                  scholarshipFeeDisbursementStatus: "Pending",
-                  scholarshipFeeDisbursementDate: "",
-                  allowanceFeeAmount: "5000",
-                  allowanceFeeDisbursementStatus: "Pending",
-                  allowanceFeeDisbursementDate: "",
-                  thesisFeeAmount: "",
-                  thesisFeeDisbursementStatus: "",
-                  thesisFeeDisbursementDate: "",
-
-                  // Internship information
-                  internshipRequiredHours: "",
-                  internshipAllowanceAmount: "",
-                },
-                {
-                  id: 2,
-                  name: "Jane Smith",
-                  schoolId: "STI-2024-0002",
-                  campus: "STI Ortigas",
-                  batch: "2024",
-                  yearLevel: "1st Year",
-                  semester: "2nd Semester",
-                  schoolYear: "2024-2025",
-                  scholarshipStatus: "Active",
-
-                  // Renewal information
-                  renewalDate: "2024-11-15",
-                  renewalYearLevelBasis: "1st Year",
-                  renewalSemesterBasis: "1st Semester",
-                  renewalSchoolYearBasis: "2024-2025",
-
-                  // Academic validation
-                  gpa: "3.7",
-                  gpaValidationStatus: "Passed",
-                  noFailingGradeValidationStatus: "Passed",
-                  noOtherScholarshipValidationStatus: "Passed",
-                  goodMoralValidation: "Passed",
-                  noPoliceRecordValidation: "Passed",
-                  fullLoadValidation: "Passed",
-                  withdrawalOrChangeCourseValidation: "Passed",
-                  enrollmentValidation: "Passed",
-
-                  contractRenewal: "Pending",
-                  scholarshipFee: "50000",
-                  scholarshipFeeDisbursementStatus: "Pending",
-                  scholarshipFeeDisbursementDate: "",
-                  allowanceFeeAmount: "5000",
-                  allowanceFeeDisbursementStatus: "Pending",
-                  allowanceFeeDisbursementDate: "",
-                  thesisFeeAmount: "",
-                  thesisFeeDisbursementStatus: "",
-                  thesisFeeDisbursementDate: "",
-                  internshipRequiredHours: "",
-                  internshipAllowanceAmount: "",
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: "computer-science",
-          name: "Computer Science",
-          code: "SY2425-2T",
-          years: [
-            {
-              id: "year-2",
-              name: "Year 2",
-              scholars: [
-                {
-                  id: 3,
-                  name: "Mark Johnson",
-                  schoolId: "STI-2023-0003",
-                  campus: "STI Ortigas",
-                  batch: "2023",
-                  yearLevel: "2nd Year",
-                  semester: "2nd Semester",
-                  schoolYear: "2024-2025",
-                  scholarshipStatus: "Active",
-
-                  // Renewal information
-                  renewalDate: "2024-11-01",
-                  renewalYearLevelBasis: "2nd Year",
-                  renewalSemesterBasis: "1st Semester",
-                  renewalSchoolYearBasis: "2024-2025",
-
-                  // Academic validation
-                  gpa: "3.8",
-                  gpaValidationStatus: "Passed",
-                  noFailingGradeValidationStatus: "Passed",
-                  noOtherScholarshipValidationStatus: "Passed",
-                  goodMoralValidation: "Passed",
-                  noPoliceRecordValidation: "Passed",
-                  fullLoadValidation: "Passed",
-                  withdrawalOrChangeCourseValidation: "Passed",
-                  enrollmentValidation: "Passed",
-
-                  contractRenewal: "Approved",
-                  scholarshipFee: "55000",
-                  scholarshipFeeDisbursementStatus: "Disbursed",
-                  scholarshipFeeDisbursementDate: "2024-12-15",
-                  allowanceFeeAmount: "5500",
-                  allowanceFeeDisbursementStatus: "Disbursed",
-                  allowanceFeeDisbursementDate: "2024-12-15",
-                  thesisFeeAmount: "",
-                  thesisFeeDisbursementStatus: "",
-                  thesisFeeDisbursementDate: "",
-                  internshipRequiredHours: "",
-                  internshipAllowanceAmount: "",
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      workflow_id: 1,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Contract Renewal",
+      due_date: "2025-05-15T16:00:00.000Z",
+      status: "Not Started",
+      doc_name: "Week 9.docx",
+      doc_path: "public\\images\\1747325263842_Week 9.docx",
+      current_approver: "N/A",
+      school_details: "2024-2025 - 1st Semester (2nd Year)",
     },
     {
-      id: "sti-makati",
-      name: "STI Makati",
-      courses: [
-        {
-          id: "comp-sci",
-          name: "Computer Science",
-          code: "SY2425-2T",
-          years: [
-            {
-              id: "year-2",
-              name: "Year 2",
-              scholars: [
-                {
-                  id: 6,
-                  name: "David Lee",
-                  schoolId: "STI-2023-0006",
-                  campus: "STI Makati",
-                  batch: "2023",
-                  yearLevel: "2nd Year",
-                  semester: "2nd Semester",
-                  schoolYear: "2024-2025",
-                  scholarshipStatus: "Active",
-
-                  // Renewal information
-                  renewalDate: "2024-11-05",
-                  renewalYearLevelBasis: "2nd Year",
-                  renewalSemesterBasis: "1st Semester",
-                  renewalSchoolYearBasis: "2024-2025",
-
-                  // Academic validation
-                  gpa: "3.2",
-                  gpaValidationStatus: "Passed",
-                  noFailingGradeValidationStatus: "Passed",
-                  noOtherScholarshipValidationStatus: "Passed",
-                  goodMoralValidation: "Passed",
-                  noPoliceRecordValidation: "Passed",
-                  fullLoadValidation: "Passed",
-                  withdrawalOrChangeCourseValidation: "Passed",
-                  enrollmentValidation: "Passed",
-
-                  contractRenewal: "Pending",
-                  scholarshipFee: "52000",
-                  scholarshipFeeDisbursementStatus: "Pending",
-                  scholarshipFeeDisbursementDate: "",
-                  allowanceFeeAmount: "5200",
-                  allowanceFeeDisbursementStatus: "Pending",
-                  allowanceFeeDisbursementDate: "",
-                  thesisFeeAmount: "",
-                  thesisFeeDisbursementStatus: "",
-                  thesisFeeDisbursementDate: "",
-                  internshipRequiredHours: "",
-                  internshipAllowanceAmount: "",
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      workflow_id: 2,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Project Proposal",
+      due_date: "2025-06-01T12:00:00.000Z",
+      status: "In Progress",
+      doc_name: "Proposal.docx",
+      doc_path: "public\\documents\\proposal.docx",
+      current_approver: "John Doe",
+      school_details: "2024-2025 - 2nd Semester (3rd Year)",
+    },
+    {
+      workflow_id: 3,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Budget Approval",
+      due_date: "2025-07-10T09:00:00.000Z",
+      status: "Approved",
+      doc_name: "Budget.xlsx",
+      doc_path: "public\\files\\budget.xlsx",
+      current_approver: "Jane Smith",
+      school_details: "2024-2025 - 1st Semester (4th Year)",
+    },
+    {
+      workflow_id: 4,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Leave Request",
+      due_date: "2025-05-20T17:00:00.000Z",
+      status: "Pending",
+      doc_name: "LeaveForm.pdf",
+      doc_path: "public\\forms\\leaveform.pdf",
+      current_approver: "Manager",
+      school_details: "2024-2025 - Summer Term",
+    },
+    {
+      workflow_id: 5,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Equipment Purchase",
+      due_date: "2025-06-15T15:00:00.000Z",
+      status: "Not Started",
+      doc_name: "PurchaseList.xlsx",
+      doc_path: "public\\docs\\purchase_list.xlsx",
+      current_approver: "Procurement Dept.",
+      school_details: "2024-2025 - 1st Semester (1st Year)",
+    },
+    {
+      workflow_id: 6,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Contract Renewal",
+      due_date: "2025-05-15T16:00:00.000Z",
+      status: "Not Started",
+      doc_name: "Week 9.docx",
+      doc_path: "public\\images\\1747325263842_Week 9.docx",
+      current_approver: "N/A",
+      school_details: "2024-2025 - 1st Semester (2nd Year)",
+    },
+    {
+      workflow_id: 7,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Research Paper Submission",
+      due_date: "2025-07-01T23:59:00.000Z",
+      status: "In Progress",
+      doc_name: "ResearchPaper.pdf",
+      doc_path: "public\\submissions\\research_paper.pdf",
+      current_approver: "Advisor",
+      school_details: "2024-2025 - 2nd Semester (3rd Year)",
+    },
+    {
+      workflow_id: 8,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Internship Application",
+      due_date: "2025-05-30T12:00:00.000Z",
+      status: "Approved",
+      doc_name: "InternshipForm.docx",
+      doc_path: "public\\applications\\internship_form.docx",
+      current_approver: "HR Department",
+      school_details: "2024-2025 - Summer Term",
+    },
+    {
+      workflow_id: 9,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Conference Registration",
+      due_date: "2025-06-25T10:00:00.000Z",
+      status: "Pending",
+      doc_name: "ConferenceDetails.pdf",
+      doc_path: "public\\events\\conference_details.pdf",
+      current_approver: "Event Coordinator",
+      school_details: "2024-2025 - 1st Semester (4th Year)",
+    },
+    {
+      workflow_id: 10,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Scholarship Request",
+      due_date: "2025-05-18T08:00:00.000Z",
+      status: "Not Started",
+      doc_name: "ScholarshipForm.pdf",
+      doc_path: "public\\forms\\scholarship_form.pdf",
+      current_approver: "Scholarship Committee",
+      school_details: "2024-2025 - 2nd Semester (1st Year)",
+    },
+    {
+      workflow_id: 11,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Project Update",
+      due_date: "2025-06-05T14:00:00.000Z",
+      status: "In Progress",
+      doc_name: "UpdateReport.docx",
+      doc_path: "public\\reports\\update_report.docx",
+      current_approver: "Project Manager",
+      school_details: "2024-2025 - 1st Semester (3rd Year)",
+    },
+    {
+      workflow_id: 12,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Travel Request",
+      due_date: "2025-06-20T09:00:00.000Z",
+      status: "Pending",
+      doc_name: "TravelPlan.pdf",
+      doc_path: "public\\travel\\travel_plan.pdf",
+      current_approver: "Supervisor",
+      school_details: "2024-2025 - 2nd Semester (4th Year)",
+    },
+    {
+      workflow_id: 13,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Maintenance Request",
+      due_date: "2025-07-15T11:00:00.000Z",
+      status: "Approved",
+      doc_name: "MaintenanceForm.pdf",
+      doc_path: "public\\maintenance\\maintenance_form.pdf",
+      current_approver: "Facilities Manager",
+      school_details: "2024-2025 - Summer Term",
+    },
+    {
+      workflow_id: 14,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "New Course Proposal",
+      due_date: "2025-08-01T13:00:00.000Z",
+      status: "In Progress",
+      doc_name: "CourseProposal.docx",
+      doc_path: "public\\proposals\\course_proposal.docx",
+      current_approver: "Academic Board",
+      school_details: "2024-2025 - 2nd Semester (2nd Year)",
+    },
+    {
+      workflow_id: 15,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Event Planning",
+      due_date: "2025-06-18T10:00:00.000Z",
+      status: "Pending",
+      doc_name: "EventPlan.pdf",
+      doc_path: "public\\events\\event_plan.pdf",
+      current_approver: "Event Coordinator",
+      school_details: "2024-2025 - 1st Semester (3rd Year)",
+    },
+    {
+      workflow_id: 16,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Exam Schedule",
+      due_date: "2025-07-05T08:00:00.000Z",
+      status: "Approved",
+      doc_name: "ExamSchedule.pdf",
+      doc_path: "public\\schedules\\exam_schedule.pdf",
+      current_approver: "Registrar",
+      school_details: "2024-2025 - 2nd Semester (4th Year)",
+    },
+    {
+      workflow_id: 17,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Library Acquisition",
+      due_date: "2025-06-28T12:00:00.000Z",
+      status: "In Progress",
+      doc_name: "AcquisitionList.xlsx",
+      doc_path: "public\\library\\acquisition_list.xlsx",
+      current_approver: "Library Head",
+      school_details: "2024-2025 - Summer Term",
+    },
+    {
+      workflow_id: 18,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Staff Training",
+      due_date: "2025-06-10T09:00:00.000Z",
+      status: "Pending",
+      doc_name: "TrainingSchedule.docx",
+      doc_path: "public\\training\\training_schedule.docx",
+      current_approver: "HR Manager",
+      school_details: "2024-2025 - 1st Semester (1st Year)",
+    },
+    {
+      workflow_id: 19,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "Facility Booking",
+      due_date: "2025-05-25T14:00:00.000Z",
+      status: "Not Started",
+      doc_name: "BookingForm.pdf",
+      doc_path: "public\\facilities\\booking_form.pdf",
+      current_approver: "Facilities Manager",
+      school_details: "2024-2025 - 2nd Semester (3rd Year)",
+    },
+    {
+      workflow_id: 20,
+      requester_id: 3,
+      requester_email: "admin3@gmail.com",
+      rq_title: "IT Support Request",
+      due_date: "2025-06-12T16:00:00.000Z",
+      status: "In Progress",
+      doc_name: "SupportTicket.pdf",
+      doc_path: "public\\support\\support_ticket.pdf",
+      current_approver: "IT Department",
+      school_details: "2024-2025 - Summer Term",
     },
   ],
+  totalPages: 2,
+  currentPage: 1,
 };

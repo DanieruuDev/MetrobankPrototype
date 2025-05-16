@@ -8,7 +8,7 @@ const cors = require("cors");
 const disbursementOverview = require("./routes/disbursement-overview-router.js");
 const disbursementTracking = require("./routes/disbursement-tracking-router.js");
 const maintenance = require("./routes/maintenance-router.js");
-require("dotenv").config();
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

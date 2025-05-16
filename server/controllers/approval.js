@@ -38,22 +38,31 @@ const getApprovals = async (req, res) => {
       return res.status(400).json({ message: "Invalid Admin ID" });
     }
 
-    // Convert query params to numbers, set defaults if not provided
+    // Parse query params
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
+    const offset = (page - 1) * limit;
 
-    const offset = (page - 1) * limit; // Calculate offset for pagination
-
-    const approvalsQuery = await pool.query(
+    // Query paginated data
+    const dataQuery = await pool.query(
       "SELECT * FROM vw_workflow_display WHERE requester_id = $1 LIMIT $2 OFFSET $3",
       [user_id, limit, offset]
     );
 
-    if (approvalsQuery.rows.length === 0) {
-      return res.status(200).json([]); // Return empty array instead of error message
-    }
+    // Query total count
+    const countQuery = await pool.query(
+      "SELECT COUNT(*) FROM vw_workflow_display WHERE requester_id = $1",
+      [user_id]
+    );
 
-    return res.status(200).json(approvalsQuery.rows);
+    const totalCount = parseInt(countQuery.rows[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return res.status(200).json({
+      data: dataQuery.rows,
+      totalPages,
+      currentPage: page,
+    });
   } catch (error) {
     console.error("Error fetching approvals:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -82,7 +91,7 @@ const deleteApproval = async (req, res) => {
         .status(404)
         .json({ message: "Workflow not found or unauthorized" });
     }
-    await pool.query("DELETE FROM document WHERE doc_id = $1", [
+    await pool.query("DELETE FROM wf_document WHERE doc_id = $1", [
       approvalsQuery.rows[0].document_id,
     ]);
 
@@ -109,7 +118,7 @@ const changeApprover = async (req, res) => {
 
     // Check if workflow exists and verify requester (author)
     const getNewApproverId = await pool.query(
-      `SELECT user_id, email FROM "user" WHERE email = $1`,
+      `SELECT admin_id, email FROM administration_adminaccounts WHERE admin_email = $1`,
       [new_approver_id]
     );
     console.log(getNewApproverId.rows[0], new_approver_id);
@@ -412,54 +421,94 @@ const approveApproval = async (req, res) => {
       .json({ message: "Approver ID and response are required" });
   }
 
+  console.log("Approver ID:", approver_id, "Response:", response);
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    const update_response = await client.query(
-      "UPDATE approver_response SET response = $1, comment = $2, updated_at = NOW() WHERE approver_id = $3",
+    // Step 1: Update approver response
+    await client.query(
+      `
+      UPDATE approver_response 
+      SET response = $1, comment = $2, updated_at = NOW() 
+      WHERE approver_id = $3
+      `,
       [response, comment, approver_id]
     );
 
+    // Step 2: Update approver status
     await client.query(
-      "UPDATE wf_approver SET status = $1 WHERE approver_id = $2",
-      ["Completed", approver_id]
-    );
-
-    const updateCurrentApprover = await client.query(
-      `UPDATE wf_approver 
-      SET is_current = FALSE 
-      WHERE workflow_id = (SELECT workflow_id FROM wf_approver WHERE approver_id = $1) 
-      AND is_current = TRUE`,
+      `
+      UPDATE wf_approver 
+      SET status = 'Completed' 
+      WHERE approver_id = $1
+      `,
       [approver_id]
     );
 
+    // Step 3: Set current approver to FALSE
+    await client.query(
+      `
+      UPDATE wf_approver 
+      SET is_current = FALSE 
+      WHERE workflow_id = (
+        SELECT workflow_id FROM wf_approver WHERE approver_id = $1
+      )
+      AND is_current = TRUE
+      `,
+      [approver_id]
+    );
+
+    // Step 4: Move to next approver, if applicable
     if (response === "Approved" || response === "Reject") {
       const nextApproverQuery = await client.query(
-        `SELECT approver_id FROM wf_approver 
-        WHERE workflow_id = (SELECT workflow_id FROM wf_approver WHERE approver_id = $1) 
-        AND status = 'Pending' AND approver_order > 
-        (SELECT approver_order FROM wf_approver WHERE approver_id = $1)
-        ORDER BY approver_order LIMIT 1`,
+        `
+        SELECT approver_id FROM wf_approver 
+        WHERE workflow_id = (
+          SELECT workflow_id FROM wf_approver WHERE approver_id = $1
+        )
+        AND status = 'Pending'
+        AND approver_order > (
+          SELECT approver_order FROM wf_approver WHERE approver_id = $1
+        )
+        ORDER BY approver_order
+        LIMIT 1
+        `,
         [approver_id]
       );
+
       if (nextApproverQuery.rows.length > 0) {
         const nextApproverId = nextApproverQuery.rows[0].approver_id;
+        console.log("Next approver set to:", nextApproverId);
 
         await client.query(
-          `UPDATE wf_approver SET is_current = TRUE WHERE approver_id = $1`,
+          `
+          UPDATE wf_approver 
+          SET is_current = TRUE 
+          WHERE approver_id = $1
+          `,
           [nextApproverId]
         );
+      } else {
+        console.log("No next approver found.");
       }
     }
 
-    const workflowQuery = `SELECT workflow_id FROM wf_approver WHERE approver_id = $1`;
+    // Step 5: Check if workflow should be marked as completed
+    const workflowQuery = `
+      SELECT workflow_id FROM wf_approver WHERE approver_id = $1
+    `;
     const { rows } = await client.query(workflowQuery, [approver_id]);
     const workflow_id = rows[0]?.workflow_id;
     if (!workflow_id) throw new Error("Workflow not found");
 
-    const pendingCheckQuery = `SELECT COUNT(*) AS pending_count FROM wf_approver WHERE workflow_id = $1 AND status NOT IN ('Completed', 'Missed')`;
+    const pendingCheckQuery = `
+      SELECT COUNT(*) AS pending_count 
+      FROM wf_approver 
+      WHERE workflow_id = $1 
+      AND status NOT IN ('Completed', 'Missed')
+    `;
     const pendingResult = await client.query(pendingCheckQuery, [workflow_id]);
     const pendingCount = parseInt(pendingResult.rows[0].pending_count);
 
@@ -467,16 +516,20 @@ const approveApproval = async (req, res) => {
       const updateWorkflowQuery = `
         UPDATE workflow
         SET status = 'Completed', completed_at = NOW()
-        WHERE workflow_id = $1;
+        WHERE workflow_id = $1
       `;
       await client.query(updateWorkflowQuery, [workflow_id]);
+      console.log("Workflow marked as completed.");
     }
+
     await client.query("COMMIT");
+
+    // Step 6: Fetch and return approver's detailed status
     const detailedQuery = `
-    SELECT workflow_status, approver_response, approver_comment 
-    FROM vw_approver_detailed 
-    WHERE approver_id = $1
-  `;
+      SELECT workflow_status, approver_response, approver_comment 
+      FROM vw_approver_detailed 
+      WHERE approver_id = $1
+    `;
     const result = await client.query(detailedQuery, [approver_id]);
 
     if (result.rows.length > 0) {
@@ -493,6 +546,7 @@ const approveApproval = async (req, res) => {
     }
   } catch (error) {
     await client.query("ROLLBACK");
+    console.error("Error approving:", error);
     res.status(500).json({ message: error.message });
   } finally {
     client.release();

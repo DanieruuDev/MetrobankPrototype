@@ -2,7 +2,7 @@ export const workflowStatusBG = (status: string) => {
   switch (status) {
     case "Completed":
       return "bg-green-500";
-    case "On Progress":
+    case "In Progress":
       return "bg-yellow-400";
     case "Not Started":
       return "bg-gray-400";

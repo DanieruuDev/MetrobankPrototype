@@ -101,6 +101,7 @@ function EventModal({
           amount: formData.disbursementAmount,
         }
       );
+
       console.log("Form Data Submitted:", formData);
       console.log(response);
       fetchSchedules();

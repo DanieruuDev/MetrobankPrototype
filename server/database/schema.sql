@@ -153,7 +153,7 @@ CREATE TABLE workflow (
     school_year VARCHAR(15) NOT NULL, 
     semester VARCHAR(15) NOT NULL,
     scholar_level VARCHAR(15) NOT NULL,
-    status VARCHAR(15) NOT NULL DEFAULT 'Not Started' CHECK (status IN ('Not Started', 'On Progress', 'Completed')),
+    status VARCHAR(15) NOT NULL DEFAULT 'Not Started' CHECK (status IN ('Not Started', 'In Progress', 'Completed', 'Missed')),
     due_date DATE NOT NULL,
     completed_at DATE,
     rq_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
