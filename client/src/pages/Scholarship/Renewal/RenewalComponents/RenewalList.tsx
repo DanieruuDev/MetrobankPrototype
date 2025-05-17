@@ -26,7 +26,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   const getRenewalData = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/admin/fetch-renewals"
+        "http://localhost:5000/api/renewal/fetch-renewals"
       );
       if (response.status === 200) {
         const sortedData = response.data.data.sort(
@@ -61,7 +61,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   ) => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-filter-renewal`,
+        `http://localhost:5000/api/renewal/get-filter-renewal`,
         {
           params: {
             year_level: year_level || "",
@@ -131,7 +131,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
       };
 
       const response = await axios.put(
-        "http://localhost:5000/admin/update-renewal",
+        "http://localhost:5000/api/renewal/update-renewal",
         requestData
       );
 

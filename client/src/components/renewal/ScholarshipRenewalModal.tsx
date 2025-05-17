@@ -71,7 +71,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/admin/generate-renewal",
+        "http://localhost:5000/api/renewal/generate-renewal",
         {
           school_year: schoolYear,
           year_level: Number(yearLevel.substring(0, 1)),

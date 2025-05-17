@@ -108,7 +108,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     };
     try {
       const response = await axios.post(
-        "http://localhost:5000/admin/create-approval",
+        "http://localhost:5000/api/workflow/create-workflow",
         formDataToSend,
         {
           headers: { "Content-Type": "multipart/form-data" },
