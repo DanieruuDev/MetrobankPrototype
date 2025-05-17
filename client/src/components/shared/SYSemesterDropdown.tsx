@@ -38,7 +38,7 @@ function SYSemesterDropdown({ onChange }: Props) {
       <select
         value={selected}
         onChange={handleChange}
-        className="appearance-none bg-gray-100 border border-gray-300 rounded-md px-4 py-1.5 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-8"
+        className="appearance-none bg-gray-100 border-none border-gray-300 rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-8"
       >
         {sortedOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>

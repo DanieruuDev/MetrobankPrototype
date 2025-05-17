@@ -35,7 +35,7 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center gap-1 mt-8 text-gray-700">
+    <div className="fixed bottom-0 left-0 w-full flex items-center justify-center gap-1 py-3 text-gray-700">
       <button
         onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
@@ -72,7 +72,7 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
           currentPage < totalPages && onPageChange(currentPage + 1)
         }
         disabled={currentPage === totalPages}
-        className="flex items-center gap-1 px-3 py-1 rounded hover:bg-gray-100 disabled:opacity-50 font-medium cursor-pointer   "
+        className="flex items-center gap-1 px-3 py-1 rounded hover:bg-gray-100 disabled:opacity-50 font-medium cursor-pointer"
       >
         <span>Next</span>
         <ChevronRight className="h-4 w-4" />
