@@ -123,7 +123,7 @@ const DisbursementOverview = () => {
       <div
         className={`${
           collapsed ? "pl-20" : "pl-[250px]"
-        } transition-all duration-300 ease-in-out w-full `}
+        } transition-[padding-left] duration-300 w-full `}
       >
         <Navbar pageName="Disbursement Overview" />
 
