@@ -33,7 +33,7 @@ const ScheduleTracking = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
-  // State for search term - This line was likely missing after your merge
+  // State for search term
   const [searchTerm, setSearchTerm] = useState("");
 
   // State for pagination (frontend structure only for now)
@@ -148,9 +148,28 @@ const ScheduleTracking = () => {
     // getTrackingSummary(sy_code, semester_code.toString());
   };
 
+  // Helper function to get status filter button classes
+  const getStatusFilterClass = (statusLabel: string, isActive: boolean) => {
+    const colorMap: Record<string, string> = {
+      Completed: isActive
+        ? "bg-green-600 text-white"
+        : "text-green-700 hover:bg-green-100",
+      "In Progress": isActive
+        ? "bg-yellow-400 text-white"
+        : "text-yellow-700 hover:bg-yellow-100",
+      Overdue: isActive
+        ? "bg-red-600 text-white"
+        : "text-red-700 hover:bg-red-100",
+      All: isActive
+        ? "bg-blue-500 text-white"
+        : "text-gray-700 hover:bg-gray-200",
+    };
+    return colorMap[statusLabel] || "text-gray-700 hover:bg-gray-200"; // Fallback
+  };
+
   return (
     <div className="flex">
-      {/* Reverted main content padding to fixed */}
+      {/* Main content padding based on sidebar collapsed state */}
       <div
         className={`${
           collapsed ? "pl-20" : "pl-[250px]"
@@ -158,15 +177,16 @@ const ScheduleTracking = () => {
       >
         <Navbar pageName="Disbursement Tracking" />
 
-        {/* Assuming Sidebar's collapsed state is controlled by the parent and passed down */}
+        {/* Sidebar component - Assuming its collapsed state is controlled by the parent */}
         <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
         <div className="mt-5 px-4">
           {/* Dropdown menus */}
-          {/* Removed flex-wrap and gap from this container */}
-          <div className="flex gap-4 mt-4">
+          {/* Using flex and gap, removed flex-wrap as not needed here */}
+          <div className="flex gap-4 mt-4 mb-10">
+            {" "}
+            {/* Added mb-10 for spacing */}
             <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
-            {/* Removed the status dropdown div */}
           </div>
 
           {/* Simple dashboard - Grid layout reverted to fixed */}
@@ -230,45 +250,42 @@ const ScheduleTracking = () => {
             })}
           </div>
 
-          {/* Filter and Search Area - Reverted to fixed layout */}
+          {/* Filter and Search Area */}
           <div className="flex justify-between items-center mb-4">
-            {" "}
-            {/* Removed flex-wrap and gap-4 */}
+            {/* Status filter buttons */}
+            {/* Applied the helper function for button classes */}
             <div className="flex rounded-sm bg-gray-100">
-              {" "}
-              {/* Removed mb-4 from here */}
-              {/* These buttons now control the filtering */}
-              {["All", "Completed", "In Progress", "Overdue"].map((status) => (
-                <button
-                  key={status}
-                  className={`px-4 py-1 text-sm cursor-pointer rounded-l ${
-                    selectedStatus === status
-                      ? "bg-blue-500 text-white"
-                      : "hover:bg-gray-200 text-gray-700"
-                  }`}
-                  onClick={() => setSelectedStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
+              {["All", "Completed", "In Progress", "Overdue"].map((status) => {
+                const isActive = selectedStatus === status;
+                return (
+                  <button
+                    key={status}
+                    className={`px-4 py-1 text-sm cursor-pointer ${
+                      // Apply rounded corners only to the first and last button
+                      status === "All" ? "rounded-l-sm" : ""
+                    } ${
+                      status === "Overdue" ? "rounded-r-sm" : ""
+                    } ${getStatusFilterClass(status, isActive)}`}
+                    onClick={() => setSelectedStatus(status)}
+                  >
+                    {status}
+                  </button>
+                );
+              })}
             </div>
+
             {/* Search bar with clear button */}
             <div className="flex items-center gap-2">
-              {" "}
-              {/* Flex container for search and potential other controls */}
               <div className="relative flex items-center">
-                {" "}
-                {/* Relative container for input and icons */}
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-7 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent text-sm" // Removed responsive width
+                  className="pl-10 pr-7 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent text-sm"
                 />
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />{" "}
-                {/* Search icon */}
-                {searchTerm && ( // Conditionally render clear button
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                {searchTerm && (
                   <button
                     onClick={handleClearSearch}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
@@ -277,15 +294,11 @@ const ScheduleTracking = () => {
                   </button>
                 )}
               </div>
-              {/* You can add the Filter button or other controls here if needed */}
-              {/* <button className="...">Filter</button> */}
             </div>
           </div>
 
-          {/* Table Container - Removed horizontal scrolling */}
+          {/* Table Container */}
           <div>
-            {" "}
-            {/* Removed overflow-x-auto class */}
             <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
               <thead className="bg-gray-100 text-sm text-gray-500">
                 <tr>
@@ -308,9 +321,8 @@ const ScheduleTracking = () => {
                        </td>
                     </tr>
                  ) : */}
-                {filteredSummary?.length === 0 ? ( // Empty state message
+                {filteredSummary?.length === 0 ? (
                   <tr>
-                    {/* Modified the empty state message */}
                     <td colSpan={8} className="text-center text-gray-500 py-8">
                       {searchTerm
                         ? `No disbursements found matching "${searchTerm}" in the "${selectedStatus}" category.`
@@ -318,7 +330,6 @@ const ScheduleTracking = () => {
                     </td>
                   </tr>
                 ) : (
-                  // Render filteredSummary
                   filteredSummary?.map((item) => (
                     <tr
                       key={item.disb_sched_id}
@@ -341,21 +352,17 @@ const ScheduleTracking = () => {
                             In Progress
                           </span>
                         )}
-                        {/* Display "Overdue" status text if the backend provides it as "NOT STARTED" */}
                         {item.status.toUpperCase() === "NOT STARTED" && (
                           <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
                             Overdue{" "}
-                            {/* Display Overdue based on your screenshot */}
                           </span>
                         )}
-                        {/* You might also need logic here to show "Overdue" if status is PENDING and date has passed */}
                       </td>
-
                       <td className="py-3 px-4">{item.total}</td>
                       <td className="py-3 px-4">{item.number_of_recipients}</td>
                       <td className="py-3 text-blue-500 cursor-pointer font-semibold">
                         <span
-                          className="border py-1 px-2 rounded-sm border-gray-400 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-200 transition-colors cursor-pointer" // Combined original border/padding with hover effects
+                          className="border py-1 px-2 rounded-sm border-gray-400 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-200 transition-colors cursor-pointer"
                           onClick={() => {
                             handleTypeClick(item.disb_sched_id);
                           }}
@@ -375,7 +382,7 @@ const ScheduleTracking = () => {
             <PaginationControl
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={handlePageChange} // This function is a placeholder for now
+              onPageChange={handlePageChange}
               // You might want to disable the buttons until backend pagination is ready
               // isPreviousDisabled={currentPage === 1}
               // isNextDisabled={currentPage === totalPages}
