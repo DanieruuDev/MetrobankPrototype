@@ -1,93 +1,118 @@
-import React, { useContext, useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useState } from "react";
 
-function Login() {
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const auth = useContext(AuthContext);
-  if (!auth) throw new Error("AuthContext must be used within an AuthProvider");
+const LoginPage = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {}
+  );
 
-  const { login } = auth;
+  const validate = () => {
+    const newErrors: { email?: string; password?: string } = {};
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      const response = await axios.post("http://localhost:5000/admin/login", {
-        email,
-        password,
-      });
-      if (response.status === 200) {
-        const { token, email } = response.data;
-        login(token, email); // Save token in context and localStorage
-      }
-
-      if (response.status === 200) {
-        console.log("Login successful:", response.data);
-
-        // Navigate to the protected page
-        navigate("/workflow-approval");
-      }
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        if (err.response) {
-          setError(`Error: ${err.response.data.message || "Login failed"}`);
-        } else if (err.request) {
-          setError("Error: No response from server");
-        } else {
-          setError("Error: Something went wrong");
-        }
-
-        console.error("Login failed:", err);
-      } else {
-        setError("Error: An unexpected error occurred");
-        console.error("Unexpected error:", err);
-      }
+    // Simple email regex for demo (you can improve this)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      newErrors.email = "Email is required.";
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = "Please enter a valid email address.";
     }
+
+    if (!password) {
+      newErrors.password = "Password is required.";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters.";
+    }
+
+    setErrors(newErrors);
+
+    // Return true if no errors
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) return;
+
+    // Proceed with login
+    alert(`Logging in with: ${email}`);
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-96">
-        <h2 className="text-2xl font-semibold text-center mb-6">Login</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="text-gray-700 font-medium mb-2 ">Email</label>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] px-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8">
+        <div className="flex justify-center mb-6">
+          <img
+            src="/mb-logo.png"
+            alt="Metrobank Logo"
+            className="w-20 h-auto object-contain"
+          />
+        </div>
+
+        <h2 className="text-center text-2xl font-extrabold text-[#024FA8] mb-6">
+          Metrobank S.T.R.O.N.G.
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-[#024FA8]"
+            >
+              Email address
+            </label>
             <input
               type="email"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="Enter your email"
+              id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              className={`mt-1 block w-full rounded-md border px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0376C0] focus:border-[#0376C0] ${
+                errors.email ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="you@example.com"
             />
+            {errors.email && (
+              <p className="mt-1 text-red-600 text-sm">{errors.email}</p>
+            )}
           </div>
-          <div className="mb-4">
-            <label className=" text-gray-700 font-medium mb-2">Password</label>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-[#024FA8]"
+            >
+              Password
+            </label>
             <input
               type="password"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="Enter your password"
+              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              className={`mt-1 block w-full rounded-md border px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0376C0] focus:border-[#0376C0] ${
+                errors.password ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="Your password"
             />
+            {errors.password && (
+              <p className="mt-1 text-red-600 text-sm">{errors.password}</p>
+            )}
           </div>
-          <div className="text-red-500">{error}</div>
+
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
+            className="w-full bg-[#024FA8] hover:bg-[#0376C0] text-white font-semibold py-2 rounded-md transition-colors duration-300"
           >
-            Login
+            Log In
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-gray-600">
+          © {new Date().getFullYear()} Metrobank. All rights reserved.
+        </p>
       </div>
     </div>
   );
-}
+};
 
-export default Login;
+export default LoginPage;

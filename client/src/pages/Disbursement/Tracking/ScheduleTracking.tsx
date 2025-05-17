@@ -4,17 +4,13 @@ import Navbar from "../../../components/shared/Navbar";
 import SYSemesterDropdown from "../../../components/shared/SYSemesterDropdown";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-// Import necessary icons, including X for clearing search
 import { Banknote, CalendarArrowUp, Vault, Search, X } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
-// Assuming PaginationControl is in a similar relative path as in your Workflow component
 import PaginationControl from "../../../components/approval/PaginationControl";
-// Assuming you might want a loading indicator later, similar to Workflow
-// import Loading from "../../components/shared/Loading";
 
 interface TrackingSummary {
   disbursement_type: string;
-  disb_title: string; // We will search based on this field
+  disb_title: string;
   disbursement_date: string;
   disb_sched_id: number;
   number_of_recipients: string;
@@ -25,39 +21,48 @@ interface TrackingSummary {
 }
 
 const ScheduleTracking = () => {
-  const [selectedStatus, setSelectedStatus] = useState("All Status");
+  // Set "All" as the default selected status
+  const [selectedStatus, setSelectedStatus] = useState("All");
   const [sySemester, setSySemester] = useState<string>("");
   const [trackingSummary, setTrackingSummary] = useState<
     TrackingSummary[] | null
   >([]);
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-
-  // State for search term - This line was likely missing after your merge
   const [searchTerm, setSearchTerm] = useState("");
-
-  // State for pagination (frontend structure only for now)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  // const [loading, setLoading] = useState(false); // Uncomment when adding loading state
 
   const getTrackingSummary = async (sy_code: string, semester_code: string) => {
-    // setLoading(true); // Uncomment when adding loading state
-    console.log(sy_code);
+    //adjust to make a pagination
     try {
-      // Modify this URL later to include pagination, status, and search query parameters
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/tracking/${sy_code}/${semester_code}`
       );
       setTrackingSummary(response.data);
-      // You'll need to get totalPages from the backend response when pagination is implemented
-      setTotalPages(1); // Placeholder: Set based on actual data and limit later
-      console.log(response.data);
+      setTotalPages(1);
     } catch (error) {
       console.log(error);
-    } finally {
-      // setLoading(false); // Uncomment when adding loading state
     }
+  };
+  const getColorClass = (statusLabel: string, isActive: boolean) => {
+    const colorMap: Record<string, string> = {
+      Completed: isActive
+        ? "bg-green-600 text-white"
+        : "text-green-600 hover:bg-green-100",
+      "In Progress": isActive
+        ? "bg-yellow-400 text-white"
+        : "text-yellow-600 hover:bg-yellow-100",
+      Overdue: isActive
+        ? "bg-red-600 text-white"
+        : "text-red-600 hover:bg-red-100",
+      All: isActive
+        ? "bg-gray-900 text-white"
+        : "text-gray-700 hover:bg-gray-200",
+    };
+
+    // Default style if status not found
+    return colorMap[statusLabel] || "text-gray-700 hover:bg-gray-200";
   };
 
   const totals = trackingSummary?.reduce(
@@ -71,7 +76,7 @@ const ScheduleTracking = () => {
         case "PENDING":
           acc.inProgress += amount;
           break;
-        case "NOT STARTED": // Assuming "NOT STARTED" corresponds to "Overdue" for the count
+        case "NOT STARTED":
           acc.notStarted += amount;
           break;
         default:
@@ -84,92 +89,57 @@ const ScheduleTracking = () => {
     { completed: 0, inProgress: 0, notStarted: 0, total: 0 }
   );
 
-  // Filtering logic - now includes search term for disbursement titles (client-side)
-  // This filtering will be less necessary or change when backend handles filtering/pagination
   const filteredSummary = trackingSummary?.filter((item) => {
     const statusMatch =
-      selectedStatus === "All Status" || selectedStatus === "All"
+      selectedStatus === "All"
         ? true
         : selectedStatus === "In Progress"
         ? item.status.toUpperCase() === "PENDING"
         : selectedStatus.toUpperCase() === item.status.toUpperCase();
 
-    // Filter by disbursement title (case-insensitive)
     const searchMatch =
       searchTerm === "" ||
       item.disb_title.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // You'll still need to implement the specific logic for "Overdue" filtering if it's date-based
     if (selectedStatus === "Overdue") {
-      // Example (conceptual):
-      // const currentDate = new Date();
-      // const dueDate = new Date(item.disbursement_date);
-      // return item.status.toUpperCase() !== 'COMPLETED' && dueDate < currentDate && searchMatch;
-      return false; // Placeholder - implement your overdue logic here
+      return false;
     }
 
     return statusMatch && searchMatch;
   });
 
   useEffect(() => {
-    if (!sySemester) return; // Don't run until sySemester is set
+    if (!sySemester) return;
 
     const [sy, semester] = sySemester.split("_");
     const semester_code = semester === "1st" ? 1 : 2;
     const sy_code = sy.replace("-", "");
 
-    // When backend is ready for pagination/filtering, pass currentPage, selectedStatus, searchTerm here
     getTrackingSummary(sy_code, semester_code.toString());
-  }, [sySemester]); // Add currentPage, selectedStatus, searchTerm when backend is ready
+  }, [sySemester]);
 
-  // Function to handle page change (frontend structure only)
   const handlePageChange = (page: number) => {
-    // This function will trigger a new data fetch from the backend
-    // with the new page number when your collaborator is ready.
     console.log("Changing to page:", page);
-    // setCurrentPage(page); // Uncomment when backend is ready
-    // const [sy, semester] = sySemester.split("_");
-    // const semester_code = semester === "1st" ? 1 : 2;
-    // const sy_code = sy.replace("-", "");
-    // getTrackingSummary(sy_code, semester_code.toString()); // Call fetch with new page
   };
 
   const handleTypeClick = (disbursement_id: number) => {
     navigate(`/tracking/detailed/${disbursement_id}`);
   };
 
-  // Function to clear the search term
   const handleClearSearch = () => {
     setSearchTerm("");
-    // When backend handles filtering, triggering a new fetch might be needed here
-    // const [sy, semester] = sySemester.split("_");
-    // const semester_code = semester === "1st" ? 1 : 2;
-    // const sy_code = sy.replace("-", "");
-    // getTrackingSummary(sy_code, semester_code.toString());
   };
 
   return (
     <div className="flex">
-      {/* Reverted main content padding to fixed */}
       <div
         className={`${
           collapsed ? "pl-20" : "pl-[250px]"
         } transition-[padding-left] duration-300 ease-in-out w-full`}
       >
         <Navbar pageName="Disbursement Tracking" />
-
-        {/* Assuming Sidebar's collapsed state is controlled by the parent and passed down */}
         <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-
         <div className="mt-5 px-4">
-          {/* Dropdown menus */}
-          {/* Removed flex-wrap and gap from this container */}
-          <div className="flex gap-4 mt-4">
-            <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
-            {/* Removed the status dropdown div */}
-          </div>
-
-          {/* Simple dashboard - Grid layout reverted to fixed */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
               {
@@ -189,9 +159,8 @@ const ScheduleTracking = () => {
                 icon: <CalendarArrowUp />,
               },
               {
-                label: "Overdue", // Changed from "Not Started" in the card label based on your screenshot
+                label: "Overdue",
                 value: totals?.notStarted.toLocaleString("en-PH", {
-                  // This still uses notStarted total, you might want to adjust this
                   style: "currency",
                   currency: "PHP",
                 }),
@@ -211,7 +180,7 @@ const ScheduleTracking = () => {
                   ? "text-green-500"
                   : card.label === "In Progress"
                   ? "text-yellow-500"
-                  : card.label === "Overdue" // Changed from "Not Started" here too
+                  : card.label === "Overdue"
                   ? "text-red-500"
                   : "text-gray-800";
 
@@ -230,45 +199,37 @@ const ScheduleTracking = () => {
             })}
           </div>
 
-          {/* Filter and Search Area - Reverted to fixed layout */}
           <div className="flex justify-between items-center mb-4">
-            {" "}
-            {/* Removed flex-wrap and gap-4 */}
-            <div className="flex rounded-sm bg-gray-100">
-              {" "}
-              {/* Removed mb-4 from here */}
-              {/* These buttons now control the filtering */}
-              {["All", "Completed", "In Progress", "Overdue"].map((status) => (
-                <button
-                  key={status}
-                  className={`px-4 py-1 text-sm cursor-pointer rounded-l ${
-                    selectedStatus === status
-                      ? "bg-blue-500 text-white"
-                      : "hover:bg-gray-200 text-gray-700"
-                  }`}
-                  onClick={() => setSelectedStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+              {["All", "Completed", "In Progress", "Overdue"].map((status) => {
+                const isActive = selectedStatus === status;
+
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setSelectedStatus(status)}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${getColorClass(
+                      status,
+                      isActive
+                    )}`}
+                  >
+                    {status}
+                  </button>
+                );
+              })}
             </div>
-            {/* Search bar with clear button */}
-            <div className="flex items-center gap-2">
-              {" "}
-              {/* Flex container for search and potential other controls */}
+
+            <div className="flex items-center gap-2 ">
               <div className="relative flex items-center">
-                {" "}
-                {/* Relative container for input and icons */}
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-7 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent text-sm" // Removed responsive width
+                  className="pl-10 pr-7 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent text-sm"
                 />
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />{" "}
-                {/* Search icon */}
-                {searchTerm && ( // Conditionally render clear button
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                {searchTerm && (
                   <button
                     onClick={handleClearSearch}
                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
@@ -277,15 +238,12 @@ const ScheduleTracking = () => {
                   </button>
                 )}
               </div>
-              {/* You can add the Filter button or other controls here if needed */}
-              {/* <button className="...">Filter</button> */}
+
+              <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
             </div>
           </div>
 
-          {/* Table Container - Removed horizontal scrolling */}
           <div>
-            {" "}
-            {/* Removed overflow-x-auto class */}
             <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
               <thead className="bg-gray-100 text-sm text-gray-500">
                 <tr>
@@ -300,17 +258,8 @@ const ScheduleTracking = () => {
                 </tr>
               </thead>
               <tbody>
-                {/* Loading indicator (uncomment when adding loading state) */}
-                {/* {loading ? (
-                    <tr>
-                       <td colSpan={8} className="text-center py-4">
-                           <Loading />
-                       </td>
-                    </tr>
-                 ) : */}
-                {filteredSummary?.length === 0 ? ( // Empty state message
+                {filteredSummary?.length === 0 ? (
                   <tr>
-                    {/* Modified the empty state message */}
                     <td colSpan={8} className="text-center text-gray-500 py-8">
                       {searchTerm
                         ? `No disbursements found matching "${searchTerm}" in the "${selectedStatus}" category.`
@@ -318,7 +267,6 @@ const ScheduleTracking = () => {
                     </td>
                   </tr>
                 ) : (
-                  // Render filteredSummary
                   filteredSummary?.map((item) => (
                     <tr
                       key={item.disb_sched_id}
@@ -341,21 +289,18 @@ const ScheduleTracking = () => {
                             In Progress
                           </span>
                         )}
-                        {/* Display "Overdue" status text if the backend provides it as "NOT STARTED" */}
                         {item.status.toUpperCase() === "NOT STARTED" && (
                           <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
                             Overdue{" "}
-                            {/* Display Overdue based on your screenshot */}
                           </span>
                         )}
-                        {/* You might also need logic here to show "Overdue" if status is PENDING and date has passed */}
                       </td>
 
                       <td className="py-3 px-4">{item.total}</td>
                       <td className="py-3 px-4">{item.number_of_recipients}</td>
                       <td className="py-3 text-blue-500 cursor-pointer font-semibold">
                         <span
-                          className="border py-1 px-2 rounded-sm border-gray-400 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-200 transition-colors cursor-pointer" // Combined original border/padding with hover effects
+                          className="border py-1 px-2 rounded-sm border-gray-400 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-200 transition-colors cursor-pointer"
                           onClick={() => {
                             handleTypeClick(item.disb_sched_id);
                           }}
@@ -370,15 +315,11 @@ const ScheduleTracking = () => {
             </table>
           </div>
 
-          {/* Pagination Control (Frontend Only) */}
           <div className="mt-4">
             <PaginationControl
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={handlePageChange} // This function is a placeholder for now
-              // You might want to disable the buttons until backend pagination is ready
-              // isPreviousDisabled={currentPage === 1}
-              // isNextDisabled={currentPage === totalPages}
+              onPageChange={handlePageChange}
             />
           </div>
         </div>

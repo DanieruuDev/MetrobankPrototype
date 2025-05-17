@@ -138,7 +138,7 @@ const DisbursementOverview = () => {
 
             <div className="bg-white rounded-lg shadow p-6 text-sm">
               {!loading ? (
-                <DonutChart school_year={schoolYears[1]?.sy_code} />
+                <DonutChart school_year={schoolYears[2]?.sy_code} />
               ) : (
                 <div>Loading...</div>
               )}
