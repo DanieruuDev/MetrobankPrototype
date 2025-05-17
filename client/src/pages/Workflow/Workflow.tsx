@@ -76,7 +76,7 @@ function Workflow() {
   const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
   const [totalPage, setTotalPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("my-approval");
+  const [activeTab, setActiveTab] = useState("my-workflows");
   const statuses = [
     { label: "All" },
     { label: "Not Started", color: "gray" },
@@ -179,11 +179,7 @@ function Workflow() {
   };
 
   return (
-    <div
-      className={`${
-        collapsed ? "pl-20" : "pl-[250px]"
-      } transition-[padding-left] duration-300`}
-    >
+    <div className={`${collapsed ? "pl-20" : "pl-[250px]"}`}>
       <Navbar pageName="Workflow Approval" />
 
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -200,14 +196,14 @@ function Workflow() {
             <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-full w-fit">
               <button
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
-                  activeTab === "my-approval"
+                  activeTab === "my-workflows"
                     ? "bg-[#024FA8] text-white shadow-md"
                     : "text-gray-600 hover:bg-gray-200"
                 }`}
-                onClick={() => setActiveTab("my-approval")}
+                onClick={() => setActiveTab("my-workflows")}
               >
                 <ClipboardList size={16} />
-                <span>My Approval</span>
+                <span>My Workflows</span>
               </button>
 
               <button
