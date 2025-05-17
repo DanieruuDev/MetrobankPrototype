@@ -62,7 +62,7 @@ function DetailedTracking() {
       setIsCompleting(false);
     }
   };
-
+  console.log(trackingDetailed);
   const scheduleInfo = trackingDetailed?.[0];
 
   const getStatusBadge = (status: string) => {
