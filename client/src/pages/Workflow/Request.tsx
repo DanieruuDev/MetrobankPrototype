@@ -30,7 +30,7 @@ function Request() {
   const getRequestApproval = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-request/${user_id}`
+        `http://localhost:5000/api/workflow/get-request/${user_id}`
       );
 
       setRequestList(response.data);
@@ -42,7 +42,7 @@ function Request() {
     if (!approverId) return console.log("No approval id yet");
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-specific-request/${approverId}`
+        `http://localhost:5000/api/workflow/get-specific-request/${approverId}`
       );
       setSpecificRequest(response.data);
     } catch (error) {

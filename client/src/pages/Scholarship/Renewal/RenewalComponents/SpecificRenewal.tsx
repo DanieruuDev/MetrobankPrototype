@@ -44,7 +44,7 @@ function SpecificRenewal({
     console.log("Fetching data for:", student_id, renewal_id);
     try {
       const response = await axios.get<ScholarRenewalResponse>(
-        `http://localhost:5000/admin/get-renewal/${student_id}/${renewal_id}`
+        `http://localhost:5000/api/renewal/get-renewal/${student_id}/${renewal_id}`
       );
       setRenewalDetails(response.data);
     } catch (error) {
@@ -157,7 +157,7 @@ function SpecificRenewal({
     console.log("Updated:", renewalDetails);
     try {
       const response = await axios.put(
-        "http://localhost:5000/admin/update-renewal",
+        "http://localhost:5000/api/renewal/update-renewal",
         updatedRenewalDetails
       );
 

@@ -64,7 +64,7 @@ function Approval({
       const API_BASE_URL = "http://localhost:5000";
 
       const response = await axios.put(
-        `${API_BASE_URL}/admin/change-approval/3`,
+        `${API_BASE_URL}/api/workflow/change-approval/3`,
         {
           workflow_id: workflow.workflow_id,
           old_approver_id: selectedApprover.approver_id,
@@ -132,7 +132,7 @@ function Approval({
 
     const filePath = encodeURIComponent(workflow.doc_path);
     const link = document.createElement("a");
-    link.href = `http://localhost:5000/admin/download/${filePath}`;
+    link.href = `http://localhost:5000/api/workflow/download/${filePath}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

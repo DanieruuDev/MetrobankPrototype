@@ -68,7 +68,7 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
 
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-renewal-report/${encodeURIComponent(
+        `http://localhost:5000/api/renewal/get-renewal-report/${encodeURIComponent(
           yearLevel
         )}/${encodeURIComponent(schoolYear)}/${encodeURIComponent(semester)}`,
         { responseType: "blob" }

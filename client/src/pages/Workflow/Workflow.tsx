@@ -112,7 +112,7 @@ function Workflow() {
   const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-approval/${requester_id}/${workflow_id}`
+        `http://localhost:5000/api/workflow/get-workflow/${requester_id}/${workflow_id}`
       );
       setDetailedWorkflow(response.data);
     } catch (error) {
@@ -124,7 +124,7 @@ function Workflow() {
       //check authorization for deletion
       //cahnge the requester_id with authorize id
       await axios.delete(
-        `http://localhost:5000/admin/delete-approval/${requester_id}/${workflow_id}`
+        `http://localhost:5000/api/wokflow/delete-workflow/${requester_id}/${workflow_id}`
       );
 
       console.log("Success on deleting");
@@ -139,7 +139,7 @@ function Workflow() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-approvals/${requesterId}?page=${page}&limit=10`
+        `http://localhost:5000/api/workflow/get-workflows/${requesterId}?page=${page}&limit=10`
       );
 
       const { data, totalPages, currentPage } = response.data;
