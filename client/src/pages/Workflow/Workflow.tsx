@@ -1,6 +1,6 @@
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
@@ -18,6 +18,8 @@ import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
 import PaginationControl from "../../components/approval/PaginationControl";
 import Loading from "../../components/shared/Loading";
+import { AuthContext } from "../../context/AuthContext";
+import { useSidebar } from "../../context/SidebarContext";
 
 export interface WorkflowDisplaySchema {
   workflow_id: number;
@@ -69,8 +71,8 @@ function Workflow() {
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
   >();
-  const [collapsed, setCollapsed] = useState(false);
-  const requesterId = 3;
+  const { collapsed } = useSidebar();
+
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
@@ -84,7 +86,8 @@ function Workflow() {
     { label: "Completed", color: "green" },
     { label: "Missed", color: "red" },
   ];
-
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id; // your logged-in user's ID
   const [activeStatus, setActiveStatus] = useState("Not Started");
 
   const getColorClass = (statusLabel: string, isActive: boolean) => {
@@ -136,10 +139,11 @@ function Workflow() {
     }
   };
   const fetchWorkflows = async (page: number) => {
+    if (userId === undefined) return;
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-workflows/${requesterId}?page=${page}&limit=10`
+        `http://localhost:5000/api/workflow/get-workflows/${userId}?page=${page}&limit=10`
       );
 
       const { data, totalPages, currentPage } = response.data;
@@ -155,8 +159,11 @@ function Workflow() {
   };
 
   useEffect(() => {
-    fetchWorkflows(page); // Load first page when component loads
-  }, [page]);
+    if (userId !== undefined) {
+      fetchWorkflows(page);
+    }
+  }, [page, userId]);
+
   // ✅ Only one useEffect watching `page`
 
   const filteredWorkflows = workflowDisplay.filter((workflow) => {
@@ -179,10 +186,14 @@ function Workflow() {
   };
 
   return (
-    <div className={`${collapsed ? "pl-20" : "pl-[250px]"}`}>
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-all duration-300`}
+    >
       <Navbar pageName="Workflow Approval" />
 
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar />
 
       {detailedWorkflow ? (
         <Approval
@@ -323,9 +334,11 @@ function Workflow() {
                           gridTemplateColumns:
                             "1.5fr 1fr min-content 1fr 2fr min-content",
                         }}
-                        onClick={() =>
-                          fetchWorkflow(requesterId, workflow.workflow_id)
-                        }
+                        onClick={() => {
+                          if (userId !== undefined) {
+                            fetchWorkflow(userId, workflow.workflow_id);
+                          }
+                        }}
                       >
                         <div className="truncate px-6 max-w-[255px]">
                           {workflow.rq_title}
@@ -349,7 +362,9 @@ function Workflow() {
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            handleDelete(requesterId, workflow.workflow_id);
+                            if (userId !== undefined) {
+                              handleDelete(userId, workflow.workflow_id);
+                            }
                           }}
                           className="p-2 text-red-500 rounded-md transition cursor-pointer flex-shrink-0 max-w-[40px]"
                         >

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import DonutChart from "../../../components/charts/DonutChart";
 import ComboChart from "../../../components/charts/ComboChart";
 import DropdownFilter from "../../../components/shared/DropdownFilter";
+import { useSidebar } from "../../../context/SidebarContext";
 
 interface StudentDisbursement {
   student_name: string;
@@ -39,7 +40,7 @@ const DisbursementOverview = () => {
     branch: "",
     year: "",
   });
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -122,11 +123,11 @@ const DisbursementOverview = () => {
       <div
         className={`${
           collapsed ? "pl-20" : "pl-[250px]"
-        } transition-all duration-300 ease-in-out w-full `}
+        } transition-[padding-left] duration-300 w-full `}
       >
         <Navbar pageName="Disbursement Overview" />
 
-        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+        <Sidebar />
 
         {/* Main Content */}
         <div className="md:ml-4 mx-4 mt-12">

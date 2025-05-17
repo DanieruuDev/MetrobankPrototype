@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { DisbursementSchedule } from "../../pages/Disbursement/Scheduling/Schedule";
 import { Eye, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
@@ -6,6 +6,8 @@ import axios from "axios";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { Link } from "react-router-dom";
 import UpdateEvent from "./UpdateEvent";
+import { AuthContext } from "../../context/AuthContext";
+
 export interface DisbursementScheduleDetail {
   disb_sched_id: number;
   disbursement_type: string;
@@ -40,6 +42,8 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   currentDate,
   removeScheduleById,
 }) => {
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id;
   const [activeSchedule, setActiveSchedule] =
     useState<DisbursementScheduleDetail | null>(null);
   const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
@@ -101,10 +105,10 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     setModalPosition({ top, left });
     setLoading(true);
     setError(null);
-
+    //use the userID here
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/detailed/1/${schedule.disb_sched_id}`
+        `http://localhost:5000/api/disbursement/schedule/detailed/${schedule.disb_sched_id}`
       );
       setActiveSchedule(response.data);
     } catch (err) {
@@ -118,7 +122,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   const deleteSchedule = async (disb_sched_id: number, user_id: string) => {
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/disbursement/schedule/${1}/${disb_sched_id}`
+        `http://localhost:5000/api/disbursement/schedule/${disb_sched_id}`
       );
 
       alert(response.data.message || "Disbursement schedule deleted.");
@@ -255,19 +259,23 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                         <Pencil className="w-4 h-4" />
                         <span>Edit</span>
                       </button>
-                      <button
-                        className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
-                        onClick={() => {
-                          deleteSchedule(
-                            activeSchedule.disb_sched_id,
-                            activeSchedule.created_by
-                          );
-                          setShowOptions(false);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
+                      {activeSchedule.created_by_id === userId ? (
+                        <button
+                          className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
+                          onClick={() => {
+                            deleteSchedule(
+                              activeSchedule.disb_sched_id,
+                              activeSchedule.created_by
+                            );
+                            setShowOptions(false);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
+                        </button>
+                      ) : (
+                        ""
+                      )}
                     </div>
                   )}
                 </div>

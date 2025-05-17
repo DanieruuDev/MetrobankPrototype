@@ -1,8 +1,9 @@
 import { Calendar, Plus, SquareMinus, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import distributeDueDates from "../../utils/DistributeDueDate";
 import axios from "axios";
+import { AuthContext } from "../../context/AuthContext";
 
 interface CreateApproval2Props {
   setIsModal: (isOpen: boolean) => void;
@@ -44,6 +45,8 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const todayDate = new Date().toISOString().split("T")[0];
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id; // your logged-in user's ID
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: (acceptedFiles) => {
@@ -96,7 +99,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }));
 
     const formDataToSend = {
-      requester_id: 3, // Change this into dynamic type
+      requester_id: userId, // Change this into dynamic type
       req_type_id: formValues.req_type_id,
       description: formValues.description,
       file: file,

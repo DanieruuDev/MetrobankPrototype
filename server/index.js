@@ -24,7 +24,7 @@ app.use("/sample", async (req, res) => {
   }
 });
 
-app.use("/admin", userAdminRouter);
+app.use("/api/auth", userAdminRouter);
 app.use("/api/disbursement", disbursementRouter);
 app.use("/api/disbursement/overview", disbursementOverview);
 app.use("/api/disbursement/tracking", disbursementTracking);

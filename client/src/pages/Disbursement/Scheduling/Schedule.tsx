@@ -8,6 +8,7 @@ import { Bell, CalendarDays, ClipboardList, Plus } from "lucide-react";
 import axios from "axios";
 import { isBefore, startOfDay } from "date-fns";
 import AgendaView from "../../../components/disbursement/Agenda";
+import { useSidebar } from "../../../context/SidebarContext";
 
 export interface DisbursementSchedule {
   created_by: number;
@@ -27,7 +28,7 @@ function Schedule() {
   const [error, setError] = useState<string | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const onClose = (isClosed: boolean) => {
     setIsModalOpen(isClosed);
     setSelectedDate(null);
@@ -102,7 +103,7 @@ function Schedule() {
     >
       <Navbar pageName="Schedule and Tracking" />
 
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar />
       <ScheduleSidebar getBadgeColor={getBadgeColor} collapsed={collapsed} />
 
       <div

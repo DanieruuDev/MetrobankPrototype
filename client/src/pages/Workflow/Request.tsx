@@ -1,14 +1,16 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import SpecificRequest from "../../components/approval/SpecificRequest";
 import {
   ApproverDetailedView,
   RequestApprovalList,
 } from "../../Interface/IWorkflow";
 import { approverStatusBadge } from "../../utils/StatusBadge";
+import { AuthContext } from "../../context/AuthContext";
 
 function Request() {
-  const user_id = 1;
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id; // your logged-in user's ID
   const [requestList, setRequestList] = useState<RequestApprovalList[] | null>(
     []
   );
@@ -30,7 +32,7 @@ function Request() {
   const getRequestApproval = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-request/${user_id}`
+        `http://localhost:5000/api/workflow/get-request/${userId}`
       );
 
       setRequestList(response.data);

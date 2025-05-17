@@ -12,7 +12,7 @@ const {
   downloadFile,
   approveApproval,
 } = require("../controllers/workflow-controller.js");
-
+const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     return cb(null, "./public/images");
@@ -26,7 +26,11 @@ const upload = multer({ storage });
 const workflowRouter = express.Router();
 
 workflowRouter.post("/upload", upload.single("file"), uploadFile);
-workflowRouter.get("/get-workflows/:user_id", getApprovals);
+workflowRouter.get(
+  "/get-workflows/:user_id",
+
+  getApprovals
+);
 workflowRouter.get("/get-workflow/:user_id/:workflow_id", getApproval);
 workflowRouter.post("/create-workflow", upload.single("file"), createApproval);
 workflowRouter.delete("/delete-workflow/:user_id/:workflow_id", deleteApproval);

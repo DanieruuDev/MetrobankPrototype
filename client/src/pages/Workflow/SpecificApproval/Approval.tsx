@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { Approver, DetailedWorkflow } from "../Workflow";
 import { Clock, Download, FileText, X, Check, ArrowLeft } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { workflowStatusText } from "../../../utils/StatusBadge";
+import { AuthContext } from "../../../context/AuthContext";
 
 interface ApprovalProps {
   detailedWorkflow?: DetailedWorkflow;
@@ -19,6 +20,8 @@ function Approval({
   setDetailedWorkflow,
   fetchWorkflow,
 }: ApprovalProps) {
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id;
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedApprover, setSelectedApprover] = useState<Approver | null>(
@@ -64,7 +67,7 @@ function Approval({
       const API_BASE_URL = "http://localhost:5000";
 
       const response = await axios.put(
-        `${API_BASE_URL}/api/workflow/change-approval/3`,
+        `${API_BASE_URL}/api/workflow/change-approval/${userId}`,
         {
           workflow_id: workflow.workflow_id,
           old_approver_id: selectedApprover.approver_id,

@@ -1,4 +1,6 @@
 import { Route, Routes } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Workflow from "./pages/Workflow/Workflow";
@@ -10,42 +12,152 @@ import DisbursementOverview from "./pages/Disbursement/Overview/DisbursementOver
 import ScheduleTracking from "./pages/Disbursement/Tracking/ScheduleTracking";
 import DetailedOverview from "./pages/Disbursement/Overview/DetailedOverview";
 import DetailedTracking from "./pages/Disbursement/Tracking/DetailedTracking";
+import PrivateRoute from "./components/shared/PrivateRoute";
+import { SidebarProvider } from "./context/SidebarContext";
+// import AnalyticsPage from "./pages/Analytics"; // Add your analytics page if available
+
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/renewal-scholarship" element={<Renewal />} />
-      <Route path="/workflow-approval" element={<Workflow />} />
-      <Route path="/schedule" element={<Schedule />} />
-      <Route path="/tracking" element={<ScheduleTracking />} />
-      <Route
-        path="/financial-overview/detailed/:id"
-        element={<DetailedOverview />}
+    <>
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000}
+        aria-label="Notification messages"
       />
-      <Route
-        path="/approval/:admin_id/:workflow_id"
-        element={
-          <Approval
-            setDetailedWorkflow={function (): void {
-              throw new Error("Function not implemented.");
-            }}
-            fetchWorkflow={function (
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              _requester_id: number
-            ): void {
-              throw new Error("Function not implemented.");
-            }}
+      <SidebarProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+
+          {/* Private routes with role-based access */}
+          <Route
+            path="/workflow-approval"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "STI Registrar",
+                  "MB HR",
+                  "MB Financial",
+                  "MB Foundation",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                ]}
+              >
+                <Workflow />
+              </PrivateRoute>
+            }
           />
-        }
-      />
-      <Route
-        path="/tracking/detailed/:disbursement_id"
-        element={<DetailedTracking />}
-      />
-      <Route path="/financial-overview" element={<DisbursementOverview />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+
+          <Route
+            path="/renewal-scholarship"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <Renewal />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/schedule"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <Schedule />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/tracking"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <ScheduleTracking />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/financial-overview"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <DisbursementOverview />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/financial-overview/detailed/:id"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <DetailedOverview />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/approval/:admin_id/:workflow_id"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "STI Registrar",
+                  "MB HR",
+                  "MB Financial",
+                  "MB Foundation",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                ]}
+              >
+                <Approval
+                  setDetailedWorkflow={function (): void {
+                    throw new Error("Function not implemented.");
+                  }}
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  fetchWorkflow={function (_requester_id: number): void {
+                    throw new Error("Function not implemented.");
+                  }}
+                />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/tracking/detailed/:disbursement_id"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <DetailedTracking />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Example Analytics route - add this only if you have Analytics page */}
+          {/* 
+        <Route
+          path="/analytics"
+          element={
+            <PrivateRoute allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}>
+              <AnalyticsPage />
+            </PrivateRoute>
+          }
+        /> 
+        */}
+
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </SidebarProvider>
+    </>
   );
 }
 

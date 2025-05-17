@@ -148,8 +148,10 @@ const fetchDisbursementSchedules = async (req, res) => {
   }
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59);
+
   try {
     await client.query("BEGIN");
+
     const result = await client.query(
       `
         SELECT 
@@ -212,9 +214,10 @@ const getTwoWeeksDisbursementSchedules = async (req, res) => {
 };
 
 const fetchDetailSchedule = async (req, res) => {
-  const { disb_sched_id, user_id } = req.params;
+  console.log("fetch detailed");
+  const { disb_sched_id } = req.params;
 
-  if (!disb_sched_id || !user_id) {
+  if (!disb_sched_id) {
     return res
       .status(400)
       .json({ message: "Missing sched_id or user_id in query parameters." });
@@ -225,9 +228,9 @@ const fetchDetailSchedule = async (req, res) => {
       `
         SELECT * 
         FROM vw_disbursement_schedule_detailed 
-        WHERE disb_sched_id = $1 AND created_by_id = $2
+        WHERE disb_sched_id = $1
       `,
-      [disb_sched_id, user_id]
+      [disb_sched_id]
     );
 
     if (result.rows.length === 0) {
@@ -284,7 +287,7 @@ const fetchWeeklyDisbursementSchedules = async (req, res) => {
 };
 
 const deleteDisbursementSchedule = async (req, res) => {
-  const { user_id, disb_sched_id } = req.params;
+  const { disb_sched_id } = req.params;
 
   const client = await pool.connect();
 
@@ -305,7 +308,7 @@ const deleteDisbursementSchedule = async (req, res) => {
     }
 
     const creatorId = authCheck.rows[0].created_by;
-    if (creatorId !== Number(user_id)) {
+    if (creatorId !== Number(1)) {
       console.log(typeof creatorId, typeof user_id);
       await client.query("ROLLBACK");
       return res

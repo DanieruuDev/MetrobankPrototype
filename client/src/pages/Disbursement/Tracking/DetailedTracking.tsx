@@ -4,6 +4,7 @@ import Sidebar from "../../../components/shared/Sidebar";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSidebar } from "../../../context/SidebarContext";
 
 interface ITrackingDetailed {
   amount: string;
@@ -23,7 +24,7 @@ function DetailedTracking() {
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ function DetailedTracking() {
     >
       <Navbar pageName="Disbursement Tracking" />
 
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar />
 
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
