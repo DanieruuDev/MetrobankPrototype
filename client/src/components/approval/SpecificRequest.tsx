@@ -37,7 +37,7 @@ function SpecificRequest({
 
     const filePath = encodeURIComponent(specificRequest.file_path);
     const link = document.createElement("a");
-    link.href = `http://localhost:5000/admin/download/${filePath}`;
+    link.href = `http://localhost:5000/api/workflow/download/${filePath}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -50,7 +50,7 @@ function SpecificRequest({
     setLoading(true);
     try {
       const res = await axios.put(
-        "http://localhost:5000/admin/approve-approval",
+        "http://localhost:5000/api/workflow/approve-approval",
         {
           approver_id,
           response: status,
