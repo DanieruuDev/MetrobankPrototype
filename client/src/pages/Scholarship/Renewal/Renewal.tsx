@@ -4,6 +4,8 @@ import { useState } from "react";
 import SYSemesterDropdown from "../../../components/shared/SYSemesterDropdown";
 import SpecificRenewal from "./RenewalComponents/SpecificRenewal";
 import RenewalList from "./RenewalComponents/RenewalList";
+import useLogout from "../../../components/Logout";
+import { useSidebar } from "../../../context/SidebarContext";
 
 export interface SpecificRenewalDetail {
   student_id: number;
@@ -13,7 +15,7 @@ export interface SpecificRenewalDetail {
 function Renewal() {
   const [detailedRenewal, setDetailedRenewal] =
     useState<SpecificRenewalDetail | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const handleRowClick = (student_id: number, renewal_id: number) => {
     setDetailedRenewal({ student_id, renewal_id });
   };
@@ -25,8 +27,9 @@ function Renewal() {
       } transition-[padding-left] duration-300`}
     >
       <Navbar pageName="Scholarship Renewal" />
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar />
 
+      <button onClick={useLogout}>Logout</button>
       {detailedRenewal === null ? (
         <>
           <div className="flex justify-end px-4">

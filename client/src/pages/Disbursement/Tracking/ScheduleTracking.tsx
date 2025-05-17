@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Banknote, CalendarArrowUp, Vault, Search, X } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import PaginationControl from "../../../components/approval/PaginationControl";
+import { useSidebar } from "../../../context/SidebarContext";
 
 interface TrackingSummary {
   disbursement_type: string;
@@ -27,7 +28,7 @@ const ScheduleTracking = () => {
   const [trackingSummary, setTrackingSummary] = useState<
     TrackingSummary[] | null
   >([]);
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -138,7 +139,7 @@ const ScheduleTracking = () => {
         } transition-[padding-left] duration-300 ease-in-out w-full`}
       >
         <Navbar pageName="Disbursement Tracking" />
-        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+        <Sidebar />
         <div className="mt-5 px-4">
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[

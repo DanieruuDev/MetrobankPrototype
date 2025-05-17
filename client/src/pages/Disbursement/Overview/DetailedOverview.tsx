@@ -4,6 +4,7 @@ import Sidebar from "../../../components/shared/Sidebar";
 import { useParams } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import ComingSoonDialog from "../../../components/shared/ComingSoonDialog";
+import { useSidebar } from "../../../context/SidebarContext";
 
 export interface ScholarDisbursement {
   amount: string | null;
@@ -40,7 +41,7 @@ const DetailedOverview: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTermIndex, setSelectedTermIndex] = useState<number>(0);
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const fetchDisbursementData = async (): Promise<void> => {
     setIsLoading(true);
     try {
@@ -197,7 +198,7 @@ const DetailedOverview: React.FC = () => {
       >
         <Navbar pageName="Disbursement Overview" />
 
-        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+        <Sidebar />
         <div className="mt-4 px-8 pb-12 max-w-6xl mx-auto">
           {/* Scholar Profile Summary */}
           <div className="flex items-center justify-between mb-8">

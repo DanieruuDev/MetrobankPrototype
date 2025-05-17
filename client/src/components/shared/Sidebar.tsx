@@ -1,3 +1,4 @@
+import React, { useContext } from "react";
 import { NavLink } from "react-router-dom";
 import {
   Home,
@@ -8,29 +9,82 @@ import {
   BarChart,
   ChevronRight,
 } from "lucide-react";
+import { AuthContext } from "../../context/AuthContext"; // Adjust the path as needed
+import { useSidebar } from "../../context/SidebarContext";
 
-interface SidebarProps {
-  collapsed: boolean;
-  setCollapsed: (isCollapse: boolean) => void;
-}
+const Sidebar = () => {
+  const auth = useContext(AuthContext);
+  const userRole = auth?.user?.role_name || "";
+  const { collapsed, setCollapsed } = useSidebar();
+  // Normalize role to lower case trimmed string for safer comparison
+  const normalizedUserRole = userRole.trim().toLowerCase();
 
-const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
   const navItems = [
-    { to: "/", label: "Home", Icon: Home },
+    {
+      to: "/",
+      label: "Home",
+      Icon: Home,
+      allowedRoles: [
+        "sti registrar",
+        "mb hr",
+        "mb financial",
+        "mb foundation",
+        "mbs head",
+        "system_admin",
+      ],
+    },
     {
       to: "/renewal-scholarship",
       label: "Scholarship Renewal",
       Icon: BookOpen,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
-    { to: "/workflow-approval", label: "Approvals", Icon: CheckCircle },
-    { to: "/schedule", label: "Schedule", Icon: Calendar },
-    { to: "/tracking", label: "Disbursement Tracking", Icon: ClipboardList },
+    {
+      to: "/workflow-approval",
+      label: "Approvals",
+      Icon: CheckCircle,
+      allowedRoles: [
+        "sti registrar",
+        "mb hr",
+        "mb financial",
+        "mb foundation",
+        "mbs head",
+        "system_admin",
+      ],
+    },
+    {
+      to: "/schedule",
+      label: "Schedule",
+      Icon: Calendar,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
+    {
+      to: "/tracking",
+      label: "Disbursement Tracking",
+      Icon: ClipboardList,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
     {
       to: "/financial-overview",
       label: "Disbursement Overview",
       Icon: BarChart,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
+    // Add Analytics here if you have one, same pattern
+    // {
+    //   to: "/analytics",
+    //   label: "Analytics",
+    //   Icon: BarChart,
+    //   allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    // },
   ];
+
+  // Filter nav items based on current user's role
+  const filteredNavItems = navItems.filter((item) =>
+    item.allowedRoles.some(
+      (role) => role.trim().toLowerCase() === normalizedUserRole
+    )
+  );
 
   return (
     <div
@@ -99,7 +153,7 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
 
       {/* Menu items */}
       <ul className="space-y-2">
-        {navItems.map(({ to, label, Icon }) => (
+        {filteredNavItems.map(({ to, label, Icon }) => (
           <li key={to} className="relative">
             {/* Container to track hover */}
             <div className="group">
@@ -142,8 +196,6 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
           </li>
         ))}
       </ul>
-
-      {/* Toggle button when collapsed */}
     </div>
   );
 };

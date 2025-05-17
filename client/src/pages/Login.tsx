@@ -1,17 +1,26 @@
-import { useState } from "react";
+import React, { useContext, useState } from "react";
+import axios, { AxiosError } from "axios";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { AuthContext } from "../context/AuthContext";
 
-const LoginPage = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
-  );
+interface LoginErrors {
+  email?: string;
+  password?: string;
+}
 
-  const validate = () => {
-    const newErrors: { email?: string; password?: string } = {};
+const LoginPage: React.FC = () => {
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [errors, setErrors] = useState<LoginErrors>({});
+  const [loading, setLoading] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const auth = useContext(AuthContext);
 
-    // Simple email regex for demo (you can improve this)
+  const validate = (): boolean => {
+    const newErrors: LoginErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!email) {
       newErrors.email = "Email is required.";
     } else if (!emailRegex.test(email)) {
@@ -25,18 +34,38 @@ const LoginPage = () => {
     }
 
     setErrors(newErrors);
-
-    // Return true if no errors
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!validate()) return;
 
-    // Proceed with login
-    alert(`Logging in with: ${email}`);
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        {
+          email,
+          password,
+        }
+      );
+
+      const { token } = response.data;
+
+      auth?.login(token);
+
+      toast.success("Login successful!");
+      navigate("/workflow-approval");
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message: string }>;
+      const errorMessage =
+        axiosError.response?.data.message || "Network error occurred";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,7 +83,7 @@ const LoginPage = () => {
           Metrobank S.T.R.O.N.G.
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label
               htmlFor="email"
@@ -71,9 +100,13 @@ const LoginPage = () => {
                 errors.email ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="you@example.com"
+              aria-invalid={!!errors.email}
+              aria-describedby="email-error"
             />
             {errors.email && (
-              <p className="mt-1 text-red-600 text-sm">{errors.email}</p>
+              <p id="email-error" className="mt-1 text-red-600 text-sm">
+                {errors.email}
+              </p>
             )}
           </div>
 
@@ -93,17 +126,47 @@ const LoginPage = () => {
                 errors.password ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Your password"
+              aria-invalid={!!errors.password}
+              aria-describedby="password-error"
             />
             {errors.password && (
-              <p className="mt-1 text-red-600 text-sm">{errors.password}</p>
+              <p id="password-error" className="mt-1 text-red-600 text-sm">
+                {errors.password}
+              </p>
             )}
           </div>
 
           <button
             type="submit"
-            className="w-full bg-[#024FA8] hover:bg-[#0376C0] text-white font-semibold py-2 rounded-md transition-colors duration-300"
+            disabled={loading}
+            className={`w-full bg-[#024FA8] hover:bg-[#0376C0] text-white font-semibold py-2 rounded-md transition-colors duration-300 flex justify-center items-center ${
+              loading ? "cursor-not-allowed opacity-70" : ""
+            }`}
           >
-            Log In
+            {loading ? (
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+            ) : (
+              "Log In"
+            )}
           </button>
         </form>
 
