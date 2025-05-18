@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import DonutChart from "../../../components/charts/DonutChart";
 import ComboChart from "../../../components/charts/ComboChart";
 import DropdownFilter from "../../../components/shared/DropdownFilter";
+import { useSidebar } from "../../../context/SidebarContext";
 
 interface StudentDisbursement {
   student_name: string;
@@ -39,6 +40,7 @@ const DisbursementOverview = () => {
     branch: "",
     year: "",
   });
+  const { collapsed } = useSidebar();
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -119,11 +121,11 @@ const DisbursementOverview = () => {
   return (
     <div className="flex">
       <div
-        className={`transition-all duration-300 ease-in-out w-full pl-[250px] pt-[73px]`}
+        className={`${
+          collapsed ? "pl-20" : "pl-[250px]"
+        } transition-[padding-left] duration-300 w-full `}
       >
-        <div className="fixed top-0 right-0 left-[250px] h-[73px] z-40">
-          <Navbar pageName="Disbursement Overview" />
-        </div>
+        <Navbar pageName="Disbursement Overview" />
 
         <Sidebar />
 
@@ -137,7 +139,7 @@ const DisbursementOverview = () => {
 
             <div className="bg-white rounded-lg shadow p-6 text-sm">
               {!loading ? (
-                <DonutChart school_year={schoolYears[1]?.sy_code} />
+                <DonutChart school_year={schoolYears[2]?.sy_code} />
               ) : (
                 <div>Loading...</div>
               )}

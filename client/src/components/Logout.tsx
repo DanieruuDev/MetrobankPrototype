@@ -1,19 +1,16 @@
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
-const Logout = () => {
-  const auth = useContext(AuthContext);
+const useLogout = () => {
   const navigate = useNavigate();
 
-  if (!auth) throw new Error("AuthContext must be used within an AuthProvider");
-
-  const handleLogout = () => {
-    auth.logout(); // Clears auth state and localStorage
-    navigate("/login"); // Redirect to login page
+  const logout = () => {
+    localStorage.removeItem("token"); // remove token from storage
+    toast.success("Logged out successfully");
+    navigate("/login"); // redirect to login page
   };
 
-  return <button onClick={handleLogout}>Logout</button>;
+  return logout;
 };
 
-export default Logout;
+export default useLogout;

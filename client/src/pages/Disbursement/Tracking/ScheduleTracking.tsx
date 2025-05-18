@@ -4,8 +4,10 @@ import Navbar from "../../../components/shared/Navbar";
 import SYSemesterDropdown from "../../../components/shared/SYSemesterDropdown";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { Banknote, CalendarArrowUp, Vault } from "lucide-react";
+import { Banknote, CalendarArrowUp, Vault, Search, X } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
+import PaginationControl from "../../../components/approval/PaginationControl";
+import { useSidebar } from "../../../context/SidebarContext";
 
 interface TrackingSummary {
   disbursement_type: string;
@@ -18,28 +20,50 @@ interface TrackingSummary {
   status: string;
   total: string;
 }
+
 const ScheduleTracking = () => {
-  const [selectedStatus, setSelectedStatus] = useState("All Status");
+  // Set "All" as the default selected status
+  const [selectedStatus, setSelectedStatus] = useState("All");
   const [sySemester, setSySemester] = useState<string>("");
   const [trackingSummary, setTrackingSummary] = useState<
     TrackingSummary[] | null
   >([]);
+  const { collapsed } = useSidebar();
   const navigate = useNavigate();
-  // Data for disbursement types
-
-  const statusOptions = ["All Status", "COMPLETED", "PENDING", "NOT STARTED"];
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const getTrackingSummary = async (sy_code: string, semester_code: string) => {
-    console.log(sy_code);
+    //adjust to make a pagination
     try {
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/tracking/${sy_code}/${semester_code}`
       );
       setTrackingSummary(response.data);
-      console.log(response.data);
+      setTotalPages(1);
     } catch (error) {
       console.log(error);
     }
+  };
+  const getColorClass = (statusLabel: string, isActive: boolean) => {
+    const colorMap: Record<string, string> = {
+      Completed: isActive
+        ? "bg-green-600 text-white"
+        : "text-green-600 hover:bg-green-100",
+      "In Progress": isActive
+        ? "bg-yellow-400 text-white"
+        : "text-yellow-600 hover:bg-yellow-100",
+      Overdue: isActive
+        ? "bg-red-600 text-white"
+        : "text-red-600 hover:bg-red-100",
+      All: isActive
+        ? "bg-gray-900 text-white"
+        : "text-gray-700 hover:bg-gray-200",
+    };
+
+    // Default style if status not found
+    return colorMap[statusLabel] || "text-gray-700 hover:bg-gray-200";
   };
 
   const totals = trackingSummary?.reduce(
@@ -65,19 +89,28 @@ const ScheduleTracking = () => {
     },
     { completed: 0, inProgress: 0, notStarted: 0, total: 0 }
   );
-  const filteredSummary = trackingSummary?.filter((item) => {
-    if (selectedStatus === "All Status" || selectedStatus === "All")
-      return true;
 
-    if (selectedStatus === "In Progress") {
-      return item.status.toUpperCase() === "PENDING";
+  const filteredSummary = trackingSummary?.filter((item) => {
+    const statusMatch =
+      selectedStatus === "All"
+        ? true
+        : selectedStatus === "In Progress"
+        ? item.status.toUpperCase() === "PENDING"
+        : selectedStatus.toUpperCase() === item.status.toUpperCase();
+
+    const searchMatch =
+      searchTerm === "" ||
+      item.disb_title.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (selectedStatus === "Overdue") {
+      return false;
     }
 
-    return item.status.toUpperCase() === selectedStatus.toUpperCase();
+    return statusMatch && searchMatch;
   });
 
   useEffect(() => {
-    if (!sySemester) return; // Don't run until sySemester is set
+    if (!sySemester) return;
 
     const [sy, semester] = sySemester.split("_");
     const semester_code = semester === "1st" ? 1 : 2;
@@ -86,49 +119,28 @@ const ScheduleTracking = () => {
     getTrackingSummary(sy_code, semester_code.toString());
   }, [sySemester]);
 
+  const handlePageChange = (page: number) => {
+    console.log("Changing to page:", page);
+  };
+
   const handleTypeClick = (disbursement_id: number) => {
     navigate(`/tracking/detailed/${disbursement_id}`);
   };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
+  };
+
   return (
     <div className="flex">
       <div
-        className={`transition-all duration-300 ease-in-out w-full pl-[250px]`}
+        className={`${
+          collapsed ? "pl-20" : "pl-[250px]"
+        } transition-[padding-left] duration-300 ease-in-out w-full`}
       >
-        <div className="fixed top-0 right-0 left-[250px] h-[73px]">
-          <Navbar pageName="Disbursement Tracking" />
-        </div>
-
+        <Navbar pageName="Disbursement Tracking" />
         <Sidebar />
-
-        <div className="mt-25 p-4">
-          {/* Dropdown menus */}
-          <div className="flex flex-wrap gap-4 mb-10">
-            <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
-
-            <div className="relative">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="appearance-none bg-gray-100 border-0 shadow-md border-gray-300 rounded-xl pl-6 pr-25  py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {statusOptions.map((option, index) => (
-                  <option key={index} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <svg
-                  className="fill-current h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-          {/*Simple dashboard */}
+        <div className="mt-5 px-4">
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
               {
@@ -148,7 +160,7 @@ const ScheduleTracking = () => {
                 icon: <CalendarArrowUp />,
               },
               {
-                label: "Not Started",
+                label: "Overdue",
                 value: totals?.notStarted.toLocaleString("en-PH", {
                   style: "currency",
                   currency: "PHP",
@@ -169,7 +181,7 @@ const ScheduleTracking = () => {
                   ? "text-green-500"
                   : card.label === "In Progress"
                   ? "text-yellow-500"
-                  : card.label === "Not Started"
+                  : card.label === "Overdue"
                   ? "text-red-500"
                   : "text-gray-800";
 
@@ -188,26 +200,47 @@ const ScheduleTracking = () => {
             })}
           </div>
 
-          <div className="flex justify-between">
-            <div className="flex mb-4 rounded-sm bg-gray-100">
-              {["All", "Completed", "In Progress", "Overdue"].map((status) => (
-                <button
-                  key={status}
-                  className={`px-4 py-1 text-sm cursor-pointer rounded-l ${
-                    selectedStatus === status
-                      ? "bg-blue-500 text-white"
-                      : "hover:bg-gray-200 text-gray-700"
-                  }`}
-                  onClick={() => setSelectedStatus(status)}
-                >
-                  {status}
-                </button>
-              ))}
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+              {["All", "Completed", "In Progress", "Overdue"].map((status) => {
+                const isActive = selectedStatus === status;
+
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setSelectedStatus(status)}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${getColorClass(
+                      status,
+                      isActive
+                    )}`}
+                  >
+                    {status}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="flex gap-2">
-              <div>All Branch</div>
-              <div>Search</div>
+            <div className="flex items-center gap-2 ">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-7 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent text-sm"
+                />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                {searchTerm && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <SYSemesterDropdown onChange={(value) => setSySemester(value)} />
             </div>
           </div>
 
@@ -215,7 +248,7 @@ const ScheduleTracking = () => {
             <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
               <thead className="bg-gray-100 text-sm text-gray-500">
                 <tr>
-                  <th className="py-2 px-4 text-left">Disbursem ID</th>
+                  <th className="py-2 px-4 text-left">Disbursement ID</th>
                   <th className="py-2 px-4 text-left">Title</th>
                   <th className="py-2 px-4 text-left">Disbursement Type</th>
                   <th className="py-2 px-4 text-left">Schedule</th>
@@ -226,51 +259,69 @@ const ScheduleTracking = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredSummary?.map((item) => (
-                  <tr
-                    key={item.disb_sched_id}
-                    className="border-b border-gray-300 py-4 text-[13px] font-medium text-gray-700"
-                  >
-                    <td className="py-3 px-4">{item.disb_sched_id}</td>
-                    <td className="py-3 px-4">{item.disb_title}</td>
-                    <td className="py-3 px-4">{item.disbursement_type}</td>
-                    <td className="py-3 px-4">
-                      {formatDate(item.disbursement_date)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {item.status.toUpperCase() === "COMPLETED" && (
-                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
-                          Completed
-                        </span>
-                      )}
-                      {item.status.toUpperCase() === "PENDING" && (
-                        <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">
-                          In Progress
-                        </span>
-                      )}
-                      {item.status.toUpperCase() === "NOT STARTED" && (
-                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
-                          Not Started
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4">{item.total}</td>
-                    <td className="py-3 px-4">{item.number_of_recipients}</td>
-                    <td className="py-3 text-blue-500 cursor-pointer font-semibold">
-                      <span
-                        className="border py-1 px-2 rounded-sm border-gray-400"
-                        onClick={() => {
-                          handleTypeClick(item.disb_sched_id);
-                        }}
-                      >
-                        View Details
-                      </span>
+                {filteredSummary?.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center text-gray-500 py-8">
+                      {searchTerm
+                        ? `No disbursements found matching "${searchTerm}" in the "${selectedStatus}" category.`
+                        : `No disbursements found in the "${selectedStatus}" category.`}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredSummary?.map((item) => (
+                    <tr
+                      key={item.disb_sched_id}
+                      className="border-b border-gray-300 py-4 text-[13px] font-medium text-gray-700"
+                    >
+                      <td className="py-3 px-4">{item.disb_sched_id}</td>
+                      <td className="py-3 px-4">{item.disb_title}</td>
+                      <td className="py-3 px-4">{item.disbursement_type}</td>
+                      <td className="py-3 px-4">
+                        {formatDate(item.disbursement_date)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {item.status.toUpperCase() === "COMPLETED" && (
+                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
+                            Completed
+                          </span>
+                        )}
+                        {item.status.toUpperCase() === "PENDING" && (
+                          <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">
+                            In Progress
+                          </span>
+                        )}
+                        {item.status.toUpperCase() === "NOT STARTED" && (
+                          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
+                            Overdue{" "}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4">{item.total}</td>
+                      <td className="py-3 px-4">{item.number_of_recipients}</td>
+                      <td className="py-3 text-blue-500 cursor-pointer font-semibold">
+                        <span
+                          className="border py-1 px-2 rounded-sm border-gray-400 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-200 transition-colors cursor-pointer"
+                          onClick={() => {
+                            handleTypeClick(item.disb_sched_id);
+                          }}
+                        >
+                          View Details
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-4">
+            <PaginationControl
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
           </div>
         </div>
       </div>

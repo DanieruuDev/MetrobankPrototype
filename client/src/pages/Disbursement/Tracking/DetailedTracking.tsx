@@ -4,6 +4,7 @@ import Sidebar from "../../../components/shared/Sidebar";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSidebar } from "../../../context/SidebarContext";
 
 interface ITrackingDetailed {
   amount: string;
@@ -23,6 +24,7 @@ function DetailedTracking() {
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
+  const { collapsed } = useSidebar();
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
@@ -61,7 +63,7 @@ function DetailedTracking() {
       setIsCompleting(false);
     }
   };
-
+  console.log(trackingDetailed);
   const scheduleInfo = trackingDetailed?.[0];
 
   const getStatusBadge = (status: string) => {
@@ -105,10 +107,12 @@ function DetailedTracking() {
   }
 
   return (
-    <div className="pl-[250px] pt-[73px] min-h-screen bg-gray-50">
-      <div className="fixed top-0 right-0 left-[250px] h-[73px] z-10 bg-white shadow">
-        <Navbar pageName="Disbursement Tracking" />
-      </div>
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-[padding-left] duration-300  bg-gray-50`}
+    >
+      <Navbar pageName="Disbursement Tracking" />
 
       <Sidebar />
 

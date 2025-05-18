@@ -1,6 +1,7 @@
 import axios from "axios";
 import { X } from "lucide-react";
-import { useState, FormEvent, ChangeEvent, useEffect } from "react";
+import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 
 interface EventModalProps {
   onClose: (isEventOpen: boolean) => void;
@@ -36,6 +37,8 @@ function EventModal({
   fetchSchedules,
   selectedDate,
 }: EventModalProps) {
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id;
   const [formData, setFormData] = useState<FormData>({
     title: "",
     date: selectedDate,
@@ -87,7 +90,7 @@ function EventModal({
       const response = await axios.post(
         "http://localhost:5000/api/disbursement/schedule",
         {
-          created_by: 1,
+          created_by: userId,
           disbursement_date: formData.date
             ? formatDateForInput(new Date(formData.date))
             : null,

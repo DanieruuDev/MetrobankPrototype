@@ -1,6 +1,6 @@
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
@@ -19,14 +19,6 @@ import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
 import PaginationControl from "../../components/approval/PaginationControl";
 import Loading from "../../components/shared/Loading";
-
-// ADDED SUMM FILTER INTERFACE
-interface FilterOptions {
-  status: string;
-  dateFrom: string;
-  dateTo: string;
-  documentType: string;
-}
 
 export interface WorkflowDisplaySchema {
   workflow_id: number;  
@@ -78,22 +70,13 @@ function Workflow() {
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
   >();
-
-// ADDED SUMM FUNCTION FOR FILTER
-const [showFilterModal, setShowFilterModal] = useState(false);
-const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-  status: "All",
-  dateFrom: "",
-  dateTo: "",
-  documentType: "",
-});
   const requesterId = 3;
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
   const [totalPage, setTotalPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("my-approval");
+  const [activeTab, setActiveTab] = useState("my-workflows");
   const statuses = [
     { label: "All" },
     { label: "Not Started", color: "gray" },
@@ -102,7 +85,7 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     { label: "Missed", color: "red" },
   ];
 
-  const [activeStatus, setActiveStatus] = useState("All");
+  const [activeStatus, setActiveStatus] = useState("Not Started");
 
   const getColorClass = (statusLabel: string, isActive: boolean) => {
     const colorMap: Record<string, string> = {
@@ -129,7 +112,7 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
   const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-approval/${requester_id}/${workflow_id}`
+        `http://localhost:5000/api/workflow/get-workflow/${requester_id}/${workflow_id}`
       );
       setDetailedWorkflow(response.data);
     } catch (error) {
@@ -141,7 +124,7 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
       //check authorization for deletion
       //cahnge the requester_id with authorize id
       await axios.delete(
-        `http://localhost:5000/admin/delete-approval/${requester_id}/${workflow_id}`
+        `http://localhost:5000/api/wokflow/delete-workflow/${requester_id}/${workflow_id}`
       );
 
       console.log("Success on deleting");
@@ -153,10 +136,11 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     }
   };
   const fetchWorkflows = async (page: number) => {
+    if (userId === undefined) return;
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/admin/get-approvals/${requesterId}?page=${page}&limit=10`
+        `http://localhost:5000/api/workflow/get-workflows/${userId}?page=${page}&limit=10`
       );
 
       const { data, totalPages, currentPage } = response.data;
@@ -172,8 +156,11 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
   };
 
   useEffect(() => {
-    fetchWorkflows(page); // Load first page when component loads
-  }, [page]);
+    if (userId !== undefined) {
+      fetchWorkflows(page);
+    }
+  }, [page, userId]);
+
   // ✅ Only one useEffect watching `page`
 
   const filteredWorkflows = workflowDisplay.filter((workflow) => {
@@ -212,7 +199,11 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
   };
 
   return (
-    <div className="pl-[250px]">
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-all duration-300`}
+    >
       <Navbar pageName="Workflow Approval" />
 
       <Sidebar />
@@ -229,14 +220,14 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
             <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-full w-fit">
               <button
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
-                  activeTab === "my-approval"
+                  activeTab === "my-workflows"
                     ? "bg-[#024FA8] text-white shadow-md"
                     : "text-gray-600 hover:bg-gray-200"
                 }`}
-                onClick={() => setActiveTab("my-approval")}
+                onClick={() => setActiveTab("my-workflows")}
               >
                 <ClipboardList size={16} />
-                <span>My Approval</span>
+                <span>My Workflows</span>
               </button>
 
               <button
@@ -257,6 +248,7 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
             <Request />
           ) : (
             <>
+              <p>Current Account: </p>
 
               <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
                 {/* Status Bar */}
@@ -356,9 +348,11 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
                           gridTemplateColumns:
                             "1.5fr 1fr min-content 1fr 2fr min-content",
                         }}
-                        onClick={() =>
-                          fetchWorkflow(requesterId, workflow.workflow_id)
-                        }
+                        onClick={() => {
+                          if (userId !== undefined) {
+                            fetchWorkflow(userId, workflow.workflow_id);
+                          }
+                        }}
                       >
                         <div className="truncate px-6 max-w-[255px]">
                           {workflow.rq_title}
@@ -382,7 +376,9 @@ const [filterOptions, setFilterOptions] = useState<FilterOptions>({
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            handleDelete(requesterId, workflow.workflow_id);
+                            if (userId !== undefined) {
+                              handleDelete(userId, workflow.workflow_id);
+                            }
                           }}
                           className="p-2 text-red-500 rounded-md transition cursor-pointer flex-shrink-0 max-w-[40px]"
                         >

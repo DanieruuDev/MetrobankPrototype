@@ -1,19 +1,154 @@
+import React, { useContext } from "react";
 import { NavLink } from "react-router-dom";
+import {
+  Home,
+  BookOpen,
+  CheckCircle,
+  Calendar,
+  ClipboardList,
+  BarChart,
+  ChevronRight,
+} from "lucide-react";
+import { AuthContext } from "../../context/AuthContext"; // Adjust the path as needed
+import { useSidebar } from "../../context/SidebarContext";
 
-function Sidebar() {
+const Sidebar = () => {
+  const auth = useContext(AuthContext);
+  const userRole = auth?.user?.role_name || "";
+  const { collapsed, setCollapsed } = useSidebar();
+  // Normalize role to lower case trimmed string for safer comparison
+  const normalizedUserRole = userRole.trim().toLowerCase();
+
+  const navItems = [
+    {
+      to: "/",
+      label: "Home",
+      Icon: Home,
+      allowedRoles: [
+        "sti registrar",
+        "mb hr",
+        "mb financial",
+        "mb foundation",
+        "mbs head",
+        "system_admin",
+      ],
+    },
+    {
+      to: "/renewal-scholarship",
+      label: "Scholarship Renewal",
+      Icon: BookOpen,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
+    {
+      to: "/workflow-approval",
+      label: "Approvals",
+      Icon: CheckCircle,
+      allowedRoles: [
+        "sti registrar",
+        "mb hr",
+        "mb financial",
+        "mb foundation",
+        "mbs head",
+        "system_admin",
+      ],
+    },
+    {
+      to: "/schedule",
+      label: "Schedule",
+      Icon: Calendar,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
+    {
+      to: "/tracking",
+      label: "Disbursement Tracking",
+      Icon: ClipboardList,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
+    {
+      to: "/financial-overview",
+      label: "Disbursement Overview",
+      Icon: BarChart,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
+    // Add Analytics here if you have one, same pattern
+    // {
+    //   to: "/analytics",
+    //   label: "Analytics",
+    //   Icon: BarChart,
+    //   allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    // },
+  ];
+
+  // Filter nav items based on current user's role
+  const filteredNavItems = navItems.filter((item) =>
+    item.allowedRoles.some(
+      (role) => role.trim().toLowerCase() === normalizedUserRole
+    )
+  );
+
   return (
-    <div className="max-w-[250px] fixed left-0 w-full top-0 bottom-0 bg-[#024FA8] border-r-1 px-[20px] pt-[20px] text-white">
-      <div className="flex items-center justify-center cursor-pointer gap-2">
-        <img
-          src="/MetrobankLogo.png"
-          alt="Metrobank Logo"
-          width={40}
-          height={40}
-        />
-        <span className="font-black pt-1 text-[16px]">
-          Metrobank <br />
-          S.T.R.O.N.G. Administration
-        </span>
+    <div
+      className={`fixed left-0 top-0 bottom-0 transition-all duration-300 
+        bg-gradient-to-b from-[#024FA8] to-[#0376C0] shadow-lg
+        ${collapsed ? "w-20 px-2" : "w-[240px] px-4"}
+        pt-6 text-white font-sans`}
+    >
+      {/* Header with logo and toggle button */}
+      <div className="flex flex-col items-center mb-10 px-2 relative">
+        {collapsed ? (
+          <>
+            {/* Toggle button on top */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1 rounded-full hover:bg-blue-700 mb-4 flex-shrink-0 transition-transform duration-300"
+              aria-label="Expand sidebar"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
+            {/* Metrobank logo below the button */}
+            <div className="w-10 h-10">
+              <img
+                src="/MetrobankLogo.png"
+                alt="Metrobank Logo"
+                width={40}
+                height={40}
+                className="object-contain mx-auto"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex cursor-pointer gap-4 items-center">
+              <div className="flex-shrink-0 w-10 h-10">
+                <img
+                  src="/MetrobankLogo.png"
+                  alt="Metrobank Logo"
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                />
+              </div>
+
+              <div className="min-w-0">
+                <h1 className="font-extrabold text-base leading-tight truncate">
+                  Metrobank <br />
+                  S.T.R.O.N.G.
+                </h1>
+                <p className="text-xs font-normal truncate">Administration</p>
+              </div>
+            </div>
+
+            {/* Toggle button on right side */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1 rounded-full hover:bg-blue-700 flex-shrink-0 transition-transform duration-300 rotate-180"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       </div>
       <ul className="mt-[40px] space-y-2">
         <li>
@@ -100,23 +235,9 @@ function Sidebar() {
             Disbursement Overview
           </NavLink>
         </li>
-        <li>
-          <NavLink
-            to="/roi"
-            className={({ isActive }) =>
-              `block text-[16px] p-2 rounded-sm cursor-pointer transition ${
-                isActive
-                  ? "bg-white text-[#0376C0] font-bold"
-                  : "text-[#FFFAFA] hover:bg-white hover:text-[#0376C0]"
-              }`
-            }
-          >
-            ROI
-          </NavLink>
-        </li>
       </ul>
     </div>
   );
-}
+};
 
 export default Sidebar;

@@ -185,7 +185,7 @@ function RenewalTable({
       };
 
       const response = await axios.put(
-        "http://localhost:5000/admin/update-renewal",
+        "http://localhost:5000/api/renewal/update-renewal",
         requestData
       );
 

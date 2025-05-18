@@ -12,23 +12,31 @@ const {
 
 const disbursementRouter = express.Router();
 
+// POST create schedule
 disbursementRouter.post("/schedule", createDisbursementSchedule);
-disbursementRouter.get("/schedule/:year/:month", fetchDisbursementSchedules);
-disbursementRouter.get("/schedule/weeks", getTwoWeeksDisbursementSchedules);
+
+// More specific GET routes first
 disbursementRouter.get(
-  "/schedule/detailed/:user_id/:disb_sched_id",
+  "/schedule/detailed/:disb_sched_id",
   fetchDetailSchedule
 );
+disbursementRouter.get("/schedule/weeks", getTwoWeeksDisbursementSchedules);
+
+// Then routes with params, from more specific to less specific
+disbursementRouter.get("/schedule/:year/:month", fetchDisbursementSchedules);
+disbursementRouter.get("/schedule/:week", fetchWeeklyDisbursementSchedules);
+
+// DELETE and PUT routes with params
 disbursementRouter.delete(
-  "/schedule/:user_id/:disb_sched_id",
+  "/schedule/:disb_sched_id",
   deleteDisbursementSchedule
 );
-disbursementRouter.get("/schedule/:week", fetchWeeklyDisbursementSchedules);
+disbursementRouter.put("/schedule/:id", updateDisbursementSchedule);
+
+// Other routes
 disbursementRouter.get(
   "/scholar/:yr_lvl_code/:sy_code/:semester_code",
   getEligibleScholarCount
 );
-
-disbursementRouter.put("/schedule/:id", updateDisbursementSchedule);
 
 module.exports = disbursementRouter;

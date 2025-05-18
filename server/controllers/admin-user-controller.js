@@ -1,73 +1,135 @@
+// controllers/authController.js
+
 const pool = require("../database/dbConnect.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 
 dotenv.config();
+
 const registerUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, role, password } = req.body;
-    console.log(req.body);
+    const { firstName, lastName, email, role_id, password } = req.body;
+
+    if (!firstName || !lastName || !email || !password || !role_id) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Validate role_id exists
+    const roleCheck = await pool.query(
+      `SELECT role_id FROM public.roles WHERE role_id = $1`,
+      [role_id]
+    );
+
+    if (roleCheck.rows.length === 0) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    // Check if email already exists
     const existingUser = await pool.query(
-      `SELECT email FROM "user" WHERE email = $1`,
+      `SELECT admin_email FROM public.administration_adminaccounts WHERE admin_email = $1`,
       [email]
     );
 
     if (existingUser.rows.length > 0) {
-      console.log("Account already exist");
-      return res.status(400).send({ message: "Account already exists" });
+      return res.status(400).json({ message: "Account already exists" });
     }
-    const hashedPass = await bcrypt.hash(password, 5);
 
-    const newUser = await pool.query(
-      `INSERT INTO "user" (first_name, last_name, role, email, password) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [firstName, lastName, role, email, hashedPass]
+    // Sync sequence to avoid duplicate PK errors (optional)
+    await pool.query(
+      `SELECT setval('administration_adminaccounts_admin_id_seq', (SELECT COALESCE(MAX(admin_id), 0) FROM administration_adminaccounts))`
     );
-    return res.status(201).json(newUser.rows[0]);
+
+    // Hash password
+    const hashedPass = await bcrypt.hash(password, 10);
+
+    // Insert new user
+    const newUser = await pool.query(
+      `INSERT INTO public.administration_adminaccounts 
+       (admin_name, admin_email, admin_password, role_id) 
+       VALUES ($1, $2, $3, $4) RETURNING admin_id, admin_email, admin_name, role_id`,
+      [`${firstName} ${lastName}`, email, hashedPass, role_id]
+    );
+
+    return res.status(201).json({
+      user: newUser.rows[0],
+      message: "User registered successfully",
+    });
   } catch (error) {
-    console.error("Error in registrations: ", error);
+    console.error("Error in registration:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
 const loginUser = async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query("BEGIN");
     const { email, password } = req.body;
 
-    //check if name exist
-    const existingUser = await pool.query(
-      `SELECT password FROM "user" WHERE email = $1`,
+    // Query user with role join
+    const result = await client.query(
+      `SELECT a.admin_id, a.admin_email, a.admin_password, a.role_id, r.role_name
+       FROM administration_adminaccounts a
+       JOIN roles r ON a.role_id = r.role_id
+       WHERE a.admin_email = $1`,
       [email]
     );
 
-    if (existingUser.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ message: "User not found" });
     }
-    const userResult = existingUser.rows[0];
-    console.log(userResult);
-    //check password match
-    const isPassValid = await bcrypt.compare(password, userResult.password);
 
+    const user = result.rows[0];
+
+    // Validate password
+    const isPassValid = await bcrypt.compare(password, user.admin_password);
     if (!isPassValid) {
       return res.status(401).json({ message: "Incorrect credentials" });
     }
 
-    //jwt
+    // Create JWT token with role info
     const token = jwt.sign(
       {
-        user_id: userResult.user_id,
-        email: userResult.email,
-        userType: "admin",
+        user_id: user.admin_id,
+        email: user.admin_email,
+        role_id: user.role_id,
+        role_name: user.role_name,
       },
-      "SECRETKEY123",
+      process.env.SECRET_KEY,
       { expiresIn: "15min" }
     );
-    await pool.query("COMMIT");
-    return res.status(200).json({ email, token });
+
+    return res.status(200).json({ email: user.admin_email, token });
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error(error);
+    console.error("Login error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  } finally {
+    client.release();
   }
 };
 
-module.exports = { registerUser, loginUser };
+const fetchUserInfo = async (req, res) => {
+  const user_id = req.user?.user_id; // from auth middleware
+  console.log("Fetch User: ", user_id);
+  if (!user_id || isNaN(Number(user_id))) {
+    return res
+      .status(400)
+      .json({ message: "Invalid or missing user_id parameter." });
+  }
+
+  try {
+    const queryText = `SELECT * FROM administration_adminaccounts WHERE admin_id = $1`; // note: admin_id is your PK
+    const { rows } = await pool.query(queryText, [user_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    return res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error fetching user info:", error);
+    return res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+module.exports = { registerUser, loginUser, fetchUserInfo };
