@@ -12,7 +12,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   allowedRoles,
 }) => {
   const auth = useContext(AuthContext);
-
+  console.log(allowedRoles);
   if (!auth) {
     // Auth context not ready yet
     return <div>Loading...</div>;
@@ -25,7 +25,13 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   if (
     allowedRoles &&
     auth.user &&
-    !allowedRoles.includes(auth.user.role_name)
+    !allowedRoles.some((role) => {
+      const normalizedRole = role ? role.trim().toLowerCase() : "";
+      const normalizedUserRole = auth.user?.role_name
+        ? auth.user.role_name.trim().toLowerCase()
+        : "";
+      return normalizedRole === normalizedUserRole;
+    })
   ) {
     return <Navigate to="/unauthorized" replace />;
   }

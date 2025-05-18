@@ -1,27 +1,37 @@
 import React, { createContext, useState, useEffect, ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
+import axios from "axios";
 
 interface JwtPayload {
-  user_id: number; // Add this
+  user_id: number;
   email: string;
   role_id: number;
   role_name: string;
-  // other fields if needed
 }
 
 interface User {
-  user_id: number; // Add this
+  user_id: number;
   email: string;
   role_id: number;
   role_name: string;
+}
+interface Info {
+  user_id: number;
+  email: string;
+  role_id: number;
+  role_name: string;
+  admin_name: string;
+  admin_job: string;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string) => void;
+  login: (token: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  loading: boolean;
+  info: Info | null;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -35,32 +45,59 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); // NEW loading state
+  const [loading, setLoading] = useState<boolean>(true);
+  const [info, setInfo] = useState<Info | null>(null);
+
+  const fetchUserInfo = async (authToken: string | null) => {
+    try {
+      const response = await axios.get(
+        "http://localhost:5000/api/auth/user-info",
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch user info:", error);
+      return null;
+    }
+  };
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    if (savedToken) {
-      try {
-        const decoded = jwtDecode<JwtPayload>(savedToken);
-        setUser({
-          user_id: decoded.user_id,
-          email: decoded.email,
-          role_id: decoded.role_id,
-          role_name: decoded.role_name,
-        });
+    const loadUser = async () => {
+      const savedToken = localStorage.getItem("token");
+      if (savedToken) {
+        try {
+          const decoded = jwtDecode<JwtPayload>(savedToken);
+          setUser({
+            user_id: decoded.user_id,
+            email: decoded.email,
+            role_id: decoded.role_id,
+            role_name: decoded.role_name,
+          });
+          setToken(savedToken);
 
-        setToken(savedToken);
-      } catch (error) {
-        console.error("Invalid token:", error);
-        setToken(null);
-        setUser(null);
-        localStorage.removeItem("token");
+          const freshUser = await fetchUserInfo(savedToken);
+          if (freshUser) {
+            setInfo(freshUser);
+          }
+        } catch (error) {
+          console.error("Invalid token:", error);
+          setUser(null);
+          setToken(null);
+          setInfo(null);
+          localStorage.removeItem("token");
+        }
       }
-    }
-    setLoading(false); // done loading token
+      setLoading(false);
+    };
+
+    loadUser();
   }, []);
 
-  const login = (authToken: string) => {
+  const login = async (authToken: string) => {
     try {
       const decoded = jwtDecode<JwtPayload>(authToken);
       setUser({
@@ -69,9 +106,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role_id: decoded.role_id,
         role_name: decoded.role_name,
       });
-
       setToken(authToken);
       localStorage.setItem("token", authToken);
+
+      const freshUser = await fetchUserInfo(authToken);
+      if (freshUser) {
+        setInfo(freshUser);
+      }
     } catch (error) {
       console.error("Invalid token during login:", error);
     }
@@ -80,17 +121,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
+    setInfo(null);
     localStorage.removeItem("token");
   };
 
   if (loading) {
-    // You can return a loading spinner here or null to prevent rendering children too early
     return <div>Loading...</div>;
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isAuthenticated: !!token }}
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        isAuthenticated: !!token,
+        loading,
+        info,
+      }}
     >
       {children}
     </AuthContext.Provider>
