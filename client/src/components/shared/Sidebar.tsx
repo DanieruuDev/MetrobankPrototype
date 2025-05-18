@@ -100,6 +100,20 @@ function Sidebar() {
             Disbursement Overview
           </NavLink>
         </li>
+        <li>
+          <NavLink
+            to="/roi"
+            className={({ isActive }) =>
+              `block text-[16px] p-2 rounded-sm cursor-pointer transition ${
+                isActive
+                  ? "bg-white text-[#0376C0] font-bold"
+                  : "text-[#FFFAFA] hover:bg-white hover:text-[#0376C0]"
+              }`
+            }
+          >
+            ROI
+          </NavLink>
+        </li>
       </ul>
     </div>
   );

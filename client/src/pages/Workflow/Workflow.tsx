@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import CreateApproval2 from "../../components/approval/CreateApproval2";
 import { formatDate } from "../../utils/DateConvertionFormat";
@@ -19,8 +20,16 @@ import { workflowStatusBG } from "../../utils/StatusBadge";
 import PaginationControl from "../../components/approval/PaginationControl";
 import Loading from "../../components/shared/Loading";
 
+// ADDED SUMM FILTER INTERFACE
+interface FilterOptions {
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+  documentType: string;
+}
+
 export interface WorkflowDisplaySchema {
-  workflow_id: number;
+  workflow_id: number;  
   rq_title: string;
   due_date: string;
   status: string;
@@ -69,6 +78,15 @@ function Workflow() {
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
   >();
+
+// ADDED SUMM FUNCTION FOR FILTER
+const [showFilterModal, setShowFilterModal] = useState(false);
+const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+  status: "All",
+  dateFrom: "",
+  dateTo: "",
+  documentType: "",
+});
   const requesterId = 3;
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
@@ -84,7 +102,7 @@ function Workflow() {
     { label: "Missed", color: "red" },
   ];
 
-  const [activeStatus, setActiveStatus] = useState("Not Started");
+  const [activeStatus, setActiveStatus] = useState("All");
 
   const getColorClass = (statusLabel: string, isActive: boolean) => {
     const colorMap: Record<string, string> = {
@@ -159,15 +177,31 @@ function Workflow() {
   // ✅ Only one useEffect watching `page`
 
   const filteredWorkflows = workflowDisplay.filter((workflow) => {
-    const matchesStatus =
-      activeStatus === "All" ? true : workflow.status === activeStatus;
-    const matchesSearch =
-      workflow.rq_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      workflow.doc_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      workflow.school_details.toLowerCase().includes(searchQuery.toLowerCase());
+  // Status filter
+  const matchesStatus =
+    filterOptions.status === "All" || workflow.status === filterOptions.status;
+  
+  // Search text filter
+  const matchesSearch =
+    workflow.rq_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    workflow.doc_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    workflow.school_details.toLowerCase().includes(searchQuery.toLowerCase());
+  
+  // Date range filter
+  const matchesDateRange =
+    (!filterOptions.dateFrom || new Date(workflow.due_date) >= new Date(filterOptions.dateFrom)) &&
+    (!filterOptions.dateTo || new Date(workflow.due_date) <= new Date(filterOptions.dateTo));
+  
+  // Document type filter
+  const matchesDocType =
+    !filterOptions.documentType ||
+    (workflow.doc_name &&
+      workflow.doc_name
+        .toLowerCase()
+        .includes(filterOptions.documentType.toLowerCase()));
 
-    return matchesStatus && matchesSearch;
-  });
+  return matchesStatus && matchesSearch && matchesDateRange && matchesDocType;
+});
 
   const handleDelete = (requester_id: number, workflow_id: number) => {
     if (
@@ -223,7 +257,6 @@ function Workflow() {
             <Request />
           ) : (
             <>
-              <p>Current Account: </p>
 
               <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
                 {/* Status Bar */}
@@ -259,13 +292,14 @@ function Workflow() {
                   </div>
 
                   {/* Filter Button */}
+                  {/* UPDATED FILTER MODAL BUTTON */}
                   <button
-                    onClick={() => console.log("Open filter modal")}
-                    className="inline-flex items-center gap-2 px-4 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    <Filter className="w-4 h-4" />
-                    Filter
-                  </button>
+  onClick={() => setShowFilterModal(true)}
+  className="inline-flex items-center gap-2 px-4 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+>
+  <Filter className="w-4 h-4" />
+  Filter
+</button>
 
                   {/* Create Approval Button */}
                   <button
@@ -334,7 +368,7 @@ function Workflow() {
                         </div>
                         <div className="font-semibold py-1 rounded-md min-w-[56px]">
                           <div
-                            className={`w-5 h-5 rounded-[20px] mx-auto ${workflowStatusBG(
+                            className={`w-3.5 h-3.5 rounded-[20px] mx-auto ${workflowStatusBG(
                               workflow.status
                             )}`}
                           ></div>
@@ -371,6 +405,113 @@ function Workflow() {
           )}
         </div>
       )}
+
+      {/* ADDED THE FILTER MODAL COMPONENT */}
+      {showFilterModal && (
+  <div className="fixed inset-0 bg-transparent bg-opacity-50 backdrop-blur-[1px] flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">Filter Workflows</h3>
+        <button
+          onClick={() => setShowFilterModal(false)}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Status
+          </label>
+          <select
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={filterOptions.status}
+            onChange={(e) =>
+              setFilterOptions({ ...filterOptions, status: e.target.value })
+            }
+          >
+            <option value="All">All Statuses</option>
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Missed">Missed</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Date Range
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={filterOptions.dateFrom}
+              onChange={(e) =>
+                setFilterOptions({ ...filterOptions, dateFrom: e.target.value })
+              }
+            />
+            <span className="flex items-center">to</span>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={filterOptions.dateTo}
+              onChange={(e) =>
+                setFilterOptions({ ...filterOptions, dateTo: e.target.value })
+              }
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Document Type
+          </label>
+          <input
+            type="text"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., PDF, DOCX"
+            value={filterOptions.documentType}
+            onChange={(e) =>
+              setFilterOptions({
+                ...filterOptions,
+                documentType: e.target.value,
+              })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 mt-6">
+        <button
+          onClick={() => {
+            setFilterOptions({
+              status: "All",
+              dateFrom: "",
+              dateTo: "",
+              documentType: "",
+            });
+            setActiveStatus("All");
+          }}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+        >
+          Reset
+        </button>
+        <button
+          onClick={() => {
+            setActiveStatus(filterOptions.status);
+            setShowFilterModal(false);
+          }}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600"
+        >
+          Apply Filters
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
