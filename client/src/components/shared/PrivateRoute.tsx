@@ -12,7 +12,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   allowedRoles,
 }) => {
   const auth = useContext(AuthContext);
-  console.log(allowedRoles);
+
   if (!auth) {
     // Auth context not ready yet
     return <div>Loading...</div>;

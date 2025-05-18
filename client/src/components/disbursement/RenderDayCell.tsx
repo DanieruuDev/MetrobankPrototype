@@ -241,38 +241,41 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                   {showOptions && (
                     <div className="absolute right-0 mt-2 w-36 bg-[#f4f4f4] border border-gray-200 rounded-xl shadow-md overflow-hidden z-10">
                       <Link
-                        to={"/financial"}
+                        to={`/tracking/detailed/${activeSchedule.disb_sched_id}`}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white transition"
                         onClick={() => setShowOptions(false)}
                       >
                         <Eye className="w-4 h-4" />
                         <span>View</span>
                       </Link>
-                      <button
-                        className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
-                        onClick={() => {
-                          console.log("Edit clicked");
-                          setShowOptions(false);
-                          handleEditClick();
-                        }}
-                      >
-                        <Pencil className="w-4 h-4" />
-                        <span>Edit</span>
-                      </button>
+
                       {activeSchedule.created_by_id === userId ? (
-                        <button
-                          className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
-                          onClick={() => {
-                            deleteSchedule(
-                              activeSchedule.disb_sched_id,
-                              activeSchedule.created_by
-                            );
-                            setShowOptions(false);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Delete</span>
-                        </button>
+                        <>
+                          <button
+                            className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
+                            onClick={() => {
+                              console.log("Edit clicked");
+                              setShowOptions(false);
+                              handleEditClick();
+                            }}
+                          >
+                            <Pencil className="w-4 h-4" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
+                            onClick={() => {
+                              deleteSchedule(
+                                activeSchedule.disb_sched_id,
+                                activeSchedule.created_by
+                              );
+                              setShowOptions(false);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Delete</span>
+                          </button>
+                        </>
                       ) : (
                         ""
                       )}

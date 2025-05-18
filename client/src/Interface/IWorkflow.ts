@@ -63,18 +63,22 @@ export interface ApproverDetailedView {
   approver_id: number;
   user_id: number;
   user_email: string;
+  approver_name: string;
+  approver_role_id: number;
+  approver_role_name: string;
   workflow_id: number;
-  description: string;
   approver_order: number;
   approver_status: string;
-  approver_due_date: string; // ISO string (e.g., "2025-04-04T16:00:00.000Z")
+  workflow_status: string;
+  description: string;
+  approver_due_date: string; // ISO string
   assigned_at: string; // ISO string
   is_reassigned: boolean;
-  workflow_status: string;
+  is_current: boolean;
   requester_id: number;
   requester_name: string;
   requester_role: string;
-  requester_email: string;
+  requester_role_name: string;
   date_started: string; // ISO string
   due_date: string; // ISO string
   school_year: string;
@@ -90,13 +94,37 @@ export interface ApproverDetailedView {
   approver_response: string;
   approver_comment: string | null;
   response_time: string | null; // ISO string or null
+
+  // New fields for approval tracking
+  total_approvers: number;
+  completed_approvers: number;
+  remaining_approvers: number;
+  approval_progress: Array<{
+    approver_name: string;
+    approver_role: string;
+    approval_status: string;
+    approval_time: string | null;
+    approver_order: number;
+    comment: string | null;
+  }>;
+  current_approver: string | null;
 }
 
+// For cases where you might want just the approval progress items:
+export interface ApprovalProgressItem {
+  approver_name: string;
+  approver_role: string;
+  approval_status: string;
+  approval_time: string | null;
+  approver_order: number;
+  comment: string | null;
+}
 export interface RequestApprovalList {
   user_id: number;
   approver_id: number;
   request_title: string;
   approver_status: string;
+  is_current: boolean;
   requester: string;
   date_started: string;
   approver_due_date: string;

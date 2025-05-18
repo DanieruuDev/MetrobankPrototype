@@ -8,6 +8,7 @@ const ExcelJS = require("exceljs");
 const uploadScholarRenewals = async (req, res) => {
   const { school_year, year_level, semester } = req.body;
 
+  console.log(school_year, semester);
   if (!school_year || !year_level || !semester) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -45,10 +46,11 @@ const uploadScholarRenewals = async (req, res) => {
       "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [previousSchoolYear]
     );
+    console.log(currentSchoolYear, previousSchoolYear);
 
     const studentsResult = await client.query(
       "SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus FROM masterlist WHERE yr_lvl_code = $1 AND semester_code =$2 AND school_year_code = $3 AND scholarship_status != 'Delisted'",
-      [previousYearLevel, previousSemester, prevSY.rows[0].sy_code]
+      [previousYearLevel, previousSemester, previousSchoolYear]
     );
 
     if (studentsResult.rows.length === 0) {
@@ -144,17 +146,15 @@ const uploadScholarRenewals = async (req, res) => {
 };
 
 const fetchAllScholarRenewal = async (req, res) => {
+  const { school_year, semester } = req.params;
+  console.log(school_year, semester);
   try {
     const query = `
       SELECT *
-      FROM vw_renewal_details
+      FROM vw_renewal_details WHERE school_year = $1 AND semester = $2
     `;
 
-    const result = await pool.query(query);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "No renewal records found." });
-    }
+    const result = await pool.query(query, [school_year, semester]);
 
     res.status(200).json({
       message: "Renewal records retrieved successfully.",
