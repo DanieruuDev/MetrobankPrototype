@@ -108,4 +108,28 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser };
+const fetchUserInfo = async (req, res) => {
+  const user_id = req.user?.user_id; // from auth middleware
+  console.log("Fetch User: ", user_id);
+  if (!user_id || isNaN(Number(user_id))) {
+    return res
+      .status(400)
+      .json({ message: "Invalid or missing user_id parameter." });
+  }
+
+  try {
+    const queryText = `SELECT * FROM administration_adminaccounts WHERE admin_id = $1`; // note: admin_id is your PK
+    const { rows } = await pool.query(queryText, [user_id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    return res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error("Error fetching user info:", error);
+    return res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+module.exports = { registerUser, loginUser, fetchUserInfo };
