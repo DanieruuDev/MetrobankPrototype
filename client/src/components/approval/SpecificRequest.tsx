@@ -11,11 +11,17 @@ import {
 import { ApproverDetailedView } from "../../Interface/IWorkflow";
 import { approverStatusBadge } from "../../utils/StatusBadge";
 
-interface SpecificRequestProps {
+// Add this to your SpecificRequest component's interface
+export interface SpecificRequestProps {
   approver_id: number;
   specificRequest: ApproverDetailedView | null;
   goBack: () => void;
-  getSpecificRequestApproval: () => void;
+  getSpecificRequestApproval: () => Promise<void>;
+  updateApproverResponse: (
+    response: "Approved" | "Rejected",
+    comment: string | null,
+    approver_status: "Completed" | "Missed" | "Replaced"
+  ) => Promise<void>;
 }
 
 function SpecificRequest({

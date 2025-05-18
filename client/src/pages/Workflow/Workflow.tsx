@@ -235,8 +235,6 @@ function Workflow() {
             <Request />
           ) : (
             <>
-              <p>Current Account: </p>
-
               <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
                 {/* Status Bar */}
                 <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
