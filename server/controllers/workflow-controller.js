@@ -1,6 +1,11 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
 const path = require("path");
+// Import the email sending functions from your emailing.js file
+const {
+  sendApproverAddedEmail,
+  sendItsYourTurnEmail,
+} = require("../utils/emailing");
 
 //get specific approval (author id/ workflow id)
 const getApproval = async (req, res) => {
@@ -36,20 +41,17 @@ const getApprovals = async (req, res) => {
 
     if (!user_id) {
       return res.status(400).json({ message: "Invalid Admin ID" });
-    }
+    } // Parse query params
 
-    // Parse query params
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
-    const offset = (page - 1) * limit;
+    const offset = (page - 1) * limit; // Query paginated data
 
-    // Query paginated data
     const dataQuery = await pool.query(
       "SELECT * FROM vw_workflow_display WHERE requester_id = $1 LIMIT $2 OFFSET $3",
       [user_id, limit, offset]
-    );
+    ); // Query total count
 
-    // Query total count
     const countQuery = await pool.query(
       "SELECT COUNT(*) FROM vw_workflow_display WHERE requester_id = $1",
       [user_id]
@@ -114,9 +116,8 @@ const deleteApproval = async (req, res) => {
 const changeApprover = async (req, res) => {
   try {
     const { requester_id } = req.params;
-    const { workflow_id, old_approver_id, new_approver_id, reason } = req.body;
+    const { workflow_id, old_approver_id, new_approver_id, reason } = req.body; // Check if workflow exists and verify requester (author)
 
-    // Check if workflow exists and verify requester (author)
     const getNewApproverId = await pool.query(
       `SELECT admin_id, email FROM administration_adminaccounts WHERE admin_email = $1`,
       [new_approver_id]
@@ -135,16 +136,14 @@ const changeApprover = async (req, res) => {
       return res.status(404).json({ message: "Workflow not found." });
     }
 
-    const authorId = workflowCheck.rows[0].requester_id;
+    const authorId = workflowCheck.rows[0].requester_id; // Ensure the requester is the author
 
-    // Ensure the requester is the author
     if (authorId !== Number(requester_id)) {
       return res.status(403).json({
         message: "Unauthorized. Only the requester can change the approver.",
       });
-    }
+    } // Check if old approver exists in the workflow
 
-    // Check if old approver exists in the workflow
     const oldApproverCheck = await pool.query(
       "SELECT * FROM wf_approver WHERE approver_id = $1 AND workflow_id = $2",
       [old_approver_id, workflow_id]
@@ -154,20 +153,17 @@ const changeApprover = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Old approver not found in this workflow." });
-    }
+    } // Get the old approver's order
 
-    // Get the old approver's order
-    const approverOrder = oldApproverCheck.rows[0].approver_order;
+    const approverOrder = oldApproverCheck.rows[0].approver_order; // Step 1: Update old approver's status to "replaced"
 
-    // Step 1: Update old approver's status to "replaced"
     await pool.query(
-      `UPDATE wf_approver 
+      `UPDATE wf_approver
       SET status = 'replaced'
       WHERE approver_id = $1 AND workflow_id = $2`,
       [old_approver_id, workflow_id]
-    );
+    ); // Step 2: Insert new approver with same order
 
-    // Step 2: Insert new approver with same order
     await pool.query(
       `INSERT INTO wf_approver (user_id, user_email, workflow_id, approver_order, status, due_date, is_reassigned)
       VALUES ($1, $2, $3, $4, 'current', NOW() + INTERVAL '7 days', TRUE)`,
@@ -177,9 +173,8 @@ const changeApprover = async (req, res) => {
         workflow_id,
         approverOrder,
       ]
-    );
+    ); // Step 3: Log reassignment in `reassignment_log`
 
-    // Step 3: Log reassignment in `reassignment_log`
     await pool.query(
       `INSERT INTO reassignment_log (workflow_id, old_approver_id, new_approver_id, reason)
       VALUES ($1, $2, $3, $4)`,
@@ -228,8 +223,7 @@ const createApproval = async (req, res) => {
       semester,
       scholar_level,
       approvers
-    );
-    // Validate required fields
+    ); // Validate required fields
     if (
       !requester_id ||
       !file ||
@@ -243,9 +237,8 @@ const createApproval = async (req, res) => {
     ) {
       deleteFile();
       return res.status(400).json({ message: "All fields are required" });
-    }
+    } // Parse approvers safely
 
-    // Parse approvers safely
     let appr;
     try {
       appr = JSON.parse(approvers);
@@ -275,9 +268,31 @@ const createApproval = async (req, res) => {
         description,
       ]
     );
-    const workflowID = insertWorkflowQuery.rows[0].workflow_id;
+    const workflowID = insertWorkflowQuery.rows[0].workflow_id; // Fetch requester name for the email
 
-    // Insert approvers
+    const requesterQuery = await client.query(
+      `SELECT admin_name FROM administration_adminaccounts WHERE admin_id = $1`,
+      [requester_id]
+    );
+    const requesterName =
+      requesterQuery.rows[0]?.admin_name || "Unknown Requester";
+
+    // Fetch request title for the email before the loop
+    const requestTitleQuery = await client.query(
+      `SELECT rq_title FROM wf_request_type_maintenance WHERE rq_type_id = $1`,
+      [req_type_id]
+    );
+    const requestTitle =
+      requestTitleQuery.rows[0]?.rq_title || "Unknown Request Type";
+
+    // Construct workflow details for the email BEFORE the loop
+    const workflowDetailsForEmail = {
+      request_title: requestTitle,
+      requester_name: requesterName, // Use the fetched requester name
+      due_date: due_date, // Use the workflow due date
+      rq_description: description, // Use the workflow description
+    }; // Insert approvers
+
     const approverQueries = [];
 
     for (const approval of appr) {
@@ -305,12 +320,20 @@ const createApproval = async (req, res) => {
         return res
           .status(400)
           .json({ message: `Duplicate approver: ${approval.email}` });
-      }
+      } // Insert into wf_approver
+      // CORRECTED: Added status and is_reassigned to the INSERT query and values
 
-      // Insert into wf_approver
       const approvalList = await client.query(
-        "INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, due_date) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        [workflowID, userId, approval.email, approval.order, approval.date]
+        "INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+        [
+          workflowID,
+          userId,
+          approval.email,
+          approval.order,
+          "Pending",
+          approval.date,
+          false,
+        ]
       );
 
       const initializeResponse = await client.query(
@@ -322,12 +345,25 @@ const createApproval = async (req, res) => {
         approvers: approvalList.rows[0],
         approval_response: initializeResponse.rows[0],
       });
-    }
+
+      // Send email to the approver they were added
+      // Call the email function to notify the approver they were added
+      // Use await here to ensure the email sending process starts
+      // workflowDetailsForEmail is now defined outside the loop
+      await sendApproverAddedEmail(approval.email, workflowDetailsForEmail);
+    } // Keep the logic to set the first approver as is_current = true after the loop
 
     if (approverQueries.length > 0) {
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
+      );
+      // Send "Its Your Turn" email to the first approver
+      // workflowDetailsForEmail is now defined outside the loop
+      // Use await here
+      await sendItsYourTurnEmail(
+        approverQueries[0].approvers.user_email,
+        workflowDetailsForEmail
       );
     }
     const getRequestTitleQuery = await client.query(
@@ -392,7 +428,7 @@ const fetchApproverApprovalList = async (req, res) => {
 
 const fetchApproverApproval = async (req, res) => {
   try {
-    const { approver_id } = req.params;
+    const { approver_id } = req.params; // Ensure vw_approver_detailed provides all fields needed by frontend (including is_current and approver_status)
 
     const query = `
         SELECT * FROM vw_approver_detailed
@@ -411,9 +447,10 @@ const fetchApproverApproval = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 //When approving the approval
 const approveApproval = async (req, res) => {
-  const { approver_id, response, comment } = req.body;
+  const { approver_id, response, comment } = req.body; // Basic validation remains
 
   if (!approver_id || !response) {
     return res
@@ -427,127 +464,188 @@ const approveApproval = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Step 1: Update approver response
+    // Fetch workflow_id and approver_order for the current approver
+    const currentApproverDataQuery = await client.query(
+      `SELECT workflow_id, approver_order FROM wf_approver WHERE approver_id = $1`,
+      [approver_id]
+    );
+    const currentApproverData = currentApproverDataQuery.rows[0];
+
+    if (!currentApproverData) {
+      await client.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ message: "Current approver data not found." });
+    }
+
+    const workflow_id = currentApproverData.workflow_id;
+    const currentApproverOrder = currentApproverData.approver_order;
+
+    // --- Add Backend Security Check ---
+    // Verify that the user making the request is the current approver
+    const isCurrentUserCheck = await client.query(
+      `SELECT is_current FROM wf_approver WHERE approver_id = $1`,
+      [approver_id]
+    );
+
+    // If the approver step is not found or the approver is not the current one
+    if (
+      isCurrentUserCheck.rows.length === 0 ||
+      isCurrentUserCheck.rows[0].is_current !== true
+    ) {
+      await client.query("ROLLBACK");
+      // Return a 403 Forbidden status here for better semantics
+      return res.status(403).json({
+        message:
+          "Unauthorized. You are not the current approver for this step.",
+      });
+    } // Step 1: Update approver response
+    // --- End Backend Security Check ---
+
     await client.query(
       `
-      UPDATE approver_response 
-      SET response = $1, comment = $2, updated_at = NOW() 
+      UPDATE approver_response
+      SET response = $1, comment = $2, updated_at = NOW()
       WHERE approver_id = $3
       `,
       [response, comment, approver_id]
-    );
+    ); // Step 2: Update approver status to Completed
 
-    // Step 2: Update approver status
     await client.query(
       `
-      UPDATE wf_approver 
-      SET status = 'Completed' 
+      UPDATE wf_approver
+      SET status = 'Completed'
       WHERE approver_id = $1
       `,
       [approver_id]
-    );
+    ); // Step 3: Set current approver's is_current to FALSE
 
-    // Step 3: Set current approver to FALSE
     await client.query(
       `
-      UPDATE wf_approver 
-      SET is_current = FALSE 
-      WHERE workflow_id = (
-        SELECT workflow_id FROM wf_approver WHERE approver_id = $1
-      )
-      AND is_current = TRUE
+      UPDATE wf_approver
+      SET is_current = FALSE
+      WHERE workflow_id = $1 AND approver_id = $2
       `,
-      [approver_id]
-    );
+      [workflow_id, approver_id]
+    ); // Step 4: Move to next approver or mark workflow as completed/rejected
 
-    // Step 4: Move to next approver, if applicable
-    if (response === "Approved" || response === "Reject") {
+    if (response === "Approved") {
+      // Only move to next if Approved
       const nextApproverQuery = await client.query(
         `
-        SELECT approver_id FROM wf_approver 
-        WHERE workflow_id = (
-          SELECT workflow_id FROM wf_approver WHERE approver_id = $1
-        )
+        SELECT approver_id, user_email FROM wf_approver
+        WHERE workflow_id = $1
         AND status = 'Pending'
-        AND approver_order > (
-          SELECT approver_order FROM wf_approver WHERE approver_id = $1
-        )
+        AND approver_order > $2
         ORDER BY approver_order
         LIMIT 1
         `,
-        [approver_id]
+        [workflow_id, currentApproverOrder]
       );
 
       if (nextApproverQuery.rows.length > 0) {
         const nextApproverId = nextApproverQuery.rows[0].approver_id;
+        const nextApproverEmail = nextApproverQuery.rows[0].user_email; // Get email
         console.log("Next approver set to:", nextApproverId);
-
         await client.query(
           `
-          UPDATE wf_approver 
-          SET is_current = TRUE 
+          UPDATE wf_approver
+          SET is_current = TRUE
           WHERE approver_id = $1
           `,
           [nextApproverId]
         );
+
+        // Fetch workflow details for the email
+        const workflowDetailsQuery = await client.query(
+          `SELECT w.rq_title, aa.admin_name AS requester_name, w.due_date, w.description
+             FROM workflow w
+             JOIN administration_adminaccounts aa ON w.requester_id = aa.admin_id
+             WHERE w.workflow_id = $1`,
+          [workflow_id]
+        );
+        const workflowDetails = workflowDetailsQuery.rows[0];
+
+        // Send "Its Your Turn" email to the next approver
+        if (workflowDetails) {
+          await sendItsYourTurnEmail(nextApproverEmail, workflowDetails);
+        }
       } else {
-        console.log("No next approver found.");
+        console.log(
+          "No next approver found. Checking for workflow completion."
+        );
+        // If no next pending approver, check if workflow is completed
+        const pendingCheckQuery = `
+            SELECT COUNT(*) AS pending_count
+            FROM wf_approver
+            WHERE workflow_id = $1
+            AND status NOT IN ('Completed', 'Missed', 'Replaced')
+        `;
+        const pendingResult = await client.query(pendingCheckQuery, [
+          workflow_id,
+        ]);
+        const pendingCount = parseInt(pendingResult.rows[0].pending_count);
+
+        // If no more pending approvers, mark workflow as completed
+        if (pendingCount === 0) {
+          const updateWorkflowQuery = `
+                UPDATE workflow
+                SET status = 'Completed', completed_at = NOW()
+                WHERE workflow_id = $1
+            `;
+          await client.query(updateWorkflowQuery, [workflow_id]);
+          console.log("Workflow marked as completed.");
+        }
       }
-    }
-
-    // Step 5: Check if workflow should be marked as completed
-    const workflowQuery = `
-      SELECT workflow_id FROM wf_approver WHERE approver_id = $1
-    `;
-    const { rows } = await client.query(workflowQuery, [approver_id]);
-    const workflow_id = rows[0]?.workflow_id;
-    if (!workflow_id) throw new Error("Workflow not found");
-
-    const pendingCheckQuery = `
-      SELECT COUNT(*) AS pending_count 
-      FROM wf_approver 
-      WHERE workflow_id = $1 
-      AND status NOT IN ('Completed', 'Missed')
-    `;
-    const pendingResult = await client.query(pendingCheckQuery, [workflow_id]);
-    const pendingCount = parseInt(pendingResult.rows[0].pending_count);
-
-    if (pendingCount === 0) {
+    } else if (response === "Reject") {
+      // If rejected, mark the workflow as rejected immediately
       const updateWorkflowQuery = `
-        UPDATE workflow
-        SET status = 'Completed', completed_at = NOW()
-        WHERE workflow_id = $1
-      `;
+            UPDATE workflow
+            SET status = 'Rejected', completed_at = NOW()
+            WHERE workflow_id = $1
+        `;
       await client.query(updateWorkflowQuery, [workflow_id]);
-      console.log("Workflow marked as completed.");
+      console.log("Workflow marked as rejected.");
     }
 
-    await client.query("COMMIT");
+    await client.query("COMMIT"); // Step 5: Fetch and return essential data for frontend refresh
+    // This query now selects fields needed by the frontend after approval.
 
-    // Step 6: Fetch and return approver's detailed status
     const detailedQuery = `
-      SELECT workflow_status, approver_response, approver_comment 
-      FROM vw_approver_detailed 
-      WHERE approver_id = $1
+      SELECT workflow_status, approver_response, approver_comment, approver_status, is_current
+      FROM vw_approver_detailed
+      WHERE approver_id = $1;
     `;
-    const result = await client.query(detailedQuery, [approver_id]);
+    const result = await client.query(detailedQuery, [approver_id]); // Return updated status and response for frontend refresh
 
     if (result.rows.length > 0) {
-      const { workflow_status, approver_response, approver_comment } =
-        result.rows[0];
-      res.status(200).json({
-        message: "Approval recorded successfully",
+      const {
         workflow_status,
         approver_response,
         approver_comment,
+        approver_status,
+        is_current,
+      } = result.rows[0];
+      res.status(200).json({
+        message: "Approval recorded successfully",
+        workflow_status, // Overall workflow status
+        approver_response, // Specific approver's response
+        approver_comment, // Specific approver's comment
+        approver_status, // Specific approver's status (should be 'Completed')
+        is_current, // Specific approver's is_current (should be false)
       });
     } else {
-      res.status(404).json({ message: "Approver details not found" });
+      // This case indicates an issue fetching details immediately after the update
+      res
+        .status(404)
+        .json({ message: "Approver details not found after update" });
     }
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error approving:", error);
-    res.status(500).json({ message: error.message });
+    res
+      .status(500)
+      .json({ message: error.message || "Server error during approval" });
   } finally {
     client.release();
   }
