@@ -1,10 +1,12 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
 const path = require("path");
-// Import the email sending functions from your emailing.js file
+// Import all necessary email sending functions from your emailing.js file
 const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
+  sendWorkflowCompletedEmail, // Imported the new function
+  sendWorkflowRejectedEmail, // Imported the new function
 } = require("../utils/emailing");
 
 //get specific approval (author id/ workflow id)
@@ -268,14 +270,16 @@ const createApproval = async (req, res) => {
         description,
       ]
     );
-    const workflowID = insertWorkflowQuery.rows[0].workflow_id; // Fetch requester name for the email
+    const workflowID = insertWorkflowQuery.rows[0].workflow_id; // Fetch requester name and email for the email notifications
 
     const requesterQuery = await client.query(
-      `SELECT admin_name FROM administration_adminaccounts WHERE admin_id = $1`,
+      `SELECT admin_name, admin_email FROM administration_adminaccounts WHERE admin_id = $1`,
       [requester_id]
     );
     const requesterName =
       requesterQuery.rows[0]?.admin_name || "Unknown Requester";
+    const requesterEmail =
+      requesterQuery.rows[0]?.admin_email || "requester@example.com"; // Fallback email
 
     // Fetch request title for the email before the loop
     const requestTitleQuery = await client.query(
@@ -291,6 +295,7 @@ const createApproval = async (req, res) => {
       requester_name: requesterName, // Use the fetched requester name
       due_date: due_date, // Use the workflow due date
       rq_description: description, // Use the workflow description
+      workflow_id: workflowID, // Include workflow ID for potential links
     }; // Insert approvers
 
     const approverQueries = [];
@@ -366,6 +371,11 @@ const createApproval = async (req, res) => {
         workflowDetailsForEmail
       );
     }
+
+    // Send workflow submitted confirmation email to the requester
+    // Assuming you have a sendWorkflowSubmittedEmail function in your emailing.js
+    // await sendWorkflowSubmittedEmail(requesterEmail, workflowDetailsForEmail);
+
     const getRequestTitleQuery = await client.query(
       `SELECT rq_title FROM wf_request_type_maintenance WHERE rq_type_id = $1`,
       [req_type_id]
@@ -464,9 +474,12 @@ const approveApproval = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Fetch workflow_id and approver_order for the current approver
+    // Fetch workflow_id, approver_order, and requester_id for the current approver
     const currentApproverDataQuery = await client.query(
-      `SELECT workflow_id, approver_order FROM wf_approver WHERE approver_id = $1`,
+      `SELECT wa.workflow_id, wa.approver_order, w.requester_id
+         FROM wf_approver wa
+         JOIN workflow w ON wa.workflow_id = w.workflow_id
+         WHERE wa.approver_id = $1`,
       [approver_id]
     );
     const currentApproverData = currentApproverDataQuery.rows[0];
@@ -480,6 +493,7 @@ const approveApproval = async (req, res) => {
 
     const workflow_id = currentApproverData.workflow_id;
     const currentApproverOrder = currentApproverData.approver_order;
+    const requester_id = currentApproverData.requester_id;
 
     // --- Add Backend Security Check ---
     // Verify that the user making the request is the current approver
@@ -523,11 +537,35 @@ const approveApproval = async (req, res) => {
     await client.query(
       `
       UPDATE wf_approver
-      SET is_current = FALSE
+      SET is_current = false
       WHERE workflow_id = $1 AND approver_id = $2
       `,
       [workflow_id, approver_id]
-    ); // Step 4: Move to next approver or mark workflow as completed/rejected
+    );
+
+    // Fetch requester email and workflow details needed for requester notifications
+    const requesterAndWorkflowDetailsQuery = await client.query(
+      `SELECT aa.admin_email, aa.admin_name, w.rq_type_id, w.due_date, w.description, w.workflow_id
+         FROM administration_adminaccounts aa
+         JOIN workflow w ON aa.admin_id = w.requester_id
+         WHERE w.workflow_id = $1 AND aa.admin_id = $2`,
+      [workflow_id, requester_id]
+    );
+    const requesterEmail =
+      requesterAndWorkflowDetailsQuery.rows[0]?.admin_email ||
+      "requester@example.com"; // Fallback
+    const requesterName =
+      requesterAndWorkflowDetailsQuery.rows[0]?.admin_name ||
+      "Unknown Requester";
+    const workflowDetailsForEmail = {
+      request_title:
+        requesterAndWorkflowDetailsQuery.rows[0]?.rq_type_id ||
+        "Unknown Request Type", // Assuming rq_type_id is the title
+      requester_name: requesterName,
+      due_date: requesterAndWorkflowDetailsQuery.rows[0]?.due_date,
+      rq_description: requesterAndWorkflowDetailsQuery.rows[0]?.description,
+      workflow_id: workflow_id,
+    }; // Step 4: Move to next approver or mark workflow as completed/rejected
 
     if (response === "Approved") {
       // Only move to next if Approved
@@ -550,26 +588,15 @@ const approveApproval = async (req, res) => {
         await client.query(
           `
           UPDATE wf_approver
-          SET is_current = TRUE
+          SET is_current = true
           WHERE approver_id = $1
           `,
           [nextApproverId]
         );
 
-        // Fetch workflow details for the email
-        const workflowDetailsQuery = await client.query(
-          `SELECT w.rq_title, aa.admin_name AS requester_name, w.due_date, w.description
-             FROM workflow w
-             JOIN administration_adminaccounts aa ON w.requester_id = aa.admin_id
-             WHERE w.workflow_id = $1`,
-          [workflow_id]
-        );
-        const workflowDetails = workflowDetailsQuery.rows[0];
-
         // Send "Its Your Turn" email to the next approver
-        if (workflowDetails) {
-          await sendItsYourTurnEmail(nextApproverEmail, workflowDetails);
-        }
+        // workflowDetailsForEmail is already fetched
+        await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
       } else {
         console.log(
           "No next approver found. Checking for workflow completion."
@@ -595,6 +622,13 @@ const approveApproval = async (req, res) => {
             `;
           await client.query(updateWorkflowQuery, [workflow_id]);
           console.log("Workflow marked as completed.");
+
+          // Send Workflow Completed email to the requester
+          // workflowDetailsForEmail is already fetched
+          await sendWorkflowCompletedEmail(
+            requesterEmail,
+            workflowDetailsForEmail
+          );
         }
       }
     } else if (response === "Reject") {
@@ -606,6 +640,15 @@ const approveApproval = async (req, res) => {
         `;
       await client.query(updateWorkflowQuery, [workflow_id]);
       console.log("Workflow marked as rejected.");
+
+      // Send Workflow Rejected email to the requester
+      // workflowDetailsForEmail is already fetched
+      // Pass the comment from the rejecting approver
+      await sendWorkflowRejectedEmail(
+        requesterEmail,
+        workflowDetailsForEmail,
+        comment
+      );
     }
 
     await client.query("COMMIT"); // Step 5: Fetch and return essential data for frontend refresh
