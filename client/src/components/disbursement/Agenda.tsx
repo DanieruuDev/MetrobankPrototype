@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface DisbursementScheduleDetail {
   disb_sched_id: number;
@@ -46,7 +47,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
   const [schedules, setSchedules] = useState<DisbursementScheduleDetail[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-
+  const navigate = useNavigate();
   // Use useMemo to calculate week data to prevent recalculations on every render
   const { currentWeekStart, weekDays } = useMemo(() => {
     const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -147,6 +148,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
   };
 
   const handleScheduleClick = (scheduleId: number) => {
+    navigate(`/tracking/detailed/${scheduleId}`);
     if (onScheduleClick) {
       onScheduleClick(scheduleId);
     }
@@ -276,7 +278,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
                                     </h4>
                                     <div className="flex items-center">
                                       <span className="text-sm text-gray-500 mr-2 font-medium">
-                                        {schedule.total_scholar}/24
+                                        {schedule.total_scholar}
                                       </span>
                                       <Users
                                         size={18}

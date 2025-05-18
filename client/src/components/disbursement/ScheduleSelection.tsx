@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { DisbursementScheduleSummary } from "../../pages/Disbursement/Scheduling/ScheduleSidebar";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 
 interface ScheduleSectionProps {
   title: string;
@@ -18,7 +20,7 @@ const ScheduleSection = ({
   emptyMessage,
 }: ScheduleSectionProps) => {
   const [isOpen, setIsOpen] = useState(true);
-
+  const navigate = useNavigate();
   const filtered = schedules.filter(filterFn);
 
   return (
@@ -44,34 +46,50 @@ const ScheduleSection = ({
             {filtered.length === 0 ? (
               <p className="text-sm text-gray-400 mt-2">{emptyMessage}</p>
             ) : (
-              filtered.map((sched) => (
-                <div
-                  key={sched.disb_sched_id}
-                  className="bg-[#F1F1F1] p-2 rounded-md text-[#797979] font-medium text-[12px] flex-col flex"
-                >
-                  <h2 className="text-[#4d4d4d] font-medium text-[14px] mb-2">
-                    <span
-                      style={{
-                        backgroundColor: getBadgeColor(sched.disbursement_type),
-                      }}
-                      className="p-1 rounded-md mr-1"
-                    ></span>
-                    {sched.disbursement_type}
-                  </h2>
-                  <table>
-                    <tbody>
-                      <tr>
-                        <td className="border-r pr-4">Campus Here</td>
-                        <td className="pl-4">{sched.year_level}</td>
-                      </tr>
-                      <tr>
-                        <td className="border-r pr-4">{sched.semester}</td>
-                        <td className="pl-4">{sched.school_year}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ))
+              filtered.map((sched) => {
+                const formattedDate = sched.disbursement_date
+                  ? format(new Date(sched.disbursement_date), "MMM dd, yyyy")
+                  : "No date";
+
+                return (
+                  <div
+                    key={sched.disb_sched_id}
+                    className="bg-[#F1F1F1] p-2 rounded-md text-[#797979] font-medium text-[12px] flex-col flex cursor-pointer hover:bg-[#e0e0e0]"
+                    onClick={() =>
+                      navigate(`/tracking/detailed/${sched.disb_sched_id}`)
+                    }
+                  >
+                    <h2 className="text-[#4d4d4d] font-medium text-[14px] mb-1 flex items-center">
+                      <span
+                        style={{
+                          backgroundColor: getBadgeColor(
+                            sched.disbursement_type
+                          ),
+                        }}
+                        className="p-1 rounded-md mr-1"
+                      ></span>
+                      {sched.disbursement_type}
+                    </h2>
+
+                    <p className="text-[12px] text-gray-600 mb-2">
+                      Date: {formattedDate}
+                    </p>
+
+                    <table>
+                      <tbody>
+                        <tr>
+                          <td className="border-r pr-4">Campus Here</td>
+                          <td className="pl-4">{sched.year_level}</td>
+                        </tr>
+                        <tr>
+                          <td className="border-r pr-4">{sched.semester}</td>
+                          <td className="pl-4">{sched.school_year}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

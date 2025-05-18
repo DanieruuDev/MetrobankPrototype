@@ -346,7 +346,7 @@ function Workflow() {
                         </div>
                         <div className="font-semibold py-1 rounded-md min-w-[56px]">
                           <div
-                            className={`w-5 h-5 rounded-[20px] mx-auto ${workflowStatusBG(
+                            className={`w-3.5 h-3.5 rounded-[20px] mx-auto ${workflowStatusBG(
                               workflow.status
                             )}`}
                           ></div>

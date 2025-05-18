@@ -91,20 +91,18 @@ const ScheduleTracking = () => {
   );
 
   const filteredSummary = trackingSummary?.filter((item) => {
+    const itemStatus = item.status.toLowerCase();
+
     const statusMatch =
       selectedStatus === "All"
         ? true
         : selectedStatus === "In Progress"
-        ? item.status.toUpperCase() === "PENDING"
-        : selectedStatus.toUpperCase() === item.status.toUpperCase();
+        ? itemStatus === "in progress"
+        : selectedStatus.toLowerCase() === itemStatus;
 
     const searchMatch =
       searchTerm === "" ||
       item.disb_title.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (selectedStatus === "Overdue") {
-      return false;
-    }
 
     return statusMatch && searchMatch;
   });
@@ -280,19 +278,24 @@ const ScheduleTracking = () => {
                         {formatDate(item.disbursement_date)}
                       </td>
                       <td className="py-3 px-4">
-                        {item.status.toUpperCase() === "COMPLETED" && (
+                        {item.status.toLowerCase() === "completed" && (
                           <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
                             Completed
                           </span>
                         )}
-                        {item.status.toUpperCase() === "PENDING" && (
+                        {item.status.toLowerCase() === "in progress" && (
                           <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">
                             In Progress
                           </span>
                         )}
-                        {item.status.toUpperCase() === "NOT STARTED" && (
+                        {item.status.toLowerCase() === "not started" && (
+                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                            Not Started
+                          </span>
+                        )}
+                        {item.status.toLowerCase() === "failed" && (
                           <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
-                            Overdue{" "}
+                            Failed
                           </span>
                         )}
                       </td>
