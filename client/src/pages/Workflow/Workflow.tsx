@@ -271,13 +271,13 @@ function Workflow() {
                   </div>
 
                   {/* Filter Button */}
-                  <button
+                  {/*<button
                     onClick={() => console.log("Open filter modal")}
                     className="inline-flex items-center gap-2 px-4 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
                   >
                     <Filter className="w-4 h-4" />
                     Filter
-                  </button>
+                  </button>*/}
 
                   {/* Create Approval Button */}
                   <button

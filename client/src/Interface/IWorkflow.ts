@@ -70,6 +70,7 @@ export interface ApproverDetailedView {
   approver_due_date: string; // ISO string (e.g., "2025-04-04T16:00:00.000Z")
   assigned_at: string; // ISO string
   is_reassigned: boolean;
+  is_current: boolean;
   workflow_status: string;
   requester_id: number;
   requester_name: string;

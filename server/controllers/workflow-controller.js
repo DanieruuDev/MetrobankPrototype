@@ -36,20 +36,17 @@ const getApprovals = async (req, res) => {
 
     if (!user_id) {
       return res.status(400).json({ message: "Invalid Admin ID" });
-    }
+    } // Parse query params
 
-    // Parse query params
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
-    const offset = (page - 1) * limit;
+    const offset = (page - 1) * limit; // Query paginated data
 
-    // Query paginated data
     const dataQuery = await pool.query(
       "SELECT * FROM vw_workflow_display WHERE requester_id = $1 LIMIT $2 OFFSET $3",
       [user_id, limit, offset]
-    );
+    ); // Query total count
 
-    // Query total count
     const countQuery = await pool.query(
       "SELECT COUNT(*) FROM vw_workflow_display WHERE requester_id = $1",
       [user_id]
@@ -114,9 +111,8 @@ const deleteApproval = async (req, res) => {
 const changeApprover = async (req, res) => {
   try {
     const { requester_id } = req.params;
-    const { workflow_id, old_approver_id, new_approver_id, reason } = req.body;
+    const { workflow_id, old_approver_id, new_approver_id, reason } = req.body; // Check if workflow exists and verify requester (author)
 
-    // Check if workflow exists and verify requester (author)
     const getNewApproverId = await pool.query(
       `SELECT admin_id, email FROM administration_adminaccounts WHERE admin_email = $1`,
       [new_approver_id]
@@ -135,16 +131,14 @@ const changeApprover = async (req, res) => {
       return res.status(404).json({ message: "Workflow not found." });
     }
 
-    const authorId = workflowCheck.rows[0].requester_id;
+    const authorId = workflowCheck.rows[0].requester_id; // Ensure the requester is the author
 
-    // Ensure the requester is the author
     if (authorId !== Number(requester_id)) {
       return res.status(403).json({
         message: "Unauthorized. Only the requester can change the approver.",
       });
-    }
+    } // Check if old approver exists in the workflow
 
-    // Check if old approver exists in the workflow
     const oldApproverCheck = await pool.query(
       "SELECT * FROM wf_approver WHERE approver_id = $1 AND workflow_id = $2",
       [old_approver_id, workflow_id]
@@ -154,35 +148,31 @@ const changeApprover = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Old approver not found in this workflow." });
-    }
+    } // Get the old approver's order
 
-    // Get the old approver's order
-    const approverOrder = oldApproverCheck.rows[0].approver_order;
+    const approverOrder = oldApproverCheck.rows[0].approver_order; // Step 1: Update old approver's status to "replaced"
 
-    // Step 1: Update old approver's status to "replaced"
     await pool.query(
       `UPDATE wf_approver 
-      SET status = 'replaced'
-      WHERE approver_id = $1 AND workflow_id = $2`,
+      SET status = 'replaced'
+      WHERE approver_id = $1 AND workflow_id = $2`,
       [old_approver_id, workflow_id]
-    );
+    ); // Step 2: Insert new approver with same order
 
-    // Step 2: Insert new approver with same order
     await pool.query(
       `INSERT INTO wf_approver (user_id, user_email, workflow_id, approver_order, status, due_date, is_reassigned)
-      VALUES ($1, $2, $3, $4, 'current', NOW() + INTERVAL '7 days', TRUE)`,
+      VALUES ($1, $2, $3, $4, 'current', NOW() + INTERVAL '7 days', TRUE)`,
       [
         getNewApproverId.rows[0].user_id,
         getNewApproverId.rows[0].email,
         workflow_id,
         approverOrder,
       ]
-    );
+    ); // Step 3: Log reassignment in `reassignment_log`
 
-    // Step 3: Log reassignment in `reassignment_log`
     await pool.query(
       `INSERT INTO reassignment_log (workflow_id, old_approver_id, new_approver_id, reason)
-      VALUES ($1, $2, $3, $4)`,
+      VALUES ($1, $2, $3, $4)`,
       [workflow_id, old_approver_id, getNewApproverId.rows[0].user_id, reason]
     );
 
@@ -228,8 +218,7 @@ const createApproval = async (req, res) => {
       semester,
       scholar_level,
       approvers
-    );
-    // Validate required fields
+    ); // Validate required fields
     if (
       !requester_id ||
       !file ||
@@ -243,9 +232,8 @@ const createApproval = async (req, res) => {
     ) {
       deleteFile();
       return res.status(400).json({ message: "All fields are required" });
-    }
+    } // Parse approvers safely
 
-    // Parse approvers safely
     let appr;
     try {
       appr = JSON.parse(approvers);
@@ -275,9 +263,8 @@ const createApproval = async (req, res) => {
         description,
       ]
     );
-    const workflowID = insertWorkflowQuery.rows[0].workflow_id;
+    const workflowID = insertWorkflowQuery.rows[0].workflow_id; // Insert approvers
 
-    // Insert approvers
     const approverQueries = [];
 
     for (const approval of appr) {
@@ -305,12 +292,20 @@ const createApproval = async (req, res) => {
         return res
           .status(400)
           .json({ message: `Duplicate approver: ${approval.email}` });
-      }
+      } // Insert into wf_approver // Corrected INSERT query to include status, assigned_at, and is_reassigned
 
-      // Insert into wf_approver
       const approvalList = await client.query(
-        "INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, due_date) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        [workflowID, userId, approval.email, approval.order, approval.date]
+        "INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, assigned_at, is_reassigned, is_current) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8) RETURNING *",
+        [
+          workflowID,
+          userId,
+          approval.email,
+          approval.order,
+          "Pending",
+          approval.date,
+          FALSE,
+          FALSE,
+        ]
       );
 
       const initializeResponse = await client.query(
@@ -377,9 +372,9 @@ const fetchApproverApprovalList = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM vw_approver_workflows
-      WHERE user_id = $1
-    `;
+      SELECT * FROM vw_approver_workflows
+      WHERE user_id = $1
+    `;
 
     const { rows } = await pool.query(query, [user_id]);
 
@@ -392,18 +387,18 @@ const fetchApproverApprovalList = async (req, res) => {
 
 const fetchApproverApproval = async (req, res) => {
   try {
-    const { approver_id } = req.params;
+    const { approver_id } = req.params; // This query still uses the vw_approver_detailed view, which needs to be correct // for the frontend to display details, including is_current and approver_status. // Your collaborator will need to ensure this view is properly defined // and accessible.
 
     const query = `
-        SELECT * FROM vw_approver_detailed
-        WHERE approver_id = $1;
-    `;
+        SELECT * FROM vw_approver_detailed
+        WHERE approver_id = $1;
+    `;
 
     const { rows } = await pool.query(query, [approver_id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "Approver not found" });
-    }
+    } // The frontend SpecificRequest component expects an object with properties // matching ApproverDetailedView, including is_current and approver_status.
 
     res.json(rows[0]);
   } catch (error) {
@@ -411,9 +406,10 @@ const fetchApproverApproval = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 //When approving the approval
 const approveApproval = async (req, res) => {
-  const { approver_id, response, comment } = req.body;
+  const { approver_id, response, comment } = req.body; // Basic validation remains
 
   if (!approver_id || !response) {
     return res
@@ -425,129 +421,42 @@ const approveApproval = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
+    await client.query("BEGIN"); // --- Removed sequential security check here --- // Your collaborator needs to reimplement and secure this. // Step 1: Update approver response
 
-    // Step 1: Update approver response
     await client.query(
       `
-      UPDATE approver_response 
-      SET response = $1, comment = $2, updated_at = NOW() 
-      WHERE approver_id = $3
-      `,
+      UPDATE approver_response 
+      SET response = $1, comment = $2, updated_at = NOW() 
+      WHERE approver_id = $3
+      `,
       [response, comment, approver_id]
-    );
+    ); // Step 2: Update approver status to Completed
 
-    // Step 2: Update approver status
     await client.query(
       `
-      UPDATE wf_approver 
-      SET status = 'Completed' 
-      WHERE approver_id = $1
-      `,
+      UPDATE wf_approver 
+      SET status = 'Completed' 
+      WHERE approver_id = $1
+      `,
       [approver_id]
-    );
+    ); // --- Removed automatic sequential movement and workflow completion logic --- // Your collaborator needs to reimplement this logic based on your workflow rules.
 
-    // Step 3: Set current approver to FALSE
-    await client.query(
-      `
-      UPDATE wf_approver 
-      SET is_current = FALSE 
-      WHERE workflow_id = (
-        SELECT workflow_id FROM wf_approver WHERE approver_id = $1
-      )
-      AND is_current = TRUE
-      `,
-      [approver_id]
-    );
+    // This includes setting the previous approver's is_current to FALSE and
+    // setting the next pending approver's is_current to TRUE, and updating
+    // the overall workflow status when all steps are completed.
 
-    // Step 4: Move to next approver, if applicable
-    if (response === "Approved" || response === "Reject") {
-      const nextApproverQuery = await client.query(
-        `
-        SELECT approver_id FROM wf_approver 
-        WHERE workflow_id = (
-          SELECT workflow_id FROM wf_approver WHERE approver_id = $1
-        )
-        AND status = 'Pending'
-        AND approver_order > (
-          SELECT approver_order FROM wf_approver WHERE approver_id = $1
-        )
-        ORDER BY approver_order
-        LIMIT 1
-        `,
-        [approver_id]
-      );
+    await client.query("COMMIT"); // --- Simplified response --- // The frontend SpecificRequest component expects detailed info after approval. // This simplified response won't provide that. Your collaborator will // likely need to modify this to fetch the updated status and details // from the database (possibly using vw_approver_detailed if it's fixed) // and return it in the response payload for the frontend to refresh.
 
-      if (nextApproverQuery.rows.length > 0) {
-        const nextApproverId = nextApproverQuery.rows[0].approver_id;
-        console.log("Next approver set to:", nextApproverId);
-
-        await client.query(
-          `
-          UPDATE wf_approver 
-          SET is_current = TRUE 
-          WHERE approver_id = $1
-          `,
-          [nextApproverId]
-        );
-      } else {
-        console.log("No next approver found.");
-      }
-    }
-
-    // Step 5: Check if workflow should be marked as completed
-    const workflowQuery = `
-      SELECT workflow_id FROM wf_approver WHERE approver_id = $1
-    `;
-    const { rows } = await client.query(workflowQuery, [approver_id]);
-    const workflow_id = rows[0]?.workflow_id;
-    if (!workflow_id) throw new Error("Workflow not found");
-
-    const pendingCheckQuery = `
-      SELECT COUNT(*) AS pending_count 
-      FROM wf_approver 
-      WHERE workflow_id = $1 
-      AND status NOT IN ('Completed', 'Missed')
-    `;
-    const pendingResult = await client.query(pendingCheckQuery, [workflow_id]);
-    const pendingCount = parseInt(pendingResult.rows[0].pending_count);
-
-    if (pendingCount === 0) {
-      const updateWorkflowQuery = `
-        UPDATE workflow
-        SET status = 'Completed', completed_at = NOW()
-        WHERE workflow_id = $1
-      `;
-      await client.query(updateWorkflowQuery, [workflow_id]);
-      console.log("Workflow marked as completed.");
-    }
-
-    await client.query("COMMIT");
-
-    // Step 6: Fetch and return approver's detailed status
-    const detailedQuery = `
-      SELECT workflow_status, approver_response, approver_comment 
-      FROM vw_approver_detailed 
-      WHERE approver_id = $1
-    `;
-    const result = await client.query(detailedQuery, [approver_id]);
-
-    if (result.rows.length > 0) {
-      const { workflow_status, approver_response, approver_comment } =
-        result.rows[0];
-      res.status(200).json({
-        message: "Approval recorded successfully",
-        workflow_status,
-        approver_response,
-        approver_comment,
-      });
-    } else {
-      res.status(404).json({ message: "Approver details not found" });
-    }
+    res.status(200).json({
+      message:
+        "Approval recorded successfully. Frontend may need refresh to show updated status.", // You might want to include the updated status or other relevant data here // for the frontend to refresh the view without a full page reload. // Example: { approver_status: 'Completed', approver_response: response }
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error approving:", error);
-    res.status(500).json({ message: error.message });
+    res
+      .status(500)
+      .json({ message: error.message || "Server error during approval" });
   } finally {
     client.release();
   }
