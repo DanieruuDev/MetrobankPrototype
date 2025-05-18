@@ -4,7 +4,6 @@ import { useState } from "react";
 import SYSemesterDropdown from "../../../components/shared/SYSemesterDropdown";
 import SpecificRenewal from "./RenewalComponents/SpecificRenewal";
 import RenewalList from "./RenewalComponents/RenewalList";
-import useLogout from "../../../components/Logout";
 import { useSidebar } from "../../../context/SidebarContext";
 
 export interface SpecificRenewalDetail {
@@ -29,7 +28,6 @@ function Renewal() {
       <Navbar pageName="Scholarship Renewal" />
       <Sidebar />
 
-      <button onClick={useLogout}>Logout</button>
       {detailedRenewal === null ? (
         <>
           <div className="flex justify-end px-4">
