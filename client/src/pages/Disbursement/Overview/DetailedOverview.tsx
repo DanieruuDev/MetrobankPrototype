@@ -3,9 +3,10 @@ import Navbar from "../../../components/shared/Navbar";
 import Sidebar from "../../../components/shared/Sidebar";
 import { useParams, useNavigate } from "react-router-dom"; // Added useNavigate
 import axios, { AxiosError } from "axios";
-import ComingSoonDialog from "../../../components/shared/ComingSoonDialog";
+
 import { useSidebar } from "../../../context/SidebarContext";
 import { ArrowLeft } from "lucide-react";
+import jsPDF from "jspdf";
 
 export interface ScholarDisbursement {
   amount: string | null;
@@ -44,6 +45,149 @@ const DetailedOverview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTermIndex, setSelectedTermIndex] = useState<number>(0);
   const { collapsed } = useSidebar();
+
+  // Make sure this is the ONLY formatCurrency function in your file
+  const formatCurrency = (amount: number): string => {
+    return (
+      "Php " +
+      amount.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  };
+
+  const generatePDF = async () => {
+    try {
+      const pdf = new jsPDF("p", "pt", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 40;
+
+      // Set a font that supports the ₱ symbol
+      pdf.addFont("helvetica", "Helvetica", "normal");
+      pdf.setFont("helvetica");
+
+      // Header
+      pdf.setFontSize(18);
+      pdf.setTextColor(15, 46, 89);
+      pdf.text(
+        `${currentScholar.scholar_name} - Disbursement History`,
+        pageWidth / 2,
+        margin,
+        { align: "center" }
+      );
+
+      // Student info
+      pdf.setFontSize(12);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`Student ID: ${currentScholar.student_id}`, margin, margin + 40);
+      pdf.text(`Campus: ${currentScholar.current_campus}`, margin, margin + 60);
+      pdf.text(
+        `Status: ${currentScholar.current_scholarship_status}`,
+        margin,
+        margin + 80
+      );
+
+      // Calculate totals
+      const totalCompleted = allTerms.reduce((total, term) => {
+        const completed = term.disbursements.filter(
+          (d) => d.disbursement_status === "Completed"
+        );
+        return total + calculateTotalAmount(completed);
+      }, 0);
+
+      pdf.text(
+        `Total Completed Disbursements: ${formatCurrency(totalCompleted)}`,
+        margin,
+        margin + 100
+      );
+
+      let yPosition = margin + 140;
+
+      // Process terms
+      for (const term of allTerms) {
+        pdf.setFontSize(14);
+        pdf.setTextColor(15, 46, 89);
+        pdf.text(
+          `${term.school_year} | ${term.semester} | ${term.year_level}`,
+          margin,
+          yPosition
+        );
+        yPosition += 30;
+
+        // Table headers
+        pdf.setFontSize(10);
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFillColor(15, 46, 89);
+        pdf.rect(margin, yPosition, pageWidth - 2 * margin, 20, "F");
+        pdf.text("Type", margin + 10, yPosition + 15);
+        pdf.text("Status", margin + 150, yPosition + 15);
+        pdf.text("Amount", margin + 250, yPosition + 15);
+        pdf.text("Date", margin + 350, yPosition + 15);
+        yPosition += 30;
+
+        // Disbursement rows
+        pdf.setFontSize(10);
+        pdf.setTextColor(0, 0, 0);
+        let rowColor = false;
+
+        for (const item of term.disbursements) {
+          if (rowColor) {
+            pdf.setFillColor(240, 240, 240);
+            pdf.rect(margin, yPosition - 10, pageWidth - 2 * margin, 20, "F");
+          }
+          rowColor = !rowColor;
+
+          pdf.text(item.disbursement_type, margin + 10, yPosition);
+          pdf.text(item.disbursement_status, margin + 150, yPosition);
+
+          // Fixed amount display with guaranteed ₱ symbol
+          const amountValue =
+            item.disbursement_status === "Completed" && item.amount
+              ? parseFloat(item.amount)
+              : 0;
+          const displayAmount = formatCurrency(amountValue);
+
+          pdf.text(displayAmount, margin + 250, yPosition);
+          pdf.text(formatDate(item.disbursement_date), margin + 350, yPosition);
+          yPosition += 20;
+
+          if (yPosition > pdf.internal.pageSize.getHeight() - margin) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+        }
+
+        // Term total
+        const termCompleted = term.disbursements
+          .filter((d) => d.disbursement_status === "Completed")
+          .reduce((sum, d) => sum + (d.amount ? parseFloat(d.amount) : 0), 0);
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont(undefined, "bold");
+        pdf.text("Term Total (Completed):", margin + 100, yPosition + 10);
+        pdf.text(formatCurrency(termCompleted), margin + 250, yPosition + 10);
+        yPosition += 40;
+      }
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(
+        `Generated on ${new Date().toLocaleDateString()} • Confidential`,
+        margin,
+        pdf.internal.pageSize.getHeight() - 20
+      );
+
+      pdf.save(`${currentScholar.scholar_name}_disbursements.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    }
+  };
+
+  // Make sure this is your only formatCurrency function in the file
 
   const fetchDisbursementData = async (): Promise<void> => {
     setIsLoading(true);
@@ -111,14 +255,6 @@ const DetailedOverview: React.FC = () => {
     return disbursements.reduce((total, disburse) => {
       return total + (disburse.amount ? parseFloat(disburse.amount) : 0);
     }, 0);
-  };
-
-  const formatCurrency = (amount: number): string => {
-    return amount.toLocaleString("en-PH", {
-      style: "currency",
-      currency: "PHP",
-      minimumFractionDigits: 2,
-    });
   };
 
   const formatDate = (dateString: string | null): string => {
@@ -250,10 +386,26 @@ const DetailedOverview: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <ComingSoonDialog
-                triggerText="Download PDF"
-                buttonClassName="text-sm text-blue-600 border border-blue-600 hover:bg-blue-50 px-4 py-2 rounded transition flex items-center"
-              />
+              <button
+                onClick={generatePDF}
+                className="flex items-center gap-2 text-sm font-semibold text-white bg-blue-600 border border-blue-600 hover:bg-white hover:text-blue-600 px-5 py-2 rounded-2xl transition"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+                Download PDF
+              </button>
             </div>
           </div>
 
