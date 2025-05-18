@@ -9,6 +9,8 @@ import BarGraph from "../../components/charts/BarGraph";
 
 const ROIandAnalytics: React.FC = () => {
   const { collapsed } = useSidebar();
+
+  // Icons
   const DollarSignIcon = () => (
     <svg
       className="w-6 h-6"
@@ -63,14 +65,12 @@ const ROIandAnalytics: React.FC = () => {
     </svg>
   );
 
-  // Example of another icon you might need (add others as required)
   const UsersIcon = () => (
     <svg
       className="w-6 h-6"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
     >
       <path
         strokeLinecap="round"
@@ -81,9 +81,7 @@ const ROIandAnalytics: React.FC = () => {
     </svg>
   );
 
-  // --- Hardcoded Data for Demonstration ---
-  // Data scaled up so that the average investment per student is around ₱1M (Total Investment ~₱54M for 54 students).
-  // In a real application, this data would be fetched from your backend API.
+  // Mock Data
   const programData = [
     {
       program: "BSCS",
@@ -102,9 +100,18 @@ const ROIandAnalytics: React.FC = () => {
       students_count: 30,
     },
   ];
-  // --- End Hardcoded Data ---
 
-  // Calculate total metrics based on programData
+  const campusData = [
+    { campus: "STI Ortigas-Cainta", scholarCount: 120, roiPercentage: 45.2 },
+    { campus: "STI Pasay-EDSA", scholarCount: 85, roiPercentage: 38.7 },
+    { campus: "Global City", scholarCount: 65, roiPercentage: 42.1 },
+    { campus: "STI Fairview", scholarCount: 110, roiPercentage: 39.5 },
+    { campus: "Novaliches", scholarCount: 75, roiPercentage: 36.8 },
+    { campus: "STI Sta. Mesa", scholarCount: 95, roiPercentage: 41.3 },
+    { campus: "STI Novaliches", scholarCount: 70, roiPercentage: 37.5 },
+  ];
+
+  // Calculate metrics
   const totalInvestment = programData.reduce(
     (sum, program) => sum + program.total_investment,
     0
@@ -113,36 +120,29 @@ const ROIandAnalytics: React.FC = () => {
     (sum, program) => sum + program.total_return,
     0
   );
-  // Ensure totalInvestment is not zero to avoid division by zero
   const overallROI =
     totalInvestment === 0
       ? 0
       : ((totalReturn - totalInvestment) / totalInvestment) * 100;
-
   const totalBreakEvenMonths = programData.reduce(
     (sum, program) => sum + program.avg_break_even,
     0
   );
-  // Ensure programData has elements to avoid division by zero
   const avgBreakEven =
     programData.length === 0 ? 0 : totalBreakEvenMonths / programData.length;
-
   const totalStudents = programData.reduce(
     (sum, program) => sum + program.students_count,
     0
-  ); // This is the count we'll use for "Unique Active Scholars"
+  );
   const totalSavings = totalReturn - totalInvestment;
-
-  // --- Calculate Average Metrics per Student ---
   const avgInvestmentPerStudent =
     totalStudents === 0 ? 0 : totalInvestment / totalStudents;
   const avgReturnPerStudent =
     totalStudents === 0 ? 0 : totalReturn / totalStudents;
   const avgSavingsPerStudent =
     totalStudents === 0 ? 0 : totalSavings / totalStudents;
-  // --- End Average Metrics Calculation ---
 
-  // Formatting function
+  // Formatting functions
   const formatCurrencyShort = (value: number): string => {
     if (value === undefined || value === null) return "₱0";
     const absValue = Math.abs(value);
@@ -151,12 +151,11 @@ const ROIandAnalytics: React.FC = () => {
     return `₱${value.toFixed(0)}`;
   };
 
-  // Formatting function for currency with potentially more precision for averages
   const formatCurrencyAverage = (value: number): string => {
     if (value === undefined || value === null) return "₱0";
     const absValue = Math.abs(value);
-    if (absValue >= 1_000_000) return `₱${(value / 1_000_000).toFixed(2)}M`; // More precision for M
-    if (absValue >= 1_000) return `₱${(value / 1000).toFixed(1)}K`; // Precision for K
+    if (absValue >= 1_000_000) return `₱${(value / 1_000_000).toFixed(2)}M`;
+    if (absValue >= 1_000) return `₱${(value / 1000).toFixed(1)}K`;
     return `₱${value.toFixed(0)}`;
   };
 
@@ -164,7 +163,7 @@ const ROIandAnalytics: React.FC = () => {
     <div
       className={`${
         collapsed ? "pl-20" : "pl-[250px]"
-      } transition-all duration-300 `}
+      } transition-all duration-300`}
     >
       <Navbar pageName="ROI & Analytics" />
       <Sidebar />
@@ -173,89 +172,76 @@ const ROIandAnalytics: React.FC = () => {
         <div className="pt-2 p-6 flex-1 overflow-auto">
           <div className="max-w-[1900px] mx-auto">
             {/* Top Metrics Row */}
-            {/* Adjusted grid to accommodate more cards - you might need to fine-tune this layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-              {" "}
-              {/* Example: Added xl:grid-cols-4 */}
-              {/* Original Metrics */}
               <MetricCard
                 title="Total Investment"
-                value={formatCurrencyShort(totalInvestment)} // Now will show ~₱54.0M
-                change={5.2} // Example change percentage - replace with real data
-                icon={<DollarSignIcon />} // Assuming DollarSignIcon is defined
+                value={formatCurrencyShort(totalInvestment)}
+                change={5.2}
+                icon={<DollarSignIcon />}
               />
               <MetricCard
                 title="Total Savings"
-                value={formatCurrencyShort(totalSavings)} // Now will show ~₱22.6M
-                change={8.5} // Example change percentage - replace with real data
-                icon={<DollarSignIcon />} // Using DollarSignIcon again
+                value={formatCurrencyShort(totalSavings)}
+                change={8.5}
+                icon={<DollarSignIcon />}
               />
               <MetricCard
                 title="Scholarship Program ROI"
-                value={`${overallROI.toFixed(1)}%`} // Remains ~41.8%
-                change={3.7} // Example change percentage - replace with real data
-                icon={<PieChartIcon />} // Assuming PieChartIcon is defined
+                value={`${overallROI.toFixed(1)}%`}
+                change={3.7}
+                icon={<PieChartIcon />}
               />
               <MetricCard
                 title="Average Break-Even Length"
-                value={`${avgBreakEven.toFixed(1)} Months`} // Remains 22.3 Months
-                change={-2.3} // Example change percentage - replace with real data
-                icon={<TrendingUpIcon />} // Assuming TrendingUpIcon is defined
+                value={`${avgBreakEven.toFixed(1)} Months`}
+                change={-2.3}
+                icon={<TrendingUpIcon />}
               />
-              {/* Added Metrics */}
-              {/* Changed title from "Total Students" to "Unique Active Scholars" */}
               <MetricCard
                 title="Unique Active Scholars"
-                value={totalStudents.toString()} // Value is still the sum of students_count
-                change={0} // Assuming 0% change for student count example
-                icon={<UsersIcon />} // Uses UsersIcon (assuming it's defined below)
+                value={totalStudents.toString()}
+                change={0}
+                icon={<UsersIcon />}
               />
               <MetricCard
-                title="Avg Investment per Scholar" // Changed "Student" to "Scholar" for consistency with model
-                value={formatCurrencyAverage(avgInvestmentPerStudent)} // New metric
-                change={-1.5} // Example change percentage - replace with real data
-                icon={<DollarSignIcon />} // Example icon
+                title="Avg Investment per Scholar"
+                value={formatCurrencyAverage(avgInvestmentPerStudent)}
+                change={-1.5}
+                icon={<DollarSignIcon />}
               />
               <MetricCard
-                title="Avg Return per Scholar" // Changed "Student" to "Scholar"
-                value={formatCurrencyAverage(avgReturnPerStudent)} // New metric
-                change={2.1} // Example change percentage - replace with real data
-                icon={<TrendingUpIcon />} // Example icon
+                title="Avg Return per Scholar"
+                value={formatCurrencyAverage(avgReturnPerStudent)}
+                change={2.1}
+                icon={<TrendingUpIcon />}
               />
               <MetricCard
-                title="Avg Savings per Scholar" // Changed "Student" to "Scholar"
-                value={formatCurrencyAverage(avgSavingsPerStudent)} // New metric
-                change={4.0} // Example change percentage - replace with real data
-                icon={<DollarSignIcon />} // Example icon
+                title="Avg Savings per Scholar"
+                value={formatCurrencyAverage(avgSavingsPerStudent)}
+                change={4.0}
+                icon={<DollarSignIcon />}
               />
-              {/* You can add more MetricCard components here */}
             </div>
 
             {/* Main Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Left Column - Line Graph (2/3 width) */}
               <div className="bg-white rounded-lg shadow-sm p-4 lg:col-span-2 h-full">
                 <h3 className="text-lg text-center font-semibold mb-4">
                   ROI Performance Over Time
                 </h3>
                 <div className="h-[350px]">
-                  {/* Pass time-series data to LineGraph */}
-                  {/* <LineGraph data={timeSeriesROIdataScaled} /> */}
-                  <LineGraph />{" "}
-                  {/* Currently using placeholder or internal data */}
+                  <LineGraph />
                 </div>
               </div>
 
-              {/* Right Column - Donut Chart (1/3 width) */}
               <div className="bg-white rounded-lg shadow-sm lg:col-span-2 p-4 h-full">
-                {/* Pass programData to DonutChartROI */}
-                {/* Ensure DonutChartROI is updated to accept and use this prop */}
                 <DonutChartROI data={programData} />
               </div>
             </div>
 
-            <div>
-              <BarGraph />
+            {/* Campus Bar Graph */}
+            <div className="mt-6">
+              <BarGraph data={campusData} />
             </div>
           </div>
         </div>
@@ -263,7 +249,5 @@ const ROIandAnalytics: React.FC = () => {
     </div>
   );
 };
-
-// Simple icon components (replace with your actual icons) - kept as is
 
 export default ROIandAnalytics;

@@ -6,14 +6,7 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
 import Request from "./Request";
-import {
-  CheckSquare,
-  ClipboardList,
-  Filter,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { CheckSquare, ClipboardList, Plus, Search, Trash2 } from "lucide-react";
 import CreateApproval2 from "../../components/approval/CreateApproval2";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
