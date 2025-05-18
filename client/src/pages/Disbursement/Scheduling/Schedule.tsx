@@ -14,6 +14,7 @@ export interface DisbursementSchedule {
   created_by: number;
   date: Date;
   disb_sched_id: number;
+  branch: string;
   status: string;
   student_count: number;
   title: string;
@@ -83,6 +84,32 @@ function Schedule() {
     }
   };
 
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "New disbursement scheduled",
+      message: "Thesis Fee disbursement for May 20, 2025",
+      read: false,
+      date: "2025-05-18",
+    },
+    {
+      id: 2,
+      title: "Reminder",
+      message: "Scholarship Fee disbursement tomorrow",
+      read: false,
+      date: "2025-05-17",
+    },
+  ]);
+
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    // Mark notifications as read when opened
+    if (!showNotifications) {
+      setNotifications((notifs) => notifs.map((n) => ({ ...n, read: true })));
+    }
+  };
+
   console.log(schedules);
   useEffect(() => {
     fetchSchedules(visibleMonth);
@@ -143,8 +170,50 @@ function Schedule() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="bg-[#F1F1F1] py-2 px-3 rounded-md group cursor-pointer">
+            <button
+              onClick={toggleNotifications}
+              className="bg-[#F1F1F1] py-2 px-3 rounded-md group cursor-pointer relative"
+            >
               <Bell className="text-[#565656] group-hover:text-[#2a2a2a]" />
+              {notifications.some((n) => !n.read) && (
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
+
+              {showNotifications && (
+                <div className="absolute right-4 mt-3 w-72 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                  <div className="p-2 border-b border-gray-200">
+                    <h3 className="font-medium text-gray-700">Notifications</h3>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`p-3 border-b border-gray-100 hover:bg-gray-50 ${
+                            !notification.read ? "bg-blue-50" : ""
+                          }`}
+                        >
+                          <div className="font-medium text-sm text-gray-800">
+                            {notification.title}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {notification.message}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-sm text-gray-500">
+                        No new notifications
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-gray-200 text-center">
+                    <button className="text-xs text-blue-500 hover:text-blue-700">
+                      Mark all as read
+                    </button>
+                  </div>
+                </div>
+              )}
             </button>
             <button
               className="bg-[#3B89FD] text-white rounded-md gap-2 py-2 px-4 flex items-center cursor-pointer hover:bg-[#3b62fd]"

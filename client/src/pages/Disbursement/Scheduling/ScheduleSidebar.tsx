@@ -15,7 +15,9 @@ export interface DisbursementScheduleSummary {
   disbursement_date: string;
   status: string;
   total_scholars: number;
+  branch: string; // add this
 }
+
 interface ScheduleSidebarProps {
   getBadgeColor: (type: string) => string;
   collapsed: boolean;
@@ -32,7 +34,7 @@ const ScheduleSidebar = ({
   const [twoWeekSched, setTwoWeekSched] = useState<
     DisbursementScheduleSummary[] | null
   >([]);
-
+  console.log("two weeks  ", twoWeekSched);
   const fetchSidebarSchedules = async (date: Date) => {
     setLoading(true);
     setError(null);
@@ -43,18 +45,21 @@ const ScheduleSidebar = ({
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/schedule/${year}/${month}`
       );
+
       setSidebarSchedule(
         response.data.map((schedule: DisbursementSchedule) => ({
           ...schedule,
           date: new Date(schedule.date),
         }))
       );
+      console.log("Disb Schedule", response.data);
     } catch (err) {
       setError(`Failed to load monthly schedule: ${err}`);
     } finally {
       setLoading(false);
     }
   };
+
   const fetchTwoWeeksSchedule = async () => {
     setLoading(true);
     setError(null);

@@ -29,17 +29,16 @@ function Approval({
   );
   const [newApprover, setNewApprover] = useState("");
   const [reason, setReason] = useState("");
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
+
+  // Use approver_id for expanded state (instead of approver_order)
+  const [expandedApproverId, setExpandedApproverId] = useState<number | null>(
+    null
+  );
+
   const workflow =
     Array.isArray(detailedWorkflow) && detailedWorkflow.length > 0
       ? detailedWorkflow[0]
-      : undefined;
-
-  useEffect(() => {
-    if (Array.isArray(detailedWorkflow) && detailedWorkflow.length > 0) {
-      setIsLoading(false);
-    }
-  }, [detailedWorkflow]);
+      : detailedWorkflow;
 
   useEffect(() => {
     if (detailedWorkflow) {
@@ -119,16 +118,17 @@ function Approval({
     }
   };
 
-  const toggleStepExpansion = (order: number) => {
-    if (expandedStep === order) {
-      setExpandedStep(null);
+  // Toggle expansion by approver_id
+  const toggleStepExpansion = (approverId: number) => {
+    if (expandedApproverId === approverId) {
+      setExpandedApproverId(null);
     } else {
-      setExpandedStep(order);
+      setExpandedApproverId(approverId);
     }
   };
 
   const handleDownload = () => {
-    if (!workflow.doc_path) {
+    if (!workflow?.doc_path) {
       console.error("No file to download");
       return;
     }
@@ -163,6 +163,7 @@ function Approval({
   const sortedApprovers = [...workflow.approvers].sort(
     (a, b) => a.approver_order - b.approver_order
   );
+
   const calculateCompletionPercentage = () => {
     const totalSteps = sortedApprovers.length + 2; // +2 for Started and Ended
     let completedSteps = 1; // Started is always
@@ -229,6 +230,7 @@ function Approval({
               </div>
             </div>
           </div>
+
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <svg
@@ -289,6 +291,7 @@ function Approval({
               </p>
             </div>
           </div>
+
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
               <svg
@@ -373,141 +376,146 @@ function Approval({
                   </div>
                 </div>
 
-                {sortedApprovers.map((approver, index) => {
-                  const isCompleted = approver.approver_status === "Completed";
-                  const isCurrent = approver.is_current;
-                  const isPending = approver.approver_status === "Pending";
-                  const isMissed = approver.approver_status === "Missed";
+                {sortedApprovers
+                  .filter((approver) => approver.approver_status !== "Replaced")
+                  .map((approver) => {
+                    const isCompleted =
+                      approver.approver_status === "Completed";
+                    const isCurrent = approver.is_current;
+                    const isPending = approver.approver_status === "Pending";
+                    const isMissed = approver.approver_status === "Missed";
 
-                  return (
-                    <div key={index} className="relative">
-                      {/* Step indicator */}
-                      <div
-                        className={`absolute -left-9 top-0 flex items-center justify-center w-8 h-8 rounded-full border-4 border-white ${
-                          isCompleted
-                            ? "bg-green-500"
-                            : isCurrent
-                            ? "bg-blue-500"
-                            : isPending
-                            ? "bg-yellow-400"
-                            : isMissed
-                            ? "bg-red-500"
-                            : "bg-gray-400"
-                        } ${isCurrent && !isCompleted ? "animate-pulse" : ""}`}
-                      >
-                        {isCompleted ? (
-                          <Check className="w-4 h-4 text-white" />
-                        ) : (
-                          <span className="text-white text-sm font-bold">
-                            {approver.approver_order}
-                          </span>
+                    return (
+                      <div key={approver.approver_id} className="relative">
+                        {/* Step indicator */}
+                        <div
+                          className={`absolute -left-9 top-0 flex items-center justify-center w-8 h-8 rounded-full border-4 border-white ${
+                            isCompleted
+                              ? "bg-green-500"
+                              : isCurrent
+                              ? "bg-blue-500"
+                              : isPending
+                              ? "bg-yellow-400"
+                              : isMissed
+                              ? "bg-red-500"
+                              : "bg-gray-400"
+                          } ${
+                            isCurrent && !isCompleted ? "animate-pulse" : ""
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <Check className="w-4 h-4 text-white" />
+                          ) : (
+                            <span className="text-white text-sm font-bold">
+                              {approver.approver_order}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Step content */}
+                        <div
+                          className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                            expandedApproverId === approver.approver_id
+                              ? "bg-blue-50 border border-blue-200"
+                              : "bg-gray-50 hover:bg-gray-100"
+                          }`}
+                          onClick={() =>
+                            toggleStepExpansion(approver.approver_id)
+                          }
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="font-medium text-gray-800">
+                                {approver.approver_email}
+                              </h3>
+                              <div className="flex items-center mt-1">
+                                <span
+                                  className={`w-2 h-2 rounded-full mr-2 ${getStatusColor(
+                                    approver.approver_status
+                                  )}`}
+                                ></span>
+                                <span
+                                  className={`text-sm font-medium ${getStatusTextColor(
+                                    approver.approver_status
+                                  )}`}
+                                >
+                                  {approver.approver_status}
+                                  {isCurrent && (
+                                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                                      Current
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Step {approver.approver_order}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded content */}
+                        {expandedApproverId === approver.approver_id && (
+                          <div className="mt-3 space-y-3">
+                            {approver.response !== "Pending" && (
+                              <div className="bg-white p-3 rounded border border-gray-200">
+                                <div className="text-sm text-gray-700 flex gap-2">
+                                  <span className="font-medium">Response:</span>
+                                  <p
+                                    className={`font-medium ${
+                                      approver.response === "Approved"
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
+                                    {approver.response || "Pending"}
+                                  </p>
+                                </div>
+                                {approver.comment && (
+                                  <div className="mt-2">
+                                    <p className="text-sm font-medium text-gray-700">
+                                      Comment:
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1 bg-gray-50 p-2 rounded">
+                                      {approver.comment}
+                                    </p>
+                                  </div>
+                                )}
+                                {approver.response_time && (
+                                  <div className="flex items-center mt-2 text-sm text-gray-500">
+                                    <Clock size={14} className="mr-1" />
+                                    {formatDate(approver.response_time)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <button
+                              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(approver);
+                              }}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4 mr-2"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              Change Approver
+                            </button>
+                          </div>
                         )}
                       </div>
-
-                      {/* Step content */}
-                      <div
-                        className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
-                          expandedStep === approver.approver_order
-                            ? "bg-blue-50 border border-blue-200"
-                            : "bg-gray-50 hover:bg-gray-100"
-                        }`}
-                        onClick={() =>
-                          toggleStepExpansion(approver.approver_order)
-                        }
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-medium text-gray-800">
-                              {approver.approver_email}
-                            </h3>
-                            <div className="flex items-center mt-1">
-                              <span
-                                className={`w-2 h-2 rounded-full mr-2 ${getStatusColor(
-                                  approver.approver_status
-                                )}`}
-                              ></span>
-                              <span
-                                className={`text-sm font-medium ${getStatusTextColor(
-                                  approver.approver_status
-                                )}`}
-                              >
-                                {approver.approver_status}
-                                {isCurrent && (
-                                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                                    Current
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Step {approver.approver_order}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded content */}
-                      {expandedStep === approver.approver_order && (
-                        <div className="mt-3 space-y-3">
-                          {approver.response !== "Pending" && (
-                            <div className="bg-white p-3 rounded border border-gray-200">
-                              <div className="text-sm text-gray-700 flex gap-2">
-                                <span className="font-medium">Response:</span>
-                                <p
-                                  className={`font-medium ${
-                                    approver.response === "Approved"
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }`}
-                                >
-                                  {approver.response || "Pending"}
-                                </p>
-                              </div>
-                              {approver.comment && (
-                                <div className="mt-2">
-                                  <p className="text-sm font-medium text-gray-700">
-                                    Comment:
-                                  </p>
-                                  <p className="text-sm text-gray-600 mt-1 bg-gray-50 p-2 rounded">
-                                    {approver.comment}
-                                  </p>
-                                </div>
-                              )}
-                              {approver.response_time && (
-                                <div className="flex items-center mt-2 text-sm text-gray-500">
-                                  <Clock size={14} className="mr-1" />
-                                  {formatDate(approver.response_time)}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          <button
-                            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openModal(approver);
-                            }}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4 mr-2"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Change Approver
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
                 {/* Ended Placeholder */}
                 <div className="relative">

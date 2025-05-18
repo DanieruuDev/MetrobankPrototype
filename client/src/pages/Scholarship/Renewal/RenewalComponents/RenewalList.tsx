@@ -577,8 +577,8 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                       className={`px-6 py-4 max-w-xs truncate ${
                         key === "scholar_name"
                           ? isEdit
-                            ? "sticky left-[90px] bg-white z-100"
-                            : "sticky left-0 bg-white z-100"
+                            ? "sticky left-[90px] bg-white z-10"
+                            : "sticky left-0 bg-white z-10"
                           : ""
                       } ${
                         key in validation

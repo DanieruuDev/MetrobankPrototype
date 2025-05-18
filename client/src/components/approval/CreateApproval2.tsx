@@ -123,9 +123,11 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
           headers: { "Content-Type": "multipart/form-data" },
         }
       );
-      toast.success("Approval request created successfully!");
+
       fetchWorkflows(1);
       setIsModal(false);
+      toast.success("Approval request created successfully!");
+      setLoading(false);
       console.log(response.data);
     } catch (error) {
       console.log(error);
@@ -135,14 +137,22 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
           : "Failed to create approval request. Please try again.";
       setError(message);
       toast.error(message);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <div className="fixed inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
         <div
           className={`relative bg-white rounded-lg p-8 shadow-lg max-w-2xl w-full space-y-6 max-h-[95vh] overflow-y-auto`}

@@ -72,8 +72,10 @@ const getApprovals = async (req, res) => {
 //deleting approval
 const deleteApproval = async (req, res) => {
   const client = await pool.connect();
+  const { user_id, workflow_id } = req.params;
+
+  console.log(user_id, workflow_id);
   try {
-    const { user_id, workflow_id } = req.params;
     if (!user_id || !workflow_id) {
       return res
         .status(400)
@@ -118,10 +120,10 @@ const changeApprover = async (req, res) => {
 
     // Check if workflow exists and verify requester (author)
     const getNewApproverId = await pool.query(
-      `SELECT admin_id, email FROM administration_adminaccounts WHERE admin_email = $1`,
+      `SELECT admin_id, admin_email FROM administration_adminaccounts WHERE admin_email = $1`,
       [new_approver_id]
     );
-    console.log(getNewApproverId.rows[0], new_approver_id);
+    console.log(getNewApproverId.rows[0].admin_email, new_approver_id);
     if (getNewApproverId.rowCount === 0) {
       return res.status(404).json({ message: "New approver not found." });
     }
@@ -162,7 +164,7 @@ const changeApprover = async (req, res) => {
     // Step 1: Update old approver's status to "replaced"
     await pool.query(
       `UPDATE wf_approver 
-      SET status = 'replaced'
+      SET status = 'Replaced'
       WHERE approver_id = $1 AND workflow_id = $2`,
       [old_approver_id, workflow_id]
     );
@@ -170,10 +172,10 @@ const changeApprover = async (req, res) => {
     // Step 2: Insert new approver with same order
     await pool.query(
       `INSERT INTO wf_approver (user_id, user_email, workflow_id, approver_order, status, due_date, is_reassigned)
-      VALUES ($1, $2, $3, $4, 'current', NOW() + INTERVAL '7 days', TRUE)`,
+      VALUES ($1, $2, $3, $4, 'Pending', NOW() + INTERVAL '7 days', TRUE)`,
       [
-        getNewApproverId.rows[0].user_id,
-        getNewApproverId.rows[0].email,
+        getNewApproverId.rows[0].admin_id,
+        getNewApproverId.rows[0].admin_email,
         workflow_id,
         approverOrder,
       ]
@@ -183,7 +185,7 @@ const changeApprover = async (req, res) => {
     await pool.query(
       `INSERT INTO reassignment_log (workflow_id, old_approver_id, new_approver_id, reason)
       VALUES ($1, $2, $3, $4)`,
-      [workflow_id, old_approver_id, getNewApproverId.rows[0].user_id, reason]
+      [workflow_id, old_approver_id, getNewApproverId.rows[0].admin_id, reason]
     );
 
     return res.status(200).json({ message: "Approver successfully changed." });
