@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 function ComingSoonDialog({ triggerText = "Click Me", buttonClassName = "" }) {
   const [isOpen, setIsOpen] = useState(false);
