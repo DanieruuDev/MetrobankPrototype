@@ -22,7 +22,7 @@ const ScheduleSection = ({
   const [isOpen, setIsOpen] = useState(true);
   const navigate = useNavigate();
   const filtered = schedules.filter(filterFn);
-
+  console.log(schedules);
   return (
     <div className="max-w-[230px] mt-3">
       <div
@@ -78,7 +78,7 @@ const ScheduleSection = ({
                     <table>
                       <tbody>
                         <tr>
-                          <td className="border-r pr-4">Campus Here</td>
+                          <td className="border-r pr-4">{sched.branch}</td>
                           <td className="pl-4">{sched.year_level}</td>
                         </tr>
                         <tr>

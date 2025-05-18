@@ -14,6 +14,7 @@ export interface DisbursementSchedule {
   created_by: number;
   date: Date;
   disb_sched_id: number;
+  branch: string;
   status: string;
   student_count: number;
   title: string;
