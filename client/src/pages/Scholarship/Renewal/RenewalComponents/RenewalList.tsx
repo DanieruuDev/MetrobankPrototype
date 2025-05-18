@@ -502,7 +502,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                   className={`px-6 py-3 whitespace-nowrap ${
                     isEdit
                       ? key === "scholar_name"
-                        ? "sticky left-[72px] bg-gray-50"
+                        ? "sticky left-[90px] bg-gray-50"
                         : ""
                       : key === "scholar_name"
                       ? "sticky left-0 bg-gray-50"
@@ -519,7 +519,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
               tempRenewalData.map((renewal, index) => (
                 <tr
                   key={index}
-                  className={`hover:bg-gray-50 transition-colors ${
+                  className={`hover:bg-gray-50 transition-colors text-[13px] ${
                     isEdit ? "" : "cursor-pointer"
                   }`}
                   onClick={() =>
@@ -529,7 +529,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                   }
                 >
                   {isEdit && (
-                    <td className="px-6 py-4 sticky left-0 bg-white">
+                    <td className="px-6 py-4 z-10 sticky left-0 bg-white">
                       <button
                         type="button"
                         disabled={
@@ -537,12 +537,12 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                           !hasValidationChanges(renewal.student_id) ||
                           hasNotStartedValidation(renewal.student_id)
                         }
-                        className={`flex items-center justify-center p-2 rounded-md ${
+                        className={`flex items-center justify-center p-2 rounded-md bg-white z-100 ${
                           !isEdit ||
                           !hasValidationChanges(renewal.student_id) ||
                           hasNotStartedValidation(renewal.student_id)
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            : "bg-green-100 text-green-700 hover:bg-green-200"
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed z-100"
+                            : "bg-green-100 text-green-700 hover:bg-green-200 z-100"
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -560,8 +560,8 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                       className={`px-6 py-4 max-w-xs truncate ${
                         key === "scholar_name"
                           ? isEdit
-                            ? "sticky left-[72px] bg-white"
-                            : "sticky left-0 bg-white"
+                            ? "sticky left-[90px] bg-white z-100"
+                            : "sticky left-0 bg-white z-100"
                           : ""
                       } ${
                         key in validation
@@ -628,7 +628,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                                   );
                                 }
                               }}
-                              className="border border-gray-300 rounded-md px-3 py-1 w-16 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="border border-gray-300 rounded-md px-3 py-1 w-16 text-center focus:outline-none focus:ring-1 focus:ring-blue-500 z-0"
                             />
                             {renewal.gpa_validation_stat === "Passed" && (
                               <CheckCircle
