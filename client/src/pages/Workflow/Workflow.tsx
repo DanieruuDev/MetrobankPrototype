@@ -2,6 +2,7 @@ import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
 import { useContext, useEffect, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
+import { toast } from "react-toastify";
 import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
 import Request from "./Request";
@@ -20,6 +21,7 @@ import PaginationControl from "../../components/approval/PaginationControl";
 import Loading from "../../components/shared/Loading";
 import { AuthContext } from "../../context/AuthContext";
 import { useSidebar } from "../../context/SidebarContext";
+import ConfirmDialog from "../../components/approval/ConfirmDialog";
 
 export interface WorkflowDisplaySchema {
   workflow_id: number;
@@ -72,7 +74,8 @@ function Workflow() {
     DetailedWorkflow | undefined
   >();
   const { collapsed } = useSidebar();
-
+  const [workflowToDelete, setWorkflowToDelete] = useState<number | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
@@ -124,20 +127,21 @@ function Workflow() {
   };
   const deleteWorkflow = async (requester_id: number, workflow_id: number) => {
     try {
-      //check authorization for deletion
-      //cahnge the requester_id with authorize id
       await axios.delete(
-        `http://localhost:5000/api/wokflow/delete-workflow/${requester_id}/${workflow_id}`
+        `http://localhost:5000/api/workflow/delete-workflow/${requester_id}/${workflow_id}`
       );
 
-      console.log("Success on deleting");
+      toast.success("Approval workflow deleted successfully!");
+
       setWorkflowDisplay((prevItems) =>
         prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
       );
     } catch (error) {
+      toast.error("Failed to delete approval workflow.");
       console.log(error);
     }
   };
+
   const fetchWorkflows = async (page: number) => {
     if (userId === undefined) return;
     setLoading(true);
@@ -165,7 +169,25 @@ function Workflow() {
   }, [page, userId]);
 
   // ✅ Only one useEffect watching `page`
+  const openDeleteConfirm = (workflowId: number) => {
+    setWorkflowToDelete(workflowId);
+    setIsConfirmOpen(true);
+  };
 
+  // Cancel deletion
+  const cancelDelete = () => {
+    setWorkflowToDelete(null);
+    setIsConfirmOpen(false);
+  };
+
+  // Confirm deletion
+  const confirmDelete = () => {
+    if (userId !== undefined && workflowToDelete !== null) {
+      deleteWorkflow(userId, workflowToDelete);
+    }
+    setWorkflowToDelete(null);
+    setIsConfirmOpen(false);
+  };
   const filteredWorkflows = workflowDisplay.filter((workflow) => {
     const matchesStatus =
       activeStatus === "All" ? true : workflow.status === activeStatus;
@@ -176,14 +198,6 @@ function Workflow() {
 
     return matchesStatus && matchesSearch;
   });
-
-  const handleDelete = (requester_id: number, workflow_id: number) => {
-    if (
-      window.confirm("Are you sure you want to delete this approval workflow?")
-    ) {
-      deleteWorkflow(requester_id, workflow_id);
-    }
-  };
 
   return (
     <div
@@ -268,15 +282,6 @@ function Workflow() {
                     <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
                   </div>
 
-                  {/* Filter Button */}
-                  <button
-                    onClick={() => console.log("Open filter modal")}
-                    className="inline-flex items-center gap-2 px-4 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    <Filter className="w-4 h-4" />
-                    Filter
-                  </button>
-
                   {/* Create Approval Button */}
                   <button
                     onClick={() => setIsModal(!isModal)}
@@ -287,7 +292,12 @@ function Workflow() {
                   </button>
                 </div>
               </div>
-
+              <ConfirmDialog
+                isOpen={isConfirmOpen}
+                message="Are you sure you want to delete this approval workflow?"
+                onConfirm={confirmDelete}
+                onCancel={cancelDelete}
+              />
               {isModal && (
                 <CreateApproval2
                   setIsModal={setIsModal}
@@ -360,9 +370,7 @@ function Workflow() {
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            if (userId !== undefined) {
-                              handleDelete(userId, workflow.workflow_id);
-                            }
+                            openDeleteConfirm(workflow.workflow_id);
                           }}
                           className="p-2 text-red-500 rounded-md transition cursor-pointer flex-shrink-0 max-w-[40px]"
                         >
