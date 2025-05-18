@@ -18,9 +18,9 @@ const createSchedule = async (client, data) => {
     `
     INSERT INTO disbursement_schedule (
       disbursement_type_id, disb_title, disbursement_date, amount,
-      yr_lvl_code, sy_code, semester_code, branch, created_by, quantity
+      yr_lvl_code, sy_code, semester_code, branch, created_by, quantity, status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING disb_sched_id
     `,
     [
@@ -34,6 +34,7 @@ const createSchedule = async (client, data) => {
       branch,
       created_by,
       quantity,
+      "In Progress",
     ]
   );
 
