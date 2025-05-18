@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { Approver, DetailedWorkflow } from "../Workflow";
-import { Clock, Download, FileText, X, Check } from "lucide-react";
+import { Clock, Download, FileText, X, Check, ArrowLeft } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { workflowStatusText } from "../../../utils/StatusBadge";
@@ -193,21 +193,9 @@ function Approval({
               {/* Back Button */}
               <button
                 onClick={handleBack}
-                className="flex items-center w-fit px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                className="hover:text-[#145BE9] transition-colors duration-300 ease-in-out cursor-pointer"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Back
+                <ArrowLeft className="w-7 h-7 transition-transform duration-300 hover:-translate-x-1" />
               </button>
 
               {/* Title + Status + Requester Info */}
