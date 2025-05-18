@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../../../components/shared/Navbar";
 import Sidebar from "../../../components/shared/Sidebar";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // Added useNavigate
 import axios, { AxiosError } from "axios";
 import ComingSoonDialog from "../../../components/shared/ComingSoonDialog";
 import { useSidebar } from "../../../context/SidebarContext";
+import { ArrowLeft } from "lucide-react";
 
 export interface ScholarDisbursement {
   amount: string | null;
@@ -35,6 +36,7 @@ interface TermGroup {
 
 const DetailedOverview: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate(); // Added for navigation
   const [disbursements, setDisbursements] = useState<
     ScholarDisbursement[] | null
   >(null);
@@ -42,6 +44,7 @@ const DetailedOverview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTermIndex, setSelectedTermIndex] = useState<number>(0);
   const { collapsed } = useSidebar();
+
   const fetchDisbursementData = async (): Promise<void> => {
     setIsLoading(true);
     try {
@@ -79,7 +82,7 @@ const DetailedOverview: React.FC = () => {
     const termMap = new Map<string, TermGroup>();
 
     disbursements.forEach((disburse) => {
-      const termKey = `${disburse.disbursement_school_year}-${disburse.disbursement_semester}`;
+      const termKey = `${disburse.disbursement_school_year}-${disburse.disbursement_semester}-${disburse.disbursement_yr_lvl}`;
 
       if (!termMap.has(termKey)) {
         termMap.set(termKey, {
@@ -93,7 +96,13 @@ const DetailedOverview: React.FC = () => {
       termMap.get(termKey)!.disbursements.push(disburse);
     });
 
-    return Array.from(termMap.values());
+    // Sort terms by school_year and semester (newest first)
+    return Array.from(termMap.values()).sort((a, b) => {
+      if (a.school_year !== b.school_year) {
+        return b.school_year.localeCompare(a.school_year);
+      }
+      return b.semester.localeCompare(a.semester);
+    });
   };
 
   const calculateTotalAmount = (
@@ -150,7 +159,6 @@ const DetailedOverview: React.FC = () => {
     );
   };
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -159,7 +167,6 @@ const DetailedOverview: React.FC = () => {
     );
   }
 
-  // Error state
   if (error || !disbursements || disbursements.length === 0) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -199,45 +206,58 @@ const DetailedOverview: React.FC = () => {
         <Navbar pageName="Disbursement Overview" />
 
         <Sidebar />
-        <div className="mt-4 px-8 pb-12 max-w-6xl mx-auto">
-          {/* Scholar Profile Summary */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center">
-              <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold mr-4">
-                {currentScholar.scholar_name
-                  .split(" ")
-                  .map((name) => name[0])
-                  .join("")}
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold">
-                  {currentScholar.scholar_name}
-                </h1>
-                <div className="flex items-center text-sm text-gray-500 mt-1">
-                  <span>ID: {currentScholar.student_id}</span>
-                  <span className="mx-2">•</span>
-                  <span>{currentScholar.current_campus}</span>
-                  <span className="mx-2">•</span>
-                  <span>{currentScholar.current_yr_lvl}</span>
-                  <span className="mx-2">•</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs ${
-                      currentScholar.current_scholarship_status === "ACTIVE"
-                        ? "bg-green-50 text-green-700"
-                        : "bg-red-50 text-red-700"
-                    }`}
-                  >
-                    {currentScholar.current_scholarship_status}
-                  </span>
+        <div className="mt-4 px-8 pb-12 max-w-8xl mx-auto">
+          {/* Back button and Scholar Profile Summary */}
+          <div className="mb-6">
+            <button
+              onClick={() => navigate("/financial-overview")}
+              className="group flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              <ArrowLeft
+                size={25}
+                className="group-hover:-translate-x-1 transition-transform"
+              />
+            </button>
+
+            <div className="flex items-center justify-between mt-10">
+              <div className="flex items-center">
+                <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold mr-4">
+                  {currentScholar.scholar_name
+                    .split(" ")
+                    .map((name) => name[0])
+                    .join("")}
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold">
+                    {currentScholar.scholar_name}
+                  </h1>
+                  <div className="flex items-center text-sm text-gray-500 mt-1">
+                    <span>ID: {currentScholar.student_id}</span>
+                    <span className="mx-2">•</span>
+                    <span>{currentScholar.current_campus}</span>
+                    <span className="mx-2">•</span>
+                    <span>{currentScholar.current_yr_lvl}</span>
+                    <span className="mx-2">•</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs ${
+                        currentScholar.current_scholarship_status === "Active"
+                          ? "bg-green-50 text-green-700"
+                          : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      {currentScholar.current_scholarship_status}
+                    </span>
+                  </div>
                 </div>
               </div>
+              <ComingSoonDialog
+                triggerText="Download PDF"
+                buttonClassName="text-sm text-blue-600 border border-blue-600 hover:bg-blue-50 px-4 py-2 rounded transition flex items-center"
+              />
             </div>
-            <ComingSoonDialog
-              triggerText="Download PDF"
-              buttonClassName="text-sm bg-white text-blue-600 border border-blue-600 hover:bg-blue-50 px-4 py-2 rounded transition flex items-center"
-            />
           </div>
 
+          {/* Rest of your component remains the same */}
           {/* Current Term & Total Assessment */}
           <div className="grid grid-cols-2 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm p-5">
@@ -279,8 +299,8 @@ const DetailedOverview: React.FC = () => {
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-medium">
-                {currentTerm.year_level} | {currentTerm.school_year} |{" "}
-                {currentTerm.semester}
+                {currentTerm.school_year} | {currentTerm.semester} |{" "}
+                {currentTerm.year_level}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 Disbursement breakdown for selected term
