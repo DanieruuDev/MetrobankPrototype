@@ -70,6 +70,12 @@ const Sidebar = () => {
       Icon: BarChart,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
+    {
+      to: "/roi",
+      label: "Return of Investment",
+      Icon: BarChart,
+      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    },
     // Add Analytics here if you have one, same pattern
     // {
     //   to: "/analytics",

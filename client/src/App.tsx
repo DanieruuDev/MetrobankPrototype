@@ -14,6 +14,7 @@ import DetailedOverview from "./pages/Disbursement/Overview/DetailedOverview";
 import DetailedTracking from "./pages/Disbursement/Tracking/DetailedTracking";
 import PrivateRoute from "./components/shared/PrivateRoute";
 import { SidebarProvider } from "./context/SidebarContext";
+import ROIandAnalytics from "./pages/ROI/ROIandAnalytics";
 // import AnalyticsPage from "./pages/Analytics"; // Add your analytics page if available
 
 function App() {
@@ -89,6 +90,16 @@ function App() {
                 allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
               >
                 <DisbursementOverview />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/roi"
+            element={
+              <PrivateRoute
+                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+              >
+                <ROIandAnalytics />
               </PrivateRoute>
             }
           />
