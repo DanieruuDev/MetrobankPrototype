@@ -34,7 +34,7 @@ function SpecificRequest({
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [comment, setComment] = useState("");
-
+  console.log(specificRequest);
   const handleDownload = () => {
     if (!specificRequest?.file_path) return;
     const filePath = encodeURIComponent(specificRequest.file_path);

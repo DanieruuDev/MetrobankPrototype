@@ -4,10 +4,9 @@ const jwt = require("jsonwebtoken");
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  console.log("Authorization header:", authHeader);
+
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) {
-    console.log("No token found in Authorization header");
     return res.status(401).json({ message: "Access token required" });
   }
 
@@ -16,7 +15,7 @@ const authenticateToken = (req, res, next) => {
       console.log("JWT verification error:", err.message);
       return res.status(403).json({ message: "Invalid token" });
     }
-    console.log("JWT verified. User:", user);
+
     req.user = user;
     next();
   });

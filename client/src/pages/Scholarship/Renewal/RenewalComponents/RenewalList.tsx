@@ -31,15 +31,17 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetails[]>([]);
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
+  const [sySemester, setSySemester] = useState<string>("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const getRenewalData = async () => {
+  const getRenewalData = async (sy: string, semester: string) => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/renewal/fetch-renewals"
+        `http://localhost:5000/api/renewal/fetch-renewals/${sy}/${semester}`
       );
-      if (response.status === 200) {
+
+      if (response.data?.data?.length > 0) {
         const sortedData = response.data.data.sort(
           (a: RenewalDetails, b: RenewalDetails) => {
             const aHasNotStarted = Object.keys(validation).some(
@@ -48,16 +50,15 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
             const bHasNotStarted = Object.keys(validation).some(
               (key) => b[key as keyof RenewalDetails] === "Not Started"
             );
-
             if (aHasNotStarted && !bHasNotStarted) return -1;
             if (!aHasNotStarted && bHasNotStarted) return 1;
             return a.scholar_name.localeCompare(b.scholar_name);
           }
         );
-
         setRenewalData(sortedData);
       } else {
-        console.error("Unexpected response status:", response.data);
+        setRenewalData([]);
+        console.log("No Data", response.data);
       }
     } catch (error) {
       console.error("Error fetching renewal data:", error);
@@ -108,7 +109,12 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
           : renewal
       )
     );
-    getRenewalData();
+
+    if (sySemester) {
+      const [sy, sem] = sySemester.split("_");
+      const semester = sem ? `${sem} Semester` : "";
+      getRenewalData(sy, semester); // ✅ Now with correct arguments
+    }
   };
 
   const saveChange = async (student_id: number) => {
@@ -345,8 +351,11 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   }, [renewalData]);
 
   useEffect(() => {
-    getRenewalData();
-  }, []);
+    if (!sySemester) return;
+    const [sy, sem] = sySemester.split("_");
+    const semester = sem ? `${sem} Semester` : "";
+    getRenewalData(sy, semester);
+  }, [sySemester]);
 
   return (
     <div className="mt-6 mx-4 px-2">
@@ -447,7 +456,12 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
         isOpen={isRenewalBtnOpen}
         onClose={() => SetIsRenewalBtnOpen(false)}
         getRenewalData={getRenewalData}
+        sySemester={sySemester}
+        onChangeSySemester={(newValue) => {
+          setSySemester(newValue); // ✅ updates dropdown and triggers useEffect
+        }}
       />
+
       <GenerateReportModal
         isOpen={isGnrtRprtOpen}
         onClose={() => setIsGnrtRprtOpen(false)}
@@ -482,7 +496,10 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
             )}
           </div>
         </div>
-        <SYSemesterDropdown onChange={(val) => console.log("Selected:", val)} />
+        <SYSemesterDropdown
+          value={sySemester}
+          onChange={(value) => setSySemester(value)}
+        />
       </div>
 
       <div
@@ -514,7 +531,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200 text-[13px]">
             {tempRenewalData.length > 0 ? (
               tempRenewalData.map((renewal, index) => (
                 <tr

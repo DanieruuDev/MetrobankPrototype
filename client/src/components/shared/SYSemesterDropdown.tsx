@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 export type Option = {
   label: string;
@@ -8,35 +8,27 @@ export type Option = {
 const options: Option[] = [
   { label: "2024-2025 1st Semester", value: "2024-2025_1st" },
   { label: "2024-2025 2nd Semester", value: "2024-2025_2nd" },
+  { label: "2025-2026 1st Semester", value: "2025-2026_1st" },
 ];
 
 type Props = {
-  onChange?: (value: string) => void;
+  value?: string;
+  onChange: (value: string) => void;
 };
 
-function SYSemesterDropdown({ onChange }: Props) {
+function SYSemesterDropdown({ value, onChange }: Props) {
   const sortedOptions = React.useMemo(() => {
     return [...options].sort((a, b) => b.value.localeCompare(a.value));
   }, []);
 
-  const [selected, setSelected] = useState(sortedOptions[0].value);
-
-  // Only call onChange once on mount
-  useEffect(() => {
-    if (onChange) onChange(sortedOptions[0].value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // only on mount
-
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelected(value);
-    if (onChange) onChange(value);
+    onChange(e.target.value);
   };
 
   return (
     <div className="relative">
       <select
-        value={selected}
+        value={value}
         onChange={handleChange}
         className="appearance-none bg-gray-100 border-none border-gray-300 rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-8"
       >

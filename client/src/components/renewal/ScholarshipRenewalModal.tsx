@@ -4,7 +4,9 @@ import axios from "axios";
 interface ScholarshipRenewalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  getRenewalData: () => void;
+  getRenewalData: (sy: string, semester: string) => void;
+  sySemester: string;
+  onChangeSySemester?: (value: string) => void; // NEW
 }
 
 export interface RenewalFormData {
@@ -17,10 +19,19 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
   isOpen,
   onClose,
   getRenewalData,
+  sySemester,
+  onChangeSySemester,
 }) => {
-  const [schoolYear, setSchoolYear] = useState<string>("");
+  let sy = "";
+  let semCode = "";
+
+  if (typeof sySemester === "string" && sySemester.includes("_")) {
+    [sy, semCode] = sySemester.split("_");
+  }
+  const semesterFormatted = semCode ? `${semCode} Semester` : "";
+  const [schoolYear, setSchoolYear] = useState<string>(sy);
   const [yearLevel, setYearLevel] = useState<string>("");
-  const [semester, setSemester] = useState<string>("");
+  const [semester, setSemester] = useState<string>(semesterFormatted);
   const [yearLevelDropdownOpen, setYearLevelDropdownOpen] =
     useState<boolean>(false);
   const [semesterDropdownOpen, setSemesterDropdownOpen] =
@@ -80,7 +91,18 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
       );
 
       console.log("Renewal data retrieved:", response.data);
-      getRenewalData();
+
+      // ✅ Construct and send new SY_Semester to parent
+      const newSySemester = `${schoolYear}_${semester
+        .split(" ")[0]
+        .toLowerCase()}`;
+      console.log(newSySemester);
+      onChangeSySemester?.(newSySemester);
+
+      // ✅ Trigger data refresh
+      getRenewalData(schoolYear, semester);
+
+      // ✅ Clean up
       setSchoolYear("");
       setYearLevel("");
       setSemester("");
@@ -90,10 +112,8 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     } catch (error) {
       console.error("Error fetching renewal data:", error);
 
-      // Handle different error responses
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          // Check for "no more students" message - this should also close the modal
           if (
             error.response.data.message ===
             "All students already have renewals."
@@ -103,15 +123,12 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             return;
           }
 
-          // Other server errors
           setError(
             error.response.data.message || "Failed to retrieve renewal data."
           );
         } else if (error.request) {
-          // Request was made but no response received
           setError("No response from server. Please try again later.");
         } else {
-          // Something else happened while setting up the request
           setError("Failed to make request. Please try again.");
         }
       } else {

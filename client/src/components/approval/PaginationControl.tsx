@@ -13,7 +13,7 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
   onPageChange,
 }) => {
   const createPageNumbers = () => {
-    const pages = [];
+    const pages: (number | string)[] = [];
 
     if (totalPages <= 3) {
       for (let i = 1; i <= totalPages; i++) {
@@ -35,7 +35,7 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 w-full flex items-center justify-center gap-1 py-3 text-gray-700">
+    <div className="flex justify-center gap-1 py-3 text-gray-700">
       <button
         onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
@@ -60,7 +60,7 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
               {page}
             </button>
           ) : (
-            <span key={index} className="px-1">
+            <span key={index} className="px-1 select-none">
               {page}
             </span>
           )
