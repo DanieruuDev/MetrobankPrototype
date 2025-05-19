@@ -28,7 +28,7 @@ disbursementRouter.get("/schedule/:week", fetchWeeklyDisbursementSchedules);
 
 // DELETE and PUT routes with params
 disbursementRouter.delete(
-  "/schedule/:disb_sched_id",
+  "/schedule/:disb_sched_id/:created_by_id",
   deleteDisbursementSchedule
 );
 disbursementRouter.put("/schedule/:id", updateDisbursementSchedule);

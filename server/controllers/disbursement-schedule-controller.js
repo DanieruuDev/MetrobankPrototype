@@ -287,7 +287,7 @@ const fetchWeeklyDisbursementSchedules = async (req, res) => {
 };
 
 const deleteDisbursementSchedule = async (req, res) => {
-  const { disb_sched_id } = req.params;
+  const { disb_sched_id, created_by_id } = req.params;
 
   const client = await pool.connect();
 
@@ -308,7 +308,8 @@ const deleteDisbursementSchedule = async (req, res) => {
     }
 
     const creatorId = authCheck.rows[0].created_by;
-    if (creatorId !== Number(1)) {
+    console.log(creatorId, created_by_id);
+    if (creatorId !== Number(created_by_id)) {
       console.log(typeof creatorId, typeof user_id);
       await client.query("ROLLBACK");
       return res

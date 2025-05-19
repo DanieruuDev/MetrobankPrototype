@@ -7,6 +7,8 @@ import { formatDate } from "../../utils/DateConvertionFormat";
 import { Link } from "react-router-dom";
 import UpdateEvent from "./UpdateEvent";
 import { AuthContext } from "../../context/AuthContext";
+import ConfirmDialog from "../approval/ConfirmDialog"; // adjust path if needed
+import { toast } from "react-toastify";
 
 export interface DisbursementScheduleDetail {
   disb_sched_id: number;
@@ -57,6 +59,8 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   const daySchedules = scheduleMap.get(dayKey) || [];
   const [showOptions, setShowOptions] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const toggleOptions = () => setShowOptions((prev) => !prev);
   const getStatusClass = (status: string) => {
@@ -119,28 +123,25 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     }
   };
 
-  const deleteSchedule = async (disb_sched_id: number, user_id: string) => {
+  const deleteSchedule = async (disb_sched_id: number, user_id: number) => {
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/disbursement/schedule/${disb_sched_id}`
+        `http://localhost:5000/api/disbursement/schedule/${disb_sched_id}/${user_id}`
       );
 
-      alert(response.data.message || "Disbursement schedule deleted.");
+      toast.success(response.data.message || "Schedule deleted.");
       removeScheduleById(disb_sched_id);
       closeModal();
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        const serverMessage =
-          error.response?.data?.message ?? "Failed to delete schedule.";
-        alert(serverMessage);
+        toast.error(
+          error.response?.data?.message ?? "Failed to delete schedule."
+        );
       } else {
-        alert("An unexpected error occurred.");
+        toast.error("An unexpected error occurred.");
       }
-
       console.error("Delete Schedule Error:", error);
     }
-
-    console.log(disb_sched_id, user_id);
   };
 
   const closeModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
@@ -223,6 +224,19 @@ const RenderDayCell: React.FC<DayCellProps> = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          <ConfirmDialog
+            isOpen={confirmOpen}
+            message="Are you sure you want to delete this schedule?"
+            onCancel={() => setConfirmOpen(false)}
+            onConfirm={() => {
+              if (pendingDeleteId && userId) {
+                deleteSchedule(pendingDeleteId, userId);
+              }
+              setConfirmOpen(false);
+              setPendingDeleteId(null);
+            }}
+          />
+
           <div className="p-4 pb-3">
             <div className="flex justify-between items-start relative">
               <p className="text-sm text-gray-600">
@@ -265,10 +279,8 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                           <button
                             className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
                             onClick={() => {
-                              deleteSchedule(
-                                activeSchedule.disb_sched_id,
-                                activeSchedule.created_by
-                              );
+                              setPendingDeleteId(activeSchedule.disb_sched_id);
+                              setConfirmOpen(true);
                               setShowOptions(false);
                             }}
                           >

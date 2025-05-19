@@ -69,7 +69,7 @@ function Request() {
   };
 
   const updateApproverResponse = async (
-    response: "Approved" | "Rejected",
+    response: "Approved" | "Reject",
     comment: string | null,
     approver_status: "Completed" | "Missed" | "Replaced"
   ) => {

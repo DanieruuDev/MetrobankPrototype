@@ -23,7 +23,7 @@ export interface SpecificRequestProps {
   goBack: () => void;
   getSpecificRequestApproval: () => Promise<void>;
   updateApproverResponse: (
-    response: "Approved" | "Rejected",
+    response: "Approved" | "Reject",
     comment: string | null,
     approver_status: "Completed" | "Missed" | "Replaced"
   ) => Promise<void>;
@@ -52,6 +52,12 @@ function SpecificRequest({
 
   const handleApproval = useCallback(async () => {
     if (!status) return alert("Please select a response.");
+    console.log(status);
+    // Require comment if Rejected
+    if (status === "Reject" && comment.trim() === "") {
+      return alert("Comment is required when rejecting.");
+    }
+
     setLoading(true);
     try {
       const res = await axios.put(
@@ -67,7 +73,8 @@ function SpecificRequest({
       setComment("");
       getSpecificRequestApproval();
     } catch (error) {
-      alert(error || "Something went wrong");
+      console.log(error);
+      alert("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -288,26 +295,31 @@ function SpecificRequest({
             </div>
           ) : specificRequest.is_current &&
             specificRequest.approver_response === "Pending" ? (
-            <div className="flex gap-2">
+            <div className="flex gap-4 mt-3">
+              {/* Reject Button */}
               <button
                 onClick={() => {
-                  setStatus("Rejected");
+                  setStatus("Reject");
                   setIsModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-red-300 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
                 disabled={loading}
+                className="group relative inline-flex items-center justify-center overflow-hidden rounded-md border border-red-500 px-6 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400"
               >
-                <XCircle size={18} /> Reject
+                <XCircle className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+                Reject
               </button>
+
+              {/* Approve Button */}
               <button
                 onClick={() => {
                   setStatus("Approved");
                   setIsModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg font-medium transition-colors"
                 disabled={loading}
+                className="group relative inline-flex items-center justify-center overflow-hidden rounded-md bg-green-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-green-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400"
               >
-                <CheckCircle size={18} /> Approve
+                <CheckCircle className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+                Approve
               </button>
             </div>
           ) : (
@@ -377,25 +389,54 @@ function SpecificRequest({
 
       {/* Confirmation Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-xs bg-black/30">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-[95%] max-w-sm text-center">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Are you sure you want to {status.toLowerCase()} this request?
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 ">
+          <div className="bg-white rounded-sm shadow-xl p-6 max-w-sm w-[95%] text-center space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Confirm {status}?
             </h2>
-            <div className="flex justify-center gap-3">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to{" "}
+              <span className="font-semibold lowercase">{status}</span> this
+              approval request?
+            </p>
+
+            {status === "Reject" && (
+              <div className="text-left">
+                <label
+                  htmlFor="modal-comment"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Comment <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="modal-comment"
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-red-500"
+                  rows={3}
+                  placeholder="Enter reason for rejection"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                ></textarea>
+              </div>
+            )}
+
+            <div className="flex justify-center gap-4 mt-4">
               <button
                 onClick={handleApproval}
-                className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                className={`px-5 py-2 rounded-lg text-white font-medium transition-colors ${
+                  status === "Reject"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
                 disabled={loading}
               >
-                Yes
+                {loading ? "Processing..." : "Yes, Confirm"}
               </button>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                className="px-5 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 font-medium"
                 disabled={loading}
               >
-                No
+                Cancel
               </button>
             </div>
           </div>
