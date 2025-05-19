@@ -14,8 +14,7 @@ import {
   Tooltip,
   ChartTypeRegistry,
   TooltipItem,
-  ChartData,
-  ChartOptions,
+  LineController, // <---- add this
 } from "chart.js";
 
 Chart.register(
@@ -23,6 +22,7 @@ Chart.register(
   BarElement,
   CategoryScale,
   Legend,
+  LineController, // <---- add this
   LineElement,
   LinearScale,
   PointElement,
