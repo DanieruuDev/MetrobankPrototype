@@ -185,8 +185,8 @@ function Workflow() {
     const matchesStatus =
       activeStatus === "All" ? true : workflow.status === activeStatus;
     const matchesSearch =
-      workflow.rq_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      workflow.doc_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      workflow?.rq_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      workflow?.doc_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       workflow.school_details.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesStatus && matchesSearch;

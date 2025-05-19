@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import { useContext } from "react";
 import { NavLink } from "react-router-dom";
 import {
   Home,
@@ -8,6 +8,7 @@ import {
   ClipboardList,
   BarChart,
   ChevronRight,
+  PieChart,
 } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext"; // Adjust the path as needed
 import { useSidebar } from "../../context/SidebarContext";
@@ -72,8 +73,8 @@ const Sidebar = () => {
     },
     {
       to: "/roi",
-      label: "Return of Investment",
-      Icon: BarChart,
+      label: "Scholarship Analytics",
+      Icon: PieChart,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
     // Add Analytics here if you have one, same pattern
