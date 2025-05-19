@@ -60,47 +60,67 @@ const updateDisbursementDetails = async (client, payload) => {
     disb_sched_id,
     branch
   );
-  let query = `
-  UPDATE disbursement_detail dd
-  SET 
-    disbursement_status = $1,
-    disb_sched_id = $6${
-      disbursement_type_id === 4
-        ? ", required_hours = $7"
-        : ", required_hours = NULL"
-    }
-  FROM disbursement_tracking dt
-  JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-  WHERE 
-    dd.disbursement_id = dt.disbursement_id AND
-    dd.disbursement_type_id = $2 AND
-    rs.yr_lvl = $3 AND
-    rs.school_year = $4 AND
-    rs.semester = $5 AND
-    rs.campus_name = $8
-`;
 
-  const params =
-    disbursement_type_id === 4
-      ? [
-          "In Progress", // $1
-          disbursement_type_id, // $2
-          yr_lvl_code, // $3
-          sy_code, // $4
-          semester_code, // $5
-          disb_sched_id, // $6
-          required_hours, // $7
-          branch, // $8 ✅
-        ]
-      : [
-          "In Progress", // $1
-          disbursement_type_id, // $2
-          yr_lvl_code, // $3
-          sy_code, // $4
-          semester_code, // $5
-          disb_sched_id, // $6
-          branch, // $7 ✅
-        ];
+  console.log(branch);
+  console.log(typeof branch);
+  let query, params;
+
+  if (disbursement_type_id === 4) {
+    query = `
+    UPDATE disbursement_detail dd
+    SET 
+      disbursement_status = $1,
+      disb_sched_id = $6,
+      required_hours = $7
+    FROM disbursement_tracking dt
+    JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
+    WHERE 
+      dd.disbursement_id = dt.disbursement_id AND
+      dd.disbursement_type_id = $2 AND
+      rs.yr_lvl = $3 AND
+      rs.school_year = $4 AND
+      rs.semester = $5 AND
+      rs.campus_name = $8
+  `;
+
+    params = [
+      "In Progress", // $1
+      disbursement_type_id, // $2
+      yr_lvl_code, // $3
+      sy_code, // $4
+      semester_code, // $5
+      disb_sched_id, // $6
+      required_hours, // $7
+      branch, // $8
+    ];
+  } else {
+    query = `
+    UPDATE disbursement_detail dd
+    SET 
+      disbursement_status = $1,
+      disb_sched_id = $6,
+      required_hours = NULL
+    FROM disbursement_tracking dt
+    JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
+    WHERE 
+      dd.disbursement_id = dt.disbursement_id AND
+      dd.disbursement_type_id = $2 AND
+      rs.yr_lvl = $3 AND
+      rs.school_year = $4 AND
+      rs.semester = $5 AND
+      rs.campus_name = $7
+  `;
+
+    params = [
+      "In Progress", // $1
+      disbursement_type_id, // $2
+      yr_lvl_code, // $3
+      sy_code, // $4
+      semester_code, // $5
+      disb_sched_id, // $6
+      branch, // $7
+    ];
+  }
 
   const updateResult = await client.query(query, params);
   return updateResult.rowCount;

@@ -5,6 +5,8 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
+import { toast, ToastContainer } from "react-toastify";
+import ConfirmDialog from "../../../components/shared/Confirm";
 
 interface ITrackingDetailed {
   amount: string;
@@ -28,6 +30,7 @@ function DetailedTracking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const fetchTrackingDetailed = async () => {
@@ -48,21 +51,28 @@ function DetailedTracking() {
   }, [disbursement_id]);
 
   const handleComplete = async () => {
+    setShowConfirm(true); // hide confirmation modal on confirm
+    if (!showConfirm) return;
     try {
       setIsCompleting(true);
       await axios.put(
         `http://localhost:5000/api/disbursement/tracking/complete/${disbursement_id}`
       );
+      toast.success("Disbursement marked as complete!");
+
       const response = await axios.get<ITrackingDetailed[]>(
         `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
       );
       setTrackingDetailed(response.data);
     } catch (error) {
       console.error("Error completing disbursement:", error);
+      toast.error("Failed to mark disbursement as complete.");
     } finally {
       setIsCompleting(false);
+      setShowConfirm(false);
     }
   };
+
   console.log(trackingDetailed);
   const scheduleInfo = trackingDetailed?.[0];
 
@@ -117,6 +127,7 @@ function DetailedTracking() {
       <Sidebar />
 
       <div className="p-6 max-w-6xl mx-auto">
+        <ToastContainer position="top-right" autoClose={3000} />
         <div className="flex justify-between items-center mb-6">
           <div>
             <button
@@ -157,6 +168,14 @@ function DetailedTracking() {
             <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
               Export to Excel
             </button>
+            <ConfirmDialog
+              isOpen={showConfirm}
+              message="Are you sure you want to mark this disbursement as complete?"
+              onConfirm={handleComplete}
+              onCancel={() => setShowConfirm(false)}
+              confirmText="Yes, Complete"
+              cancelText="Cancel"
+            />
           </div>
         </div>
 

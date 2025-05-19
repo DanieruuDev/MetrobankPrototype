@@ -9,6 +9,7 @@ import ComboChart from "../../../components/charts/ComboChart";
 import DropdownFilter from "../../../components/shared/DropdownFilter";
 import { useSidebar } from "../../../context/SidebarContext";
 import PaginationControl from "../../../components/approval/PaginationControl";
+import Loading from "../../../components/shared/Loading";
 
 interface StudentDisbursement {
   student_name: string;
@@ -44,8 +45,9 @@ const DisbursementOverview = () => {
     year: "",
   });
   const { collapsed } = useSidebar();
-  const [loading, setLoading] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -79,6 +81,7 @@ const DisbursementOverview = () => {
   };
 
   const fetchDisbursementSummary = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/overview/scholar-list?page=${page}&limit=10`
@@ -89,6 +92,8 @@ const DisbursementOverview = () => {
       setStudentList(data);
     } catch (error) {
       console.log(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -226,38 +231,48 @@ const DisbursementOverview = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredStudents?.map((student, index) => (
-                    <tr
-                      key={index}
-                      onClick={() => {
-                        navigate(
-                          `/financial-overview/detailed/${student.student_id}`
-                        );
-                      }}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {student.student_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.student_id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.student_year_lvl}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.student_semester}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.student_school_year}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.student_branch}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.total_received}
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8">
+                        <Loading />
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    <>
+                      {filteredStudents?.map((student, index) => (
+                        <tr
+                          key={index}
+                          onClick={() => {
+                            navigate(
+                              `/financial-overview/detailed/${student.student_id}`
+                            );
+                          }}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {student.student_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.student_id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.student_year_lvl}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.student_semester}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.student_school_year}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.student_branch}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.total_received}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
