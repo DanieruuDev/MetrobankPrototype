@@ -60,6 +60,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchSuggestions = useCallback(
     debounce(async (value: string, id: number) => {
       if (!value.trim()) return;

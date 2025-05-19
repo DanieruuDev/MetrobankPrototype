@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import { useMemo } from "react";
 import {
   Chart,
   ArcElement,
@@ -31,61 +32,63 @@ Chart.register(
   Filler
 );
 
-interface ROIData {
-  labels: string[];
-  datasets: {
-    label: string;
-    data: (number | null)[];
-    borderColor: string;
-    backgroundColor: string;
-    tension?: number;
-    fill?: boolean;
-    borderDash?: number[];
-    pointBackgroundColor?: string;
-    pointRadius?: number;
-  }[];
-}
+// interface ROIData {
+//   labels: string[];
+//   datasets: {
+//     label: string;
+//     data: (number | null)[];
+//     borderColor: string;
+//     backgroundColor: string;
+//     tension?: number;
+//     fill?: boolean;
+//     borderDash?: number[];
+//     pointBackgroundColor?: string;
+//     pointRadius?: number;
+//   }[];
+// }
 
 const LineGraph = () => {
   const chartRef = useRef<HTMLCanvasElement>(null);
 
   // Updated ROI data based on provided mock data
-  const roiOverTimeData = [
-    { period: "Start", roi: -100 },
-    { period: "Month 6", roi: -80 },
-    { period: "Month 12", roi: -60 },
-    { period: "Month 18", roi: -30 },
-    { period: "Month 22", roi: 0 }, // Break-even
-    { period: "Month 30", roi: 20 },
-    { period: "Month 36", roi: 30 },
-  ];
+  const roiData = useMemo(() => {
+    const roiOverTimeData = [
+      { period: "Start", roi: -100 },
+      { period: "Month 6", roi: -80 },
+      { period: "Month 12", roi: -60 },
+      { period: "Month 18", roi: -30 },
+      { period: "Month 22", roi: 0 }, // Break-even
+      { period: "Month 30", roi: 20 },
+      { period: "Month 36", roi: 30 },
+    ];
 
-  const roiData: ROIData = {
-    labels: roiOverTimeData.map((item) => item.period),
-    datasets: [
-      {
-        label: "Scholar ROI",
-        data: roiOverTimeData.map((item) => item.roi),
-        borderColor: "rgb(74, 175, 255)",
-        backgroundColor: "rgba(74, 175, 255, 0.1)",
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: "Break-even Point (22.3 Months)",
-        data: roiOverTimeData.map((item) =>
-          item.period === "Month 22" ? item.roi : null
-        ),
-        borderColor: "rgba(255, 99, 132, 0.7)",
-        backgroundColor: "rgba(255, 99, 132, 0.1)",
-        borderDash: [5, 5],
-        pointBackgroundColor: "red",
-        pointRadius: 5,
-        tension: 0,
-        fill: false,
-      },
-    ],
-  };
+    return {
+      labels: roiOverTimeData.map((item) => item.period),
+      datasets: [
+        {
+          label: "Scholar ROI",
+          data: roiOverTimeData.map((item) => item.roi),
+          borderColor: "rgb(74, 175, 255)",
+          backgroundColor: "rgba(74, 175, 255, 0.1)",
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: "Break-even Point (22.3 Months)",
+          data: roiOverTimeData.map((item) =>
+            item.period === "Month 22" ? item.roi : null
+          ),
+          borderColor: "rgba(255, 99, 132, 0.7)",
+          backgroundColor: "rgba(255, 99, 132, 0.1)",
+          borderDash: [5, 5],
+          pointBackgroundColor: "red",
+          pointRadius: 5,
+          tension: 0,
+          fill: false,
+        },
+      ],
+    };
+  }, []);
 
   useEffect(() => {
     if (chartRef.current) {
@@ -195,7 +198,7 @@ const LineGraph = () => {
         return () => chart.destroy();
       }
     }
-  }, []);
+  }, [roiData]);
 
   return (
     <div className="h-[350px] w-full">

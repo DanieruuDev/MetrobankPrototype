@@ -81,6 +81,7 @@ const updateDisbursementDetails = async (client, payload) => {
       rs.school_year = $4 AND
       rs.semester = $5 AND
       rs.campus_name = $8
+
   `;
 
     params = [

@@ -347,7 +347,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
     if (JSON.stringify(sortedData) !== JSON.stringify(tempRenewalData)) {
       setTempRenewalData(sortedData);
     }
-  }, [renewalData]);
+  }, [handleCountValidated, renewalData, tempRenewalData]);
 
   useEffect(() => {
     if (!sySemester) return;
