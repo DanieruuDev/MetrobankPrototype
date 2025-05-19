@@ -112,7 +112,9 @@ const DonutChartROI: React.FC<DonutChartProps> = ({ data: programData }) => {
       <div className="text-center mb-6 md:mb-10">
         {" "}
         {/* Adjusted bottom margin */}
-        <h3 className="text-lg font-semibold">Program Investment vs Savings</h3>
+        <h3 className="text-lg font-semibold">
+          Savings Distribution by Program
+        </h3>
       </div>
 
       {/* Flex container for chart and legend/details */}

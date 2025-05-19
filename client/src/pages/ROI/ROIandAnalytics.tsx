@@ -85,30 +85,29 @@ const ROIandAnalytics: React.FC = () => {
   const programData = [
     {
       program: "BSCS",
-      roi_percentage: 45.0,
-      total_investment: 29500000,
-      total_return: 42775000,
+      roi_percentage: 40.0,
+      total_investment: 14350000,
+      total_return: 20090000,
       avg_break_even: 22.3,
-      students_count: 24,
+      students_count: 35,
     },
     {
       program: "BSIT",
-      roi_percentage: 38.0,
-      total_investment: 24500000,
-      total_return: 33810000,
+      roi_percentage: 35.0,
+      total_investment: 17630000,
+      total_return: 23800500,
       avg_break_even: 22.3,
-      students_count: 30,
+      students_count: 43,
     },
   ];
 
   const campusData = [
-    { campus: "STI Ortigas-Cainta", scholarCount: 120, roiPercentage: 45.2 },
-    { campus: "STI Pasay-EDSA", scholarCount: 85, roiPercentage: 38.7 },
-    { campus: "Global City", scholarCount: 65, roiPercentage: 42.1 },
-    { campus: "STI Fairview", scholarCount: 110, roiPercentage: 39.5 },
-    { campus: "Novaliches", scholarCount: 75, roiPercentage: 36.8 },
-    { campus: "STI Sta. Mesa", scholarCount: 95, roiPercentage: 41.3 },
-    { campus: "STI Novaliches", scholarCount: 70, roiPercentage: 37.5 },
+    { campus: "STI Ortigas-Cainta", scholarCount: 20, roiPercentage: 38.0 },
+    { campus: "STI Pasay-EDSA", scholarCount: 15, roiPercentage: 36.5 },
+    { campus: "Global City", scholarCount: 10, roiPercentage: 39.0 },
+    { campus: "STI Fairview", scholarCount: 18, roiPercentage: 37.5 },
+    { campus: "Novaliches", scholarCount: 10, roiPercentage: 35.0 },
+    { campus: "STI Sta. Mesa", scholarCount: 5, roiPercentage: 40.0 },
   ];
 
   // Calculate metrics
@@ -165,7 +164,7 @@ const ROIandAnalytics: React.FC = () => {
         collapsed ? "pl-20" : "pl-[250px]"
       } transition-all duration-300`}
     >
-      <Navbar pageName="ROI & Analytics" />
+      <Navbar pageName="Scholarship Analytics" />
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
@@ -180,28 +179,23 @@ const ROIandAnalytics: React.FC = () => {
                 icon={<DollarSignIcon />}
               />
               <MetricCard
-                title="Total Savings"
-                value={formatCurrencyShort(totalSavings)}
-                change={8.5}
-                icon={<DollarSignIcon />}
-              />
-              <MetricCard
                 title="Scholarship Program ROI"
                 value={`${overallROI.toFixed(1)}%`}
                 change={3.7}
                 icon={<PieChartIcon />}
               />
               <MetricCard
+                title="Total Savings"
+                value={formatCurrencyShort(totalSavings)}
+                change={8.5}
+                icon={<DollarSignIcon />}
+              />
+
+              <MetricCard
                 title="Average Break-Even Length"
                 value={`${avgBreakEven.toFixed(1)} Months`}
                 change={-2.3}
                 icon={<TrendingUpIcon />}
-              />
-              <MetricCard
-                title="Unique Active Scholars"
-                value={totalStudents.toString()}
-                change={0}
-                icon={<UsersIcon />}
               />
               <MetricCard
                 title="Avg Investment per Scholar"
@@ -210,16 +204,22 @@ const ROIandAnalytics: React.FC = () => {
                 icon={<DollarSignIcon />}
               />
               <MetricCard
-                title="Avg Return per Scholar"
-                value={formatCurrencyAverage(avgReturnPerStudent)}
-                change={2.1}
-                icon={<TrendingUpIcon />}
+                title="Unique Active Scholars"
+                value={totalStudents.toString()}
+                change={0}
+                icon={<UsersIcon />}
               />
               <MetricCard
                 title="Avg Savings per Scholar"
                 value={formatCurrencyAverage(avgSavingsPerStudent)}
                 change={4.0}
                 icon={<DollarSignIcon />}
+              />
+              <MetricCard
+                title="Avg Return per Scholar"
+                value={formatCurrencyAverage(avgReturnPerStudent)}
+                change={2.1}
+                icon={<TrendingUpIcon />}
               />
             </div>
 
