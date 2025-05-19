@@ -8,7 +8,6 @@ export type Option = {
 const options: Option[] = [
   { label: "2024-2025 1st Semester", value: "2024-2025_1st" },
   { label: "2024-2025 2nd Semester", value: "2024-2025_2nd" },
-  { label: "2025-2026 1st Semester", value: "2025-2026_1st" },
 ];
 
 type Props = {

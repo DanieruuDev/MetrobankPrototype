@@ -10,7 +10,12 @@ interface EventModalProps {
 }
 
 type SemesterType = "1st" | "2nd" | "";
-type BranchType = "ortigas-cainta" | "sta-mesa" | "fairview" | "global" | "";
+type BranchType =
+  | "STI Ortigas-cainta"
+  | "STI  Sta.mesa"
+  | "STI Fairview"
+  | "STI Global"
+  | "";
 type YearLevelType = "1st" | "2nd" | "3rd" | "4th" | "";
 type SchoolYearType = "2024-2025" | "2025-2026" | "";
 type DisbursementType =
@@ -327,10 +332,10 @@ function EventModal({
                 required
               >
                 <option value="">Select Branch</option>
-                <option value="ortigas-cainta">Ortigas-Cainta</option>
-                <option value="sta-mesa">Sta. Mesa</option>
-                <option value="fairview">Fairview</option>
-                <option value="global">Global</option>
+                <option value="STI Ortigas-cainta">STI Ortigas-Cainta</option>
+                <option value="STI Sta.mesa">STI Sta.Mesa</option>
+                <option value="STI Fairview">STI Fairview</option>
+                <option value="STI Global">STI Global</option>
               </select>
             </div>
 
