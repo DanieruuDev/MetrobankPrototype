@@ -142,19 +142,32 @@ function EventModal({
 
   useEffect(() => {
     const fetchScholarCount = async () => {
-      const { semester, schoolYear, yearLevel, disbursementType } = formData;
+      const { semester, schoolYear, yearLevel, disbursementType, branch } =
+        formData;
 
-      if (!semester || !schoolYear || !yearLevel || !disbursementType) {
+      if (
+        !semester ||
+        !schoolYear ||
+        !yearLevel ||
+        !disbursementType ||
+        !branch
+      ) {
         setScholarCount(null);
         return;
       }
+
       const disbursement_id = disbursementType;
       try {
         setLoadingScholarCount(true);
 
         const response = await axios.get(
           `http://localhost:5000/api/disbursement/scholar/${yearLevel}/${schoolYear}/${semester}`,
-          { params: { disbursement_id } }
+          {
+            params: {
+              disbursement_id,
+              branch, // ✅ include in params
+            },
+          }
         );
 
         setScholarCount(response.data.count.count);
@@ -172,8 +185,10 @@ function EventModal({
     formData.schoolYear,
     formData.yearLevel,
     formData.disbursementType,
+    formData.branch,
     formData,
   ]);
+
   console.log(scholarCount && scholarCount > 0);
   return (
     <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] flex justify-center items-center z-50">
@@ -332,8 +347,8 @@ function EventModal({
                 required
               >
                 <option value="">Select Branch</option>
-                <option value="STI Ortigas-cainta">STI Ortigas-Cainta</option>
-                <option value="STI Sta.mesa">STI Sta.Mesa</option>
+                <option value="STI Ortigas-Cainta">STI Ortigas-Cainta</option>
+                <option value="STI Sta. Mesa">STI Sta.Mesa</option>
                 <option value="STI Fairview">STI Fairview</option>
                 <option value="STI Global">STI Global</option>
               </select>

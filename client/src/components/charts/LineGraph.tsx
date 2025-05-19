@@ -49,38 +49,38 @@ interface ROIData {
 const LineGraph = () => {
   const chartRef = useRef<HTMLCanvasElement>(null);
 
-  // Scholar ROI data (Break-even at ~22 months, approximated to Month 24)
+  // Updated ROI data based on provided mock data
+  const roiOverTimeData = [
+    { period: "Start", roi: -100 },
+    { period: "Month 6", roi: -80 },
+    { period: "Month 12", roi: -60 },
+    { period: "Month 18", roi: -30 },
+    { period: "Month 22", roi: 0 }, // Break-even
+    { period: "Month 30", roi: 20 },
+    { period: "Month 36", roi: 30 },
+  ];
+
   const roiData: ROIData = {
-    labels: [
-      "Month 1",
-      "Month 3",
-      "Month 6",
-      "Month 9",
-      "Month 12",
-      "Month 18",
-      "Month 24", // Closest to 22 months
-      "Month 30",
-      "Month 36",
-    ],
+    labels: roiOverTimeData.map((item) => item.period),
     datasets: [
       {
         label: "Scholar ROI",
-        // Data points adjusted to reach 0% at Month 24 (~22 months)
-        data: [-67, -55, -40, -25, -10, 0, 15, 40, 70],
+        data: roiOverTimeData.map((item) => item.roi),
         borderColor: "rgb(74, 175, 255)",
         backgroundColor: "rgba(74, 175, 255, 0.1)",
         tension: 0.3,
         fill: true,
       },
       {
-        label: "Break-even Point (~22 Months)",
-        // Highlight break-even at Month 24 (approximating 22 months)
-        data: [null, null, null, null, null, null, 0, null, null], // Only shows a point at Month 24
-        borderColor: "rgba(255, 99, 132, 0.7)", // Red color for visibility
+        label: "Break-even Point (22.3 Months)",
+        data: roiOverTimeData.map((item) =>
+          item.period === "Month 22" ? item.roi : null
+        ),
+        borderColor: "rgba(255, 99, 132, 0.7)",
         backgroundColor: "rgba(255, 99, 132, 0.1)",
         borderDash: [5, 5],
-        pointBackgroundColor: "red", // Red dot at break-even
-        pointRadius: 5, // Larger dot for emphasis
+        pointBackgroundColor: "red",
+        pointRadius: 5,
         tension: 0,
         fill: false,
       },

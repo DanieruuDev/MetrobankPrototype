@@ -2,21 +2,44 @@ const pool = require("../database/dbConnect.js");
 
 const getScholarDisbursementSummary = async (req, res) => {
   try {
-    const result = await pool.query(`
-        SELECT 
-          student_name, 
-          student_id, 
-          student_year_lvl, 
-          student_semester, 
-          student_school_year, 
-          student_branch, 
-          total_received
-        FROM vw_student_disbursement_summary
-      `);
+    // Extract page and limit from query params, provide defaults
+    let { page = 1, limit = 10 } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
 
+    // Query to fetch paginated data
+    const dataQuery = await pool.query(
+      `
+      SELECT 
+        student_name, 
+        student_id, 
+        student_year_lvl, 
+        student_semester, 
+        student_school_year, 
+        student_branch, 
+        total_received
+      FROM vw_student_disbursement_summary
+      ORDER BY student_name
+      LIMIT $1 OFFSET $2
+      `,
+      [limit, offset]
+    );
+
+    // Query total count of records (no LIMIT/OFFSET here)
+    const countQuery = await pool.query(
+      `SELECT COUNT(*) FROM vw_student_disbursement_summary`
+    );
+    const totalCount = parseInt(countQuery.rows[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Return paginated results and pagination info
     res.status(200).json({
       success: true,
-      data: result.rows,
+      data: dataQuery.rows,
+      totalPages,
+      currentPage: page,
+      totalCount,
     });
   } catch (error) {
     console.error(

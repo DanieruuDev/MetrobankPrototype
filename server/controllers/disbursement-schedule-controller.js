@@ -59,7 +59,7 @@ const createDisbursementSchedule = async (req, res) => {
       created_by,
       quantity,
     });
-    console.log(disb_sched_id);
+
     const scheduledCount = await updateDisbursementDetails(client, {
       disbursement_type_id,
       yr_lvl_code,
@@ -67,6 +67,7 @@ const createDisbursementSchedule = async (req, res) => {
       semester_code,
       required_hours: disbursement_type_id === 4 ? required_hours : null,
       disb_sched_id,
+      branch,
     });
     console.log(scheduledCount);
 
@@ -89,10 +90,10 @@ const createDisbursementSchedule = async (req, res) => {
 const getEligibleScholarCount = async (req, res) => {
   try {
     const { yr_lvl_code, semester_code, sy_code } = req.params;
-    const { disbursement_type, disbursement_id } = req.query;
+    const { disbursement_type, disbursement_id, branch } = req.query;
 
     // Ensure all parameters are present
-    if (!yr_lvl_code || !semester_code || !sy_code) {
+    if (!yr_lvl_code || !semester_code || !sy_code || !branch) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
     if (!disbursement_type && !disbursement_id) {
@@ -101,9 +102,15 @@ const getEligibleScholarCount = async (req, res) => {
         .json({ message: "Missing disbursement_type or disbursement_id." });
     }
 
-    console.log(yr_lvl_code, semester_code, sy_code, disbursement_type);
+    console.log(
+      yr_lvl_code,
+      semester_code,
+      sy_code,
+      disbursement_type,
+      disbursement_id,
+      branch
+    );
 
-    //change the basis into the actual year
     let query = `
       SELECT COUNT(*) 
       FROM disbursement_detail dd
@@ -114,6 +121,7 @@ const getEligibleScholarCount = async (req, res) => {
         AND rs.semester = $2
         AND rs.school_year = $3
         AND dd.disb_sched_id IS NULL
+        AND rs.campus_name = $5
     `;
 
     const values = [yr_lvl_code, semester_code, sy_code];
@@ -125,6 +133,8 @@ const getEligibleScholarCount = async (req, res) => {
       query += ` AND dd.disbursement_type_id = $4`;
       values.push(disbursement_id);
     }
+
+    values.push(branch); // always $5
 
     const result = await pool.query(query, values);
     console.log(result.rows[0]);

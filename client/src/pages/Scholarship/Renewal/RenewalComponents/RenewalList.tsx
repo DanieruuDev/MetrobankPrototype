@@ -40,7 +40,6 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
       const response = await axios.get(
         `http://localhost:5000/api/renewal/fetch-renewals/${sy}/${semester}`
       );
-
       if (response.data?.data?.length > 0) {
         const sortedData = response.data.data.sort(
           (a: RenewalDetails, b: RenewalDetails) => {

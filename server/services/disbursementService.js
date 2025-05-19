@@ -48,7 +48,8 @@ const updateDisbursementDetails = async (client, payload) => {
     sy_code,
     semester_code,
     required_hours = null,
-    disb_sched_id, // new param
+    disb_sched_id,
+    branch, // new param
   } = payload;
   console.log(
     disbursement_type_id,
@@ -56,45 +57,49 @@ const updateDisbursementDetails = async (client, payload) => {
     sy_code,
     semester_code,
     required_hours,
-    disb_sched_id
+    disb_sched_id,
+    branch
   );
   let query = `
-    UPDATE disbursement_detail dd
-    SET 
-      disbursement_status = $1,
-      disb_sched_id = $6${
-        disbursement_type_id === 4
-          ? ", required_hours = $7"
-          : ", required_hours = NULL"
-      }
-    FROM disbursement_tracking dt
-    JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-    WHERE 
-      dd.disbursement_id = dt.disbursement_id AND
-      dd.disbursement_type_id = $2 AND
-      rs.yr_lvl = $3 AND
-      rs.school_year = $4 AND
-      rs.semester = $5
-  `;
+  UPDATE disbursement_detail dd
+  SET 
+    disbursement_status = $1,
+    disb_sched_id = $6${
+      disbursement_type_id === 4
+        ? ", required_hours = $7"
+        : ", required_hours = NULL"
+    }
+  FROM disbursement_tracking dt
+  JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
+  WHERE 
+    dd.disbursement_id = dt.disbursement_id AND
+    dd.disbursement_type_id = $2 AND
+    rs.yr_lvl = $3 AND
+    rs.school_year = $4 AND
+    rs.semester = $5 AND
+    rs.campus_name = $8
+`;
 
   const params =
     disbursement_type_id === 4
       ? [
-          "In Progress",
-          disbursement_type_id,
-          yr_lvl_code,
-          sy_code,
-          semester_code,
-          disb_sched_id,
-          required_hours,
+          "In Progress", // $1
+          disbursement_type_id, // $2
+          yr_lvl_code, // $3
+          sy_code, // $4
+          semester_code, // $5
+          disb_sched_id, // $6
+          required_hours, // $7
+          branch, // $8 ✅
         ]
       : [
-          "In Progress",
-          disbursement_type_id,
-          yr_lvl_code,
-          sy_code,
-          semester_code,
-          disb_sched_id,
+          "In Progress", // $1
+          disbursement_type_id, // $2
+          yr_lvl_code, // $3
+          sy_code, // $4
+          semester_code, // $5
+          disb_sched_id, // $6
+          branch, // $7 ✅
         ];
 
   const updateResult = await client.query(query, params);

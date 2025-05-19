@@ -8,6 +8,7 @@ import {
   ClipboardList,
   BarChart,
   ChevronRight,
+  PieChart,
 } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext"; // Adjust the path as needed
 import { useSidebar } from "../../context/SidebarContext";
@@ -73,7 +74,7 @@ const Sidebar = () => {
     {
       to: "/roi",
       label: "Scholarship Analytics",
-      Icon: BarChart,
+      Icon: PieChart,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
     // Add Analytics here if you have one, same pattern

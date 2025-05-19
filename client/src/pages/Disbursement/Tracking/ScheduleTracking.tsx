@@ -6,7 +6,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Banknote, CalendarArrowUp, Vault, Search, X } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
-import PaginationControl from "../../../components/approval/PaginationControl";
 import { useSidebar } from "../../../context/SidebarContext";
 
 interface TrackingSummary {
@@ -31,8 +30,6 @@ const ScheduleTracking = () => {
   const { collapsed } = useSidebar();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
   const getTrackingSummary = async (sy_code: string, semester_code: string) => {
     //adjust to make a pagination
@@ -41,7 +38,6 @@ const ScheduleTracking = () => {
         `http://localhost:5000/api/disbursement/tracking/${sy_code}/${semester_code}`
       );
       setTrackingSummary(response.data);
-      setTotalPages(1);
     } catch (error) {
       console.log(error);
     }
@@ -116,10 +112,6 @@ const ScheduleTracking = () => {
 
     getTrackingSummary(sy_code, semester_code.toString());
   }, [sySemester]);
-
-  const handlePageChange = (page: number) => {
-    console.log("Changing to page:", page);
-  };
 
   const handleTypeClick = (disbursement_id: number) => {
     navigate(`/tracking/detailed/${disbursement_id}`);
@@ -317,14 +309,6 @@ const ScheduleTracking = () => {
                 )}
               </tbody>
             </table>
-          </div>
-
-          <div className="mt-4">
-            <PaginationControl
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
           </div>
         </div>
       </div>

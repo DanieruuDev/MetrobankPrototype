@@ -8,6 +8,7 @@ import DonutChart from "../../../components/charts/DonutChart";
 import ComboChart from "../../../components/charts/ComboChart";
 import DropdownFilter from "../../../components/shared/DropdownFilter";
 import { useSidebar } from "../../../context/SidebarContext";
+import PaginationControl from "../../../components/approval/PaginationControl";
 
 interface StudentDisbursement {
   student_name: string;
@@ -33,6 +34,8 @@ const DisbursementOverview = () => {
   const [studentList, setStudentList] = useState<StudentDisbursement[] | null>(
     []
   );
+  const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
+  const [totalPage, setTotalPage] = useState<number>(1);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [years, setYears] = useState<YearLevel[]>([]);
   const [filters, setFilters] = useState({
@@ -78,9 +81,12 @@ const DisbursementOverview = () => {
   const fetchDisbursementSummary = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/disbursement/overview/scholar-list"
+        `http://localhost:5000/api/disbursement/overview/scholar-list?page=${page}&limit=10`
       );
-      setStudentList(response.data.data);
+      const { data, totalPages, currentPage } = response.data;
+      setTotalPage(totalPages);
+      setPage(currentPage);
+      setStudentList(data);
     } catch (error) {
       console.log(error);
     }
@@ -117,6 +123,10 @@ const DisbursementOverview = () => {
     fetchSy();
     fetchYrLvl();
   }, []);
+
+  useEffect(() => {
+    fetchDisbursementSummary();
+  }, [page]);
 
   return (
     <div className="flex">
@@ -251,6 +261,14 @@ const DisbursementOverview = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="mb-4">
+            <PaginationControl
+              currentPage={page}
+              totalPages={totalPage}
+              onPageChange={setPage}
+            />
           </div>
         </div>
       </div>
