@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import * as XLSX from "xlsx-js-style"; // Changed to xlsx-js-style for styling support
+import { ArrowLeft } from "lucide-react";
 
 interface ITrackingDetailed {
   amount: string;
@@ -368,31 +369,24 @@ function DetailedTracking() {
       <Sidebar />
 
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div>
             <button
               onClick={() => navigate(-1)}
-              className="flex items-center text-gray-600 hover:text-gray-900"
+              className="group flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-1"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Back
+              <ArrowLeft
+                size={25}
+                className="group-hover:-translate-x-1 transition-transform"
+              />
             </button>
-            <span className="text-gray-600 text-sm">ID: {disbursement_id}</span>
+            <span className="text-gray-600 text-sm pb-4 ml-1">
+              ID: {disbursement_id}
+            </span>
           </div>
           <div className="flex space-x-2">
             <button
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:bg-green-300"
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:bg-green-500"
               onClick={handleComplete}
               disabled={isCompleting || scheduleInfo?.status === "Completed"}
             >
@@ -415,7 +409,7 @@ function DetailedTracking() {
         </div>
 
         {scheduleInfo && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 mt-2">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
               <h3 className="font-medium text-gray-500 mb-2">
                 Disbursement Information
