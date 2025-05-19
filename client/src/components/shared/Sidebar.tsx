@@ -72,7 +72,7 @@ const Sidebar = () => {
     },
     {
       to: "/roi",
-      label: "Return of Investment",
+      label: "Scholarship Analytics",
       Icon: BarChart,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },

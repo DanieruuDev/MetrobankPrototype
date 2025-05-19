@@ -18,7 +18,8 @@ import ConfirmDialog from "../../components/approval/ConfirmDialog";
 
 export interface WorkflowDisplaySchema {
   workflow_id: number;
-  rq_title: string;
+  request_title: string;
+  request_type: string;
   due_date: string;
   status: string;
   doc_name: string;
@@ -43,7 +44,8 @@ export interface DetailedWorkflow {
   workflow_id: number;
   requester_id: number;
   requester_email: string;
-  rq_title: string;
+  request_title: string;
+  request_type: string;
   rq_description: string | null;
   school_year: string;
   semester: string;
@@ -185,7 +187,9 @@ function Workflow() {
     const matchesStatus =
       activeStatus === "All" ? true : workflow.status === activeStatus;
     const matchesSearch =
-      workflow.rq_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      workflow.request_title
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       workflow.doc_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       workflow.school_details.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -306,12 +310,13 @@ function Workflow() {
                   className="grid text-[#565656] text-[14px] font-bold rounded-md bg-[#EFEFEF] items-center"
                   style={{
                     gridTemplateColumns:
-                      "1.5fr 1fr min-content 1fr 2fr min-content",
+                      "2fr 1fr 1fr min-content 1fr 2fr min-content",
                   }}
                 >
-                  <div className="text-left px-6 max-w-[255px]">
+                  <div className="text-left px-6 max-w-[300px]">
                     Request Title
                   </div>
+                  <div className="text-left px-6">Request Type</div>
                   <div className="text-left px-6">Document</div>
                   <div className="text-left px-2">Status</div>
                   <div className="text-left px-6">Due Date</div>
@@ -333,7 +338,7 @@ function Workflow() {
                         className="grid py-1 items-center hover:bg-gray-50 transition cursor-pointer z-10 text-[13px] border-b border-b-[#c7c7c792]"
                         style={{
                           gridTemplateColumns:
-                            "1.5fr 1fr min-content 1fr 2fr min-content",
+                            "2fr 1fr 1fr min-content 1fr 2fr min-content",
                         }}
                         onClick={() => {
                           if (userId !== undefined) {
@@ -341,8 +346,15 @@ function Workflow() {
                           }
                         }}
                       >
-                        <div className="truncate px-6 max-w-[255px]">
-                          {workflow.rq_title}
+                        <div className="truncate px-6 ">
+                          {workflow.request_title}
+                        </div>
+                        <div className="truncate max-w-[100px] px-6">
+                          {workflow.request_type
+                            .split(" ")
+                            .map((word) => word[0])
+                            .join("")
+                            .toUpperCase()}
                         </div>
                         <div className="truncate max-w-[160px] px-6">
                           {workflow.doc_name}

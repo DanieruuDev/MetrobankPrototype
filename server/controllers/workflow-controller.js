@@ -179,6 +179,22 @@ const changeApprover = async (req, res) => {
         oldIsCurrent,
       ]
     );
+    // Get the newly inserted approver_id
+    const newApproverResult = await pool.query(
+      `SELECT approver_id FROM wf_approver
+   WHERE user_id = $1 AND workflow_id = $2 AND approver_order = $3
+   ORDER BY approver_id DESC LIMIT 1`,
+      [getNewApproverId.rows[0].admin_id, workflow_id, approverOrder]
+    );
+
+    const newApproverId = newApproverResult.rows[0].approver_id;
+
+    // Insert into approver_response with status Pending
+    await pool.query(
+      `INSERT INTO approver_response (approver_id, response)
+   VALUES ($1, 'Pending')`,
+      [newApproverId]
+    );
 
     // Log reassignment
     await pool.query(
@@ -502,7 +518,7 @@ const approveApproval = async (req, res) => {
       SELECT COUNT(*) AS pending_count 
       FROM wf_approver 
       WHERE workflow_id = $1 
-      AND status NOT IN ('Completed', 'Missed')
+      AND status NOT IN ('Completed', 'Missed', 'Replaced')
     `;
     const pendingResult = await client.query(pendingCheckQuery, [workflow_id]);
     const pendingCount = parseInt(pendingResult.rows[0].pending_count);
