@@ -1,41 +1,13 @@
 import { useEffect, useRef, useMemo } from "react";
-import {
-  Chart,
-  ArcElement,
-  BarElement,
-  CategoryScale,
-  Filler,
-  Legend,
-  LineElement,
-  LinearScale,
-  PointElement,
-  RadialLinearScale,
-  Title,
-  Tooltip,
-  ChartTypeRegistry,
-  TooltipItem,
-  LineController, // <---- add this
-} from "chart.js";
+import { Chart, registerables } from "chart.js/auto";
+import type { ChartOptions, TooltipItem } from "chart.js/auto";
 
-Chart.register(
-  ArcElement,
-  BarElement,
-  CategoryScale,
-  Legend,
-  LineController, // <---- add this
-  LineElement,
-  LinearScale,
-  PointElement,
-  Title,
-  Tooltip,
-  RadialLinearScale,
-  Filler
-);
+Chart.register(...registerables);
 
 const LineGraph = () => {
   const chartRef = useRef<HTMLCanvasElement>(null);
 
-  const roiData: ChartData<"line"> = useMemo(() => {
+  const roiData = useMemo(() => {
     const roiOverTimeData = [
       { period: "Start", roi: -100 },
       { period: "Month 6", roi: -80 },
@@ -74,7 +46,7 @@ const LineGraph = () => {
     };
   }, []);
 
-  const options = useMemo<ChartOptions<"line">>(
+  const options: ChartOptions<"line"> = useMemo(
     () => ({
       responsive: true,
       maintainAspectRatio: false,
@@ -95,7 +67,7 @@ const LineGraph = () => {
           bodyFont: { size: 12 },
           padding: 12,
           callbacks: {
-            label: function (context: TooltipItem<keyof ChartTypeRegistry>) {
+            label: function (context: TooltipItem<"line">) {
               let label = context.dataset.label || "";
               if (label) label += ": ";
               if (context.parsed.y !== null) {
@@ -135,20 +107,17 @@ const LineGraph = () => {
   );
 
   useEffect(() => {
-    if (chartRef.current) {
-      const ctx = chartRef.current.getContext("2d");
-      if (!ctx) return;
+    if (!chartRef.current) return;
+    const ctx = chartRef.current.getContext("2d");
+    if (!ctx) return;
 
-      const chart = new Chart(ctx, {
-        type: "line",
-        data: roiData,
-        options,
-      });
+    const chart = new Chart(ctx, {
+      type: "line",
+      data: roiData,
+      options,
+    });
 
-      return () => {
-        chart.destroy();
-      };
-    }
+    return () => chart.destroy();
   }, [roiData, options]);
 
   return (
