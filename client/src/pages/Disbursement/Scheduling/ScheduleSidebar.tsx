@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import SideBarCalendar from "../../../components/disbursement/SideBarCalendar";
-import { DisbursementSchedule } from "./Schedule";
+// import SideBarCalendar from "../../../components/disbursement/SideBarCalendar";
+// import { DisbursementSchedule } from "./Schedule";
 import axios from "axios";
 import ScheduleSection from "../../../components/disbursement/ScheduleSelection";
 
@@ -26,39 +26,39 @@ const ScheduleSidebar = ({
   getBadgeColor,
   collapsed,
 }: ScheduleSidebarProps) => {
-  const [sidebarSchedule, setSidebarSchedule] = useState<
-    DisbursementSchedule[] | null
-  >([]);
+  // const [sidebarSchedule, setSidebarSchedule] = useState<
+  //   DisbursementSchedule[] | null
+  // >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [twoWeekSched, setTwoWeekSched] = useState<
     DisbursementScheduleSummary[] | null
   >([]);
   console.log("two weeks  ", twoWeekSched);
-  const fetchSidebarSchedules = async (date: Date) => {
-    setLoading(true);
-    setError(null);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
+  // const fetchSidebarSchedules = async (date: Date) => {
+  //   setLoading(true);
+  //   setError(null);
+  //   const year = date.getFullYear();
+  //   const month = date.getMonth() + 1;
 
-    try {
-      const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/${year}/${month}`
-      );
+  //   try {
+  //     const response = await axios.get(
+  //       `http://localhost:5000/api/disbursement/schedule/${year}/${month}`
+  //     );
 
-      setSidebarSchedule(
-        response.data.map((schedule: DisbursementSchedule) => ({
-          ...schedule,
-          date: new Date(schedule.date),
-        }))
-      );
-      console.log("Disb Schedule", response.data);
-    } catch (err) {
-      setError(`Failed to load monthly schedule: ${err}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     setSidebarSchedule(
+  //       response.data.map((schedule: DisbursementSchedule) => ({
+  //         ...schedule,
+  //         date: new Date(schedule.date),
+  //       }))
+  //     );
+  //     console.log("Disb Schedule", response.data);
+  //   } catch (err) {
+  //     setError(`Failed to load monthly schedule: ${err}`);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const fetchTwoWeeksSchedule = async () => {
     setLoading(true);
@@ -90,10 +90,10 @@ const ScheduleSidebar = ({
     } transition-all duration-300
   `}
     >
-      <SideBarCalendar
+      {/* <SideBarCalendar
         fetchSidebarSchedules={fetchSidebarSchedules}
         sidebarSchedule={sidebarSchedule}
-      />
+      /> */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative text-sm mt-3 mx-2">
           <strong>Error:</strong> {error}
