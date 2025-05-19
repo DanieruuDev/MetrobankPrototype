@@ -1,5 +1,6 @@
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import { ChartOptions, TooltipItem } from "chart.js";
+import { TooltipItem } from "chart.js";
+import { useMemo } from "react";
 import { Doughnut } from "react-chartjs-2";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -30,82 +31,66 @@ const DonutChartROI: React.FC<DonutChartProps> = ({ data: programData }) => {
   };
 
   // Calculate totals from the data prop
-  const totalInvestment = programData.reduce(
-    (sum, program) => sum + program.total_investment,
-    0
+  const totalInvestment = useMemo(
+    () => programData.reduce((sum, p) => sum + p.total_investment, 0),
+    [programData]
   );
-  const totalReturns = programData.reduce(
-    (sum, program) => sum + program.total_return,
-    0
+  const totalReturns = useMemo(
+    () => programData.reduce((sum, p) => sum + p.total_return, 0),
+    [programData]
+  );
+  const totalSavings = useMemo(
+    () => totalReturns - totalInvestment,
+    [totalReturns, totalInvestment]
   );
 
-  // Calculate Total Savings to display in the center and as a slice
-  // Note: Chart.js Doughnut typically represents parts of a whole.
-  // If you want Investment vs. Savings, the slices should sum to Total Investment + Total Savings
-  // Or represent how Total Investment was covered by Savings so far vs remaining investment.
-  // Based on your image, it seems to show "Total Investment" vs "Total Savings".
-  // Let's calculate total savings
-  const totalSavings = totalReturns - totalInvestment;
+  const chartData = useMemo(
+    () => ({
+      labels: ["Total Investment", "Total Savings"],
+      datasets: [
+        {
+          data: [totalInvestment, totalSavings],
+          backgroundColor: ["#C68EFD", "#4E71FF"],
+          borderColor: "#ffffff",
+          borderWidth: 2,
+        },
+      ],
+    }),
+    [totalInvestment, totalSavings]
+  );
 
-  // Adjust chartData to represent Investment vs Savings as slices
-  // The sum of slices should be Total Investment + Total Savings OR represent proportion of Total Return.
-  // The image shows "Total Savings ₱4.7M" in the center and slices likely representing Investment and Return/Savings contributions to ROI.
-  // Let's assume the slices should represent Total Investment vs Total Savings for simplicity based on the image labels.
-  // A common pattern is Investment Cost vs. Gains/Savings towards covering that cost.
-  // Let's make the slices represent Total Investment and Total Savings
-  const chartData = {
-    labels: ["Total Investment", "Total Savings"],
-    datasets: [
-      {
-        // Data points should likely represent the contribution amounts
-        // If representing Investment vs Savings contribution to ROI, it could be [Total Investment, Total Savings]
-        // If representing how Total Investment is covered by Total Returns, it could be [Total Investment, Total Returns] or [Total Investment, Total Savings]
-        // Let's use [Total Investment, Total Savings] for now, but clarify the visual meaning.
-        data: [totalInvestment, totalSavings],
-        backgroundColor: [" #C68EFD", "#4E71FF"], // Match colors to image if possible
-        borderColor: "#ffffff", // Optional: Add border for separation
-        borderWidth: 2, // Optional: Adjust border width
-      },
-    ],
-  };
-
-  const chartOptions: ChartOptions<"doughnut"> = {
-    cutout: "70%",
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false }, // Legend is displayed manually next to the chart
-      tooltip: {
-        callbacks: {
-          label: function (context: TooltipItem<"doughnut">) {
-            // Display label and formatted value from the slice
-            const value = context.raw as number;
-            return `${context.label}: ${formatCurrencyShort(value)}`;
-          },
-          afterLabel: function (context: TooltipItem<"doughnut">) {
-            // Optional: Add percentage to tooltip
-            const total = context.dataset.data.reduce(
-              (sum, val) => (sum as number) + (val as number),
-              0
-            ) as number;
-            const value = context.raw as number;
-            const percentage =
-              total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-            return `(${percentage}%)`;
+  const chartOptions = useMemo(
+    () => ({
+      cutout: "70%",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context: TooltipItem<"doughnut">) => {
+              const value = context.raw as number;
+              return `${context.label}: ${formatCurrencyShort(value)}`;
+            },
+            afterLabel: (context: TooltipItem<"doughnut">) => {
+              const total = context.dataset.data.reduce(
+                (sum, val) => (sum as number) + (val as number),
+                0
+              ) as number;
+              const value = context.raw as number;
+              const percentage =
+                total > 0 ? ((value / total) * 100).toFixed(1) : "0";
+              return `(${percentage}%)`;
+            },
           },
         },
       },
-    },
-    // You might need to add layout or padding options here if needed
-    layout: {
-      padding: {
-        top: 10, // Adjust padding if necessary
-        bottom: 10,
-        left: 10,
-        right: 10,
+      layout: {
+        padding: 10,
       },
-    },
-  };
+    }),
+    []
+  );
 
   return (
     <div className="h-full flex flex-col">

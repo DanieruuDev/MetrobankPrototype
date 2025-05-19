@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import { ChartOptions, TooltipItem } from "chart.js";
-import { useEffect, useState } from "react";
+import { TooltipItem } from "chart.js";
+import { useEffect, useMemo, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -54,40 +54,45 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
   }, [school_year]);
 
   console.log(school_year);
-  const chartData = {
-    labels: disbursementData?.map((item) => item.category),
-    datasets: [
-      {
-        data: disbursementData?.map((item) => parseFloat(item.total_amount)),
-        backgroundColor: ["#4AAFFF", "#9C84ED", "#54BC4E", "#FF9150"],
-        borderWidth: 1,
-      },
-    ],
-  };
+  const chartData = useMemo(
+    () => ({
+      labels: disbursementData?.map((item) => item.category) ?? [],
+      datasets: [
+        {
+          data:
+            disbursementData?.map((item) => parseFloat(item.total_amount)) ??
+            [],
+          backgroundColor: ["#4AAFFF", "#9C84ED", "#54BC4E", "#FF9150"],
+          borderWidth: 1,
+        },
+      ],
+    }),
+    [disbursementData]
+  );
 
-  const chartOptions: ChartOptions<"doughnut"> = {
-    cutout: "70%",
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        enabled: true,
-        callbacks: {
-          label: function (context: TooltipItem<"doughnut">): string {
-            const label = context.label ?? "";
-            const value =
-              typeof context.raw === "number"
-                ? context.raw
-                : parseFloat(context.raw as string);
-            return `${label}: ${formatCurrencyShort(value)}`;
+  const chartOptions = useMemo(
+    () => ({
+      cutout: "70%",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context: TooltipItem<"doughnut">) => {
+              const label = context.label ?? "";
+              const value =
+                typeof context.raw === "number"
+                  ? context.raw
+                  : parseFloat(context.raw as string);
+              return `${label}: ${formatCurrencyShort(value)}`;
+            },
           },
         },
       },
-    },
-  };
+    }),
+    []
+  );
 
   return (
     <div className="w-full max-w-3xl mx-auto">
