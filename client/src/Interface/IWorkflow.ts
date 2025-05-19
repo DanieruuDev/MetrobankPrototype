@@ -104,6 +104,7 @@ export interface ApproverDetailedView {
     approver_role: string;
     approval_status: string;
     approval_time: string | null;
+    response: string;
     approver_order: number;
     comment: string | null;
   }>;
@@ -115,6 +116,7 @@ export interface ApprovalProgressItem {
   approver_name: string;
   approver_role: string;
   approval_status: string;
+  response: string;
   approval_time: string | null;
   approver_order: number;
   comment: string | null;

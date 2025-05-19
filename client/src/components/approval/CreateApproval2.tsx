@@ -1,7 +1,9 @@
 import { Calendar, Plus, SquareMinus, X } from "lucide-react";
-import { useContext, useRef, useState } from "react";
+import { useCallback, useContext, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import distributeDueDates from "../../utils/DistributeDueDate";
+import { debounce } from "lodash";
+
 import axios from "axios";
 import { AuthContext } from "../../context/AuthContext";
 import Loading from "../../components/shared/Loading"; // Adjust path as needed
@@ -42,6 +44,13 @@ const yrlvlMap: { [key: number]: string } = {
 function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [suggestions, setSuggestions] = useState<{ [key: number]: string[] }>(
+    {}
+  );
+  const [suggestionLoading, setSuggestionLoading] = useState<{
+    [key: number]: boolean;
+  }>({});
+
   const [approvers, setApprovers] = useState<{ id: number; email: string }[]>([
     { id: Date.now(), email: "" },
   ]);
@@ -49,7 +58,27 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [error, setError] = useState<string | null>(null);
   const todayDate = new Date().toISOString().split("T")[0];
   const auth = useContext(AuthContext);
-  const userId = auth?.user?.user_id; // your logged-in user's ID
+  const userId = auth?.user?.user_id;
+
+  const fetchSuggestions = useCallback(
+    debounce(async (value: string, id: number) => {
+      if (!value.trim()) return;
+
+      setSuggestionLoading((prev) => ({ ...prev, [id]: true }));
+
+      try {
+        const res = await axios.get<string[]>(
+          `http://localhost:5000/api/workflow/search-approvers/${value}`
+        );
+        setSuggestions((prev) => ({ ...prev, [id]: res.data }));
+      } catch (err) {
+        console.error("Suggestion fetch failed", err);
+      } finally {
+        setSuggestionLoading((prev) => ({ ...prev, [id]: false }));
+      }
+    }, 300),
+    []
+  );
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: (acceptedFiles) => {
@@ -105,6 +134,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }));
 
     const sendData = new FormData();
+    sendData.append("request_title", formValues.request_title);
     sendData.append("requester_id", String(userId));
     sendData.append("req_type_id", formValues.req_type_id);
     sendData.append("description", formValues.description);
@@ -185,12 +215,30 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
             aria-busy={loading}
             aria-disabled={loading}
           >
+            <div>
+              <label
+                htmlFor="request_title"
+                className="block mb-1 text-sm font-medium text-gray-700"
+              >
+                Request Title
+              </label>
+              <input
+                type="text"
+                name="request_title"
+                id="request_title"
+                maxLength={100}
+                placeholder="Enter request title..."
+                required
+                disabled={loading}
+                className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
+              />
+            </div>
             <div className="flex gap-3">
               <div className="relative flex-1">
                 <select
                   name="req_type_id"
                   defaultValue=""
-                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:ring-opacity-50 
+                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
                     appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
                   disabled={loading}
                   required
@@ -217,7 +265,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                   type="date"
                   name="due_date"
                   min={todayDate}
-                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:ring-opacity-50 
+                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
                     appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-datetime-edit]:text-gray-700"
                   disabled={loading}
                   required
@@ -247,7 +295,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                   <select
                     name={name}
                     defaultValue=""
-                    className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:ring-opacity-50 
+                    className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border  border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
                       appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
                     disabled={loading}
                     required
@@ -300,29 +348,69 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                     <label className="text-[#565656] text-[14px] font-medium">
                       Approver Email {index + 1}
                     </label>
-                    <div className="flex">
+                    <div
+                      className="flex relative"
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setSuggestions((prev) => ({ ...prev, [id]: [] }));
+                        }, 100);
+                      }}
+                      tabIndex={0}
+                    >
                       <input
                         type="email"
                         value={email}
                         maxLength={30}
-                        onChange={(e) =>
+                        autoComplete="off"
+                        onChange={(e) => {
+                          const val = e.target.value;
                           setApprovers(
                             approvers.map((app) =>
-                              app.id === id
-                                ? { ...app, email: e.target.value }
-                                : app
+                              app.id === id ? { ...app, email: val } : app
                             )
-                          )
-                        }
+                          );
+                          fetchSuggestions(val, id);
+                        }}
                         key={`approvers${index}`}
                         name={`approvers${index}`}
-                        className="flex-1 rounded-md px-4 py-2 pr-10 text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:ring-opacity-50"
+                        className=" w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
                         placeholder={`Enter Approver ${
                           index + 1
                         } Email Address`}
                         disabled={loading}
                         required
                       />
+                      {(suggestions[id]?.length > 0 ||
+                        suggestionLoading[id]) && (
+                        <ul className="absolute top-full left-0 w-full z-20 bg-white border border-gray-300 rounded-md shadow-md max-h-[150px] overflow-y-auto">
+                          {suggestionLoading[id] ? (
+                            <li className="px-3 py-2 text-sm text-gray-500 italic">
+                              Loading...
+                            </li>
+                          ) : (
+                            suggestions[id].map((email, idx) => (
+                              <li
+                                key={idx}
+                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-black"
+                                onClick={() => {
+                                  setApprovers(
+                                    approvers.map((app) =>
+                                      app.id === id ? { ...app, email } : app
+                                    )
+                                  );
+                                  setSuggestions((prev) => ({
+                                    ...prev,
+                                    [id]: [],
+                                  }));
+                                }}
+                              >
+                                {email}
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      )}
+
                       {approvers.length > 1 && (
                         <button
                           type="button"
@@ -358,7 +446,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                 name="description"
                 id="description"
                 placeholder="Enter approval request description..."
-                className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:ring-opacity-50 resize-none p-2 text-[15px]"
+                className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px] resize-none"
                 disabled={loading}
                 required
               ></textarea>

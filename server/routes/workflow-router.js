@@ -11,6 +11,7 @@ const {
   fetchApproverApproval,
   downloadFile,
   approveApproval,
+  emailFinder,
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 const storage = multer.diskStorage({
@@ -39,6 +40,7 @@ workflowRouter.get("/get-specific-request/:approver_id", fetchApproverApproval);
 workflowRouter.get("/get-request/:user_id", fetchApproverApprovalList);
 
 workflowRouter.get("/download/:file_path", downloadFile);
+workflowRouter.get("/search-approvers/:query", emailFinder);
 
 workflowRouter.put("/approve-approval", approveApproval);
 workflowRouter.put("/change-approval/:requester_id", changeApprover);

@@ -1,5 +1,6 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
+const { request } = require("http");
 const path = require("path");
 
 //get specific approval (author id/ workflow id)
@@ -118,73 +119,87 @@ const changeApprover = async (req, res) => {
     const { requester_id } = req.params;
     const { workflow_id, old_approver_id, new_approver_id, reason } = req.body;
 
-    // Check if workflow exists and verify requester (author)
+    // Find new approver id and email by email
     const getNewApproverId = await pool.query(
       `SELECT admin_id, admin_email FROM administration_adminaccounts WHERE admin_email = $1`,
       [new_approver_id]
     );
-    console.log(getNewApproverId.rows[0].admin_email, new_approver_id);
     if (getNewApproverId.rowCount === 0) {
       return res.status(404).json({ message: "New approver not found." });
     }
 
+    // Check workflow exists and get author
     const workflowCheck = await pool.query(
       "SELECT requester_id FROM workflow WHERE workflow_id = $1",
       [workflow_id]
     );
-
     if (workflowCheck.rowCount === 0) {
       return res.status(404).json({ message: "Workflow not found." });
     }
-
     const authorId = workflowCheck.rows[0].requester_id;
 
-    // Ensure the requester is the author
     if (authorId !== Number(requester_id)) {
       return res.status(403).json({
         message: "Unauthorized. Only the requester can change the approver.",
       });
     }
 
-    // Check if old approver exists in the workflow
+    // Get old approver data including is_current and order
     const oldApproverCheck = await pool.query(
       "SELECT * FROM wf_approver WHERE approver_id = $1 AND workflow_id = $2",
       [old_approver_id, workflow_id]
     );
-
     if (oldApproverCheck.rowCount === 0) {
       return res
         .status(404)
         .json({ message: "Old approver not found in this workflow." });
     }
 
-    // Get the old approver's order
-    const approverOrder = oldApproverCheck.rows[0].approver_order;
+    const oldApprover = oldApproverCheck.rows[0];
+    const approverOrder = oldApprover.approver_order;
+    const oldIsCurrent = oldApprover.is_current;
 
-    // Step 1: Update old approver's status to "replaced"
+    // Update old approver: status to 'Replaced' and is_current to false if it was true
     await pool.query(
-      `UPDATE wf_approver 
-      SET status = 'Replaced'
-      WHERE approver_id = $1 AND workflow_id = $2`,
+      `UPDATE wf_approver
+       SET status = 'Replaced', is_current = CASE WHEN is_current THEN false ELSE is_current END
+       WHERE approver_id = $1 AND workflow_id = $2`,
       [old_approver_id, workflow_id]
     );
 
-    // Step 2: Insert new approver with same order
+    // Insert new approver with copied is_current and status 'Pending'
     await pool.query(
-      `INSERT INTO wf_approver (user_id, user_email, workflow_id, approver_order, status, due_date, is_reassigned)
-      VALUES ($1, $2, $3, $4, 'Pending', NOW() + INTERVAL '7 days', TRUE)`,
+      `INSERT INTO wf_approver (user_id, user_email, workflow_id, approver_order, status, due_date, is_reassigned, is_current)
+       VALUES ($1, $2, $3, $4, 'Pending', NOW() + INTERVAL '7 days', TRUE, $5)`,
       [
         getNewApproverId.rows[0].admin_id,
         getNewApproverId.rows[0].admin_email,
         workflow_id,
         approverOrder,
+        oldIsCurrent,
       ]
     );
+    // Get the newly inserted approver_id
+    const newApproverResult = await pool.query(
+      `SELECT approver_id FROM wf_approver
+   WHERE user_id = $1 AND workflow_id = $2 AND approver_order = $3
+   ORDER BY approver_id DESC LIMIT 1`,
+      [getNewApproverId.rows[0].admin_id, workflow_id, approverOrder]
+    );
 
-    // Step 3: Log reassignment in `reassignment_log`
+    const newApproverId = newApproverResult.rows[0].approver_id;
+
+    // Insert into approver_response with status Pending
+    await pool.query(
+      `INSERT INTO approver_response (approver_id, response)
+   VALUES ($1, 'Pending')`,
+      [newApproverId]
+    );
+
+    // Log reassignment
     await pool.query(
       `INSERT INTO reassignment_log (workflow_id, old_approver_id, new_approver_id, reason)
-      VALUES ($1, $2, $3, $4)`,
+       VALUES ($1, $2, $3, $4)`,
       [workflow_id, old_approver_id, getNewApproverId.rows[0].admin_id, reason]
     );
 
@@ -212,6 +227,7 @@ const createApproval = async (req, res) => {
 
   try {
     const {
+      request_title,
       requester_id,
       req_type_id,
       description,
@@ -221,18 +237,10 @@ const createApproval = async (req, res) => {
       scholar_level,
       approvers,
     } = req.body;
-    console.log(
-      requester_id,
-      req_type_id,
-      description,
-      due_date,
-      school_year,
-      semester,
-      scholar_level,
-      approvers
-    );
+
     // Validate required fields
     if (
+      !request_title ||
       !requester_id ||
       !file ||
       !req_type_id ||
@@ -265,7 +273,7 @@ const createApproval = async (req, res) => {
     const docId = insertDocumentQuery.rows[0].doc_id;
 
     const insertWorkflowQuery = await client.query(
-      "INSERT INTO workflow(document_id, rq_type_id, requester_id, due_date, school_year, semester, scholar_level, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+      "INSERT INTO workflow(document_id, rq_type_id, requester_id, due_date, school_year, semester, scholar_level, description, rq_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
       [
         docId,
         req_type_id,
@@ -275,6 +283,7 @@ const createApproval = async (req, res) => {
         semester,
         scholar_level,
         description,
+        request_title,
       ]
     );
     const workflowID = insertWorkflowQuery.rows[0].workflow_id;
@@ -509,7 +518,7 @@ const approveApproval = async (req, res) => {
       SELECT COUNT(*) AS pending_count 
       FROM wf_approver 
       WHERE workflow_id = $1 
-      AND status NOT IN ('Completed', 'Missed')
+      AND status NOT IN ('Completed', 'Missed', 'Replaced')
     `;
     const pendingResult = await client.query(pendingCheckQuery, [workflow_id]);
     const pendingCount = parseInt(pendingResult.rows[0].pending_count);
@@ -555,6 +564,27 @@ const approveApproval = async (req, res) => {
   }
 };
 
+const emailFinder = async (req, res) => {
+  try {
+    const { query } = req.params;
+    console.log(query);
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Query string is required." });
+    }
+
+    const result = await pool.query(
+      `SELECT admin_email FROM administration_adminaccounts WHERE admin_email ILIKE $1 LIMIT 10`,
+      [`%${query}%`]
+    );
+
+    const emails = result.rows.map((row) => row.admin_email);
+    res.json(emails);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
 const downloadFile = async (req, res) => {
   const file_path = decodeURIComponent(req.params.file_path);
   if (!file_path) {
@@ -594,4 +624,5 @@ module.exports = {
   fetchApproverApproval,
   downloadFile,
   approveApproval,
+  emailFinder,
 };
