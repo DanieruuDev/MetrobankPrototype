@@ -5,12 +5,12 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  BarController,
   LineElement,
   PointElement,
   Title,
   Tooltip,
   Legend,
+  TooltipItem,
 } from "chart.js";
 
 // Register all required components
@@ -18,7 +18,6 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  BarController,
   LineElement,
   PointElement,
   Title,
@@ -73,11 +72,11 @@ const BarGraph: React.FC<BarGraphProps> = ({ data }) => {
       title: {
         display: true,
         text: "Scholars Distribution and ROI by Campus",
-        font: { size: 16 },
+        font: { size: 18 },
       },
       tooltip: {
         callbacks: {
-          label: function (context: any) {
+          label: function (context: TooltipItem<"bar" | "line">) {
             let label = context.dataset.label || "";
             if (label) label += ": ";
             if (context.datasetIndex === 0) {
@@ -95,7 +94,7 @@ const BarGraph: React.FC<BarGraphProps> = ({ data }) => {
         type: "linear" as const,
         display: true,
         position: "left" as const,
-        title: { display: true, text: "Number of Scholars" },
+        title: { display: true },
         beginAtZero: true,
       },
       y1: {
@@ -103,7 +102,7 @@ const BarGraph: React.FC<BarGraphProps> = ({ data }) => {
         display: true,
         position: "right" as const,
         grid: { drawOnChartArea: false },
-        title: { display: true, text: "ROI Percentage (%)" },
+        title: { display: true },
         min: 0,
         max: 100,
       },
@@ -112,7 +111,7 @@ const BarGraph: React.FC<BarGraphProps> = ({ data }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 h-full">
-      <div className="h-[400px]">
+      <div className="h-[500px]">
         {/* Use Chart instead of Bar for combo charts */}
         <Chart type="bar" data={chartData} options={options} />
       </div>

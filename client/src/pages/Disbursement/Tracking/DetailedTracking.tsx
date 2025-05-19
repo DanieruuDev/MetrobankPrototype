@@ -5,8 +5,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
-import { toast, ToastContainer } from "react-toastify";
-import ConfirmDialog from "../../../components/shared/Confirm";
+import * as XLSX from "xlsx-js-style"; // Changed to xlsx-js-style for styling support
 
 interface ITrackingDetailed {
   amount: string;
@@ -21,6 +20,20 @@ interface ITrackingDetailed {
   student_id: number;
 }
 
+// Define types for status styles
+type ScholarshipStatus = "ACTIVE" | "INACTIVE" | "PENDING";
+type DisbursementStatus =
+  | "Completed"
+  | "In Progress"
+  | "Not Started"
+  | "Cancelled";
+type StatusStyles = Record<
+  ScholarshipStatus | DisbursementStatus,
+  {
+    fill: { fgColor: { rgb: string } };
+  }
+>;
+
 function DetailedTracking() {
   const { disbursement_id } = useParams<{ disbursement_id: string }>();
   const [trackingDetailed, setTrackingDetailed] = useState<
@@ -30,7 +43,6 @@ function DetailedTracking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
-  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const fetchTrackingDetailed = async () => {
@@ -51,31 +63,258 @@ function DetailedTracking() {
   }, [disbursement_id]);
 
   const handleComplete = async () => {
-    setShowConfirm(true); // hide confirmation modal on confirm
-    if (!showConfirm) return;
     try {
       setIsCompleting(true);
       await axios.put(
         `http://localhost:5000/api/disbursement/tracking/complete/${disbursement_id}`
       );
-      toast.success("Disbursement marked as complete!");
-
       const response = await axios.get<ITrackingDetailed[]>(
         `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
       );
       setTrackingDetailed(response.data);
     } catch (error) {
       console.error("Error completing disbursement:", error);
-      toast.error("Failed to mark disbursement as complete.");
     } finally {
       setIsCompleting(false);
-      setShowConfirm(false);
     }
   };
 
-  console.log(trackingDetailed);
-  const scheduleInfo = trackingDetailed?.[0];
+  const handleExportToExcel = () => {
+    if (!trackingDetailed || trackingDetailed.length === 0) return;
 
+    const scheduleInfo = trackingDetailed[0];
+
+    // ============= STYLE DEFINITIONS =============
+    const headerStyle = {
+      fill: { fgColor: { rgb: "2F5597" } }, // Dark blue background
+      font: { bold: true, color: { rgb: "FFFFFF" }, name: "Calibri", size: 11 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const titleStyle = {
+      fill: { fgColor: { rgb: "BDD7EE" } }, // Light blue background
+      font: { bold: true, size: 14, name: "Calibri" },
+      alignment: { horizontal: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const dataStyle = {
+      font: { name: "Calibri", size: 11 },
+      alignment: { vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "D9D9D9" } },
+        bottom: { style: "thin", color: { rgb: "D9D9D9" } },
+        left: { style: "thin", color: { rgb: "D9D9D9" } },
+        right: { style: "thin", color: { rgb: "D9D9D9" } },
+      },
+    };
+
+    const currencyStyle = {
+      ...dataStyle,
+      numFmt: '"₱"#,##0.00', // Peso sign with comma formatting
+    };
+
+    // Status-specific styles with proper typing
+    const statusStyles: StatusStyles = {
+      // Scholarship Status
+      ACTIVE: { fill: { fgColor: { rgb: "FFFF00" } } }, // Yellow
+      INACTIVE: { fill: { fgColor: { rgb: "FFC000" } } }, // Orange
+      PENDING: { fill: { fgColor: { rgb: "FFE699" } } }, // Light Yellow
+
+      // Disbursement Status
+      Completed: { fill: { fgColor: { rgb: "92D050" } } }, // Green
+      "In Progress": { fill: { fgColor: { rgb: "00B0F0" } } }, // Blue
+      "Not Started": { fill: { fgColor: { rgb: "FF0000" } } }, // Red
+      Cancelled: { fill: { fgColor: { rgb: "7030A0" } } }, // Purple
+    };
+
+    // Helper function to safely get status style
+    const getStatusStyle = (status: string) => {
+      return (
+        statusStyles[status as ScholarshipStatus | DisbursementStatus] || {}
+      );
+    };
+
+    // ============= PREPARE DATA =============
+    // Student Data with styles
+    const studentData = [
+      // Header row
+      [
+        { v: "Student ID", t: "s", s: headerStyle },
+        { v: "Name", t: "s", s: headerStyle },
+        { v: "Scholarship Status", t: "s", s: headerStyle },
+        { v: "Amount", t: "s", s: headerStyle },
+        { v: "Disbursement Status", t: "s", s: headerStyle },
+      ],
+      // Data rows
+      ...trackingDetailed.map((student, index) => {
+        // Alternating row colors
+        const rowStyle =
+          index % 2 === 0
+            ? { ...dataStyle, fill: { fgColor: { rgb: "FFFFFF" } } }
+            : { ...dataStyle, fill: { fgColor: { rgb: "F2F2F2" } } };
+
+        // Apply status-specific styles using the safe getter
+        const scholarshipStyle = getStatusStyle(student.scholarship_status);
+        const disbursementStyle = getStatusStyle(student.status);
+
+        return [
+          { v: student.student_id, t: "n", s: rowStyle },
+          { v: student.scholar_name, t: "s", s: rowStyle },
+          {
+            v: student.scholarship_status,
+            t: "s",
+            s: { ...rowStyle, ...scholarshipStyle },
+          },
+          {
+            v: Number(student.amount),
+            t: "n",
+            s: { ...currencyStyle, ...rowStyle }, // Apply peso format
+          },
+          {
+            v: student.status,
+            t: "s",
+            s: { ...rowStyle, ...disbursementStyle },
+          },
+        ];
+      }),
+    ];
+
+    // Summary Information
+    const summaryInfo = [
+      // Disbursement Info
+      [{ v: "Disbursement Information", t: "s", s: titleStyle, $colSpan: 5 }],
+      [
+        { v: "Title:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        { v: scheduleInfo.disb_title, t: "s", s: dataStyle, $colSpan: 4 },
+      ],
+      [
+        { v: "Date:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: new Date(scheduleInfo.disbursement_date).toLocaleDateString(
+            "en-US",
+            {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              weekday: "long",
+            }
+          ),
+          t: "s",
+          s: dataStyle,
+          $colSpan: 4,
+        },
+      ],
+      [
+        { v: "Status:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: scheduleInfo.status,
+          t: "s",
+          s: { ...dataStyle, ...getStatusStyle(scheduleInfo.status) },
+          $colSpan: 4,
+        },
+      ],
+
+      // Financial Details
+      [{ v: "Financial Details", t: "s", s: titleStyle, $colSpan: 5 }],
+      [
+        {
+          v: "Amount per student:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        { v: Number(scheduleInfo.amount), t: "n", s: currencyStyle },
+        { v: "", t: "s", s: dataStyle },
+        {
+          v: "Total Students:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        { v: scheduleInfo.quantity, t: "n", s: dataStyle },
+      ],
+      [
+        {
+          v: "Total Amount:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        {
+          v: Number(scheduleInfo.amount) * scheduleInfo.quantity,
+          t: "n",
+          s: currencyStyle,
+        },
+        { v: "", t: "s", s: dataStyle, $colSpan: 3 },
+      ],
+
+      // Branch Information
+      [{ v: "Branch Information", t: "s", s: titleStyle, $colSpan: 5 }],
+      [
+        { v: "Branch:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: scheduleInfo.branch.replace("-", " "),
+          t: "s",
+          s: dataStyle,
+          $colSpan: 4,
+        },
+      ],
+
+      // Spacer before student list
+      [
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+      ],
+      [{ v: "Student List", t: "s", s: titleStyle, $colSpan: 5 }],
+    ];
+
+    // Combine all data
+    const fullData = [...summaryInfo, ...studentData];
+
+    // Create worksheet
+    const ws = XLSX.utils.aoa_to_sheet(fullData);
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 15 }, // Student ID
+      { wch: 35 }, // Name
+      { wch: 25 }, // Scholarship Status
+      { wch: 20 }, // Amount
+      { wch: 25 }, // Disbursement Status
+    ];
+
+    // Set merged cells for titles
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Disbursement Info title
+      { s: { r: 4, c: 0 }, e: { r: 4, c: 4 } }, // Financial Details title
+      { s: { r: 8, c: 0 }, e: { r: 8, c: 4 } }, // Branch Info title
+      { s: { r: 12, c: 0 }, e: { r: 12, c: 4 } }, // Student List title
+    ];
+
+    // Create workbook and export
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Disbursement Report");
+
+    const fileName = `Disbursement_${scheduleInfo.disb_title.replace(
+      /\s+/g,
+      "_"
+    )}_${disbursement_id}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // ... (rest of your component code remains exactly the same)
   const getStatusBadge = (status: string) => {
     const statusClasses = {
       "Not Started": "bg-gray-200 text-gray-800",
@@ -116,6 +355,8 @@ function DetailedTracking() {
     );
   }
 
+  const scheduleInfo = trackingDetailed?.[0];
+
   return (
     <div
       className={`${
@@ -127,7 +368,6 @@ function DetailedTracking() {
       <Sidebar />
 
       <div className="p-6 max-w-6xl mx-auto">
-        <ToastContainer position="top-right" autoClose={3000} />
         <div className="flex justify-between items-center mb-6">
           <div>
             <button
@@ -165,17 +405,12 @@ function DetailedTracking() {
                 "Mark as Complete"
               )}
             </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              onClick={handleExportToExcel}
+            >
               Export to Excel
             </button>
-            <ConfirmDialog
-              isOpen={showConfirm}
-              message="Are you sure you want to mark this disbursement as complete?"
-              onConfirm={handleComplete}
-              onCancel={() => setShowConfirm(false)}
-              confirmText="Yes, Complete"
-              cancelText="Cancel"
-            />
           </div>
         </div>
 
