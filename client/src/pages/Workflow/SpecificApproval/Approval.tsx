@@ -179,22 +179,13 @@ function Approval({
     const validApprovers = sortedApprovers.filter(
       (a) => a.approver_status !== "Replaced"
     );
-    const totalSteps = validApprovers.length + 2; // Started + Ended
-    let completedSteps = 1; // Started is always completed
 
-    validApprovers.forEach((approver) => {
-      if (approver.approver_status === "Completed") {
-        completedSteps++;
-      }
-    });
+    const totalSteps = validApprovers.length;
+    if (totalSteps === 0) return 0;
 
-    if (
-      validApprovers.length > 0 &&
-      validApprovers.every((a) => a.approver_status === "Completed")
-    ) {
-      completedSteps++; // Include Ended
-      return 100;
-    }
+    const completedSteps = validApprovers.filter(
+      (approver) => approver.approver_status === "Completed"
+    ).length;
 
     return (completedSteps / totalSteps) * 100;
   };

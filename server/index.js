@@ -15,15 +15,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/sample", async (req, res) => {
-  try {
-    const admin = await pool.query(`SELECT * FROM admin`);
-    res.json(admin.rows);
-  } catch (error) {
-    console.error(error);
-  }
-});
-
 app.use("/api/auth", userAdminRouter);
 app.use("/api/disbursement", disbursementRouter);
 app.use("/api/disbursement/overview", disbursementOverview);
@@ -33,14 +24,8 @@ app.use("/api/renewal", renewalRouter);
 app.use("/api/workflow", workflowRouter);
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-app.use("/test-masterlist", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM masterlist");
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching masterlist:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+app.use("/", async (req, res) => {
+  res.send("Hello World");
 });
 
 app.listen(5000, () => {
