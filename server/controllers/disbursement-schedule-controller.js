@@ -92,7 +92,7 @@ const getEligibleScholarCount = async (req, res) => {
     const { yr_lvl_code, semester_code, sy_code } = req.params;
     const { disbursement_type, disbursement_id, branch } = req.query;
 
-    // Ensure all parameters are present
+    console.log(yr_lvl_code, semester_code, sy_code, disbursement_id, branch);
     if (!yr_lvl_code || !semester_code || !sy_code || !branch) {
       return res.status(400).json({ message: "Missing required parameters." });
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ScholarshipFilterModal from "../../../../components/renewal/ScholarshipFilterModal";
 import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import { RenewalDetails } from "../../../../Interface/IRenewal";
@@ -31,7 +31,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetails[]>([]);
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
-  const [sySemester, setSySemester] = useState<string>("");
+  const [sySemester, setSySemester] = useState<string>("2024-2025_2nd");
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -283,7 +283,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
     return result;
   };
 
-  const handleCountValidated = () => {
+  const handleCountValidated = useCallback(() => {
     const countPassed = renewalData.filter(
       (renewal) => renewal.scholarship_status == "Passed"
     ).length;
@@ -292,7 +292,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
     ).length;
     setCountDelisted(countDelisted);
     setCountPassed(countPassed);
-  };
+  }, [renewalData]);
 
   const toggleEdit = () => {
     if (isEdit) {
@@ -344,7 +344,10 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
       }
     );
     handleCountValidated();
-    if (JSON.stringify(sortedData) !== JSON.stringify(tempRenewalData)) {
+    if (
+      !isEdit &&
+      JSON.stringify(sortedData) !== JSON.stringify(tempRenewalData)
+    ) {
       setTempRenewalData(sortedData);
     }
   }, [handleCountValidated, renewalData, tempRenewalData]);
@@ -431,7 +434,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
                   size={18}
                   className="transition-transform duration-200 group-hover:scale-110"
                 />
-                Save Mode
+                Exit Editting
               </>
             ) : (
               <>

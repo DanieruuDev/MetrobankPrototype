@@ -90,7 +90,7 @@ function SideBarCalendar({
   };
   useEffect(() => {
     fetchSidebarSchedules(visibleMonth);
-  }, [visibleMonth]);
+  }, [fetchSidebarSchedules, visibleMonth]);
   useEffect(() => {
     setVisibleMonth(currentDate);
   }, [currentDate]);

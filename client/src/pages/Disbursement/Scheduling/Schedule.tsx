@@ -4,7 +4,7 @@ import Navbar from "../../../components/shared/Navbar";
 import ScheduleSidebar from "./ScheduleSidebar";
 import Sidebar from "../../../components/shared/Sidebar";
 import EventModal from "../../../components/disbursement/EventModal";
-import { Bell, CalendarDays, ClipboardList, Plus } from "lucide-react";
+import { CalendarDays, ClipboardList, Plus } from "lucide-react";
 import axios from "axios";
 import { isBefore, startOfDay } from "date-fns";
 import AgendaView from "../../../components/disbursement/Agenda";
@@ -84,31 +84,31 @@ function Schedule() {
     }
   };
 
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New disbursement scheduled",
-      message: "Thesis Fee disbursement for May 20, 2025",
-      read: false,
-      date: "2025-05-18",
-    },
-    {
-      id: 2,
-      title: "Reminder",
-      message: "Scholarship Fee disbursement tomorrow",
-      read: false,
-      date: "2025-05-17",
-    },
-  ]);
+  // const [showNotifications, setShowNotifications] = useState(false);
+  // const [notifications, setNotifications] = useState([
+  //   {
+  //     id: 1,
+  //     title: "New disbursement scheduled",
+  //     message: "Thesis Fee disbursement for May 20, 2025",
+  //     read: false,
+  //     date: "2025-05-18",
+  //   },
+  //   {
+  //     id: 2,
+  //     title: "Reminder",
+  //     message: "Scholarship Fee disbursement tomorrow",
+  //     read: false,
+  //     date: "2025-05-17",
+  //   },
+  // ]);
 
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    // Mark notifications as read when opened
-    if (!showNotifications) {
-      setNotifications((notifs) => notifs.map((n) => ({ ...n, read: true })));
-    }
-  };
+  // const toggleNotifications = () => {
+  //   setShowNotifications(!showNotifications);
+  //   // Mark notifications as read when opened
+  //   if (!showNotifications) {
+  //     setNotifications((notifs) => notifs.map((n) => ({ ...n, read: true })));
+  //   }
+  // };
 
   console.log(schedules);
   useEffect(() => {
@@ -170,7 +170,7 @@ function Schedule() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            {/* <button
               onClick={toggleNotifications}
               className="bg-[#F1F1F1] py-2 px-3 rounded-md group cursor-pointer relative"
             >
@@ -214,7 +214,7 @@ function Schedule() {
                   </div>
                 </div>
               )}
-            </button>
+            </button> */}
             <button
               className="bg-[#3B89FD] text-white rounded-md gap-2 py-2 px-4 flex items-center cursor-pointer hover:bg-[#3b62fd]"
               onClick={() => setIsModalOpen(true)}

@@ -38,7 +38,7 @@ const Sidebar = () => {
       to: "/renewal-scholarship",
       label: "Scholarship Renewal",
       Icon: BookOpen,
-      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+      allowedRoles: ["mb hr", "mbs head", "system_admin", "sti registrar"],
     },
     {
       to: "/workflow-approval",
