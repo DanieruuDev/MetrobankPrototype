@@ -5,7 +5,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style"; // Changed to xlsx-js-style for styling support
 import { ArrowLeft } from "lucide-react";
 
 interface ITrackingDetailed {
@@ -19,7 +19,6 @@ interface ITrackingDetailed {
   scholarship_status: string;
   status: string;
   student_id: number;
-  disbursement_label: string;
 }
 
 // Define types for status styles
@@ -53,7 +52,6 @@ function DetailedTracking() {
         const response = await axios.get<ITrackingDetailed[]>(
           `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
         );
-        console.log(response.data);
         setTrackingDetailed(response.data);
       } catch (error) {
         console.error(error);
@@ -128,20 +126,26 @@ function DetailedTracking() {
       numFmt: '"₱"#,##0.00', // Peso sign with comma formatting
     };
 
-    // Status-specific styles
+    // Status-specific styles with proper typing
     const statusStyles: StatusStyles = {
+      // Scholarship Status
       ACTIVE: { fill: { fgColor: { rgb: "FFFF00" } } }, // Yellow
       INACTIVE: { fill: { fgColor: { rgb: "FFC000" } } }, // Orange
       PENDING: { fill: { fgColor: { rgb: "FFE699" } } }, // Light Yellow
+
+      // Disbursement Status
       Completed: { fill: { fgColor: { rgb: "92D050" } } }, // Green
       "In Progress": { fill: { fgColor: { rgb: "00B0F0" } } }, // Blue
       "Not Started": { fill: { fgColor: { rgb: "FF0000" } } }, // Red
       Cancelled: { fill: { fgColor: { rgb: "7030A0" } } }, // Purple
     };
 
-    // Helper to get style safely
-    const getStatusStyle = (status: string) =>
-      statusStyles[status as ScholarshipStatus | DisbursementStatus] || {};
+    // Helper function to safely get status style
+    const getStatusStyle = (status: string) => {
+      return (
+        statusStyles[status as ScholarshipStatus | DisbursementStatus] || {}
+      );
+    };
 
     // ============= PREPARE DATA =============
     // Student Data with styles
@@ -156,12 +160,13 @@ function DetailedTracking() {
       ],
       // Data rows
       ...trackingDetailed.map((student, index) => {
-        // Alternate row color
+        // Alternating row colors
         const rowStyle =
           index % 2 === 0
             ? { ...dataStyle, fill: { fgColor: { rgb: "FFFFFF" } } }
             : { ...dataStyle, fill: { fgColor: { rgb: "F2F2F2" } } };
 
+        // Apply status-specific styles using the safe getter
         const scholarshipStyle = getStatusStyle(student.scholarship_status);
         const disbursementStyle = getStatusStyle(student.status);
 
@@ -176,7 +181,7 @@ function DetailedTracking() {
           {
             v: Number(student.amount),
             t: "n",
-            s: { ...currencyStyle, ...rowStyle },
+            s: { ...currencyStyle, ...rowStyle }, // Apply peso format
           },
           {
             v: student.status,
@@ -187,8 +192,9 @@ function DetailedTracking() {
       }),
     ];
 
-    // Summary Information with branch and disbursement label added
+    // Summary Information
     const summaryInfo = [
+      // Disbursement Info
       [{ v: "Disbursement Information", t: "s", s: titleStyle, $colSpan: 5 }],
       [
         { v: "Title:", t: "s", s: { ...dataStyle, font: { bold: true } } },
@@ -220,30 +226,8 @@ function DetailedTracking() {
           $colSpan: 4,
         },
       ],
-      // Add Branch row
-      [
-        { v: "Branch:", t: "s", s: { ...dataStyle, font: { bold: true } } },
-        {
-          v: scheduleInfo.branch.replace("-", " "),
-          t: "s",
-          s: dataStyle,
-          $colSpan: 4,
-        },
-      ],
-      // Add Disbursement Label row
-      [
-        {
-          v: "Disbursement Label:",
-          t: "s",
-          s: { ...dataStyle, font: { bold: true } },
-        },
-        {
-          v: scheduleInfo.disbursement_label || "",
-          t: "s",
-          s: dataStyle,
-          $colSpan: 4,
-        },
-      ],
+
+      // Financial Details
       [{ v: "Financial Details", t: "s", s: titleStyle, $colSpan: 5 }],
       [
         {
@@ -273,9 +257,31 @@ function DetailedTracking() {
         },
         { v: "", t: "s", s: dataStyle, $colSpan: 3 },
       ],
+
+      // Branch Information
+      [{ v: "Branch Information", t: "s", s: titleStyle, $colSpan: 5 }],
+      [
+        { v: "Branch:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: scheduleInfo.branch.replace("-", " "),
+          t: "s",
+          s: dataStyle,
+          $colSpan: 4,
+        },
+      ],
+
+      // Spacer before student list
+      [
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+        { v: "", t: "s", s: dataStyle },
+      ],
+      [{ v: "Student List", t: "s", s: titleStyle, $colSpan: 5 }],
     ];
 
-    // Combine all rows into full data
+    // Combine all data
     const fullData = [...summaryInfo, ...studentData];
 
     // Create worksheet
@@ -290,23 +296,22 @@ function DetailedTracking() {
       { wch: 25 }, // Disbursement Status
     ];
 
-    // Merge title cells
+    // Set merged cells for titles
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Disbursement Info title
-      { s: { r: 6, c: 0 }, e: { r: 6, c: 4 } }, // Financial Details title
+      { s: { r: 4, c: 0 }, e: { r: 4, c: 4 } }, // Financial Details title
+      { s: { r: 8, c: 0 }, e: { r: 8, c: 4 } }, // Branch Info title
+      { s: { r: 12, c: 0 }, e: { r: 12, c: 4 } }, // Student List title
     ];
 
-    // Create workbook and append sheet
+    // Create workbook and export
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Disbursement Report");
 
-    // Format filename safe for use
     const fileName = `Disbursement_${scheduleInfo.disb_title.replace(
       /\s+/g,
       "_"
     )}_${disbursement_id}.xlsx`;
-
-    // Export file
     XLSX.writeFile(wb, fileName);
   };
 
@@ -381,7 +386,7 @@ function DetailedTracking() {
           </div>
           <div className="flex space-x-2">
             <button
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:bg-green-300"
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:bg-green-500"
               onClick={handleComplete}
               disabled={isCompleting || scheduleInfo?.status === "Completed"}
             >
@@ -395,7 +400,7 @@ function DetailedTracking() {
               )}
             </button>
             <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              className="flex items-center gap-2 text-sm font-semibold text-white bg-blue-600 border border-blue-600 hover:bg-white hover:text-blue-600 px-5 py-2 rounded-md transition"
               onClick={handleExportToExcel}
             >
               Export to Excel
@@ -414,9 +419,6 @@ function DetailedTracking() {
                   <p className="text-lg font-semibold">
                     {scheduleInfo.disb_title}
                   </p>
-                  <p className="text-[14px] mb-2 font-semibold">
-                    Type: {scheduleInfo.disbursement_label}
-                  </p>
                   <p className="text-gray-600 text-sm">
                     {new Date(
                       scheduleInfo.disbursement_date
@@ -428,7 +430,6 @@ function DetailedTracking() {
                     })}
                   </p>
                 </div>
-
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Status:</span>
                   {getStatusBadge(scheduleInfo.status)}
@@ -470,7 +471,7 @@ function DetailedTracking() {
               <div className="space-y-2">
                 <div>
                   <p className="font-medium capitalize">
-                    {scheduleInfo.branch}
+                    {scheduleInfo.branch.replace("-", " ")}
                   </p>
                 </div>
                 <div className="text-sm text-gray-500">

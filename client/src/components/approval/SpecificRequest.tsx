@@ -94,7 +94,7 @@ function SpecificRequest({
           onClick={goBack}
           className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={20} />
           Back to requests
         </button>
         <div className="text-sm text-gray-500">

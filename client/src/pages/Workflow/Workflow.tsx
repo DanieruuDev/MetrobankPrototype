@@ -387,11 +387,13 @@ function Workflow() {
                 </div>
 
                 <div className="mb-4">
-                  <PaginationControl
-                    currentPage={page}
-                    totalPages={totalPage}
-                    onPageChange={setPage}
-                  />
+                  {filteredWorkflows.length > 0 && (
+                    <PaginationControl
+                      currentPage={page}
+                      totalPages={totalPage}
+                      onPageChange={setPage}
+                    />
+                  )}
                 </div>
               </div>
             </>

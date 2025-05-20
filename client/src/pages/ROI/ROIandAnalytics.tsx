@@ -104,9 +104,9 @@ const ROIandAnalytics: React.FC = () => {
   const campusData = [
     { campus: "STI Ortigas-Cainta", scholarCount: 20, roiPercentage: 38.0 },
     { campus: "STI Pasay-EDSA", scholarCount: 15, roiPercentage: 36.5 },
-    { campus: "Global City", scholarCount: 10, roiPercentage: 39.0 },
+    { campus: "STI Global City", scholarCount: 10, roiPercentage: 39.0 },
     { campus: "STI Fairview", scholarCount: 18, roiPercentage: 37.5 },
-    { campus: "Novaliches", scholarCount: 10, roiPercentage: 35.0 },
+    { campus: "STI Novaliches", scholarCount: 10, roiPercentage: 35.0 },
     { campus: "STI Sta. Mesa", scholarCount: 5, roiPercentage: 40.0 },
   ];
 

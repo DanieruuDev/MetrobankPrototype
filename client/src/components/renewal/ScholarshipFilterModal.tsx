@@ -46,10 +46,12 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
   const semesterOptions: string[] = ["1st Semester", "2nd Semester"];
 
   const campusOption: string[] = [
-    "CAMPUS_1",
-    "CAMPUS_2",
-    "CAMPUS_3",
-    "CAMPUS_4",
+    "STI Ortigas-Cainta",
+    "STI Fairview",
+    "STI Pasay-EDSA",
+    "STI Global City",
+    "STI Novaliches",
+    "STI Sta Mesa",
   ];
 
   const handleClose = () => {
