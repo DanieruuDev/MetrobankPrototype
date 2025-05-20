@@ -12,6 +12,7 @@ import {
   AlertCircle,
   User,
   Clock,
+  X,
 } from "lucide-react";
 import { ApproverDetailedView } from "../../Interface/IWorkflow";
 import { approverStatusBadge } from "../../utils/StatusBadge";
@@ -248,6 +249,11 @@ function SpecificRequest({
                         <span className="flex items-center text-red-600">
                           <XCircle size={14} className="mr-1" />
                           Rejected
+                        </span>
+                      ) : approval.approval_status === "Replaced" ? (
+                        <span className="flex items-center text-gray-400 italic">
+                          <X size={14} className="mr-1" />
+                          Replaced
                         </span>
                       ) : specificRequest.is_current &&
                         specificRequest.approver_order ===
