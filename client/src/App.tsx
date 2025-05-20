@@ -54,7 +54,12 @@ function App() {
             path="/renewal-scholarship"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                ]}
               >
                 <Renewal />
               </PrivateRoute>
