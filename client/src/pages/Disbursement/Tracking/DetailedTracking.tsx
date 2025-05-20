@@ -5,8 +5,8 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
-import { toast, ToastContainer } from "react-toastify";
-import ConfirmDialog from "../../../components/shared/Confirm";
+import * as XLSX from "xlsx";
+import { ArrowLeft } from "lucide-react";
 
 interface ITrackingDetailed {
   amount: string;
@@ -19,7 +19,22 @@ interface ITrackingDetailed {
   scholarship_status: string;
   status: string;
   student_id: number;
+  disbursement_label: string;
 }
+
+// Define types for status styles
+type ScholarshipStatus = "ACTIVE" | "INACTIVE" | "PENDING";
+type DisbursementStatus =
+  | "Completed"
+  | "In Progress"
+  | "Not Started"
+  | "Cancelled";
+type StatusStyles = Record<
+  ScholarshipStatus | DisbursementStatus,
+  {
+    fill: { fgColor: { rgb: string } };
+  }
+>;
 
 function DetailedTracking() {
   const { disbursement_id } = useParams<{ disbursement_id: string }>();
@@ -30,7 +45,6 @@ function DetailedTracking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
-  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const fetchTrackingDetailed = async () => {
@@ -39,6 +53,7 @@ function DetailedTracking() {
         const response = await axios.get<ITrackingDetailed[]>(
           `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
         );
+        console.log(response.data);
         setTrackingDetailed(response.data);
       } catch (error) {
         console.error(error);
@@ -51,31 +66,251 @@ function DetailedTracking() {
   }, [disbursement_id]);
 
   const handleComplete = async () => {
-    setShowConfirm(true); // hide confirmation modal on confirm
-    if (!showConfirm) return;
     try {
       setIsCompleting(true);
       await axios.put(
         `http://localhost:5000/api/disbursement/tracking/complete/${disbursement_id}`
       );
-      toast.success("Disbursement marked as complete!");
-
       const response = await axios.get<ITrackingDetailed[]>(
         `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
       );
       setTrackingDetailed(response.data);
     } catch (error) {
       console.error("Error completing disbursement:", error);
-      toast.error("Failed to mark disbursement as complete.");
     } finally {
       setIsCompleting(false);
-      setShowConfirm(false);
     }
   };
 
-  console.log(trackingDetailed);
-  const scheduleInfo = trackingDetailed?.[0];
+  const handleExportToExcel = () => {
+    if (!trackingDetailed || trackingDetailed.length === 0) return;
 
+    const scheduleInfo = trackingDetailed[0];
+
+    // ============= STYLE DEFINITIONS =============
+    const headerStyle = {
+      fill: { fgColor: { rgb: "2F5597" } }, // Dark blue background
+      font: { bold: true, color: { rgb: "FFFFFF" }, name: "Calibri", size: 11 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const titleStyle = {
+      fill: { fgColor: { rgb: "BDD7EE" } }, // Light blue background
+      font: { bold: true, size: 14, name: "Calibri" },
+      alignment: { horizontal: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const dataStyle = {
+      font: { name: "Calibri", size: 11 },
+      alignment: { vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "D9D9D9" } },
+        bottom: { style: "thin", color: { rgb: "D9D9D9" } },
+        left: { style: "thin", color: { rgb: "D9D9D9" } },
+        right: { style: "thin", color: { rgb: "D9D9D9" } },
+      },
+    };
+
+    const currencyStyle = {
+      ...dataStyle,
+      numFmt: '"₱"#,##0.00', // Peso sign with comma formatting
+    };
+
+    // Status-specific styles
+    const statusStyles: StatusStyles = {
+      ACTIVE: { fill: { fgColor: { rgb: "FFFF00" } } }, // Yellow
+      INACTIVE: { fill: { fgColor: { rgb: "FFC000" } } }, // Orange
+      PENDING: { fill: { fgColor: { rgb: "FFE699" } } }, // Light Yellow
+      Completed: { fill: { fgColor: { rgb: "92D050" } } }, // Green
+      "In Progress": { fill: { fgColor: { rgb: "00B0F0" } } }, // Blue
+      "Not Started": { fill: { fgColor: { rgb: "FF0000" } } }, // Red
+      Cancelled: { fill: { fgColor: { rgb: "7030A0" } } }, // Purple
+    };
+
+    // Helper to get style safely
+    const getStatusStyle = (status: string) =>
+      statusStyles[status as ScholarshipStatus | DisbursementStatus] || {};
+
+    // ============= PREPARE DATA =============
+    // Student Data with styles
+    const studentData = [
+      // Header row
+      [
+        { v: "Student ID", t: "s", s: headerStyle },
+        { v: "Name", t: "s", s: headerStyle },
+        { v: "Scholarship Status", t: "s", s: headerStyle },
+        { v: "Amount", t: "s", s: headerStyle },
+        { v: "Disbursement Status", t: "s", s: headerStyle },
+      ],
+      // Data rows
+      ...trackingDetailed.map((student, index) => {
+        // Alternate row color
+        const rowStyle =
+          index % 2 === 0
+            ? { ...dataStyle, fill: { fgColor: { rgb: "FFFFFF" } } }
+            : { ...dataStyle, fill: { fgColor: { rgb: "F2F2F2" } } };
+
+        const scholarshipStyle = getStatusStyle(student.scholarship_status);
+        const disbursementStyle = getStatusStyle(student.status);
+
+        return [
+          { v: student.student_id, t: "n", s: rowStyle },
+          { v: student.scholar_name, t: "s", s: rowStyle },
+          {
+            v: student.scholarship_status,
+            t: "s",
+            s: { ...rowStyle, ...scholarshipStyle },
+          },
+          {
+            v: Number(student.amount),
+            t: "n",
+            s: { ...currencyStyle, ...rowStyle },
+          },
+          {
+            v: student.status,
+            t: "s",
+            s: { ...rowStyle, ...disbursementStyle },
+          },
+        ];
+      }),
+    ];
+
+    // Summary Information with branch and disbursement label added
+    const summaryInfo = [
+      [{ v: "Disbursement Information", t: "s", s: titleStyle, $colSpan: 5 }],
+      [
+        { v: "Title:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        { v: scheduleInfo.disb_title, t: "s", s: dataStyle, $colSpan: 4 },
+      ],
+      [
+        { v: "Date:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: new Date(scheduleInfo.disbursement_date).toLocaleDateString(
+            "en-US",
+            {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              weekday: "long",
+            }
+          ),
+          t: "s",
+          s: dataStyle,
+          $colSpan: 4,
+        },
+      ],
+      [
+        { v: "Status:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: scheduleInfo.status,
+          t: "s",
+          s: { ...dataStyle, ...getStatusStyle(scheduleInfo.status) },
+          $colSpan: 4,
+        },
+      ],
+      // Add Branch row
+      [
+        { v: "Branch:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        {
+          v: scheduleInfo.branch.replace("-", " "),
+          t: "s",
+          s: dataStyle,
+          $colSpan: 4,
+        },
+      ],
+      // Add Disbursement Label row
+      [
+        {
+          v: "Disbursement Label:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        {
+          v: scheduleInfo.disbursement_label || "",
+          t: "s",
+          s: dataStyle,
+          $colSpan: 4,
+        },
+      ],
+      [{ v: "Financial Details", t: "s", s: titleStyle, $colSpan: 5 }],
+      [
+        {
+          v: "Amount per student:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        { v: Number(scheduleInfo.amount), t: "n", s: currencyStyle },
+        { v: "", t: "s", s: dataStyle },
+        {
+          v: "Total Students:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        { v: scheduleInfo.quantity, t: "n", s: dataStyle },
+      ],
+      [
+        {
+          v: "Total Amount:",
+          t: "s",
+          s: { ...dataStyle, font: { bold: true } },
+        },
+        {
+          v: Number(scheduleInfo.amount) * scheduleInfo.quantity,
+          t: "n",
+          s: currencyStyle,
+        },
+        { v: "", t: "s", s: dataStyle, $colSpan: 3 },
+      ],
+    ];
+
+    // Combine all rows into full data
+    const fullData = [...summaryInfo, ...studentData];
+
+    // Create worksheet
+    const ws = XLSX.utils.aoa_to_sheet(fullData);
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 15 }, // Student ID
+      { wch: 35 }, // Name
+      { wch: 25 }, // Scholarship Status
+      { wch: 20 }, // Amount
+      { wch: 25 }, // Disbursement Status
+    ];
+
+    // Merge title cells
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Disbursement Info title
+      { s: { r: 6, c: 0 }, e: { r: 6, c: 4 } }, // Financial Details title
+    ];
+
+    // Create workbook and append sheet
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Disbursement Report");
+
+    // Format filename safe for use
+    const fileName = `Disbursement_${scheduleInfo.disb_title.replace(
+      /\s+/g,
+      "_"
+    )}_${disbursement_id}.xlsx`;
+
+    // Export file
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // ... (rest of your component code remains exactly the same)
   const getStatusBadge = (status: string) => {
     const statusClasses = {
       "Not Started": "bg-gray-200 text-gray-800",
@@ -116,6 +351,8 @@ function DetailedTracking() {
     );
   }
 
+  const scheduleInfo = trackingDetailed?.[0];
+
   return (
     <div
       className={`${
@@ -127,28 +364,20 @@ function DetailedTracking() {
       <Sidebar />
 
       <div className="p-6 max-w-6xl mx-auto">
-        <ToastContainer position="top-right" autoClose={3000} />
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div>
             <button
               onClick={() => navigate(-1)}
-              className="flex items-center text-gray-600 hover:text-gray-900"
+              className="group flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-1"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Back
+              <ArrowLeft
+                size={25}
+                className="group-hover:-translate-x-1 transition-transform"
+              />
             </button>
-            <span className="text-gray-600 text-sm">ID: {disbursement_id}</span>
+            <span className="text-gray-600 text-sm pb-4 ml-1">
+              ID: {disbursement_id}
+            </span>
           </div>
           <div className="flex space-x-2">
             <button
@@ -165,22 +394,17 @@ function DetailedTracking() {
                 "Mark as Complete"
               )}
             </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              onClick={handleExportToExcel}
+            >
               Export to Excel
             </button>
-            <ConfirmDialog
-              isOpen={showConfirm}
-              message="Are you sure you want to mark this disbursement as complete?"
-              onConfirm={handleComplete}
-              onCancel={() => setShowConfirm(false)}
-              confirmText="Yes, Complete"
-              cancelText="Cancel"
-            />
           </div>
         </div>
 
         {scheduleInfo && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 mt-2">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
               <h3 className="font-medium text-gray-500 mb-2">
                 Disbursement Information
@@ -189,6 +413,9 @@ function DetailedTracking() {
                 <div>
                   <p className="text-lg font-semibold">
                     {scheduleInfo.disb_title}
+                  </p>
+                  <p className="text-[14px] mb-2 font-semibold">
+                    Type: {scheduleInfo.disbursement_label}
                   </p>
                   <p className="text-gray-600 text-sm">
                     {new Date(
@@ -201,6 +428,7 @@ function DetailedTracking() {
                     })}
                   </p>
                 </div>
+
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Status:</span>
                   {getStatusBadge(scheduleInfo.status)}
@@ -242,7 +470,7 @@ function DetailedTracking() {
               <div className="space-y-2">
                 <div>
                   <p className="font-medium capitalize">
-                    {scheduleInfo.branch.replace("-", " ")}
+                    {scheduleInfo.branch}
                   </p>
                 </div>
                 <div className="text-sm text-gray-500">
