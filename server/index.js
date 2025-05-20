@@ -10,11 +10,20 @@ const disbursementTracking = require("./routes/disbursement-tracking-router.js")
 const maintenance = require("./routes/maintenance-router.js");
 const renewalRouter = require("./routes/renewal-router.js");
 const workflowRouter = require("./routes/workflow-router.js");
+require("dotenv").config();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "*",
+    credentials: true,
+  })
+);
+
+const PORT = process.env.PORT || 5000;
 app.use("/api/auth", userAdminRouter);
 app.use("/api/disbursement", disbursementRouter);
 app.use("/api/disbursement/overview", disbursementOverview);
@@ -28,6 +37,6 @@ app.use("/", async (req, res) => {
   res.send("Hello World");
 });
 
-app.listen(5000, () => {
-  console.log("Server is running on http://localhost:5000");
+app.listen(PORT, () => {
+  console.log(`Server is running on ${PORT}`);
 });
