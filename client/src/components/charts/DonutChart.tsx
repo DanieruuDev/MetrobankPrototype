@@ -21,6 +21,15 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
     DisbursementDate[] | null
   >([]);
 
+  // Function to format school year with a dash (e.g., 20242025 -> 2024-2025)
+  const formatSchoolYear = (year: number): string => {
+    const yearStr = year.toString();
+    if (yearStr.length === 8) {
+      return `${yearStr.substring(0, 4)}-${yearStr.substring(4)}`;
+    }
+    return yearStr; // Return as is if not in expected format
+  };
+
   const formatCurrencyShort = (value: number): string => {
     if (value >= 1_000_000) return `₱${(value / 1_000_000).toFixed(1)}M`;
     if (value >= 1_000) return `₱${(value / 1_000).toFixed(1)}K`;
@@ -97,7 +106,7 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
   return (
     <div className="w-full max-w-3xl mx-auto">
       <h3 className="text-center text-lg font-semibold mb-4">
-        Disbursement Breakdown &#40;{school_year}&#41;
+        Disbursement Breakdown &#40;{formatSchoolYear(school_year)}&#41;
       </h3>
 
       {disbursementData && disbursementData.length === 0 ? (
