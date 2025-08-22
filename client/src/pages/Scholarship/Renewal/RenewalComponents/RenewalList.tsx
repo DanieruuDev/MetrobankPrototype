@@ -460,7 +460,7 @@ const RenewalList: React.FC<RenewalListProps> = ({ handleRowClick }) => {
         getRenewalData={getRenewalData}
         sySemester={sySemester}
         onChangeSySemester={(newValue) => {
-          setSySemester(newValue); // ✅ updates dropdown and triggers useEffect
+          setSySemester(newValue);
         }}
       />
 
