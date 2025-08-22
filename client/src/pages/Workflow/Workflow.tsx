@@ -201,7 +201,7 @@ function Workflow() {
         collapsed ? "pl-20" : "pl-[250px]"
       } transition-all duration-300`}
     >
-      <Navbar pageName="Workflow Approval" />
+      <Navbar pageName="Approvals" />
 
       <Sidebar />
 
