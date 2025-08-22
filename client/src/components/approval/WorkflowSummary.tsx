@@ -60,11 +60,8 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
             <div>{formData?.req_type_id}</div>
           </div>
           <div className="space-y-1">
-            <div className="text-[#808080] text-[16px]">YR-SY-SEM</div>
-            <div>
-              {formData?.scholar_level} | {formData?.school_year} |
-              {formData?.semester}
-            </div>
+            <div className="text-[#808080] text-[16px]">School Year</div>
+            <div>{formData?.school_year}</div>
           </div>
         </div>
         <div className="grid grid-cols-3 ">

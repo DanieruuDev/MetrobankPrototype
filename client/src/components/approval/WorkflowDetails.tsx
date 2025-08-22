@@ -14,17 +14,6 @@ interface SelectField {
   options: Record<string, string>;
 }
 
-const requestTypeMap: { [key: string]: string } = {
-  CR: "Contract Renewal",
-  SFP: "Scholarship Fee Processing",
-  SFD: "Scholarship Fee Disbursement",
-  AFP: "Allowance Fee Processing",
-  AFD: "Allowance Fee Disbursement",
-  TF: "Thesis Fee",
-  TFD: "Thesis Fee Disbursement",
-  IA: "Internship Allowance",
-  IAD: "Internship Allowance Disbursement",
-};
 const schoolyearMap: { [key: number]: string } = {
   20242025: "2024-2025",
   20252026: "2025-2026",
@@ -41,7 +30,6 @@ const selectFields: SelectField[] = [
 function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
   const [error, setError] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const todayDate = new Date().toISOString().split("T")[0];
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: (acceptedFiles) => {
@@ -74,19 +62,6 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
     multiple: false,
   });
 
-  const handleApprovalTypeChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    const selectedType = e.target.value;
-    const selectedLabel = requestTypeMap[selectedType] || "";
-
-    setFormData((prev) => ({
-      ...prev,
-      req_type_id: selectedType,
-      request_title: selectedLabel, // Set the request title to the selected approval type label
-    }));
-  };
-
   return (
     <div>
       <div className="mb-5 font-medium text-[20px]">Workflow Details</div>
@@ -115,33 +90,29 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             }
           />
         </div>
-        <div className="relative">
+        <div>
           <label
             htmlFor="req_type_id"
             className="block mb-1 text-sm font-medium text-gray-700"
           >
             Approval Request Description
           </label>
-          <select
+          <input
+            type="text"
             name="req_type_id"
-            value={formData.req_type_id}
-            onChange={handleApprovalTypeChange}
-            className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
-                appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+            id="req_type_id"
+            maxLength={255}
+            placeholder="Enter approval request description..."
             required
-          >
-            <option value="" disabled>
-              Select Approval Type
-            </option>
-            {Object.entries(requestTypeMap).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-3 top-6 flex items-center pointer-events-none text-gray-700">
-            ⏷
-          </div>
+            className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
+            value={formData.req_type_id}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                req_type_id: e.target.value,
+              }))
+            }
+          />
         </div>
 
         <div className="flex gap-3">
@@ -159,7 +130,6 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
               ref={dateInputRef}
               type="date"
               name="due_date"
-              min={todayDate}
               value={formData.due_date}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, due_date: e.target.value }))
@@ -169,7 +139,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
               required
             />
             <Calendar
-              className="absolute right-3 top-8 transform -translate-y-1/2 text-gray-700 pointer-events-none"
+              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-700 pointer-events-none"
               size={20}
             />
           </div>

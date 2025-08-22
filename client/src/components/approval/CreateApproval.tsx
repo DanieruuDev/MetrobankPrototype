@@ -23,6 +23,8 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const [approversValid, setApproversValid] = useState(false);
+  // Add showValidation state
+  const [showValidation, setShowValidation] = useState(false);
 
   const isApproverValid = (): boolean => {
     if (!approversValid) {
@@ -39,8 +41,6 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     description: "",
     file: null,
     approvers: [],
-    scholar_level: "",
-    semester: "",
     due_date: "",
     school_year: "",
   });
@@ -64,14 +64,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       toast.error("Due Date is required.");
       return false;
     }
-    if (!data.scholar_level) {
-      toast.error("Scholar Year Level is required.");
-      return false;
-    }
-    if (!data.semester) {
-      toast.error("Semester is required.");
-      return false;
-    }
+    // REMOVED: scholar_level and semester validation since these fields have been removed from the form
     if (!data.school_year) {
       toast.error("School Year is required.");
       return false;
@@ -91,8 +84,14 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     if (stepNum !== 3) {
       if (stepNum === 1 && isWorkflowInfoValid(formData)) {
         setStepNum(2);
-      } else if (stepNum === 2 && isApproverValid()) {
-        setStepNum(3);
+      } else if (stepNum === 2) {
+        // Set showValidation to true to trigger validation display
+        setShowValidation(true);
+        // Trigger validation event for AddApprover component
+        window.dispatchEvent(new Event("validation-attempt"));
+        if (isApproverValid()) {
+          setStepNum(3);
+        }
       }
     }
   };
@@ -100,6 +99,8 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const clickBackButton = () => {
     if (stepNum > 1) {
       setStepNum(stepNum - 1);
+      // Reset validation display when going back
+      setShowValidation(false);
     }
   };
 
@@ -112,6 +113,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
           formData={formData}
           setFormData={setFormData}
           onValidateApprovers={(status) => setApproversValid(status.valid)}
+          showValidation={showValidation} // Pass the showValidation prop
         />
       );
     } else {
@@ -129,8 +131,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     sendData.append("requester_id", formData.requester_id);
     sendData.append("req_type_id", formData.req_type_id);
     sendData.append("description", formData.description);
-    sendData.append("scholar_level", formData.scholar_level);
-    sendData.append("semester", formData.semester);
+    // REMOVED: scholar_level and semester since these fields have been removed from the form
     sendData.append("due_date", formData.due_date);
     sendData.append("school_year", formData.school_year);
 
@@ -192,7 +193,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         pauseOnHover
       />
 
-      <div className="fixed inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
+      <div className="fixed border inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
         <div
           className={`relative bg-white rounded-lg p-5 shadow-lg max-w-2xl w-full max-h-[95vh] overflow-y-auto`}
         >
