@@ -14,31 +14,12 @@ interface CreateApproval2Props {
   fetchWorkflows: (page: number) => void;
 }
 
-const requestTypeMap: { [key: string]: string } = {
-  CR: "Contract Renewal",
-  SFP: "Scholarship Fee Processing",
-  SFD: "Scholarship Fee Disbursement",
-  AFP: "Allowance Fee Processing",
-  AFD: "Allowance Fee Disbursement",
-  TF: "Thesis Fee",
-  TFD: "Thesis Fee Disbursement",
-  IA: "Internship Allowance",
-  IAD: "Internship Allowance Disbursement",
-};
+// REMOVED: requestTypeMap is no longer needed since rq_type_id is now a free text field
 const schoolyearMap: { [key: number]: string } = {
   20242025: "2024-2025",
   20252026: "2025-2026",
 };
-const semesterMap: { [key: number]: string } = {
-  1: "1st Semester",
-  2: "2nd Semester",
-};
-const yrlvlMap: { [key: number]: string } = {
-  1: "1st Year",
-  2: "2nd Year",
-  3: "3rd Year",
-  4: "4th Year",
-};
+// Removed semester and scholar_level maps as these fields are no longer used
 
 function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -140,8 +121,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     sendData.append("description", formValues.description);
     if (file) sendData.append("file", file);
     sendData.append("approvers", JSON.stringify(approversToSend));
-    sendData.append("scholar_level", formValues.scholar_level);
-    sendData.append("semester", formValues.semester);
+    // Removed scholar_level and semester as these fields are no longer used
     sendData.append("due_date", formValues.due_date);
     sendData.append("school_year", formValues.school_year);
 
@@ -238,27 +218,16 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
               />
             </div>
             <div className="flex gap-3">
-              <div className="relative flex-1">
-                <select
+              <div className="flex-1">
+                <input
+                  type="text"
                   name="req_type_id"
-                  defaultValue=""
-                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
-                    appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+                  placeholder="Enter approval request description..."
+                  maxLength={255}
+                  className="w-full rounded-md px-4 py-2 text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
                   required
-                >
-                  <option value="" disabled>
-                    Select Approval Type
-                  </option>
-                  {Object.entries(requestTypeMap).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-700">
-                  ⏷
-                </div>
+                />
               </div>
               <div
                 className="relative flex-1"
@@ -282,42 +251,28 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
             </div>
 
             <div className="flex gap-3 text-[16px]">
-              {[
-                {
-                  name: "scholar_level",
-                  label: "Scholar Year Level",
-                  options: yrlvlMap,
-                },
-                { name: "semester", label: "Semester", options: semesterMap },
-                {
-                  name: "school_year",
-                  label: "School Year",
-                  options: schoolyearMap,
-                },
-              ].map(({ name, label, options }) => (
-                <div key={name} className="relative flex-1">
-                  <select
-                    name={name}
-                    defaultValue=""
-                    className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border  border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-                      appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
-                    disabled={loading}
-                    required
-                  >
-                    <option value="" disabled>
-                      {label}
+              <div className="relative flex-1">
+                <select
+                  name="school_year"
+                  defaultValue=""
+                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border  border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+                    appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+                  disabled={loading}
+                  required
+                >
+                  <option value="" disabled>
+                    School Year
+                  </option>
+                  {Object.entries(schoolyearMap).map(([key, value]) => (
+                    <option key={key} value={value}>
+                      {value}
                     </option>
-                    {Object.entries(options).map(([key, value]) => (
-                      <option key={key} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-700">
-                    ⏷
-                  </div>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-700">
+                  ⏷
                 </div>
-              ))}
+              </div>
             </div>
 
             <div
