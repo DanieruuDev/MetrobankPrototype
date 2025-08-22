@@ -2,14 +2,6 @@
 
 const pool = require("../database/dbConnect.js");
 
-/**
- * Creates a new notification and associates it with recipients.
- * @param {string} type - The notification type (e.g., 'comment', 'like', 'follow').
- * @param {string} title - The notification title.
- * @param {string} message - The full notification message.
- * @param {number} relatedId - The ID of the related entity (e.g., post ID, user ID).
- * @param {number[]} recipientIds - An array of user IDs to notify.
- */
 const createNotification = async (
   type,
   title,
@@ -21,9 +13,9 @@ const createNotification = async (
   try {
     await client.query("BEGIN");
 
-    // 1. Insert the notification event
+    // 1. Change the table name here
     const notifResult = await client.query(
-      `INSERT INTO public.notifications
+      `INSERT INTO public.notification_events
             (type, title, message, related_id)
             VALUES ($1, $2, $3, $4) RETURNING id`,
       [type, title, message, relatedId]
@@ -31,7 +23,7 @@ const createNotification = async (
 
     const notificationId = notifResult.rows[0].id;
 
-    // 2. Insert the recipient records
+    // 2. The recipient query stays the same as it references notification_id
     const recipientInserts = recipientIds.map(
       (userId) =>
         `INSERT INTO public.notification_recipients (notification_id, user_id) VALUES (${notificationId}, ${userId})`

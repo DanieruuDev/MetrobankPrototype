@@ -1,8 +1,8 @@
-// controllers/notification-controller.js
+// controllers/notificationController.js
+
 const pool = require("../database/dbConnect.js");
 
 const getNotifications = async (req, res) => {
-  // We get the user ID from the auth middleware
   const userId = req.user?.user_id;
 
   if (!userId) {
@@ -10,18 +10,18 @@ const getNotifications = async (req, res) => {
   }
 
   try {
-    // Query notifications for the current user, joining with the notifications table
+    // Change the table name in the JOIN clause
     const { rows } = await pool.query(
       `SELECT
-                n.id,
-                n.type,
-                n.title,
-                n.message,
-                n.related_id,
+                ne.id,
+                ne.type,
+                ne.title,
+                ne.message,
+                ne.related_id,
                 nr.is_read,
                 nr.created_at AS received_at
             FROM notification_recipients nr
-            JOIN notifications n ON nr.notification_id = n.id
+            JOIN notification_events ne ON nr.notification_id = ne.id
             WHERE nr.user_id = $1
             ORDER BY nr.created_at DESC`,
       [userId]
@@ -35,6 +35,7 @@ const getNotifications = async (req, res) => {
 };
 
 const markAsRead = async (req, res) => {
+  // ... no changes needed here ...
   const userId = req.user?.user_id;
   const { notificationId } = req.body;
 
