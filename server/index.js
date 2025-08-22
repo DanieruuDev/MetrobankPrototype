@@ -9,6 +9,7 @@ const disbursementTracking = require("./routes/disbursement-tracking-router.js")
 const maintenance = require("./routes/maintenance-router.js");
 const renewalRouter = require("./routes/renewal-router.js");
 const workflowRouter = require("./routes/workflow-router.js");
+const notificationRouter = require("./routes/notification-router.js");
 require("./utils/scheduler.js");
 require("dotenv").config();
 
@@ -32,6 +33,7 @@ app.use("/api/maintenance", maintenance);
 app.use("/api/renewal", renewalRouter);
 app.use("/api/workflow", workflowRouter);
 app.use("/public", express.static(path.join(__dirname, "public")));
+app.use("/api/notifications", notificationRouter);
 
 app.use("/", async (req, res) => {
   res.send("Hello World");
