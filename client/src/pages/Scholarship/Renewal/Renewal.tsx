@@ -1,7 +1,7 @@
 import Sidebar from "../../../components/shared/Sidebar";
 import Navbar from "../../../components/shared/Navbar";
 import { useState } from "react";
-
+import RenewalListV2 from "./RenewalComponents/RenewalListV2";
 import SpecificRenewal from "./RenewalComponents/SpecificRenewal";
 import RenewalList from "./RenewalComponents/RenewalList";
 import { useSidebar } from "../../../context/SidebarContext";
@@ -22,7 +22,7 @@ function Renewal() {
   return (
     <div
       className={`${
-        collapsed ? "pl-20" : "pl-[250px]"
+        collapsed ? "pl-20" : "pl-[240px]"
       } transition-[padding-left] duration-300`}
     >
       <Navbar pageName="Scholarship Renewal" />
@@ -30,7 +30,7 @@ function Renewal() {
 
       {detailedRenewal === null ? (
         <>
-          <RenewalList handleRowClick={handleRowClick} />
+          <RenewalListV2 />
         </>
       ) : (
         <SpecificRenewal

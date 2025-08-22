@@ -1,380 +1,295 @@
-// import axios from "axios";
-// import { useState } from "react";
-// import { WorkflowDisplaySchema } from "../../pages/Workflow/Workflow";
+import { X } from "lucide-react";
+import { useContext, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { AuthContext } from "../../context/AuthContext";
+import Loading from "../../components/shared/Loading"; // Adjust path as needed
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import WorkflowDetails from "./WorkflowDetails";
+import { WorkflowFormData } from "../../Interface/IWorkflow";
+import AddApprover from "./AddApprover";
+import WorkflowSummary from "./WorkflowSummary";
+import axios from "axios";
 
-// interface CreateApprovalProps {
-//   setIsModalOpen: (isOpen: boolean) => void;
-//   requester_id: number;
-//   setWorkflowDisplay: React.Dispatch<
-//     React.SetStateAction<WorkflowDisplaySchema[]>
-//   >;
-//   fetchWorkflows: () => void;
-// }
-// interface WFApprover {
-//   email: string;
-//   order: number;
-//   date: string;
-// }
-// interface CreateWorkflowSchema {
-//   requester_id: number;
-//   req_type_id: string;
-//   rq_description: string;
-//   file: File | null;
-//   approvers: WFApprover[];
-//   scholar_level: string;
-//   semester: string;
-//   due_date: string;
-//   school_year: string;
-// }
-// const requestTypeMap: { [key: string]: string } = {
-//   CR: "Contract Renewal",
-//   SFP: "Scholarship Fee Processing",
-//   SFD: "Scholarship Fee Disbursement",
-//   AFP: "Allowance Fee Processing",
-//   AFD: "Allowance Fee Disbursement",
-//   TF: "Thesis Fee",
-//   TFD: "Thesis Fee Disbursement",
-//   IA: "Internship Allowance",
-//   IAD: "Internship Allowance Disbursement",
-// };
+interface CreateApproval2Props {
+  setIsModal: (isOpen: boolean) => void;
+  fetchWorkflows: (page: number) => void;
+}
 
-// function CreateApproval({
-//   setIsModalOpen,
-//   requester_id,
-//   setWorkflowDisplay,
-//   fetchWorkflows,
-// }: CreateApprovalProps) {
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState("");
+function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [stepNum, setStepNum] = useState(1);
+  const auth = useContext(AuthContext);
+  const userId = auth?.user?.user_id;
+  const [approversValid, setApproversValid] = useState(false);
 
-//   const [formData, setFormData] = useState<CreateWorkflowSchema>({
-//     requester_id: requester_id,
-//     req_type_id: "",
-//     rq_description: "",
-//     file: null,
-//     approvers: [{ email: "", order: 1, date: "" }],
-//     scholar_level: "",
-//     semester: "",
-//     due_date: "",
-//     school_year: "",
-//   });
+  const isApproverValid = (): boolean => {
+    if (!approversValid) {
+      toast.error("Please fix approver errors before continuing.");
+      return false;
+    }
+    return true;
+  };
 
-//   const handleChange = (
-//     e: React.ChangeEvent<
-//       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-//     >
-//   ) => {
-//     const { name, value } = e.target;
-//     setFormData((prev) => ({ ...prev, [name]: value }));
-//   };
-//   const addApprover = () => {
-//     setFormData((prev) => ({
-//       ...prev,
-//       approvers: [
-//         ...prev.approvers,
-//         { email: "", order: prev.approvers.length + 1, date: "" },
-//       ],
-//     }));
-//   };
-//   const handleApproverChange = (
-//     index: number,
-//     field: keyof WFApprover,
-//     value: string
-//   ) => {
-//     setFormData((prev) => {
-//       const newApprovers = [...prev.approvers];
-//       newApprovers[index] = { ...newApprovers[index], [field]: value };
-//       return { ...prev, approvers: newApprovers };
-//     });
-//   };
-//   const removeApprover = (index: number) => {
-//     setFormData((prev) => {
-//       const newApprovers = prev.approvers.filter((_, i) => i !== index);
-//       return {
-//         ...prev,
-//         approvers: newApprovers.map((approver, i) => ({
-//           ...approver,
-//           order: i + 1,
-//         })),
-//       };
-//     });
-//   };
-//   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-//     const selectedFile = event.target.files?.[0];
+  const [formData, setFormData] = useState<WorkflowFormData>({
+    request_title: "",
+    requester_id: String(userId),
+    req_type_id: "",
+    description: "",
+    file: null,
+    approvers: [],
+    scholar_level: "",
+    semester: "",
+    due_date: "",
+    school_year: "",
+  });
 
-//     if (selectedFile) {
-//       const allowedTypes = [
-//         "application/pdf",
-//         "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-//         "application/msword", // .doc
-//       ];
-//       const maxSize = 25 * 1024 * 1024; // 25MB limit
+  const steps = [
+    { number: 1, label: "Workflow Details" },
+    { number: 2, label: "Add Approvers" },
+    { number: 3, label: "Review" },
+  ];
 
-//       if (!allowedTypes.includes(selectedFile.type)) {
-//         setError("Only PDF and Word files are allowed.");
-//         setFormData((prev) => ({ ...prev, file: null }));
-//         return;
-//       }
+  const isWorkflowInfoValid = (data: WorkflowFormData): boolean => {
+    if (!data.request_title.trim()) {
+      toast.error("Request Title is required.");
+      return false;
+    }
+    if (!data.req_type_id) {
+      toast.error("Approval Type is required.");
+      return false;
+    }
+    if (!data.due_date) {
+      toast.error("Due Date is required.");
+      return false;
+    }
+    if (!data.scholar_level) {
+      toast.error("Scholar Year Level is required.");
+      return false;
+    }
+    if (!data.semester) {
+      toast.error("Semester is required.");
+      return false;
+    }
+    if (!data.school_year) {
+      toast.error("School Year is required.");
+      return false;
+    }
+    if (!data.description.trim()) {
+      toast.error("Description is required.");
+      return false;
+    }
+    if (!data.file) {
+      toast.error("A valid file is required.");
+      return false;
+    }
+    return true;
+  };
 
-//       if (selectedFile.size > maxSize) {
-//         setError("File size should not exceed 25MB.");
-//         setFormData((prev) => ({ ...prev, file: null }));
-//         return;
-//       }
+  const clickNextButton = () => {
+    if (stepNum !== 3) {
+      if (stepNum === 1 && isWorkflowInfoValid(formData)) {
+        setStepNum(2);
+      } else if (stepNum === 2 && isApproverValid()) {
+        setStepNum(3);
+      }
+    }
+  };
 
-//       setError("");
-//       setFormData((prev) => ({ ...prev, file: selectedFile }));
-//     }
-//   };
-//   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-//     event.preventDefault();
-//     setError("");
-//     setLoading(true);
+  const clickBackButton = () => {
+    if (stepNum > 1) {
+      setStepNum(stepNum - 1);
+    }
+  };
 
-//     console.log(requester_id);
-//     const formDataToSend = new FormData();
-//     formDataToSend.append("requester_id", String(formData.requester_id));
-//     formDataToSend.append("req_type_id", formData.req_type_id);
-//     formDataToSend.append("rq_description", formData.rq_description);
-//     formDataToSend.append("due_date", formData.due_date);
-//     formDataToSend.append("school_year", formData.school_year);
-//     formDataToSend.append("semester", formData.semester);
-//     formDataToSend.append("scholar_level", formData.scholar_level);
+  const PageShow = () => {
+    if (stepNum === 1) {
+      return <WorkflowDetails formData={formData} setFormData={setFormData} />;
+    } else if (stepNum === 2 && isWorkflowInfoValid(formData) === true) {
+      return (
+        <AddApprover
+          formData={formData}
+          setFormData={setFormData}
+          onValidateApprovers={(status) => setApproversValid(status.valid)}
+        />
+      );
+    } else {
+      return <WorkflowSummary formData={formData} />;
+    }
+  };
 
-//     // Convert approvers array to JSON string before appending
-//     formDataToSend.append("approvers", JSON.stringify(formData.approvers));
+  const handleSubmit = async () => {
+    setError(null);
+    setLoading(true);
+    console.log("Form Data before sending:", formData);
 
-//     if (
-//       !formData.req_type_id ||
-//       !formData.due_date ||
-//       !formData.school_year ||
-//       !formData.scholar_level ||
-//       !formData.semester ||
-//       !formData.rq_description ||
-//       formData.approvers.some((a) => !a.email || !a.date)
-//     ) {
-//       setError("All fields are required. Please fill them in.");
-//       setLoading(false);
-//       return;
-//     }
+    const sendData = new FormData();
+    sendData.append("request_title", formData.request_title);
+    sendData.append("requester_id", formData.requester_id);
+    sendData.append("req_type_id", formData.req_type_id);
+    sendData.append("description", formData.description);
+    sendData.append("scholar_level", formData.scholar_level);
+    sendData.append("semester", formData.semester);
+    sendData.append("due_date", formData.due_date);
+    sendData.append("school_year", formData.school_year);
 
-//     if (formData.file) {
-//       formDataToSend.append("file", formData.file);
-//     }
-//     for (const [key, value] of formDataToSend.entries()) {
-//       console.log(`${key}: ${value}`);
-//     }
-//     try {
-//       const response = await axios.post(
-//         "http://localhost:5000/api/workflow/create-workflow",
-//         formDataToSend,
-//         {
-//           headers: { "Content-Type": "multipart/form-data" },
-//         }
-//       );
-//       console.log(response.data);
-//       setWorkflowDisplay((prev) => [
-//         {
-//           workflow_id: response.data.workflow_id, // New workflow first
-//           rq_title: requestTypeMap[formData.req_type_id] || "Unknown",
-//           due_date: formData.due_date,
-//           status: "Pending",
-//           doc_name: formData.file ? formData.file.name : "N/A",
-//           current_approver: formData.approvers[0]?.email || "TBD",
-//           school_details: `${formData.school_year} - ${formData.semester} (${formData.scholar_level})`,
-//         },
-//         ...prev, // Keep existing ones after
-//       ]);
+    if (formData.file) {
+      sendData.append("file", formData.file);
+    }
 
-//       alert("Success");
-//       fetchWorkflows();
-//       setIsModalOpen(false);
-//     } catch (error) {
-//       if (axios.isAxiosError(error) && error.response) {
-//         setError(
-//           error.response.data.message || "Submission failed. Try again."
-//         );
-//       } else {
-//         setError("Network error. Please check your connection.");
-//       }
-//     } finally {
-//       setLoading(false);
-//     }
-//   }
+    sendData.append("approvers", JSON.stringify(formData.approvers));
 
-//   return (
-//     <div className="fixed inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50">
-//       <div className="bg-white rounded-lg p-8 shadow-lg max-w-2xl w-full">
-//         {error && <p className="text-red-500 text-sm">{error}</p>}
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/workflow/create-workflow",
+        sendData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-//         <div className="flex justify-between items-center mb-4">
-//           <h2 className="text-xl font-semibold">Approval Request</h2>
-//           <button
-//             className="text-gray-500 hover:text-gray-800"
-//             onClick={() => setIsModalOpen(false)}
-//           >
-//             ✕
-//           </button>
-//         </div>
-//         <form onSubmit={handleSubmit} className="space-y-4">
-//           <div className="grid grid-cols-2 gap-4">
-//             <select
-//               id="req_type_id"
-//               name="req_type_id"
-//               className="border border-gray-400 px-3 py-2 w-full bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md"
-//               value={formData.req_type_id}
-//               onChange={handleChange}
-//             >
-//               <option value="" disabled>
-//                 Select Approval Type
-//               </option>
-//               <option value="CR">Contract Renewal</option>
-//               <option value="SFP">Scholarship Fee Processing</option>
-//               <option value="SFD">Scholarship Fee Disbursement</option>
-//               <option value="AFP">Allowance Fee Processing</option>
-//               <option value="AFD">Allowance Fee Disbursement</option>
-//               <option value="TF">Thesis Fee</option>
-//               <option value="thesis_fee_disbursement">
-//                 Thesis Fee Disbursement
-//               </option>
-//               <option value="IA">Internship Allowance</option>
-//               <option value="IAD">Internship Allowance Disbursement</option>
-//             </select>
-//             <input
-//               id="due_date"
-//               name="due_date"
-//               type="date"
-//               value={formData.due_date}
-//               onChange={handleChange}
-//               required
-//               className="border border-gray-400 px-3 py-2 w-full"
-//             />
-//           </div>
+      fetchWorkflows(1);
+      setIsModal(false);
+      toast.success("Approval request created successfully!");
+      console.log(res.data);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      setError("Failed to submit request. Please try again.");
+      let message = "Failed to create approval request. Please try again.";
 
-//           <input
-//             type="file"
-//             required
-//             className="border border-gray-400 px-3 py-2 w-full"
-//             onChange={handleFileChange}
-//           />
+      if (axios.isAxiosError(error) && error.response) {
+        const serverMessage = error.response.data?.message;
 
-//           {/* New Inputs: Scholar Level, Semester, School Year */}
-//           <div className="grid grid-cols-2 gap-4">
-//             <select
-//               id="scholar_level"
-//               name="scholar_level"
-//               className="border border-gray-400 px-3 py-2 w-full bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md"
-//               value={formData.scholar_level}
-//               onChange={handleChange}
-//             >
-//               <option value="" disabled>
-//                 Select Scholar Level
-//               </option>
-//               <option value="1st Year">1st Year</option>
-//               <option value="2nd Year">2nd Year</option>
-//               <option value="3rd Year">3rd Year</option>
-//               <option value="4th Year">4th Year</option>
-//             </select>
+        if (serverMessage?.toLowerCase().includes("already exists")) {
+          message =
+            "A workflow with the same school year, semester, and year level already exists.";
+        } else {
+          message = serverMessage || message;
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
 
-//             <select
-//               id="semester"
-//               name="semester"
-//               className="border border-gray-400 px-3 py-2 w-full bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md"
-//               value={formData.semester}
-//               onChange={handleChange}
-//             >
-//               <option value="" disabled>
-//                 Select Semester
-//               </option>
-//               <option value="1st Semester">1st Semester</option>
-//               <option value="2nd Semester">2nd Semester</option>
-//             </select>
-//           </div>
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-//           <input
-//             id="school_year"
-//             name="school_year"
-//             type="text"
-//             placeholder="Enter School Year (e.g., 2024-2025)"
-//             className="border border-gray-400 px-3 py-2 w-full"
-//             value={formData.school_year}
-//             onChange={handleChange}
-//             required
-//           />
+  return (
+    <>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
 
-//           {/* Requester Designation (Approvers) */}
-//           <div className="border p-4 rounded-md">
-//             <h3 className="font-semibold mb-3">Requester Designation</h3>
-//             {formData.approvers.map((approver, index) => (
-//               <div className="flex gap-4 mb-2" key={index}>
-//                 <input
-//                   type="email"
-//                   placeholder={`Approver ${index + 1} Email`}
-//                   className="border border-gray-400 px-3 py-2 w-full"
-//                   required
-//                   value={approver.email}
-//                   onChange={(e) =>
-//                     handleApproverChange(index, "email", e.target.value)
-//                   }
-//                 />
-//                 <input
-//                   type="date"
-//                   className="border border-gray-400 px-3 py-2 w-full"
-//                   required
-//                   value={approver.date}
-//                   onChange={(e) =>
-//                     handleApproverChange(index, "date", e.target.value)
-//                   }
-//                 />
-//                 <button
-//                   type="button"
-//                   className={` ${
-//                     index === 0 ? "text-gray-300" : "text-red-500"
-//                   } `}
-//                   onClick={() => removeApprover(index)}
-//                   disabled={index === 0}
-//                 >
-//                   ✕
-//                 </button>
-//               </div>
-//             ))}
-//             <button
-//               type="button"
-//               className="text-blue-600 mt-2"
-//               onClick={addApprover}
-//             >
-//               + Add Approver
-//             </button>
-//           </div>
+      <div className="fixed inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
+        <div
+          className={`relative bg-white rounded-lg p-5 shadow-lg max-w-2xl w-full max-h-[95vh] overflow-y-auto`}
+        >
+          {/* Show loading spinner inside modal */}
+          {loading && (
+            <div className="flex justify-center mb-4">
+              <Loading />
+            </div>
+          )}
 
-//           <textarea
-//             id="rq_description"
-//             name="rq_description"
-//             placeholder="Enter your description here..."
-//             className="border border-gray-400 px-3 py-2 w-full h-20"
-//             value={formData.rq_description}
-//             onChange={handleChange}
-//           ></textarea>
-//           <div className="flex justify-end gap-2">
-//             <button
-//               type="button"
-//               onClick={() => setIsModalOpen(false)}
-//               className="bg-gray-300 px-4 py-2 rounded-md hover:bg-gray-400"
-//             >
-//               Cancel
-//             </button>
-//             <button
-//               type="submit"
-//               disabled={loading}
-//               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-//             >
-//               {loading ? "Creating..." : "Create"}
-//             </button>
-//           </div>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// }
+          {error && <p className="text-red-500 text-center mt-2">{error}</p>}
 
-// export default CreateApproval;
+          <div className="flex justify-end">
+            <button
+              className="text-gray-500 hover:text-gray-800 cursor-pointer"
+              onClick={() => setIsModal(false)}
+              disabled={loading}
+            >
+              <X />
+            </button>
+          </div>
+
+          <div className="mt-2 max-w-[500px] mx-auto">
+            <div className="flex justify-between items-center text-[14px]">
+              {steps.map((step, index) => (
+                <div key={step.number} className="flex items-center gap-2">
+                  <div
+                    className={`${
+                      step.number <= stepNum ? "bg-[#2563EB]" : "bg-[#E5E7EB]"
+                    } rounded-[25px] w-[25px] h-[25px] flex items-center justify-center  ${
+                      step.number <= stepNum ? "text-white" : "text-[#6B6B6B]"
+                    } `}
+                  >
+                    {step.number}
+                  </div>
+                  <div
+                    className={`${
+                      step.number <= stepNum
+                        ? "text-[#2563EB]"
+                        : "text-[#6B6B6B]"
+                    }`}
+                  >
+                    {step.label}
+                  </div>
+                  {index < steps.length - 1 && (
+                    <ChevronRight size={25} className="ml-2 text-[#a1a1a1]" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-7">{PageShow()}</div>
+          {
+            // WOKRFLOW INFO
+            // APPROVER
+            // REVIEW
+          }
+
+          <div className="flex justify-end gap-2 mt-5">
+            {stepNum > 1 ? (
+              <button
+                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer"
+                onClick={clickBackButton}
+              >
+                Back
+              </button>
+            ) : (
+              <button
+                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer"
+                onClick={() => setIsModal(false)}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            )}
+
+            {stepNum === 3 ? (
+              <button
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
+                onClick={handleSubmit}
+              >
+                Create Workflow
+              </button>
+            ) : (
+              <button
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
+                onClick={clickNextButton}
+              >
+                Next
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default CreateApproval;

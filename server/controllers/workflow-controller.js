@@ -1,8 +1,6 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
-const { request } = require("http"); // This import seems unused, can be removed if not needed elsewhere
 const path = require("path");
-// Import all necessary email sending functions from your emailing.js file
 const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
@@ -11,6 +9,13 @@ const {
   // Assuming you might add a sendWorkflowSubmittedEmail function later
   // sendWorkflowSubmittedEmail,
 } = require("../utils/emailing"); // Ensure this path is correct
+const {
+  checkWorkflowExists,
+  insertDocument,
+  insertWorkflow,
+  insertApprovers,
+  fetchRequester,
+} = require("../utils/workflow.utils.js");
 
 //get specific approval (author id/ workflow id)
 const getApproval = async (req, res) => {
@@ -61,6 +66,68 @@ const getApprovals = async (req, res) => {
       "SELECT COUNT(*) FROM vw_workflow_display WHERE requester_id = $1",
       [user_id]
     );
+
+    const totalCount = parseInt(countQuery.rows[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return res.status(200).json({
+      data: dataQuery.rows,
+      totalPages,
+      currentPage: page,
+    });
+  } catch (error) {
+    console.error("Error fetching approvals:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getApprovalsWithStatus = async (req, res) => {
+  try {
+    const { user_id, status } = req.params;
+    let { page, limit } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ message: "Invalid Admin ID" });
+    }
+    console.log(status);
+    // Parse query params
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    const offset = (page - 1) * limit;
+
+    let dataQuery, countQuery;
+
+    if (status && status !== "All") {
+      dataQuery = await pool.query(
+        `SELECT * 
+         FROM vw_workflow_display 
+         WHERE requester_id = $1 AND status = $2 
+         LIMIT $3 OFFSET $4`,
+        [user_id, status, limit, offset]
+      );
+
+      countQuery = await pool.query(
+        `SELECT COUNT(*) 
+         FROM vw_workflow_display 
+         WHERE requester_id = $1 AND status = $2`,
+        [user_id, status]
+      );
+    } else {
+      dataQuery = await pool.query(
+        `SELECT * 
+         FROM vw_workflow_display 
+         WHERE requester_id = $1 
+         LIMIT $2 OFFSET $3`,
+        [user_id, limit, offset]
+      );
+
+      countQuery = await pool.query(
+        `SELECT COUNT(*) 
+         FROM vw_workflow_display 
+         WHERE requester_id = $1`,
+        [user_id]
+      );
+    }
 
     const totalCount = parseInt(countQuery.rows[0].count);
     const totalPages = Math.ceil(totalCount / limit);
@@ -209,6 +276,7 @@ const changeApprover = async (req, res) => {
 };
 
 //create approval
+//Done with modular
 const createApproval = async (req, res) => {
   const file = req.file;
   const deleteFile = () => {
@@ -250,7 +318,7 @@ const createApproval = async (req, res) => {
     ) {
       deleteFile();
       return res.status(400).json({ message: "All fields are required" });
-    } // Parse approvers safely
+    }
 
     let appr;
     try {
@@ -262,129 +330,83 @@ const createApproval = async (req, res) => {
 
     await client.query("BEGIN");
 
-    const insertDocumentQuery = await client.query(
-      "INSERT INTO wf_document(doc_name, path, size, doc_type) VALUES ($1, $2, $3, $4) RETURNING *",
-      [file.originalname, file.path, file.size, file.mimetype]
+    let IsWorkflowExist = await checkWorkflowExists(
+      client,
+      req_type_id,
+      school_year,
+      semester,
+      scholar_level
     );
-    const docId = insertDocumentQuery.rows[0].doc_id;
 
-    const insertWorkflowQuery = await client.query(
-      "INSERT INTO workflow(document_id, rq_type_id, requester_id, due_date, school_year, semester, scholar_level, description, rq_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
-      [
-        docId,
-        req_type_id,
-        requester_id,
-        due_date,
-        school_year,
-        semester,
-        scholar_level,
-        description,
-        request_title,
-      ]
-    );
-    const workflowID = insertWorkflowQuery.rows[0].workflow_id;
+    if (IsWorkflowExist) {
+      deleteFile();
+      return res.status(400).json({ message: "Workflow already exists" });
+    }
+
+    const docId = await insertDocument(client, file);
+
+    const workflowId = await insertWorkflow(client, {
+      docId,
+      req_type_id,
+      requester_id,
+      due_date,
+      school_year,
+      semester,
+      scholar_level,
+      description,
+      request_title,
+    });
 
     // Fetch requester name and email for the email notifications
-    const requesterQuery = await client.query(
-      `SELECT admin_name, admin_email FROM administration_adminaccounts WHERE admin_id = $1`,
-      [requester_id]
+    const { admin_name, admin_email } = await fetchRequester(
+      client,
+      requester_id
     );
-    const requesterName =
-      requesterQuery.rows[0]?.admin_name || "Unknown Requester";
-    const requesterEmail =
-      requesterQuery.rows[0]?.admin_email || "requester@example.com"; // Fallback email
 
-    // Construct workflow details for the email BEFORE the loop
     const workflowDetailsForEmail = {
-      request_title: request_title, // Use the request_title from the body
-      requester_name: requesterName, // Use the fetched requester name
-      due_date: due_date, // Use the workflow due date
-      rq_description: description, // Use the workflow description
-      workflow_id: workflowID, // Include workflow ID for potential links
-    }; // Insert approvers
+      request_title: request_title,
+      requester_name: admin_name,
+      due_date: due_date,
+      rq_description: description,
+      workflow_id: workflowId,
+    };
 
-    const approverQueries = [];
-
-    for (const approval of appr) {
-      const findId = await client.query(
-        `SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1`,
-        [approval.email]
-      );
-
-      if (findId.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return res
-          .status(400)
-          .json({ message: `Approver with email ${approval.email} not found` });
-      }
-
-      const userId = findId.rows[0].admin_id;
-      console.log(findId.rows[0]);
-      const existingApprover = await client.query(
-        "SELECT 1 FROM wf_approver WHERE workflow_id = $1 AND user_id = $2",
-        [workflowID, userId]
-      );
-
-      if (existingApprover.rows.length > 0) {
-        await client.query("ROLLBACK");
-        return res
-          .status(400)
-          .json({ message: `Duplicate approver: ${approval.email}` });
-      } // Insert into wf_approver
-      // Use lowercase false for boolean values
-
-      const approvalList = await client.query(
-        "INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-        [
-          workflowID,
-          userId,
-          approval.email,
-          approval.order,
-          "Pending",
-          approval.date,
-          false,
-        ] // Use lowercase false
-      );
-
-      const initializeResponse = await client.query(
-        "INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *",
-        [approvalList.rows[0].approver_id]
-      );
-
-      approverQueries.push({
-        approvers: approvalList.rows[0],
-        approval_response: initializeResponse.rows[0],
-      });
-
-      // Send email to the approver they were added
-      // Call the email function to notify the approver they were added
-      // Use await here to ensure the email sending process starts
-      // workflowDetailsForEmail is now defined outside the loop
-      await sendApproverAddedEmail(approval.email, workflowDetailsForEmail);
-    } // Keep the logic to set the first approver as is_current = true after the loop
+    console.log(approvers);
+    const approverQueries = await insertApprovers(
+      client,
+      appr,
+      workflowId,
+      workflowDetailsForEmail
+    );
 
     if (approverQueries.length > 0) {
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
       );
-      // Send "Its Your Turn" email to the first approver
-      // workflowDetailsForEmail is now defined outside the loop
-      // Use await here
       await sendItsYourTurnEmail(
         approverQueries[0].approvers.user_email,
         workflowDetailsForEmail
       );
     }
 
-    // Send workflow submitted confirmation email to the requester (Optional)
-    // If you have a sendWorkflowSubmittedEmail function in your emailing.js
-    // await sendWorkflowSubmittedEmail(requesterEmail, workflowDetailsForEmail);
-
     const getRequestTitleQuery = await client.query(
       `SELECT rq_title FROM wf_request_type_maintenance WHERE rq_type_id = $1`,
       [req_type_id]
     );
+
+    //put a function that save the workflow log
+    const saveLog = await client.query(
+      "INSERT INTO workflow_log (workflow_id, actor_id, actor_type,action, comments) VALUES ($1, $2, $3, $4, $5)",
+      [
+        workflowId,
+        requester_id,
+        "Requester",
+        "Created",
+        `Created workflow for ${school_year} ${semester} ${scholar_level}`,
+      ]
+    );
+
     await client.query("COMMIT");
 
     const rq_title =
@@ -395,7 +417,7 @@ const createApproval = async (req, res) => {
     return res.status(201).json({
       message: "Approval workflow created successfully!",
       workflowList: {
-        workflow_id: insertWorkflowQuery.rows[0].workflow_id,
+        workflow_id: workflowId,
         rq_title: rq_title,
         due_date: due_date,
         status: "Pending",
@@ -408,12 +430,12 @@ const createApproval = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error creating approval:", error);
     await client.query("ROLLBACK");
     deleteFile();
+
     return res
       .status(500)
-      .json({ error: error.message || "File upload failed" });
+      .json({ message: error.message || "File upload failed" });
   } finally {
     client.release();
   }
@@ -747,16 +769,98 @@ const uploadFile = async (req, res) => {
   }
 };
 
+const emailFinderWithRole = async (req, res) => {
+  try {
+    const { email } = req.params;
+    console.log("Looking up email:", email);
+
+    const result = await pool.query(
+      "SELECT * FROM administration_adminaccounts WHERE admin_email = $1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Account not found." });
+    }
+
+    const user = result.rows[0];
+
+    return res.status(200).json({
+      message: "Account found.",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error in emailFinderWithRole:", error);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+const fetchEmailUsingRole = async (req, res) => {
+  try {
+    const { role } = req.params;
+    const search = req.query.search || "";
+
+    let query = `
+      SELECT admin_email
+      FROM administration_adminaccounts
+      WHERE role_id = $1
+    `;
+    let params = [role];
+
+    if (search.trim() !== "") {
+      query += " AND admin_email ILIKE $2";
+      params.push(`%${search}%`);
+    }
+
+    const result = await pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      // If search term exists, check if email exists in a different role
+      if (search.trim() !== "") {
+        const diffRoleCheck = await pool.query(
+          "SELECT role_id FROM administration_adminaccounts WHERE admin_email ILIKE $1",
+          [`%${search}%`]
+        );
+
+        if (diffRoleCheck.rows.length > 0) {
+          return res.status(400).json({
+            errorType: "wrongRole",
+            message: "Email exists but is assigned to a different role.",
+            data: [],
+          });
+        }
+      }
+
+      return res.status(404).json({
+        errorType: "notFound",
+        message: "No accounts found for this role.",
+        data: [],
+      });
+    }
+
+    const emails = result.rows.map((row) => row.admin_email);
+    return res.status(200).json({
+      message: `Accounts found with role: ${role}`,
+      data: emails,
+    });
+  } catch (error) {
+    console.error("Error in fetchEmailUsingRole:", error);
+    return res.status(500).json({ message: "Server error." });
+  }
+}; //currently use in createapproval
+
 module.exports = {
   uploadFile,
   changeApprover,
   createApproval,
-  getApprovals,
   getApproval,
   deleteApproval,
   fetchApproverApprovalList,
   fetchApproverApproval,
   downloadFile,
   approveApproval,
-  emailFinder, // Export the new emailFinder function
+  emailFinder,
+  emailFinderWithRole,
+  fetchEmailUsingRole,
+  getApprovalsWithStatus,
 };

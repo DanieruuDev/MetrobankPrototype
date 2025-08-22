@@ -3,7 +3,6 @@ import { useCallback, useContext, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import distributeDueDates from "../../utils/DistributeDueDate";
 import { debounce } from "lodash";
-
 import axios from "axios";
 import { AuthContext } from "../../context/AuthContext";
 import Loading from "../../components/shared/Loading"; // Adjust path as needed
@@ -146,6 +145,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     sendData.append("due_date", formValues.due_date);
     sendData.append("school_year", formValues.school_year);
 
+    console.log(sendData);
     try {
       const response = await axios.post(
         "http://localhost:5000/api/workflow/create-workflow",
@@ -161,11 +161,14 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       setLoading(false);
       console.log(response.data);
     } catch (error) {
-      console.log(error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to create approval request. Please try again.";
+      let message = "Failed to create approval request. Please try again.";
+
+      if (axios.isAxiosError(error) && error.response) {
+        message = error.response.data?.message || message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
       setError(message);
       toast.error(message);
       setLoading(false);

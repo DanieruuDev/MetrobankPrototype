@@ -8,6 +8,7 @@ import Approval from "./SpecificApproval/Approval";
 import Request from "./Request";
 import { CheckSquare, ClipboardList, Plus, Search, Trash2 } from "lucide-react";
 import CreateApproval2 from "../../components/approval/CreateApproval2";
+import CreateApproval from "../../components/approval/CreateApproval";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
 import PaginationControl from "../../components/approval/PaginationControl";
@@ -142,14 +143,14 @@ function Workflow() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-workflows/${userId}?page=${page}&limit=10`
+        `http://localhost:5000/api/workflow/get-workflows/${userId}/${activeStatus}?page=${page}&limit=10`
       );
 
       const { data, totalPages, currentPage } = response.data;
       setTotalPage(totalPages);
       setPage(currentPage);
       console.log(totalPages, currentPage);
-      setWorkflowDisplay(data); // Replace with new page data
+      setWorkflowDisplay(data);
     } catch (error) {
       console.error("Error fetching workflows:", error);
     } finally {
@@ -161,21 +162,18 @@ function Workflow() {
     if (userId !== undefined) {
       fetchWorkflows(page);
     }
-  }, [page, userId]);
+  }, [page, userId, activeStatus]);
 
-  // ✅ Only one useEffect watching `page`
   const openDeleteConfirm = (workflowId: number) => {
     setWorkflowToDelete(workflowId);
     setIsConfirmOpen(true);
   };
 
-  // Cancel deletion
   const cancelDelete = () => {
     setWorkflowToDelete(null);
     setIsConfirmOpen(false);
   };
 
-  // Confirm deletion
   const confirmDelete = () => {
     if (userId !== undefined && workflowToDelete !== null) {
       deleteWorkflow(userId, workflowToDelete);
@@ -183,6 +181,7 @@ function Workflow() {
     setWorkflowToDelete(null);
     setIsConfirmOpen(false);
   };
+
   const filteredWorkflows = workflowDisplay.filter((workflow) => {
     const matchesStatus =
       activeStatus === "All" ? true : workflow.status === activeStatus;
@@ -296,7 +295,7 @@ function Workflow() {
                 onCancel={cancelDelete}
               />
               {isModal && (
-                <CreateApproval2
+                <CreateApproval
                   setIsModal={setIsModal}
                   fetchWorkflows={fetchWorkflows}
                   // setIsModalOpen={setIsModal}
@@ -387,11 +386,13 @@ function Workflow() {
                 </div>
 
                 <div className="mb-4">
-                  <PaginationControl
-                    currentPage={page}
-                    totalPages={totalPage}
-                    onPageChange={setPage}
-                  />
+                  {totalPage > 1 && (
+                    <PaginationControl
+                      currentPage={page}
+                      totalPages={totalPage}
+                      onPageChange={setPage}
+                    />
+                  )}
                 </div>
               </div>
             </>

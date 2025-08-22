@@ -23,7 +23,7 @@ interface TrackingSummary {
 const ScheduleTracking = () => {
   // Set "All" as the default selected status
   const [selectedStatus, setSelectedStatus] = useState("All");
-  const [sySemester, setSySemester] = useState<string>("");
+  const [sySemester, setSySemester] = useState<string>("2024-2025_2nd");
   const [trackingSummary, setTrackingSummary] = useState<
     TrackingSummary[] | null
   >([]);

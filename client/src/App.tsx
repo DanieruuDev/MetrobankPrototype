@@ -15,7 +15,6 @@ import DetailedTracking from "./pages/Disbursement/Tracking/DetailedTracking";
 import PrivateRoute from "./components/shared/PrivateRoute";
 import { SidebarProvider } from "./context/SidebarContext";
 import ROIandAnalytics from "./pages/ROI/ROIandAnalytics";
-// import AnalyticsPage from "./pages/Analytics"; // Add your analytics page if available
 
 function App() {
   return (

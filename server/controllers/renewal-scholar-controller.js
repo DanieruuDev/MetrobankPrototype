@@ -447,6 +447,55 @@ const updateScholarRenewal = async (req, res) => {
   }
 };
 
+const updateScholarRenewalV2 = async (req, res) => {
+  const updates = req.body; // expects array of { renewal_id, changedFields }
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "At least one row must be provided for update." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    let totalUpdated = 0;
+    for (const row of updates) {
+      const { renewal_id, changedFields } = row;
+
+      if (
+        !renewal_id ||
+        !changedFields ||
+        Object.keys(changedFields).length === 0
+      ) {
+        continue;
+      }
+
+      const setClauses = Object.keys(changedFields)
+        .map((key, idx) => `"${key}" = $${idx + 1}`)
+        .join(", ");
+
+      const values = Object.values(changedFields);
+
+      const query = `UPDATE renewal_validation SET ${setClauses} WHERE renewal_id = $${values.length + 1}`;
+
+      const result = await client.query(query, [...values, renewal_id]);
+      totalUpdated += result.rowCount;
+    }
+
+    await client.query("COMMIT");
+    res
+      .status(200)
+      .json({ message: "updated successfully", updatedRows: totalUpdated });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error(error);
+    res.status(500).json({ message: "Update failed", error });
+  } finally {
+    client.release();
+  }
+};
+
 //Report generation
 
 const getExcelRenewalReport = async (req, res) => {
@@ -681,4 +730,5 @@ module.exports = {
   updateScholarRenewal,
   getExcelRenewalReport,
   filteredScholarRenewal,
+  updateScholarRenewalV2,
 };

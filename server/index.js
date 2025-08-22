@@ -1,5 +1,4 @@
 const express = require("express");
-const pool = require("./database/dbConnect.js");
 const userAdminRouter = require("./routes/admin-user-router.js");
 const path = require("path");
 const disbursementRouter = require("./routes/disbursment-schedule-router.js");
@@ -10,6 +9,7 @@ const disbursementTracking = require("./routes/disbursement-tracking-router.js")
 const maintenance = require("./routes/maintenance-router.js");
 const renewalRouter = require("./routes/renewal-router.js");
 const workflowRouter = require("./routes/workflow-router.js");
+require("./utils/scheduler.js");
 require("dotenv").config();
 
 app.use(cors());

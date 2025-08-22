@@ -25,11 +25,11 @@ function SYSemesterDropdown({ value, onChange }: Props) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative max-w-[250px]">
       <select
         value={value}
         onChange={handleChange}
-        className="appearance-none bg-gray-100 border-none border-gray-300 rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-8"
+        className="w-full appearance-none rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 pr-10 text-sm font-medium text-gray-700  transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
       >
         {sortedOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -37,13 +37,20 @@ function SYSemesterDropdown({ value, onChange }: Props) {
           </option>
         ))}
       </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+
+      {/* Custom dropdown arrow */}
+      <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
         <svg
-          className="fill-current h-4 w-4"
+          className="h-4 w-4 text-gray-500"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
+          fill="currentColor"
         >
-          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.23 8.27a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
         </svg>
       </div>
     </div>

@@ -134,3 +134,16 @@ export interface RequestApprovalList {
   year_level: string;
   semester: string;
 }
+
+export interface WorkflowFormData {
+  request_title: string;
+  requester_id: string;
+  req_type_id: string;
+  description: string;
+  file: File | null;
+  approvers: WFApprover[]; //edit later
+  scholar_level: string;
+  semester: string;
+  due_date: string;
+  school_year: string;
+}

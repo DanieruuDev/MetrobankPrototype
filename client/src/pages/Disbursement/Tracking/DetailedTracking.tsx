@@ -316,7 +316,7 @@ function DetailedTracking() {
       "Not Started": "bg-gray-200 text-gray-800",
       "In Progress": "bg-blue-100 text-blue-800",
       Completed: "bg-green-100 text-green-800",
-      Cancelled: "bg-red-100 text-red-800",
+      Failed: "bg-red-100 text-red-800",
     };
 
     return (
@@ -523,7 +523,7 @@ function DetailedTracking() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <span
                         className={`px-2 py-1 rounded-full text-xs ${
-                          student.scholarship_status === "ACTIVE"
+                          student.scholarship_status === "Active"
                             ? "bg-green-100 text-green-800"
                             : "bg-yellow-100 text-yellow-800"
                         }`}
