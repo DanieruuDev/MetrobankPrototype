@@ -178,45 +178,67 @@ function Request() {
           </div>
 
           {/* Your Turn Section */}
-          <h2 className="text-xl font-semibold mb-2">Your Turn</h2>
+          <h2 className="text-xl font-semibold mt-8 mb-2">Your Turn</h2>
           {yourTurn.length === 0 ? (
             <p className="text-gray-500 mb-6">No items for your action.</p>
           ) : (
-            yourTurn.map((request) => (
+            <div>
+              {/* Column Headers */}
               <div
-                key={request.approver_id}
-                onClick={() => handleRowClick(request.approver_id)}
-                className="grid text-[#565656] text-[14px] h-[52px] items-center border-b border-b-[#c7f7f792] hover:bg-[#f7f7f7] rounded-md cursor-pointer mb-2"
+                className="grid text-[#565656] text-[14px] font-medium h-[40px] items-center border-b border-b-[#c7f7f792] bg-[#f0f9f9] rounded-t-md mb-1"
                 style={{
                   gridTemplateColumns:
                     "1.4fr 0.4fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr min-content",
                 }}
               >
-                <div className="text-left px-6 max-w-[255px]">
-                  {request.request_title}
-                </div>
-                <div
-                  className={`text-left px-2 py-1 text-[12px] flex justify-center rounded-xl ${approverStatusBadge(
-                    request.approver_status
-                  )}`}
-                >
-                  {request.approver_status}
-                </div>
-                <div className="text-left px-6 max-w-[215px] truncate">
-                  {request.requester}
-                </div>
-                <div className="text-left px-4">
-                  {formatDate(request.date_started)}
-                </div>
-                <div className="text-left px-4">
-                  {formatDate(request.approver_due_date)}
-                </div>
-                <div className="text-left px-4">{request.school_year}</div>
-                <div className="text-left px-4">{request.year_level}</div>
-                <div className="text-left px-4">{request.semester}</div>
+                <div className="text-left px-6">Title</div>
+                <div className="text-left px-2 flex justify-center">Status</div>
+                <div className="text-left px-6">Requester</div>
+                <div className="text-left px-4">Started</div>
+                <div className="text-left px-4">Due Date</div>
+                <div className="text-left px-4">School Year</div>
+                <div className="text-left px-4">Year Level</div>
+                <div className="text-left px-4">Semester</div>
                 <div className="text-left p-5"></div>
               </div>
-            ))
+
+              {/* Request Items */}
+              {yourTurn.map((request) => (
+                <div
+                  key={request.approver_id}
+                  onClick={() => handleRowClick(request.approver_id)}
+                  className="grid text-[#565656] text-[14px] h-[52px] items-center border-b border-b-[#c7f7f792] hover:bg-[#f7f7f7] rounded-md cursor-pointer mb-2"
+                  style={{
+                    gridTemplateColumns:
+                      "1.4fr 0.4fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr min-content",
+                  }}
+                >
+                  <div className="text-left px-6 max-w-[255px] truncate">
+                    {request.request_title}
+                  </div>
+                  <div
+                    className={`text-left px-2 py-1 text-[12px] flex justify-center rounded-xl ${approverStatusBadge(
+                      request.approver_status
+                    )}`}
+                  >
+                    {request.approver_status}
+                  </div>
+                  <div className="text-left px-6 max-w-[215px] truncate">
+                    {request.requester}
+                  </div>
+                  <div className="text-left px-4">
+                    {formatDate(request.date_started)}
+                  </div>
+                  <div className="text-left px-4">
+                    {formatDate(request.approver_due_date)}
+                  </div>
+                  <div className="text-left px-4">{request.school_year}</div>
+                  <div className="text-left px-4">{request.year_level}</div>
+                  <div className="text-left px-4">{request.semester}</div>
+                  <div className="text-left p-5"></div>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Others' Turn Section */}
@@ -224,41 +246,63 @@ function Request() {
           {othersTurn.length === 0 ? (
             <p className="text-gray-500">No items awaiting others.</p>
           ) : (
-            othersTurn.map((request) => (
+            <div>
+              {/* Column Headers */}
               <div
-                key={request.approver_id}
-                onClick={() => handleRowClick(request.approver_id)}
-                className="grid text-[#565656] text-[14px] h-[52px] items-center border-b border-b-[#c7f7f792] hover:bg-[#f7f7f7] rounded-md cursor-pointer mb-2"
+                className="grid text-[#565656] text-[14px] font-medium h-[40px] items-center border-b border-b-[#c7f7f792] bg-[#f0f9f9] rounded-t-md mb-1"
                 style={{
                   gridTemplateColumns:
                     "1.4fr 0.4fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr min-content",
                 }}
               >
-                <div className="text-left px-6 max-w-[255px]">
-                  {request.request_title}
-                </div>
-                <div
-                  className={`text-left px-2 py-1 text-[12px] flex justify-center rounded-xl ${approverStatusBadge(
-                    request.approver_status
-                  )}`}
-                >
-                  {request.approver_status}
-                </div>
-                <div className="text-left px-6 max-w-[215px] truncate">
-                  {request.requester}
-                </div>
-                <div className="text-left px-4">
-                  {formatDate(request.date_started)}
-                </div>
-                <div className="text-left px-4">
-                  {formatDate(request.approver_due_date)}
-                </div>
-                <div className="text-left px-4">{request.school_year}</div>
-                <div className="text-left px-4">{request.year_level}</div>
-                <div className="text-left px-4">{request.semester}</div>
+                <div className="text-left px-6">Title</div>
+                <div className="text-left px-2 flex justify-center">Status</div>
+                <div className="text-left px-6">Requester</div>
+                <div className="text-left px-4">Started</div>
+                <div className="text-left px-4">Due Date</div>
+                <div className="text-left px-4">School Year</div>
+                <div className="text-left px-4">Year Level</div>
+                <div className="text-left px-4">Semester</div>
                 <div className="text-left p-5"></div>
               </div>
-            ))
+
+              {/* Request Items */}
+              {othersTurn.map((request) => (
+                <div
+                  key={request.approver_id}
+                  onClick={() => handleRowClick(request.approver_id)}
+                  className="grid text-[#565656] text-[14px] h-[52px] items-center border-b border-b-[#c7f7f792] hover:bg-[#f7f7f7] rounded-md cursor-pointer mb-2"
+                  style={{
+                    gridTemplateColumns:
+                      "1.4fr 0.4fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr min-content",
+                  }}
+                >
+                  <div className="text-left px-6 max-w-[255px] truncate">
+                    {request.request_title}
+                  </div>
+                  <div
+                    className={`text-left px-2 py-1 text-[12px] flex justify-center rounded-xl ${approverStatusBadge(
+                      request.approver_status
+                    )}`}
+                  >
+                    {request.approver_status}
+                  </div>
+                  <div className="text-left px-6 max-w-[215px] truncate">
+                    {request.requester}
+                  </div>
+                  <div className="text-left px-4">
+                    {formatDate(request.date_started)}
+                  </div>
+                  <div className="text-left px-4">
+                    {formatDate(request.approver_due_date)}
+                  </div>
+                  <div className="text-left px-4">{request.school_year}</div>
+                  <div className="text-left px-4">{request.year_level}</div>
+                  <div className="text-left px-4">{request.semester}</div>
+                  <div className="text-left p-5"></div>
+                </div>
+              ))}
+            </div>
           )}
           {activeStatus === "All" && (
             <>
@@ -266,41 +310,67 @@ function Request() {
               {completedTurn.length === 0 ? (
                 <p className="text-gray-500">No completed approvals.</p>
               ) : (
-                completedTurn.map((request) => (
+                <div>
+                  {/* Column Headers */}
                   <div
-                    key={request.approver_id}
-                    onClick={() => handleRowClick(request.approver_id)}
-                    className="grid text-[#565656] text-[14px] h-[52px] items-center border-b border-b-[#c7f7f792] hover:bg-[#f1f1f1] rounded-md cursor-pointer mb-2"
+                    className="grid text-[#565656] text-[14px] font-medium h-[40px] items-center border-b border-b-[#c7f7f792] bg-[#f0f9f9] rounded-t-md mb-1"
                     style={{
                       gridTemplateColumns:
                         "1.4fr 0.4fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr min-content",
                     }}
                   >
-                    <div className="text-left px-6 max-w-[255px]">
-                      {request.request_title}
+                    <div className="text-left px-6">Title</div>
+                    <div className="text-left px-2 flex justify-center">
+                      Status
                     </div>
-                    <div
-                      className={`text-left px-2 py-1 text-[12px] flex justify-center rounded-xl ${approverStatusBadge(
-                        request.approver_status
-                      )}`}
-                    >
-                      {request.approver_status}
-                    </div>
-                    <div className="text-left px-6 max-w-[215px] truncate">
-                      {request.requester}
-                    </div>
-                    <div className="text-left px-4">
-                      {formatDate(request.date_started)}
-                    </div>
-                    <div className="text-left px-4">
-                      {formatDate(request.approver_due_date)}
-                    </div>
-                    <div className="text-left px-4">{request.school_year}</div>
-                    <div className="text-left px-4">{request.year_level}</div>
-                    <div className="text-left px-4">{request.semester}</div>
+                    <div className="text-left px-6">Requester</div>
+                    <div className="text-left px-4">Started</div>
+                    <div className="text-left px-4">Due Date</div>
+                    <div className="text-left px-4">School Year</div>
+                    <div className="text-left px-4">Year Level</div>
+                    <div className="text-left px-4">Semester</div>
                     <div className="text-left p-5"></div>
                   </div>
-                ))
+
+                  {/* Request Items */}
+                  {completedTurn.map((request) => (
+                    <div
+                      key={request.approver_id}
+                      onClick={() => handleRowClick(request.approver_id)}
+                      className="grid text-[#565656] text-[14px] h-[52px] items-center border-b border-b-[#c7f7f792] hover:bg-[#f1f1f1] rounded-md cursor-pointer mb-2"
+                      style={{
+                        gridTemplateColumns:
+                          "1.4fr 0.4fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr min-content",
+                      }}
+                    >
+                      <div className="text-left px-6 max-w-[255px] truncate">
+                        {request.request_title}
+                      </div>
+                      <div
+                        className={`text-left px-2 py-1 text-[12px] flex justify-center rounded-xl ${approverStatusBadge(
+                          request.approver_status
+                        )}`}
+                      >
+                        {request.approver_status}
+                      </div>
+                      <div className="text-left px-6 max-w-[215px] truncate">
+                        {request.requester}
+                      </div>
+                      <div className="text-left px-4">
+                        {formatDate(request.date_started)}
+                      </div>
+                      <div className="text-left px-4">
+                        {formatDate(request.approver_due_date)}
+                      </div>
+                      <div className="text-left px-4">
+                        {request.school_year}
+                      </div>
+                      <div className="text-left px-4">{request.year_level}</div>
+                      <div className="text-left px-4">{request.semester}</div>
+                      <div className="text-left p-5"></div>
+                    </div>
+                  ))}
+                </div>
               )}
             </>
           )}
