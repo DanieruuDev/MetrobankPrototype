@@ -5,7 +5,7 @@ export interface RenewalDetails {
   scholar_name: string;
   campus: string;
   batch: string;
-  renewal_date: string; // ISO Date String (e.g., '2025-03-10')
+  renewal_date: string | null; // ISO Date String (e.g., '2025-03-10')
 
   renewal_year_level_basis: string;
   renewal_semester_basis: string;
@@ -32,6 +32,31 @@ export interface RenewalDetails {
 export interface RenewalDetailsClone extends RenewalDetails {
   isEdited: boolean;
   original: RenewalDetails;
+}
+export interface RenewalRow {
+  student_id: number;
+  scholar_name: string;
+  scholarship_status: "Not Started" | "Passed" | "Delisted";
+  campus: string;
+  batch: string;
+  renewal_date: string | null; // ISO Date string
+  renewal_year_level_basis: string;
+  renewal_semester_basis: string;
+  renewal_school_year_basis: string;
+  gpa: number | null;
+  gpa_validation_stat: "Not Started" | "Passed" | "Failed";
+  no_failing_grd_validation: "Not Started" | "Passed" | "Failed";
+  no_other_scholar_validation: "Not Started" | "Passed" | "Failed";
+  goodmoral_validation: "Not Started" | "Passed" | "Failed";
+  no_police_record_validation: "Not Started" | "Passed" | "Failed";
+  full_load_validation: "Not Started" | "Passed" | "Failed";
+  withdrawal_change_course_validation: "Not Started" | "Passed" | "Failed";
+  enrollment_validation: "Not Started" | "Passed" | "Failed";
+  year_level: string;
+  semester: string;
+  school_year: string;
+  delisted_date?: string | null;
+  delisting_root_cause?: string | null;
 }
 
 export const tableHead = {
