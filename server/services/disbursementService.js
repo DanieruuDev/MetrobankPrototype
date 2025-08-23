@@ -5,35 +5,31 @@ const createSchedule = async (client, data) => {
     disbursement_type_id,
     disb_title,
     disbursement_date,
-    amount,
-    yr_lvl_code,
     sy_code,
     semester_code,
     branch,
     created_by,
-    quantity,
   } = data;
 
   const result = await client.query(
     `
     INSERT INTO disbursement_schedule (
-      disbursement_type_id, disb_title, disbursement_date, amount,
-      yr_lvl_code, sy_code, semester_code, branch, created_by, quantity, status
+      disbursement_type_id, disb_title, disbursement_date,
+      sy_code, semester_code, branch, created_by, status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING disb_sched_id
     `,
     [
       disbursement_type_id,
       disb_title,
       disbursement_date,
-      amount,
-      yr_lvl_code,
+
       sy_code,
       semester_code,
       branch,
       created_by,
-      quantity,
+
       "In Progress",
     ]
   );
@@ -44,7 +40,7 @@ const createSchedule = async (client, data) => {
 const updateDisbursementDetails = async (client, payload) => {
   const {
     disbursement_type_id,
-    yr_lvl_code,
+
     sy_code,
     semester_code,
     required_hours = null,
@@ -53,7 +49,7 @@ const updateDisbursementDetails = async (client, payload) => {
   } = payload;
   console.log(
     disbursement_type_id,
-    yr_lvl_code,
+
     sy_code,
     semester_code,
     required_hours,
@@ -70,24 +66,22 @@ const updateDisbursementDetails = async (client, payload) => {
     UPDATE disbursement_detail dd
     SET 
       disbursement_status = $1,
-      disb_sched_id = $6,
-      required_hours = $7
+      disb_sched_id = $5,
+      required_hours = $6
     FROM disbursement_tracking dt
     JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
     WHERE 
       dd.disbursement_id = dt.disbursement_id AND
       dd.disbursement_type_id = $2 AND
-      rs.yr_lvl = $3 AND
-      rs.school_year = $4 AND
-      rs.semester = $5 AND
-      rs.campus_name = $8
+      rs.school_year = $3 AND
+      rs.semester = $4 AND
+      rs.campus_name = $7
 
   `;
 
     params = [
       "In Progress", // $1
       disbursement_type_id, // $2
-      yr_lvl_code, // $3
       sy_code, // $4
       semester_code, // $5
       disb_sched_id, // $6
@@ -99,23 +93,22 @@ const updateDisbursementDetails = async (client, payload) => {
     UPDATE disbursement_detail dd
     SET 
       disbursement_status = $1,
-      disb_sched_id = $6,
+      disb_sched_id = $5,
       required_hours = NULL
     FROM disbursement_tracking dt
     JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
     WHERE 
       dd.disbursement_id = dt.disbursement_id AND
       dd.disbursement_type_id = $2 AND
-      rs.yr_lvl = $3 AND
-      rs.school_year = $4 AND
-      rs.semester = $5 AND
-      rs.campus_name = $7
+      rs.school_year = $3 AND
+      rs.semester = $4 AND
+      rs.campus_name = $6
   `;
 
     params = [
       "In Progress", // $1
       disbursement_type_id, // $2
-      yr_lvl_code, // $3
+
       sy_code, // $4
       semester_code, // $5
       disb_sched_id, // $6

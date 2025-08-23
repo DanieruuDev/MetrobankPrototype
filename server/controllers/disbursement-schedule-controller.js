@@ -14,14 +14,11 @@ const createDisbursementSchedule = async (req, res) => {
     disbursement_type_id,
     disb_title,
     disbursement_date,
-    amount,
-    yr_lvl_code,
     sy_code,
     semester_code,
     branch,
     created_by,
     required_hours,
-    quantity,
   } = req.body;
   const client = await pool.connect();
 
@@ -30,39 +27,26 @@ const createDisbursementSchedule = async (req, res) => {
 
     if (
       !disbursement_type_id ||
-      !yr_lvl_code ||
       !sy_code ||
       !semester_code ||
       !branch ||
-      !created_by ||
-      !quantity
+      !created_by
     ) {
       return res.status(400).json({ message: "Missing required fields." });
-    }
-
-    if (quantity < 1) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({
-        message: "No scholars found to schedule for this disbursement.",
-      });
     }
 
     const disb_sched_id = await createSchedule(client, {
       disbursement_type_id,
       disb_title,
       disbursement_date,
-      amount,
-      yr_lvl_code,
       sy_code,
       semester_code,
       branch,
       created_by,
-      quantity,
     });
 
     const scheduledCount = await updateDisbursementDetails(client, {
       disbursement_type_id,
-      yr_lvl_code,
       sy_code,
       semester_code,
       required_hours: disbursement_type_id === 4 ? required_hours : null,
@@ -260,9 +244,8 @@ const fetchDetailSchedule = async (req, res) => {
 
 const fetchWeeklyDisbursementSchedules = async (req, res) => {
   try {
-    console.log("Received date:", req.params.date);
+    console.log("Received date samay 222:", req.params.date);
     const baseDate = req.params.week ? new Date(req.params.week) : new Date();
-    console.log("Parsed date:", baseDate);
 
     const start = new Date(baseDate);
     const end = new Date(baseDate);
@@ -387,7 +370,6 @@ const updateDisbursementSchedule = async (req, res) => {
     school_year,
     total_scholar,
     disbursement_type,
-    amount,
   } = req.body;
 
   console.log(req.body);
@@ -427,11 +409,10 @@ const updateDisbursementSchedule = async (req, res) => {
             semester_code = $4,
             yr_lvl_code = $5,
             sy_code = $6,
-            quantity = $7,
-            disbursement_type_id = $8,
-            amount = $9,
+
+            disbursement_type_id = $7,
             updated_at = NOW()
-        WHERE disb_sched_id = $10
+        WHERE disb_sched_id = $8
         RETURNING *
       `,
       [
@@ -443,7 +424,6 @@ const updateDisbursementSchedule = async (req, res) => {
         school_year,
         total_scholar,
         newTypeId,
-        amount,
         id,
       ]
     );
