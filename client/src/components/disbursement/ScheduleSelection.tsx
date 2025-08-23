@@ -22,7 +22,7 @@ const ScheduleSection = ({
   const [isOpen, setIsOpen] = useState(true);
   const navigate = useNavigate();
   const filtered = schedules.filter(filterFn);
-  console.log(schedules);
+
   return (
     <div className="max-w-[230px] mt-3">
       <div
@@ -66,27 +66,24 @@ const ScheduleSection = ({
                             sched.disbursement_type
                           ),
                         }}
-                        className="p-1 rounded-md mr-1"
+                        className="w-3 h-3 rounded-md mr-2"
                       ></span>
                       {sched.disbursement_type}
                     </h2>
 
-                    <p className="text-[12px] text-gray-600 mb-2">
+                    <p className="text-[14px] text-gray-600 mb-1">
                       Date: {formattedDate}
                     </p>
 
-                    <table>
-                      <tbody>
-                        <tr>
-                          <td className="border-r pr-4">{sched.branch}</td>
-                          <td className="pl-4">{sched.year_level}</td>
-                        </tr>
-                        <tr>
-                          <td className="border-r pr-4">{sched.semester}</td>
-                          <td className="pl-4">{sched.school_year}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <p className="text-[14px] text-gray-600 mb-1">
+                      {sched.branch}
+                    </p>
+
+                    {sched.description && (
+                      <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">
+                        {sched.description}
+                      </p>
+                    )}
                   </div>
                 );
               })

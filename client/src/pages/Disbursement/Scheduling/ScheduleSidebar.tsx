@@ -9,13 +9,10 @@ export interface DisbursementScheduleSummary {
   disb_sched_id: number;
   disb_title: string;
   disbursement_type: string;
-  semester: string;
-  school_year: string;
-  year_level: string;
   disbursement_date: string;
   status: string;
-  total_scholars: number;
-  branch: string; // add this
+  branch: string;
+  description: string;
 }
 
 interface ScheduleSidebarProps {
