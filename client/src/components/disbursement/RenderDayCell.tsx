@@ -7,7 +7,7 @@ import { formatDate } from "../../utils/DateConvertionFormat";
 import { Link } from "react-router-dom";
 import UpdateEvent from "./UpdateEvent";
 import { AuthContext } from "../../context/AuthContext";
-import ConfirmDialog from "../approval/ConfirmDialog"; // adjust path if needed
+import ConfirmDialog from "../approval/ConfirmDialog";
 import { toast } from "react-toastify";
 
 export interface DisbursementScheduleDetail {
@@ -16,15 +16,18 @@ export interface DisbursementScheduleDetail {
   disbursement_date: string;
   title: string;
   schedule_status: string;
-  amount: string;
-  yr_lvl: string;
-  semester: string;
-  school_year: string;
+  description: string; // Added this field
   branch: string;
   created_by_id: number;
   created_by: string;
-  total_scholar: string;
+  // Remove these fields since they're no longer used:
+  // amount: string;
+  // yr_lvl: string;
+  // semester: string;
+  // school_year: string;
+  // total_scholar: string;
 }
+
 interface DayCellProps {
   day: Date;
   handleDateSelect: (date: Date) => void;
@@ -77,6 +80,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
         return "bg-black";
     }
   };
+
   const handleScheduleClick = async (
     e: React.MouseEvent<HTMLDivElement>,
     schedule: DisbursementSchedule
@@ -109,7 +113,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     setModalPosition({ top, left });
     setLoading(true);
     setError(null);
-    //use the userID here
+
     try {
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/schedule/detailed/${schedule.disb_sched_id}`
@@ -149,14 +153,16 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     setActiveSchedule(null);
     setShowOptions(false);
   };
+
   const handleEditClick = () => {
-    setShowUpdateModal(true); // Open update modal
+    setShowUpdateModal(true);
   };
 
   const closeUpdateModal = () => {
-    setShowUpdateModal(false); // Close the update modal
-    setActiveSchedule(null); // Reset active schedule if necessary
+    setShowUpdateModal(false);
+    setActiveSchedule(null);
   };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -268,7 +274,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                           <button
                             className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
                             onClick={() => {
-                              console.log("Edit clicked");
                               setShowOptions(false);
                               handleEditClick();
                             }}
@@ -303,12 +308,14 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                 </button>
               </div>
             </div>
+
             {showUpdateModal && activeSchedule && (
               <UpdateEvent
-                activeSchedule={activeSchedule} // Pass active schedule
-                closeModal={closeUpdateModal} // Close modal handler
+                activeSchedule={activeSchedule}
+                closeModal={closeUpdateModal}
               />
             )}
+
             <div className="text-[20px] font-medium text-[#565656]">
               {loading ? "Loading..." : activeSchedule.title}
             </div>
@@ -342,38 +349,28 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                   </span>
                 </div>
 
-                <div className="mt-4 text-[#565656] text-[13px] space-y-1">
-                  <div className="flex justify-between">
+                {/* Updated information section */}
+                <div className="mt-4 text-[#565656] text-[13px]">
+                  <div className="flex justify-between mb-2">
                     <div>Disbursement Date</div>
                     <div>{formatDate(activeSchedule.disbursement_date)}</div>
                   </div>
-                  <div className="flex justify-between">
-                    <div>Amount</div>
-                    <div>{activeSchedule.amount}</div>
+
+                  <div className="mb-2">
+                    <div className="font-medium mb-1">Details</div>
+                    <div className="bg-gray-50 p-2 rounded text-sm">
+                      {activeSchedule.description || "No details provided"}
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <div>Year Level</div>
-                    <div>{activeSchedule.yr_lvl}</div>
-                  </div>
-                  <div className="flex justify-between">
-                    <div>Semester</div>
-                    <div>{activeSchedule.semester}</div>
-                  </div>
-                  <div className="flex justify-between">
-                    <div>School Year</div>
-                    <div>{activeSchedule.school_year}</div>
-                  </div>
+
                   <div className="flex justify-between">
                     <div>Branch</div>
                     <div>{activeSchedule.branch}</div>
                   </div>
-                  <div className="flex justify-between">
+
+                  <div className="flex justify-between mt-2">
                     <div>Created By</div>
                     <div>{activeSchedule.created_by}</div>
-                  </div>
-                  <div className="flex justify-between">
-                    <div>Total Scholar</div>
-                    <div>{activeSchedule.total_scholar}</div>
                   </div>
                 </div>
               </>
