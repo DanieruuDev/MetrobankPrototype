@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { FileDown, Pencil, Plus, Save, Search } from "lucide-react";
+import {
+  FileDown,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  File,
+  Download,
+  Upload,
+  ChevronDown,
+} from "lucide-react";
 import SYSemesterDropdown from "../../../../components/shared/SYSemesterDropdown";
-import { renewalTableHead } from "../../../../Interface/IRenewal";
+import { RenewalRow, renewalTableHead } from "../../../../Interface/IRenewal";
 import {
   RenewalDetailsClone,
   RenewalDetails,
@@ -11,6 +21,8 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import GenerateReportModal from "../../../../components/renewal/GenerateReport";
+import { downloadExcel } from "../../../../utils/DownloadExcel";
+import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
 
 function RenewalListV2() {
   const [sySemester, setSySemester] = useState<string>("2024-2025_2nd");
@@ -23,9 +35,12 @@ function RenewalListV2() {
     []
   );
   const [isRenewalBtnOpen, SetIsRenewalBtnOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isGnrtRprtOpen, setIsGnrtRprtOpen] = useState(false);
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFileActionOpen, setIsFileActionOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const hasEdits = tempRenewalData.some((row) =>
     Object.keys(row).some(
       (key) =>
@@ -108,17 +123,22 @@ function RenewalListV2() {
                     (k) => updated[k as keyof RenewalDetails] === "Failed"
                   )
                   .join(", ")
-              : null;
+              : "Not Started";
 
           const delisted_date =
             scholarship_status === "Delisted" ? new Date().toISOString() : null;
+          const allPassed = Object.keys(validation)
+            .filter((k) => k !== "scholarship_status")
+            .every((k) => updated[k as keyof RenewalDetails] === "Passed");
 
+          const renewal_date = allPassed ? new Date().toISOString() : null;
           return {
             ...updated,
             scholarship_status,
             isEdited,
             delisting_root_cause,
             delisted_date,
+            renewal_date,
           };
         }
         return r;
@@ -155,7 +175,7 @@ function RenewalListV2() {
       })
     );
   };
-  const submitSaveChanges = async () => {
+  const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
     const editedRows = tempRenewalData.filter((row) => row.isEdited);
 
     const updateRows = editedRows.map((row: RenewalDetailsClone) => {
@@ -172,6 +192,7 @@ function RenewalListV2() {
     });
 
     try {
+      setIsLoading(true);
       if (updateRows.length > 0) {
         const res = await axios.put(
           "http://localhost:5000/api/renewal/update-renewalV2",
@@ -179,7 +200,8 @@ function RenewalListV2() {
         );
         console.log(res);
         getRenewalData();
-        toast.success(`${res.data.updatedRows} row(s) ${res.data.message}`);
+        toast.success(`${res.data.totalUpdated} row(s) ${res.data.message}`);
+        console.log("Res Data:", res.data);
       } else {
         toast.info("No changes to update.");
       }
@@ -190,6 +212,8 @@ function RenewalListV2() {
         console.error("Unexpected error:", error);
       }
       alert(error);
+    } finally {
+      setIsLoading(false);
     }
 
     console.log(updateRows);
@@ -208,6 +232,56 @@ function RenewalListV2() {
       );
     }
   };
+  const handleFileChanges = (updatedRows: RenewalRow[]) => {
+    const newData = tempRenewalData.map((row) => {
+      const excelRow = updatedRows.find((r) => r.student_id === row.student_id);
+      if (!excelRow) return row;
+
+      const updated: RenewalDetails = { ...row, ...excelRow };
+
+      const scholarship_status = computeScholarshipStatus(updated);
+
+      const delisting_root_cause =
+        scholarship_status === "Delisted"
+          ? Object.keys(validation)
+              .filter((k) => k !== "scholarship_status")
+              .filter((k) => updated[k as keyof RenewalDetails] === "Failed")
+              .join(", ")
+          : "Not Started";
+
+      const delisted_date =
+        scholarship_status === "Delisted" ? new Date().toISOString() : null;
+
+      const allPassed = Object.keys(validation)
+        .filter((k) => k !== "scholarship_status")
+        .every((k) => updated[k as keyof RenewalDetails] === "Passed");
+
+      const renewal_date = allPassed ? new Date().toISOString() : null;
+
+      const isEdited = Object.keys(updated).some(
+        (key) =>
+          key !== "original" &&
+          key !== "isEdited" &&
+          updated[key as keyof RenewalDetails] !==
+            row.original[key as keyof RenewalDetails]
+      );
+
+      return {
+        ...updated,
+        scholarship_status,
+        delisting_root_cause,
+        delisted_date,
+        renewal_date,
+        isEdited,
+        original: row.original,
+      };
+    });
+
+    setTempRenewalData(newData);
+
+    // Pass newData directly
+    submitSaveChanges(newData);
+  };
 
   useEffect(() => {
     getRenewalData();
@@ -224,7 +298,6 @@ function RenewalListV2() {
     setCountDelisted(delisted);
   }, [tempRenewalData]);
 
-  console.log(renewalData);
   console.log(sySemester);
   return (
     <div className="px-4 py-2">
@@ -245,7 +318,7 @@ function RenewalListV2() {
             Filter
           </button> */}
         </div>
-
+        {isLoading && <p>Loading///</p>}
         <div className="flex gap-2">
           {!isEdit ? (
             <>
@@ -256,13 +329,69 @@ function RenewalListV2() {
                 <Plus className="w-4 h-4" />
                 Add Renewal
               </button>
-              <button
-                className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer text-sm"
-                onClick={() => setIsGnrtRprtOpen(true)}
-              >
-                <FileDown className="w-4 h-4" />
-                Generate Report
-              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setIsFileActionOpen(!isFileActionOpen)}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer text-sm"
+                >
+                  <File className="w-4 h-4" />
+                  File Actions
+                  <ChevronDown
+                    className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
+                      isFileActionOpen ? "rotate-180" : "rotate-0"
+                    }`}
+                  />
+                </button>
+
+                {isFileActionOpen && (
+                  <div
+                    className={`bg-white shadow-md rounded-md flex flex-col justify-center border border-gray-300 mt-2 absolute left-0 right-0 z-[20]`}
+                  >
+                    <button
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
+                      onClick={() => setIsUploadOpen(true)}
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload File
+                    </button>
+                    <UploadFileRenewalModal
+                      isOpen={isUploadOpen}
+                      onClose={() => setIsUploadOpen(false)}
+                      renewalData={tempRenewalData} // pass current data
+                      onFileChanges={handleFileChanges}
+                    />
+
+                    <button
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
+                      onClick={() => setIsGnrtRprtOpen(true)}
+                    >
+                      <FileDown className="w-4 h-4" />
+                      Generate Report
+                    </button>
+                    <button
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
+                      onClick={() => {
+                        const headers = Object.keys(renewalTableHead);
+                        const data = renewalData.map((r) =>
+                          Object.keys(renewalTableHead).map(
+                            (key) => r[key as keyof RenewalDetails] ?? null
+                          )
+                        );
+
+                        downloadExcel(
+                          `RenewalReport-${sySemester}.xlsx`,
+                          headers,
+                          data
+                        );
+                      }}
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             ""
@@ -316,7 +445,7 @@ function RenewalListV2() {
         ) : (
           <div>
             <button
-              onClick={submitSaveChanges}
+              onClick={() => submitSaveChanges(tempRenewalData)}
               disabled={!hasEdits}
               className={`flex gap-2 p-2 rounded-md text-[14px] items-center transition
     ${

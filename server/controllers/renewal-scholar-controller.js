@@ -459,7 +459,8 @@ const updateScholarRenewalV2 = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    let totalUpdated = 0;
+    const updatedRows = new Set(); // <-- keep track of unique updated renewal_ids
+
     for (const row of updates) {
       const { renewal_id, changedFields } = row;
 
@@ -471,22 +472,40 @@ const updateScholarRenewalV2 = async (req, res) => {
         continue;
       }
 
-      const setClauses = Object.keys(changedFields)
-        .map((key, idx) => `"${key}" = $${idx + 1}`)
-        .join(", ");
+      // 1️⃣ Handle renewal_validation update (skip renewal_date)
+      const validationFields = { ...changedFields };
+      delete validationFields.renewal_date;
 
-      const values = Object.values(changedFields);
+      if (Object.keys(validationFields).length > 0) {
+        const setClauses = Object.keys(validationFields)
+          .map((key, idx) => `"${key}" = $${idx + 1}`)
+          .join(", ");
+        const values = Object.values(validationFields);
 
-      const query = `UPDATE renewal_validation SET ${setClauses} WHERE renewal_id = $${values.length + 1}`;
+        const query = `UPDATE renewal_validation SET ${setClauses} WHERE renewal_id = $${
+          values.length + 1
+        }`;
+        const result = await client.query(query, [...values, renewal_id]);
 
-      const result = await client.query(query, [...values, renewal_id]);
-      totalUpdated += result.rowCount;
+        if (result.rowCount > 0) updatedRows.add(renewal_id); // <-- track updated id
+      }
+
+      // 2️⃣ Handle renewal_scholar update if renewal_date exists
+      if (changedFields.renewal_date !== undefined) {
+        const result = await client.query(
+          `UPDATE renewal_scholar SET renewal_date = $1 WHERE renewal_id = $2`,
+          [changedFields.renewal_date, renewal_id]
+        );
+        if (result.rowCount > 0) updatedRows.add(renewal_id); // <-- track updated id
+      }
     }
 
     await client.query("COMMIT");
-    res
-      .status(200)
-      .json({ message: "updated successfully", updatedRows: totalUpdated });
+    res.status(200).json({
+      message: "Updated successfully",
+      updatedRows: Array.from(updatedRows), // <-- return list of updated renewal_ids
+      totalUpdated: updatedRows.size,
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error(error);
