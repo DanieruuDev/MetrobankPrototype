@@ -277,6 +277,8 @@ const changeApprover = async (req, res) => {
 
 //create approval
 //Done with modular
+//create approval
+//Done with modular
 const createApproval = async (req, res) => {
   const file = req.file;
   const deleteFile = () => {
@@ -299,8 +301,6 @@ const createApproval = async (req, res) => {
       description,
       due_date,
       school_year,
-      semester,
-      scholar_level,
       approvers,
     } = req.body; // Validate required fields
 
@@ -312,8 +312,6 @@ const createApproval = async (req, res) => {
       !description ||
       !due_date ||
       !school_year ||
-      !semester ||
-      !scholar_level ||
       !approvers
     ) {
       deleteFile();
@@ -333,9 +331,7 @@ const createApproval = async (req, res) => {
     let IsWorkflowExist = await checkWorkflowExists(
       client,
       req_type_id,
-      school_year,
-      semester,
-      scholar_level
+      school_year
     );
 
     if (IsWorkflowExist) {
@@ -351,8 +347,6 @@ const createApproval = async (req, res) => {
       requester_id,
       due_date,
       school_year,
-      semester,
-      scholar_level,
       description,
       request_title,
     });
@@ -403,7 +397,7 @@ const createApproval = async (req, res) => {
         requester_id,
         "Requester",
         "Created",
-        `Created workflow for ${school_year} ${semester} ${scholar_level}`,
+        `Created workflow for ${school_year}`,
       ]
     );
 
@@ -426,7 +420,7 @@ const createApproval = async (req, res) => {
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
             : "N/A",
-        school_details: `${school_year} - ${semester} (${scholar_level})`,
+        school_details: `${school_year}`,
       },
     });
   } catch (error) {

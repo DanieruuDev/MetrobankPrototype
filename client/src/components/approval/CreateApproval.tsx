@@ -121,17 +121,29 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }
   };
 
+  // In CreateApproval.tsx, update the handleSubmit function:
   const handleSubmit = async () => {
+    // Validate approvers before submitting
+    if (!formData.approvers || formData.approvers.length === 0) {
+      toast.error("Please add at least one approver");
+      return;
+    }
+
     setError(null);
     setLoading(true);
-    console.log("Form Data before sending:", formData);
+
+    // Log the complete form data for debugging
+    console.log("Complete Form Data:", {
+      ...formData,
+      approvers: formData.approvers,
+      file: formData.file ? formData.file.name : "No file",
+    });
 
     const sendData = new FormData();
     sendData.append("request_title", formData.request_title);
     sendData.append("requester_id", formData.requester_id);
     sendData.append("req_type_id", formData.req_type_id);
     sendData.append("description", formData.description);
-    // REMOVED: scholar_level and semester since these fields have been removed from the form
     sendData.append("due_date", formData.due_date);
     sendData.append("school_year", formData.school_year);
 
@@ -139,7 +151,16 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       sendData.append("file", formData.file);
     }
 
-    sendData.append("approvers", JSON.stringify(formData.approvers));
+    // Ensure approvers is a properly formatted JSON string
+    sendData.append(
+      "approvers",
+      JSON.stringify(
+        formData.approvers.map((approver, index) => ({
+          ...approver,
+          order: index + 1,
+        }))
+      )
+    );
 
     try {
       const res = await axios.post(
@@ -155,26 +176,28 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       fetchWorkflows(1);
       setIsModal(false);
       toast.success("Approval request created successfully!");
-      console.log(res.data);
+      console.log("Response:", res.data);
     } catch (error) {
-      console.error("Error submitting form:", error);
-      setError("Failed to submit request. Please try again.");
-      let message = "Failed to create approval request. Please try again.";
+      console.error("Error details:", error);
 
-      if (axios.isAxiosError(error) && error.response) {
-        const serverMessage = error.response.data?.message;
+      if (axios.isAxiosError(error)) {
+        console.error("Response data:", error.response?.data);
+        console.error("Response status:", error.response?.status);
 
-        if (serverMessage?.toLowerCase().includes("already exists")) {
-          message =
-            "A workflow with the same school year, semester, and year level already exists.";
+        if (error.response?.data?.errors) {
+          // Handle validation errors from backend
+          const errors = error.response.data.errors;
+          Object.keys(errors).forEach((key) => {
+            toast.error(`${key}: ${errors[key]}`);
+          });
         } else {
-          message = serverMessage || message;
+          toast.error(
+            error.response?.data?.message || "Failed to create workflow"
+          );
         }
-      } else if (error instanceof Error) {
-        message = error.message;
+      } else {
+        toast.error("An unexpected error occurred");
       }
-
-      toast.error(message);
     } finally {
       setLoading(false);
     }

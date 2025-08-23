@@ -99,36 +99,6 @@ function Approval({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Completed":
-        return "bg-green-500";
-      case "Pending":
-        return "bg-yellow-400";
-      case "In Progress":
-        return "bg-blue-500";
-      case "Missed":
-        return "bg-red-500";
-      default:
-        return "bg-gray-400";
-    }
-  };
-
-  const getStatusTextColor = (status: string) => {
-    switch (status) {
-      case "Completed":
-        return "text-green-600";
-      case "Pending":
-        return "text-yellow-600";
-      case "In Progress":
-        return "text-blue-600";
-      case "Missed":
-        return "text-red-600";
-      default:
-        return "text-gray-600";
-    }
-  };
-
   // Toggle expansion by approver_id
   const toggleStepExpansion = (approverId: number) => {
     if (expandedApproverId === approverId) {
@@ -174,7 +144,8 @@ function Approval({
   const sortedApprovers = [...workflow.approvers].sort(
     (a, b) => a.approver_order - b.approver_order
   );
-
+  console.log(sortedApprovers);
+  console.log(workflow);
   const calculateCompletionPercentage = () => {
     const validApprovers = sortedApprovers.filter(
       (a) => a.approver_status !== "Replaced"
@@ -484,33 +455,24 @@ function Approval({
                                 }
                               >
                                 <div className="flex justify-between items-start">
-                                  <div>
+                                  <div className="flex-1 min-w-0">
                                     <div className="flex items-center">
-                                      <h3 className="font-medium text-gray-900">
+                                      <h3 className="font-medium text-gray-900 truncate">
                                         {approver.approver_email}
                                       </h3>
+                                      <h3 className="font-medium text-gray-900 truncate">
+                                        {approver.approver_title}
+                                      </h3>
+
                                       {isCurrent && (
-                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full flex-shrink-0">
                                           Current
                                         </span>
                                       )}
                                     </div>
-                                    <div className="flex items-center mt-1">
-                                      <span
-                                        className={`w-2 h-2 rounded-full mr-2 ${getStatusColor(
-                                          approver.approver_status
-                                        )}`}
-                                      ></span>
-                                      <span
-                                        className={`text-sm font-medium ${getStatusTextColor(
-                                          approver.approver_status
-                                        )}`}
-                                      >
-                                        {approver.approver_status}
-                                      </span>
-                                    </div>
+                                    <div className="mt-1 flex items-center"></div>
                                   </div>
-                                  <div className="flex items-center">
+                                  <div className="flex items-center ml-2 flex-shrink-0">
                                     <span className="text-sm text-gray-500 mr-2">
                                       Step {approver.approver_order}
                                     </span>
@@ -527,6 +489,31 @@ function Approval({
                               {/* Expanded content */}
                               {expandedApproverId === approver.approver_id && (
                                 <div className="mt-3 space-y-3 pl-4">
+                                  {/* Approver details */}
+                                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                      Approver Information
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-xs text-gray-500">
+                                          Email
+                                        </p>
+                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                          {approver.approver_email}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500">
+                                          Role/Title
+                                        </p>
+                                        <p className="text-sm font-medium text-gray-900">
+                                          {approver.approver_title}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
                                   {/* Response details */}
                                   {approver.response !== "Pending" && (
                                     <div className="bg-white p-4 rounded-lg border border-gray-200">
