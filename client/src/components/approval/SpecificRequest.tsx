@@ -3,7 +3,6 @@ import axios from "axios";
 import {
   ArrowLeft,
   FileText,
-  UserCircle,
   CheckCircle,
   XCircle,
   Download,
@@ -39,6 +38,15 @@ function SpecificRequest({
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [comment, setComment] = useState("");
+
+  const formatDate = (isoDate: string) => {
+    if (!isoDate) return "";
+    return new Date(isoDate).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const handleDownload = () => {
     if (!specificRequest?.file_path) return;
@@ -105,20 +113,76 @@ function SpecificRequest({
       </div>
 
       {/* Title and status */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {specificRequest.request_title}
-          </h1>
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${approverStatusBadge(
-              String(specificRequest.approver_status)
-            )}`}
-          >
-            {specificRequest.approver_status}
-          </span>
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1 w-full justify-between">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500  tracking-wider">
+                  DESCRIPTION
+                </label>
+                <h1 className="text-2xl font-bold text-gray-900 truncate">
+                  {specificRequest.request_title}
+                </h1>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs ml-2 font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </label>
+                <span
+                  className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${approverStatusBadge(
+                    String(specificRequest.approver_status)
+                  )}`}
+                >
+                  {specificRequest.approver_status}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Title
+              </label>
+              {specificRequest.description}
+            </div>
+          </div>
+
+          {/* Action Buttons - Optional */}
         </div>
-        <p className="text-gray-600">{specificRequest.description}</p>
+
+        {/* Divider */}
+        <div className="border-t border-gray-200"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-gray-900 font-medium">
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Created By
+            </label>
+            {specificRequest.requester_name}
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Role
+            </label>
+            {specificRequest.requester_role_name}
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Start Date
+            </label>
+            {formatDate(specificRequest.date_started)}
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Due Date
+            </label>
+            {formatDate(specificRequest.due_date)}
+          </div>
+        </div>
+
+        {/* Details Grid */}
+
+        {/* Progress Bar - Optional */}
       </div>
 
       {/* Approval progress */}
@@ -208,6 +272,7 @@ function SpecificRequest({
             </div>
 
             {/* Add the approver details section here */}
+            {/* Add the approver details section here */}
             <div className="space-y-3">
               {specificRequest.approval_progress
                 .filter((approval) => approval.approval_status !== "Replaced")
@@ -231,15 +296,18 @@ function SpecificRequest({
                         <User size={14} className="text-gray-500" />
                       </div>
                       <div>
+                        {/* THIS IS WHERE APPROVER NAME IS DISPLAYED */}
                         <p className="font-medium text-gray-800">
                           {approval.approver_name}
                         </p>
+                        {/* THIS IS WHERE APPROVER ROLE IS DISPLAYED */}
                         <p className="text-xs text-gray-500">
                           {approval.approver_role}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* Status display logic */}
                       {approval.response === "Approved" ? (
                         <span className="flex items-center text-green-600">
                           <CheckCircle size={14} className="mr-1" />
@@ -278,19 +346,6 @@ function SpecificRequest({
       {/* Request details */}
       <div className="space-y-6">
         {/* Requester info */}
-        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
-            <UserCircle size={20} />
-          </div>
-          <div>
-            <p className="font-medium text-gray-800">
-              {specificRequest.requester_name}
-            </p>
-            <p className="text-sm text-gray-500">
-              {specificRequest.requester_role_name}
-            </p>
-          </div>
-        </div>
 
         {/* Attachment */}
         <div className="border border-gray-200 rounded-lg overflow-hidden">

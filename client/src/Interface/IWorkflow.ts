@@ -121,18 +121,23 @@ export interface ApprovalProgressItem {
   approver_order: number;
   comment: string | null;
 }
-export interface RequestApprovalList {
-  user_id: number;
+export interface ApproverInfo {
   approver_id: number;
-  request_title: string;
-  approver_status: string;
+  user_id: number;
+  approver_name: string;
+  approver_role: string;
+  approver_order: number;
   is_current: boolean;
-  requester: string;
-  date_started: string;
-  approver_due_date: string;
-  school_year: string;
-  year_level: string;
-  semester: string;
+  approver_status: string;
+}
+
+export interface WorkflowApprovalList {
+  workflow_id: number;
+  workflow_type: string;
+  workflow_title: string;
+  workflow_status: string;
+  created_by: string;
+  approvers: ApproverInfo[];
 }
 
 export interface WorkflowFormData {

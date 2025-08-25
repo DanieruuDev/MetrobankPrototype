@@ -444,8 +444,10 @@ const fetchApproverApprovalList = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM vw_approver_workflows
-      WHERE user_id = $1
+    SELECT * FROM vw_approver_workflows 
+   WHERE workflow_id IN (
+     SELECT workflow_id FROM wf_approver WHERE user_id = $1
+   )
     `;
 
     const { rows } = await pool.query(query, [user_id]);
