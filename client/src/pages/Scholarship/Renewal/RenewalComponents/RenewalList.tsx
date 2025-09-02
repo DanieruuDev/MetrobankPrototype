@@ -15,7 +15,7 @@ import {
   FileText,
   Sliders,
 } from "lucide-react";
-import SYSemesterDropdown from "../../../../components/shared/SYSemesterDropdown";
+import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterDropdown";
 
 interface RenewalListProps {
   handleRowClick: (student_id: number, renewal_id: number) => void;

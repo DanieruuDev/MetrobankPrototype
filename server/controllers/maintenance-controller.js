@@ -24,4 +24,25 @@ const getYearLevel = async (req, res) => {
   }
 };
 
-module.exports = { getSchoolYear, getYearLevel };
+const getBranch = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT campus_id, school_id, campus_name, campus_address, scholar_limit
+       FROM maintenance_campus
+       ORDER BY campus_name ASC`
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching branches:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch branches",
+      error: error.message,
+    });
+  }
+};
+module.exports = { getSchoolYear, getYearLevel, getBranch };

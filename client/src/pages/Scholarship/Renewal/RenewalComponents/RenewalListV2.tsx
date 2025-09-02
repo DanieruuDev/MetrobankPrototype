@@ -10,7 +10,7 @@ import {
   Upload,
   ChevronDown,
 } from "lucide-react";
-import SYSemesterDropdown from "../../../../components/shared/SYSemesterDropdown";
+import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterDropdown";
 import { RenewalRow, renewalTableHead } from "../../../../Interface/IRenewal";
 import {
   RenewalDetailsClone,

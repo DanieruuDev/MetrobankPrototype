@@ -10,24 +10,6 @@ import { AuthContext } from "../../context/AuthContext";
 import ConfirmDialog from "../approval/ConfirmDialog";
 import { toast } from "react-toastify";
 
-export interface DisbursementScheduleDetail {
-  disb_sched_id: number;
-  disbursement_type: string;
-  disbursement_date: string;
-  title: string;
-  schedule_status: string;
-  description: string; // Added this field
-  branch: string;
-  created_by_id: number;
-  created_by: string;
-  // Remove these fields since they're no longer used:
-  // amount: string;
-  // yr_lvl: string;
-  // semester: string;
-  // school_year: string;
-  // total_scholar: string;
-}
-
 interface DayCellProps {
   day: Date;
   handleDateSelect: (date: Date) => void;
@@ -36,8 +18,20 @@ interface DayCellProps {
   getBadgeColor: (type: string) => string;
   currentDate: Date;
   removeScheduleById: (disb_sched_id: number) => void;
+  fetchSchedules: (date: Date) => void;
 }
 
+export interface EdittableDisbursementData {
+  sched_id: number;
+  sched_title: string;
+  schedule_due: string;
+  description: string;
+  semester_code: number;
+  sy_code: number;
+  branch_code: number;
+  disbursement_type_id: number;
+  event_type: number;
+}
 const RenderDayCell: React.FC<DayCellProps> = ({
   day,
   handleDateSelect,
@@ -45,16 +39,24 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   scheduleMap,
   getBadgeColor,
   currentDate,
+  fetchSchedules,
   removeScheduleById,
 }) => {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const [activeSchedule, setActiveSchedule] =
-    useState<DisbursementScheduleDetail | null>(null);
-  const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    useState<DisbursementSchedule | null>(null);
+  const [edittableData, setEdittableData] =
+    useState<EdittableDisbursementData | null>(null);
+  const [modalPosition, setModalPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingEdittable, setLoadingEdittable] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
 
   const isToday = isSameDay(day, new Date());
   const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
@@ -80,51 +82,38 @@ const RenderDayCell: React.FC<DayCellProps> = ({
         return "bg-black";
     }
   };
-
-  const handleScheduleClick = async (
+  const handleScheduleClick = (
     e: React.MouseEvent<HTMLDivElement>,
     schedule: DisbursementSchedule
   ) => {
     e.stopPropagation();
-
-    if (activeSchedule?.disb_sched_id === schedule.disb_sched_id) return;
+    if (activeSchedule?.sched_id === schedule.sched_id) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const modalWidth = 320;
     const modalHeight = 320;
-    const padding = 10;
+    const padding = 15;
 
-    let left = rect.right + padding + window.scrollX;
-    if (rect.right + modalWidth + padding > window.innerWidth) {
-      left = rect.left - modalWidth - padding + window.scrollX;
+    let top = rect.bottom + window.scrollY + padding; // default: below
+    let left = rect.left + window.scrollX; // default: align left edge
+
+    // ✅ Flip vertically if modal would go off the bottom of the screen
+    if (top + modalHeight > window.scrollY + window.innerHeight) {
+      top = rect.top + window.scrollY - modalHeight - padding; // place above
     }
 
-    let top: number;
+    // ✅ Adjust horizontally if modal overflows right
+    if (left + modalWidth > window.scrollX + window.innerWidth) {
+      left = rect.right + window.scrollX - modalWidth; // align to right edge
+    }
 
-    if (rect.bottom + modalHeight + padding < window.innerHeight) {
-      top = rect.bottom + window.scrollY + padding;
-    } else {
-      top = rect.top + window.scrollY - modalHeight - padding;
-      if (top < padding) top = padding;
-    }
-    if (top < padding) {
-      top = padding;
-    }
+    // ✅ Clamp to screen so it never goes off
+    if (top < padding) top = padding;
+    if (left < padding) left = padding;
+
     setModalPosition({ top, left });
-    setLoading(true);
     setError(null);
-
-    try {
-      const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/detailed/${schedule.disb_sched_id}`
-      );
-      setActiveSchedule(response.data);
-    } catch (err) {
-      setError("Error fetching schedule details.");
-      console.error("Error fetching schedule details:", err);
-    } finally {
-      setLoading(false);
-    }
+    setActiveSchedule(schedule);
   };
 
   const deleteSchedule = async (disb_sched_id: number, user_id: number) => {
@@ -147,17 +136,26 @@ const RenderDayCell: React.FC<DayCellProps> = ({
       console.error("Delete Schedule Error:", error);
     }
   };
-
   const closeModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.stopPropagation();
     setActiveSchedule(null);
     setShowOptions(false);
   };
-
-  const handleEditClick = () => {
+  const handleEditClick = async (sched_id: number) => {
     setShowUpdateModal(true);
-  };
+    setLoadingEdittable(true);
 
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/disbursement/schedule/detailed/${sched_id}`
+      );
+      setEdittableData(res.data);
+    } catch (error) {
+      console.error("Error fetching schedule details:", error);
+    } finally {
+      setLoadingEdittable(false);
+    }
+  };
   const closeUpdateModal = () => {
     setShowUpdateModal(false);
     setActiveSchedule(null);
@@ -210,12 +208,14 @@ const RenderDayCell: React.FC<DayCellProps> = ({
       <div className="mt-1 overflow-hidden w-full">
         {daySchedules.map((schedule) => (
           <div
-            key={schedule.disb_sched_id}
+            key={schedule.sched_id}
             className="text-xs py-1 px-2 mb-1 rounded-xl text-white text-[10px] font-medium truncate relative cursor-pointer hover:opacity-90"
-            style={{ backgroundColor: getBadgeColor(schedule.type) }}
+            style={{
+              backgroundColor: getBadgeColor(schedule.disbursement_label),
+            }}
             onClick={(e) => handleScheduleClick(e, schedule)}
           >
-            {schedule.type}
+            {schedule.sched_title}
           </div>
         ))}
       </div>
@@ -225,8 +225,8 @@ const RenderDayCell: React.FC<DayCellProps> = ({
           ref={modalRef}
           className="fixed z-50 bg-[#F1F1F1] shadow-lg rounded-md border border-gray-200 w-80 transition-all duration-200 ease-out"
           style={{
-            top: `${modalPosition.top}px`,
-            left: `${modalPosition.left}px`,
+            top: modalPosition?.top,
+            left: modalPosition?.left,
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -246,7 +246,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
           <div className="p-4 pb-3">
             <div className="flex justify-between items-start relative">
               <p className="text-sm text-gray-600">
-                {format(day, "EEEE, MMMM d")}
+                {formatDate(activeSchedule.schedule_due)}
               </p>
 
               <div className="flex items-center gap-2">
@@ -261,7 +261,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                   {showOptions && (
                     <div className="absolute right-0 mt-2 w-36 bg-[#f4f4f4] border border-gray-200 rounded-xl shadow-md overflow-hidden z-10">
                       <Link
-                        to={`/tracking/detailed/${activeSchedule.disb_sched_id}`}
+                        to={`/tracking/detailed/${activeSchedule.sched_id}`}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white transition"
                         onClick={() => setShowOptions(false)}
                       >
@@ -269,13 +269,14 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                         <span>View</span>
                       </Link>
 
-                      {activeSchedule.created_by_id === userId ? (
+                      {activeSchedule.admin_id === userId && (
                         <>
+                          {console.log(activeSchedule.sched_id === userId)}
                           <button
                             className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
                             onClick={() => {
                               setShowOptions(false);
-                              handleEditClick();
+                              handleEditClick(activeSchedule.sched_id);
                             }}
                           >
                             <Pencil className="w-4 h-4" />
@@ -284,7 +285,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                           <button
                             className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
                             onClick={() => {
-                              setPendingDeleteId(activeSchedule.disb_sched_id);
+                              setPendingDeleteId(activeSchedule.sched_id);
                               setConfirmOpen(true);
                               setShowOptions(false);
                             }}
@@ -293,8 +294,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                             <span>Delete</span>
                           </button>
                         </>
-                      ) : (
-                        ""
                       )}
                     </div>
                   )}
@@ -311,13 +310,16 @@ const RenderDayCell: React.FC<DayCellProps> = ({
 
             {showUpdateModal && activeSchedule && (
               <UpdateEvent
-                activeSchedule={activeSchedule}
+                edittableData={edittableData}
                 closeModal={closeUpdateModal}
+                loading={loadingEdittable}
+                setEdittableData={setEdittableData}
+                fetchSchedules={fetchSchedules}
               />
             )}
 
             <div className="text-[20px] font-medium text-[#565656]">
-              {loading ? "Loading..." : activeSchedule.title}
+              {loading ? "Loading..." : activeSchedule.sched_title}
             </div>
 
             {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
@@ -329,12 +331,12 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                     className="w-1 h-4 rounded-full"
                     style={{
                       backgroundColor: getBadgeColor(
-                        activeSchedule.disbursement_type
+                        activeSchedule.disbursement_label
                       ),
                     }}
                   ></div>
                   <h3 className="text-[16px] font-medium text-[#565656]">
-                    {activeSchedule.disbursement_type}
+                    {activeSchedule.disbursement_label}
                   </h3>
                 </div>
 
@@ -349,28 +351,28 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                   </span>
                 </div>
 
-                {/* Updated information section */}
                 <div className="mt-4 text-[#565656] text-[13px]">
-                  <div className="flex justify-between mb-2">
-                    <div>Disbursement Date</div>
-                    <div>{formatDate(activeSchedule.disbursement_date)}</div>
-                  </div>
-
                   <div className="mb-2">
-                    <div className="font-medium mb-1">Details</div>
-                    <div className="bg-gray-50 p-2 rounded text-sm">
-                      {activeSchedule.description || "No details provided"}
+                    <div className="bg-gray-50 p-2 rounded text-sm space-y-1 text-[13px]">
+                      <div className="grid grid-cols-2">
+                        <span>Description:</span>
+                        <span className="font-medium">
+                          {activeSchedule.description || "No details provided"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2">
+                        <span>Student count:</span>
+                        <span className="font-medium">
+                          {activeSchedule.student_count}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2">
+                        <span>Created By:</span>
+                        <span className="font-medium">
+                          {activeSchedule.admin_name}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <div>Branch</div>
-                    <div>{activeSchedule.branch}</div>
-                  </div>
-
-                  <div className="flex justify-between mt-2">
-                    <div>Created By</div>
-                    <div>{activeSchedule.created_by}</div>
                   </div>
                 </div>
               </>

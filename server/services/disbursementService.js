@@ -1,120 +1,166 @@
-const pool = require("../database/dbConnect.js");
-
-const createSchedule = async (client, data) => {
+const createEventSchedule = async (client, data) => {
   const {
-    disbursement_type_id,
-    disb_title,
-    disbursement_date,
+    event_type,
+    starting_date,
+    sched_title,
+    schedule_due,
     sy_code,
     semester_code,
-    branch,
-    created_by,
+    requester,
+    description,
+    branch_code,
+    disbursement_type_id,
   } = data;
+
+  const { rows: existingDisb } = await client.query(
+    `
+  SELECT ds.disb_sched_id
+  FROM disbursement_schedule ds
+  JOIN event_schedule es ON ds.sched_id = es.sched_id
+  WHERE es.sy_code = $1
+    AND es.semester_code = $2
+    AND ds.branch_code = $3
+    AND ds.disbursement_type_id = $4
+  LIMIT 1
+  `,
+    [sy_code, semester_code, branch_code, disbursement_type_id]
+  );
+
+  if (existingDisb.length > 0) {
+    throw new Error(
+      `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, Branch ${branch_code}, and Disbursement Type ${disbursement_type_id}.`
+    );
+  }
+
+  const { rows: students } = await client.query(
+    `
+    SELECT 1
+    FROM renewal_scholar rs
+    JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
+    WHERE rs.school_year = $1
+      AND rs.semester = $2
+      AND mc.campus_id = $3
+    LIMIT 1
+    `,
+    [sy_code, semester_code, branch_code]
+  );
+  console.log("Branch", branch_code);
+  if (!students.length) {
+    throw new Error(
+      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branch_code} for this event.`
+    );
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  let schedule_status = "Not Started";
+  if (starting_date) {
+    const parsed = new Date(starting_date);
+    if (!isNaN(parsed)) {
+      const startDateStr = parsed.toISOString().split("T")[0];
+      if (startDateStr === today) schedule_status = "In Progress";
+    }
+  }
 
   const result = await client.query(
     `
-    INSERT INTO disbursement_schedule (
-      disbursement_type_id, disb_title, disbursement_date,
-      sy_code, semester_code, branch, created_by, status
+    INSERT INTO event_schedule (
+      event_type, sched_title, schedule_due, starting_date,
+      sy_code, semester_code, requester, description, schedule_status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING disb_sched_id
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    RETURNING sched_id
     `,
     [
-      disbursement_type_id,
-      disb_title,
-      disbursement_date,
-
+      event_type,
+      sched_title,
+      schedule_due,
+      starting_date,
       sy_code,
       semester_code,
-      branch,
-      created_by,
-
-      "In Progress",
+      requester,
+      description,
+      schedule_status,
     ]
   );
 
-  return result.rows[0].disb_sched_id;
+  return result.rows[0].sched_id;
+};
+
+const createDisbursementSched = async (client, data) => {
+  const {
+    sched_id,
+    sy_code,
+    semester_code,
+    branch_code,
+    disbursement_type_id,
+  } = data;
+
+  const { rows: disbDetails } = await client.query(
+    `
+  SELECT dd.disb_detail_id
+  FROM renewal_scholar rs
+  JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
+  JOIN disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
+  JOIN disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
+  WHERE rs.school_year = $1
+    AND rs.semester = $2
+    AND mc.campus_id = $3
+    AND dd.disbursement_type_id = $4
+  `,
+    [sy_code, semester_code, branch_code, disbursement_type_id]
+  );
+
+  if (!disbDetails.length) {
+    throw new Error(
+      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branch_code} for disbursement type ${disbursement_type_id}.`
+    );
+  }
+
+  const insertedIds = [];
+
+  for (const { disb_detail_id } of disbDetails) {
+    const { rows } = await client.query(
+      `
+    INSERT INTO disbursement_schedule (sched_id, disb_detail_id, branch_code, disbursement_type_id)
+    VALUES ($1, $2, $3, $4)
+    RETURNING disb_sched_id
+    `,
+      [sched_id, disb_detail_id, branch_code, disbursement_type_id]
+    );
+    insertedIds.push(rows[0].disb_sched_id);
+  }
+
+  return insertedIds;
 };
 
 const updateDisbursementDetails = async (client, payload) => {
   const {
+    disb_sched_id,
     disbursement_type_id,
-
-    sy_code,
-    semester_code,
     required_hours = null,
-    disb_sched_id,
-    branch, // new param
   } = payload;
-  console.log(
-    disbursement_type_id,
 
-    sy_code,
-    semester_code,
-    required_hours,
-    disb_sched_id,
-    branch
-  );
-
-  console.log(branch);
-  console.log(typeof branch);
-  let query, params;
-
-  if (disbursement_type_id === 4) {
-    query = `
-    UPDATE disbursement_detail dd
-    SET 
-      disbursement_status = $1,
-      disb_sched_id = $5,
-      required_hours = $6
-    FROM disbursement_tracking dt
-    JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-    WHERE 
-      dd.disbursement_id = dt.disbursement_id AND
-      dd.disbursement_type_id = $2 AND
-      rs.school_year = $3 AND
-      rs.semester = $4 AND
-      rs.campus_name = $7
-
-  `;
-
-    params = [
-      "In Progress", // $1
-      disbursement_type_id, // $2
-      sy_code, // $4
-      semester_code, // $5
-      disb_sched_id, // $6
-      required_hours, // $7
-      branch, // $8
-    ];
-  } else {
-    query = `
-    UPDATE disbursement_detail dd
-    SET 
-      disbursement_status = $1,
-      disb_sched_id = $5,
-      required_hours = NULL
-    FROM disbursement_tracking dt
-    JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-    WHERE 
-      dd.disbursement_id = dt.disbursement_id AND
-      dd.disbursement_type_id = $2 AND
-      rs.school_year = $3 AND
-      rs.semester = $4 AND
-      rs.campus_name = $6
-  `;
-
-    params = [
-      "In Progress", // $1
-      disbursement_type_id, // $2
-
-      sy_code, // $4
-      semester_code, // $5
-      disb_sched_id, // $6
-      branch, // $7
-    ];
+  console.log("inside: ", disb_sched_id);
+  if (!disb_sched_id.length) {
+    throw new Error("No disbursement schedule IDs provided.");
   }
+
+  const query = `
+    UPDATE disbursement_detail dd
+SET 
+  disbursement_status = es.schedule_status::disbursement_status_enum,
+  required_hours = $1
+FROM disbursement_schedule ds
+JOIN event_schedule es ON ds.sched_id = es.sched_id
+WHERE dd.disb_detail_id = ds.disb_detail_id
+  AND ds.disb_sched_id = ANY($2)
+
+  `;
+
+  const params = [
+    disbursement_type_id === 4 ? required_hours : null, // $1
+    disb_sched_id, // $2 (array)
+  ];
 
   const updateResult = await client.query(query, params);
   return updateResult.rowCount;
@@ -172,7 +218,8 @@ const updateSchedule = async (
 };
 
 module.exports = {
-  createSchedule,
+  createEventSchedule,
   updateDisbursementDetails,
+  createDisbursementSched,
   updateSchedule,
 };

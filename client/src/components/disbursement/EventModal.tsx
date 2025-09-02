@@ -2,35 +2,32 @@ import axios from "axios";
 import { X } from "lucide-react";
 import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
-
+import BranchDropdown from "../maintainables/BranchDropdown";
 interface EventModalProps {
   onClose: (isEventOpen: boolean) => void;
   fetchSchedules: () => void;
   selectedDate: Date | null;
 }
 
-type BranchType =
-  | "STI Ortigas-cainta"
-  | "STI  Sta.mesa"
-  | "STI Fairview"
-  | "STI Global"
-  | "";
+type SemesterType = "1st" | "2nd" | "";
+type SchoolYearType = "2024-2025" | "2025-2026" | "";
 type DisbursementType =
   | "Scholarship Fee"
   | "Allowance Fee"
   | "Thesis Fee"
-  | "Internship Allowance"
+  | "Internship Fee"
   | "Academic Incentives"
   | "";
 
 interface FormData {
   title: string;
-  date: Date | null;
-  branch: BranchType;
+  schedule_due: Date | null;
+  starting_date: Date | null;
+  semester: SemesterType;
+  branch: number | null;
+  schoolYear: SchoolYearType;
   disbursementType: DisbursementType;
   description: string;
-  semester: string;
-  school_year: string;
 }
 
 function EventModal({
@@ -42,15 +39,21 @@ function EventModal({
   const userId = auth?.user?.user_id;
   const [formData, setFormData] = useState<FormData>({
     title: "",
-    date: selectedDate,
-    branch: "",
+    schedule_due: selectedDate,
+    semester: "",
+    branch: null,
+    schoolYear: "",
     disbursementType: "",
     description: "",
-    semester: "",
-    school_year: "",
+    starting_date: null,
   });
+  const [branch, setBranch] = useState<number | "">("");
+
+  const handleBranchChange = (branchId: number) => {
+    setBranch(branchId);
+    setFormData((prev) => ({ ...prev, branch: branchId }));
+  };
   const todayDate = new Date().toISOString().split("T")[0];
-  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -59,57 +62,66 @@ function EventModal({
 
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "date" ? new Date(value) : value,
+      [name]:
+        name === "schedule_due" || name === "starting_date"
+          ? new Date(value)
+          : value,
     }));
   };
+  console.log(formData.branch);
 
   useEffect(() => {
     if (selectedDate) {
       setFormData((prev) => ({
         ...prev,
-        date: selectedDate,
+        schedule_due: selectedDate,
       }));
     }
   }, [selectedDate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
+    console.log("sent?");
     try {
+      console.log("click pass");
       const response = await axios.post(
         "http://localhost:5000/api/disbursement/schedule",
         {
-          created_by: userId,
-          disbursement_date: formData.date
-            ? formatDateForInput(new Date(formData.date))
+          event_type: 1,
+          requester: userId,
+          schedule_due: formData.schedule_due
+            ? formatDateForInput(new Date(formData.schedule_due))
             : null,
-          disb_title: formData.title,
-          branch: formData.branch,
-          description: formData.description,
+          starting_date: formData.starting_date
+            ? formatDateForInput(new Date(formData.starting_date))
+            : null,
+          sched_title: formData.title,
+          branch_code: formData.branch,
+          semester_code: Number(formData.semester),
+          sy_code: Number(formData.schoolYear),
           disbursement_type_id: Number(formData.disbursementType),
+          description: formData.description,
         }
       );
-
       console.log("Form Data Submitted:", formData);
       console.log(response);
       fetchSchedules();
-      alert("Success");
+      alert("Successs");
       onClose(false);
       setFormData({
         title: "",
-        date: null,
-        branch: "",
+        schedule_due: null,
+        semester: "",
+        branch: null,
+        schoolYear: "",
         disbursementType: "",
         description: "",
-        semester: "",
-        school_year: "",
+        starting_date: null,
       });
     } catch (error) {
       console.error("Error creating disbursement schedule:", error);
       alert("Failed");
-    } finally {
-      setLoading(false);
+      console.log("click fail");
     }
   };
 
@@ -129,7 +141,6 @@ function EventModal({
             className="text-gray-500 hover:text-gray-700 transition-colors"
             onClick={() => onClose(false)}
             aria-label="Close"
-            disabled={loading}
           >
             <X className="h-5 w-5" />
           </button>
@@ -148,37 +159,132 @@ function EventModal({
                 id="title"
                 type="text"
                 name="title"
-                maxLength={50}
+                maxLength={25}
                 value={formData.title}
                 onChange={handleInputChange}
                 placeholder="Enter a title"
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-                disabled={loading}
               />
             </div>
-            <div>
-              <label
-                htmlFor="date"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Date
-              </label>
-              <input
-                id="date"
-                type="date"
-                name="date"
-                min={todayDate}
-                value={
-                  formData.date
-                    ? formatDateForInput(new Date(formData.date))
-                    : ""
-                }
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-                disabled={loading}
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label
+                  htmlFor="date"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Starting Date
+                </label>
+                <input
+                  id="starting_date"
+                  type="date"
+                  name="starting_date"
+                  min={todayDate}
+                  value={
+                    formData.starting_date
+                      ? formatDateForInput(new Date(formData.starting_date))
+                      : ""
+                  }
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="date"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Due Date
+                </label>
+                <input
+                  id="schedule_due"
+                  type="date"
+                  name="schedule_due"
+                  min={todayDate}
+                  value={
+                    formData.schedule_due
+                      ? formatDateForInput(new Date(formData.schedule_due))
+                      : ""
+                  }
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label
+                  htmlFor="semester"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Semester
+                </label>
+                <select
+                  id="semester"
+                  name="semester"
+                  value={formData.semester}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  required
+                >
+                  <option value="">Select</option>
+                  <option value="1">1st Semester</option>
+                  <option value="2">2nd Semester</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="schoolYear"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  School Year
+                </label>
+                <select
+                  id="schoolYear"
+                  name="schoolYear"
+                  value={formData.schoolYear}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  required
+                >
+                  <option value="">Select</option>
+                  <option value="20242025">2024-2025</option>
+                  <option value="20252026">2025-2026</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <BranchDropdown
+                formData={branch}
+                handleInputChange={handleBranchChange}
               />
+
+              <div className="flex-1">
+                <label
+                  htmlFor="disbursementType"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Disbursement Type
+                </label>
+                <select
+                  id="disbursementType"
+                  name="disbursementType"
+                  value={formData.disbursementType}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  required
+                >
+                  <option value="">Select Type</option>
+                  <option value="1">Scholarship Fee</option>
+                  <option value="2">Allowance Fee</option>
+                  <option value="3">Thesis Fee</option>
+                  <option value="4">Internship Allowance</option>
+                  <option value="5">Academic Incentives</option>
+                </select>
+              </div>
             </div>
 
             <div>
@@ -193,60 +299,9 @@ function EventModal({
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                placeholder="Enter details (year levels, semesters, amounts, etc.)"
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-20"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="branch"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Branch
-              </label>
-              <select
-                id="branch"
-                name="branch"
-                value={formData.branch}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-                disabled={loading}
-              >
-                <option value="">Select Branch</option>
-                <option value="STI Ortigas-Cainta">STI Ortigas-Cainta</option>
-                <option value="STI Sta. Mesa">STI Sta.Mesa</option>
-                <option value="STI Fairview">STI Fairview</option>
-                <option value="STI Global">STI Global</option>
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="disbursementType"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Disbursement Type
-              </label>
-              <select
-                id="disbursementType"
-                name="disbursementType"
-                value={formData.disbursementType}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-                disabled={loading}
-              >
-                <option value="">Select Type</option>
-                <option value="1">Scholarship Fee</option>
-                <option value="2">Allowance Fee</option>
-                <option value="3">Thesis Fee</option>
-                <option value="4">Internship Allowance</option>
-                <option value="5">Academic Incentives</option>
-              </select>
+                rows={2}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+              ></textarea>
             </div>
           </div>
 
@@ -255,16 +310,14 @@ function EventModal({
               type="button"
               onClick={() => onClose(false)}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all"
-              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
             >
-              {loading ? "Creating..." : "Create"}
+              Create
             </button>
           </div>
         </form>

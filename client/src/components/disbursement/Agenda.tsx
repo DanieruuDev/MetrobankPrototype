@@ -13,29 +13,26 @@ import {
   ChevronRight,
   Users,
   ChevronRight as ChevronRightIcon,
-  MapPin,
-  BookOpen,
   Clock,
   Tag,
   CheckCircle2,
   AlertCircle,
+  BookOpen,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface DisbursementScheduleDetail {
-  disb_sched_id: number;
-  disbursement_type: string;
-  disbursement_date: string;
-  title: string;
+  sched_id: number;
+  sched_title: string;
+  event_type: number;
+  schedule_due: string;
   schedule_status: string;
-  amount: string;
-  yr_lvl: string;
-  semester: string;
-  school_year: string;
-  branch: string;
-  created_by_id: number;
-  created_by: string;
-  total_scholar: string;
+  student_count: number;
+  disbursement_label: string;
+  description: string;
+  admin_job: string;
+  admin_email: string;
+  admin_name: string;
 }
 
 interface AgendaViewProps {
@@ -48,7 +45,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
-  // Use useMemo to calculate week data to prevent recalculations on every render
+
   const { currentWeekStart, weekDays } = useMemo(() => {
     const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
 
@@ -56,19 +53,16 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
       addDays(currentWeekStart, i)
     );
     return { currentWeekStart, weekDays };
-  }, [currentDate]); // Only recalculate when currentDate changes
+  }, [currentDate]);
 
-  // Navigate to previous week
   const goToPreviousWeek = () => {
     setCurrentDate((prev) => subWeeks(prev, 1));
   };
 
-  // Navigate to next week
   const goToNextWeek = () => {
     setCurrentDate((prev) => addWeeks(prev, 1));
   };
 
-  // Go to current week
   const goToCurrentWeek = () => {
     setCurrentDate(new Date());
   };
@@ -94,22 +88,18 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
 
   useEffect(() => {
     fetchWeeklySchedules();
-  }, [currentWeekStart]); // Only triggers when week start changes
+  }, [currentWeekStart]);
 
-  // Use useMemo to process schedules
   const schedulesByDate = useMemo(() => {
     return schedules.reduce((acc, schedule) => {
-      const dateKey = format(
-        new Date(schedule.disbursement_date),
-        "yyyy-MM-dd"
-      );
+      const dateKey = format(new Date(schedule.schedule_due), "yyyy-MM-dd");
       if (!acc[dateKey]) {
         acc[dateKey] = [];
       }
       acc[dateKey].push(schedule);
       return acc;
     }, {} as Record<string, DisbursementScheduleDetail[]>);
-  }, [schedules]); // Only recalculate when schedules change
+  }, [schedules]);
 
   // Get status icon and color
   const getStatusInfo = (status: string) => {
@@ -132,9 +122,9 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
           color: "text-blue-600",
           bgColor: "bg-blue-50",
         };
-      case "cancelled":
+      case "missed":
         return {
-          icon: <AlertCircle size={16} />,
+          icon: <AlertCircle size={16} color="red" />,
           color: "text-red-600",
           bgColor: "bg-red-50",
         };
@@ -250,13 +240,19 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
                           const statusInfo = getStatusInfo(
                             schedule.schedule_status
                           );
+                          const due = schedule.schedule_due
+                            ? format(
+                                new Date(schedule.schedule_due),
+                                "MMM dd, yyyy"
+                              )
+                            : "No date";
 
                           return (
                             <div
-                              key={schedule.disb_sched_id}
+                              key={schedule.sched_id}
                               className="rounded-lg shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
                               onClick={() =>
-                                handleScheduleClick(schedule.disb_sched_id)
+                                handleScheduleClick(schedule.sched_id)
                               }
                             >
                               <div className="flex">
@@ -265,37 +261,33 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
                                   className="w-1.5"
                                   style={{
                                     backgroundColor: getBadgeColor(
-                                      schedule.disbursement_type
+                                      schedule.disbursement_label
                                     ),
                                   }}
                                 ></div>
 
                                 <div className="flex-1 p-4">
-                                  {/* Header */}
                                   <div className="flex justify-between items-start mb-2">
-                                    <h4 className="text-lg font-medium text-gray-800 flex-1">
-                                      {schedule.title}
+                                    <h4 className="text-base font-semibold text-gray-800 flex-1">
+                                      {schedule.sched_title}
                                     </h4>
-                                    <div className="flex items-center">
-                                      <span className="text-sm text-gray-500 mr-2 font-medium">
-                                        {schedule.total_scholar}
-                                      </span>
+                                    <div className="flex items-center text-sm text-gray-500">
                                       <Users
-                                        size={18}
-                                        className="text-gray-400"
+                                        size={16}
+                                        className="mr-1 text-gray-400"
                                       />
+                                      {schedule.student_count}
                                     </div>
                                   </div>
 
-                                  {/* Grid content */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4 mt-3">
+                                  <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-2 text-sm">
                                     <div className="flex items-center">
                                       <Tag
                                         size={14}
                                         className="text-gray-400 mr-2"
                                       />
-                                      <span className="text-sm text-gray-700">
-                                        {schedule.disbursement_type}
+                                      <span className="text-gray-700">
+                                        {schedule.disbursement_label}
                                       </span>
                                     </div>
 
@@ -305,45 +297,51 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
                                       >
                                         {statusInfo.icon}
                                         <span
-                                          className={`text-sm ml-1 ${statusInfo.color}`}
+                                          className={`ml-1 ${statusInfo.color}`}
                                         >
                                           {schedule.schedule_status}
                                         </span>
                                       </div>
                                     </div>
 
-                                    <div className="flex items-center">
-                                      <BookOpen
+                                    <div className="flex items-center col-span-2">
+                                      <Clock
                                         size={14}
                                         className="text-gray-400 mr-2"
                                       />
-                                      <span className="text-sm text-gray-700">
-                                        {schedule.yr_lvl} • {schedule.semester}
+                                      <span className="text-gray-600">
+                                        Due: {due}
                                       </span>
                                     </div>
 
-                                    <div className="flex items-center">
-                                      <MapPin
-                                        size={14}
-                                        className="text-gray-400 mr-2"
-                                      />
-                                      <span className="text-sm text-gray-700">
-                                        {schedule.branch}
-                                      </span>
-                                    </div>
+                                    {/* Description */}
+                                    {schedule.description && (
+                                      <div className="col-span-2 text-gray-600 text-xs mt-1 line-clamp-2">
+                                        <BookOpen
+                                          size={14}
+                                          className="inline mr-1 text-gray-400"
+                                        />
+                                        {schedule.description}
+                                      </div>
+                                    )}
                                   </div>
 
                                   {/* Footer */}
-                                  <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-100">
-                                    <div className="text-sm text-gray-500">
-                                      Created by:{" "}
+                                  <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                                    <span>
+                                      Created by{" "}
                                       <span className="font-medium">
-                                        {schedule.created_by}
+                                        {schedule.admin_name}
                                       </span>
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                      {schedule.school_year}
-                                    </div>
+                                      , {schedule.admin_job}
+                                    </span>
+                                    <a
+                                      href={`mailto:${schedule.admin_email}`}
+                                      className="text-blue-600 hover:underline"
+                                      onClick={(e) => e.stopPropagation()} // prevent navigating
+                                    >
+                                      {schedule.admin_email}
+                                    </a>
                                   </div>
                                 </div>
 

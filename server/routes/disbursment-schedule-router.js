@@ -16,10 +16,7 @@ const disbursementRouter = express.Router();
 disbursementRouter.post("/schedule", createDisbursementSchedule);
 
 // More specific GET routes first
-disbursementRouter.get(
-  "/schedule/detailed/:disb_sched_id",
-  fetchDetailSchedule
-);
+disbursementRouter.get("/schedule/detailed/:sched_id", fetchDetailSchedule);
 disbursementRouter.get("/schedule/weeks", getTwoWeeksDisbursementSchedules);
 
 // Then routes with params, from more specific to less specific
@@ -31,7 +28,7 @@ disbursementRouter.delete(
   "/schedule/:disb_sched_id/:created_by_id",
   deleteDisbursementSchedule
 );
-disbursementRouter.put("/schedule/:id", updateDisbursementSchedule);
+disbursementRouter.put("/schedule/:sched_id", updateDisbursementSchedule);
 
 // Other routes
 disbursementRouter.get(
