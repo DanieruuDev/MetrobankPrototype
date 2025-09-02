@@ -116,14 +116,15 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     setActiveSchedule(schedule);
   };
 
-  const deleteSchedule = async (disb_sched_id: number, user_id: number) => {
+  const deleteSchedule = async (sched_id: number, requester: number) => {
+    console.log(sched_id, requester);
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/disbursement/schedule/${disb_sched_id}/${user_id}`
+        `http://localhost:5000/api/disbursement/schedule/${sched_id}/${requester}`
       );
 
       toast.success(response.data.message || "Schedule deleted.");
-      removeScheduleById(disb_sched_id);
+      removeScheduleById(sched_id);
       closeModal();
     } catch (error) {
       if (axios.isAxiosError(error)) {

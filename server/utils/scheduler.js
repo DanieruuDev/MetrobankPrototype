@@ -4,7 +4,7 @@ const updateFailedDisbursementSchedule = require("./cron-jobs/updateFailedDisbur
 const UpdateStartingSchedStatus = require("./cron-jobs/updateStartingSchedule");
 
 cron.schedule(
-  "* * * * *",
+  "0 0 * * *",
   async () => {
     try {
       await updateMissedWorkflows();

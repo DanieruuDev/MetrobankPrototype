@@ -314,17 +314,17 @@ const fetchWeeklyDisbursementSchedules = async (req, res) => {
 };
 
 const deleteDisbursementSchedule = async (req, res) => {
-  const { disb_sched_id, created_by_id } = req.params;
-
+  const { sched_id, requester } = req.params;
   const client = await pool.connect();
 
+  console.log(sched_id, requester);
   try {
     await client.query("BEGIN");
 
-    // Step 0: Check if user is the creator of the schedule
+    // Step 0: Check ownership
     const authCheck = await client.query(
-      `SELECT created_by FROM disbursement_schedule WHERE disb_sched_id = $1`,
-      [disb_sched_id]
+      `SELECT requester FROM event_schedule WHERE sched_id = $1`,
+      [sched_id]
     );
 
     if (authCheck.rowCount === 0) {
@@ -334,54 +334,42 @@ const deleteDisbursementSchedule = async (req, res) => {
         .json({ message: "Disbursement schedule not found." });
     }
 
-    const creatorId = authCheck.rows[0].created_by;
-    console.log(creatorId, created_by_id);
-    if (creatorId !== Number(created_by_id)) {
-      console.log(typeof creatorId, typeof user_id);
+    const creatorId = authCheck.rows[0].requester;
+    if (creatorId !== Number(requester)) {
       await client.query("ROLLBACK");
       return res
         .status(403)
         .json({ message: "You are not authorized to delete this schedule." });
     }
 
-    // Step 1: Reset disbursement_detail
-    const updateResult = await client.query(
-      `
-      UPDATE disbursement_detail
-      SET 
-        disb_sched_id = NULL,
-        disbursement_status = 'Not Started',
-        completed_at = NULL
-      WHERE disb_sched_id = $1
-      `,
-      [disb_sched_id]
+    // Step 1: Get all disb_detail_ids linked to this sched_id
+    const disbDetails = await client.query(
+      `SELECT disb_detail_id 
+       FROM disbursement_schedule 
+       WHERE sched_id = $1`,
+      [sched_id]
     );
 
-    if (updateResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({
-        message: "No related disbursement details found for this schedule.",
-      });
+    if (disbDetails.rowCount > 0) {
+      const ids = disbDetails.rows.map((r) => r.disb_detail_id);
+      await client.query(
+        `UPDATE disbursement_detail 
+         SET disbursement_status = 'Not Started', completed_at = NULL
+         WHERE disb_detail_id = ANY($1::int[])`,
+        [ids]
+      );
     }
 
-    // Step 2: Delete the disbursement_schedule
-    const deleteResult = await client.query(
-      `DELETE FROM disbursement_schedule WHERE disb_sched_id = $1 RETURNING *`,
-      [disb_sched_id]
-    );
-
-    if (deleteResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res
-        .status(404)
-        .json({ message: "Disbursement schedule not found." });
-    }
+    // Step 3: Delete the event_schedule (cascades into disbursement_schedule)
+    await client.query(`DELETE FROM event_schedule WHERE sched_id = $1`, [
+      sched_id,
+    ]);
 
     await client.query("COMMIT");
 
     return res
       .status(200)
-      .json({ message: "Disbursement schedule deleted successfully." });
+      .json({ message: "Disbursement schedule deleted and statuses reset." });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Transaction Error (deleteDisbursementSchedule):", error);
