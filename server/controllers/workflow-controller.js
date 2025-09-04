@@ -581,7 +581,7 @@ const approveApproval = async (req, res) => {
       );
       const nextApproverQuery = await client.query(
         `
-        SELECT approver_id, user_email FROM wf_approver
+        SELECT approver_id, user_email, user_id FROM wf_approver
         WHERE workflow_id = $1
         AND status = 'Pending'
         AND approver_order > $2
@@ -593,6 +593,8 @@ const approveApproval = async (req, res) => {
 
       if (nextApproverQuery.rows.length > 0) {
         const nextApproverId = nextApproverQuery.rows[0].approver_id;
+        const nextUserId = nextApproverQuery.rows[0].user_id;
+        console.log(nextApproverQuery.rows);
         const nextApproverEmail = nextApproverQuery.rows[0].user_email; // Get email
         console.log("Next approver set to:", nextApproverId);
         await client.query(
@@ -606,9 +608,9 @@ const approveApproval = async (req, res) => {
         await insertWorkflowLog(
           client,
           workflow_id,
-          nextApproverId,
+          nextUserId,
           "Approver",
-          "Assigned as current approver",
+          "Updated",
           "Pending",
           "Current",
           null

@@ -141,7 +141,7 @@ export interface ApproverInfo {
 }
 export interface WorkflowApprovalList {
   workflow_id: number;
-  workflow_type: string;
+  approval_req_type: string;
   workflow_title: string;
   workflow_status: string;
   created_by: string;
