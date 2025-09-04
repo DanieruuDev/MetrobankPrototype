@@ -302,6 +302,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
               <button
                 className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
                 onClick={handleSubmit}
+                disabled={loading}
               >
                 Create Workflow
               </button>
