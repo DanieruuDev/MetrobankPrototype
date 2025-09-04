@@ -107,10 +107,36 @@ const insertApprovers = async (
   return approverQueries;
 };
 
+async function insertWorkflowLog(
+  client,
+  workflow_id,
+  actor_id,
+  actor_type,
+  action,
+  old_status,
+  new_status,
+  comments = null
+) {
+  const query = `
+    INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, old_status, new_status, comments, change_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+  `;
+  await client.query(query, [
+    workflow_id,
+    actor_id, // approver_id or requester_id
+    actor_type, // 'Approver' or 'Requester'
+    action, // 'Approved' / 'Rejected'
+    old_status,
+    new_status,
+    comments,
+  ]);
+}
+
 module.exports = {
   checkWorkflowExists,
   insertDocument,
   insertWorkflow,
   fetchRequester,
   insertApprovers,
+  insertWorkflowLog,
 };

@@ -15,6 +15,7 @@ const {
   insertWorkflow,
   insertApprovers,
   fetchRequester,
+  insertWorkflowLog,
 } = require("../utils/workflow.utils.js");
 
 //get specific approval (author id/ workflow id)
@@ -478,7 +479,7 @@ const fetchApproverApproval = async (req, res) => {
 //When approving the approval
 const approveApproval = async (req, res) => {
   const { approver_id, response, comment } = req.body;
-
+  console.log(approver_id);
   if (!approver_id || !response) {
     return res
       .status(400)
@@ -493,13 +494,15 @@ const approveApproval = async (req, res) => {
 
     // Fetch workflow_id, approver_order, and requester_id for the current approver
     const currentApproverDataQuery = await client.query(
-      `SELECT wa.workflow_id, wa.approver_order, w.requester_id
-         FROM wf_approver wa
-         JOIN workflow w ON wa.workflow_id = w.workflow_id
-         WHERE wa.approver_id = $1`,
+      `SELECT wa.workflow_id, wa.approver_order, w.requester_id, wa.user_id
+   FROM wf_approver wa
+   JOIN workflow w ON wa.workflow_id = w.workflow_id
+   WHERE wa.approver_id = $1`,
       [approver_id]
     );
+
     const currentApproverData = currentApproverDataQuery.rows[0];
+    const user_id = currentApproverData.user_id;
 
     if (!currentApproverData) {
       await client.query("ROLLBACK");
@@ -511,26 +514,6 @@ const approveApproval = async (req, res) => {
     const workflow_id = currentApproverData.workflow_id;
     const currentApproverOrder = currentApproverData.approver_order;
     const requester_id = currentApproverData.requester_id; // Step 1: Update approver response
-
-    // --- Add Backend Security Check ---
-    // Verify that the user making the request is the current approver
-    // This check was commented out in a previous version, adding it back but keeping commented for now
-    /*
-    const isCurrentUserCheck = await client.query(
-        `SELECT is_current FROM wf_approver WHERE approver_id = $1`,
-        [approver_id]
-    );
-
-    // If the approver step is not found or the approver is not the current one
-    if (isCurrentUserCheck.rows.length === 0 || isCurrentUserCheck.rows[0].is_current !== true) {
-        await client.query("ROLLBACK");
-        // Return a 403 Forbidden status here for better semantics
-        return res.status(403).json({
-            message: "Unauthorized. You are not the current approver for this step.",
-        });
-    }
-    */
-    // --- END Backend Security Check ---
 
     await client.query(
       `
@@ -586,6 +569,16 @@ const approveApproval = async (req, res) => {
 
     if (response === "Approved") {
       // Only move to next if Approved
+      await insertWorkflowLog(
+        client,
+        workflow_id,
+        user_id,
+        "Approver",
+        response,
+        "Pending", // old_status
+        "Completed", // new_status
+        comment // approver's comment
+      );
       const nextApproverQuery = await client.query(
         `
         SELECT approver_id, user_email FROM wf_approver
@@ -610,6 +603,16 @@ const approveApproval = async (req, res) => {
           `,
           [nextApproverId]
         );
+        await insertWorkflowLog(
+          client,
+          workflow_id,
+          nextApproverId,
+          "Approver",
+          "Assigned as current approver",
+          "Pending",
+          "Current",
+          null
+        );
 
         // Send "Its Your Turn" email to the next approver
         // workflowDetailsForEmail is already fetched
@@ -617,6 +620,16 @@ const approveApproval = async (req, res) => {
       } else {
         console.log(
           "No next approver found. Checking for workflow completion."
+        );
+        await insertWorkflowLog(
+          client,
+          workflow_id,
+          user_id,
+          "System",
+          "Completed",
+          "Pending",
+          "Completed",
+          null
         );
         // If no next pending approver, check if workflow is completed
         const pendingCheckQuery = `
@@ -649,27 +662,32 @@ const approveApproval = async (req, res) => {
         }
       }
     } else if (response === "Reject") {
-      // If rejected, mark the workflow as rejected immediately
+      await insertWorkflowLog(
+        client,
+        workflow_id,
+        user_id,
+        "Approver",
+        "Rejected",
+        "Pending",
+        "Rejected",
+        comment
+      );
       const updateWorkflowQuery = `
-            UPDATE workflow
-            SET status = 'Rejected', completed_at = NOW()
-            WHERE workflow_id = $1
-        `;
+        UPDATE workflow
+        SET status = 'Failed', completed_at = NOW()
+        WHERE workflow_id = $1
+      `;
       await client.query(updateWorkflowQuery, [workflow_id]);
       console.log("Workflow marked as rejected.");
 
-      // Send Workflow Rejected email to the requester
-      // workflowDetailsForEmail is already fetched
-      // Pass the comment from the rejecting approver
-      await sendWorkflowRejectedEmail(
-        requesterEmail,
-        workflowDetailsForEmail,
-        comment
-      );
+      // await sendWorkflowRejectedEmail(
+      //   requesterEmail,
+      //   workflowDetailsForEmail,
+      //   comment
+      // );
     }
 
-    await client.query("COMMIT"); // Step 5: Fetch and return essential data for frontend refresh
-    // This query now selects fields needed by the frontend after approval.
+    await client.query("COMMIT");
 
     const detailedQuery = `
       SELECT workflow_status, approver_response, approver_comment, approver_status, is_current
@@ -688,14 +706,13 @@ const approveApproval = async (req, res) => {
       } = result.rows[0];
       res.status(200).json({
         message: "Approval recorded successfully",
-        workflow_status, // Overall workflow status
-        approver_response, // Specific approver's response
-        approver_comment, // Specific approver's comment
-        approver_status, // Specific approver's status (should be 'Completed')
-        is_current, // Specific approver's is_current (should be false)
+        workflow_status,
+        approver_response,
+        approver_comment,
+        approver_status,
+        is_current,
       });
     } else {
-      // This case indicates an issue fetching details immediately after the update
       res
         .status(404)
         .json({ message: "Approver details not found after update" });

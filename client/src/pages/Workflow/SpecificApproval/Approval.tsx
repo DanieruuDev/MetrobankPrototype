@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { Approver, DetailedWorkflow } from "../Workflow";
+import { Approver, DetailedWorkflow, WorkflowLog } from "../Workflow";
 import {
   Download,
   FileText,
@@ -9,10 +9,8 @@ import {
   ArrowLeft,
   User,
   Info,
-  Calendar,
   ChevronUp,
   ChevronDown,
-  Mail,
 } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
@@ -194,9 +192,10 @@ function Approval({
     return (completedSteps / totalSteps) * 100;
   };
 
+  console.log(workflow);
   return (
     <div className="min-h-[88vh] bg-gray-50 pt-6 pb-12">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Card */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
           <div className="p-6 md:p-8">
@@ -235,12 +234,6 @@ function Approval({
                       #{workflow?.workflow_id}
                     </span>
                   </h1>
-                  <p className="text-gray-600 mt-1">
-                    Request Type:{" "}
-                    <span className="font-medium text-gray-800">
-                      {workflow?.request_type}
-                    </span>
-                  </p>
                 </div>
 
                 <div className="mt-4 md:mt-0">
@@ -263,98 +256,8 @@ function Approval({
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Request Details */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Request Details Card */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
-                  <Info className="w-5 h-5 text-blue-600 mr-2" />
-                  Request Details
-                </h2>
-
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500">
-                        Due Date
-                      </p>
-                      <p className="text-base font-medium text-gray-900">
-                        {formatDate(workflow?.due_date)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">
-                        Year Level
-                      </p>
-                      <p className="text-base font-medium text-gray-900">
-                        {workflow?.scholar_level}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">
-                        Semester
-                      </p>
-                      <p className="text-base font-medium text-gray-900">
-                        {workflow?.semester}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">
-                        School Year
-                      </p>
-                      <p className="text-base font-medium text-gray-900">
-                        {workflow?.school_year}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Description
-                    </p>
-                    <p className="text-base text-gray-700 mt-1 bg-gray-50 p-3 rounded-lg">
-                      {workflow?.rq_description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Attachment Card */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-lg shadow-sm overflow-hidden">
-              <div className="flex items-center flex-1 min-w-0">
-                <div className="bg-blue-100 p-3 rounded-lg flex-shrink-0">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="ml-3 overflow-hidden">
-                  <p className="font-medium text-gray-900 truncate max-w-full sm:max-w-xs">
-                    {workflow?.doc_name}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {formatFileSize(workflow?.doc_size)}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleDownload}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center transition duration-200 w-full sm:w-auto"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column - Approval Progress */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-300 overflow-hidden">
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-6">
                   <svg
@@ -397,9 +300,18 @@ function Approval({
                 {/* Timeline */}
                 <div className="relative">
                   {/* Vertical line */}
-                  <div className="absolute left-5 top-0 h-full w-0.5 bg-gray-200"></div>
+                  <div
+                    className="absolute left-5 top-0 w-0.5 bg-gray-200"
+                    style={{
+                      height:
+                        sortedApprovers.filter(
+                          (a) => a.approver_status !== "Replaced"
+                        ).length > 0
+                          ? "calc(100% - 2.5rem)" // stops before "Ended"
+                          : "0",
+                    }}
+                  ></div>
 
-                  {/* Timeline items */}
                   <div className="space-y-8">
                     {/* Started */}
                     <div className="relative pl-10">
@@ -431,7 +343,6 @@ function Approval({
                         const isCompleted =
                           approver.approver_status === "Completed";
                         const isCurrent = approver.is_current;
-                        // Fix: Check if current first, then check other statuses
                         const displayStatus = isCurrent
                           ? "Current"
                           : approver.approver_status;
@@ -500,16 +411,28 @@ function Approval({
                                   toggleStepExpansion(approver.approver_id)
                                 }
                               >
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1 min-w-0 mr-4">
-                                    <div className="flex items-center mb-1">
-                                      <h3 className="font-medium text-gray-900 truncate text-sm">
-                                        {approver.approver_email}
-                                      </h3>
-                                      <span className="ml-2 bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full flex-shrink-0">
-                                        {approver.approver_title || "Approver"}
+                                <div className="flex justify-between items-center">
+                                  <div className="flex-1 min-w-0 mr-4 ">
+                                    {/* Approver name + email + role all in one line */}
+                                    <div className="mb-2 flex items-start flex-wrap gap-2">
+                                      <div>
+                                        <h3 className="font-medium text-gray-900 text-sm">
+                                          {approver.approver_name}
+                                        </h3>
+
+                                        {/* Email */}
+                                        <p className="text-xs text-gray-500">
+                                          {approver.approver_email}
+                                        </p>
+                                      </div>
+
+                                      {/* Role chip */}
+                                      <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                                        {approver.approver_role || "Approver"}
                                       </span>
                                     </div>
+
+                                    {/* Status chip */}
                                     <div className="flex items-center">
                                       <div
                                         className={`flex items-center px-2 py-0.5 rounded-full ${
@@ -559,7 +482,7 @@ function Approval({
                               {/* Expanded content */}
                               {expandedApproverId === approver.approver_id && (
                                 <div className="mt-3 space-y-3 pl-4">
-                                  {/* Response details */}
+                                  {/* Response details only */}
                                   {approver.response !== "Pending" && (
                                     <div className="bg-white p-4 rounded-lg border border-gray-200">
                                       <h4 className="text-sm font-medium text-gray-700 mb-2">
@@ -608,45 +531,8 @@ function Approval({
                                     </div>
                                   )}
 
-                                  {/* Timeline metadata */}
-                                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                      Timeline
-                                    </h4>
-                                    <div className="space-y-3">
-                                      <div className="flex items-center">
-                                        <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                                        <div>
-                                          <p className="text-xs text-gray-500">
-                                            Assigned
-                                          </p>
-                                          <p className="text-sm font-medium text-gray-700">
-                                            {formatDate(
-                                              approver.approver_assigned_at
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center">
-                                        <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                                        <div>
-                                          <p className="text-xs text-gray-500">
-                                            Due Date
-                                          </p>
-                                          <p className="text-sm font-medium text-gray-700">
-                                            {formatDate(
-                                              approver.approver_due_date
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
                                   {/* Change approver button */}
-                                  {approver.approver_status === "Completed" ? (
-                                    ""
-                                  ) : (
+                                  {approver.approver_status !== "Completed" && (
                                     <button
                                       className="w-full px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-100"
                                       onClick={(e) => {
@@ -712,6 +598,143 @@ function Approval({
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-1 space-y-2">
+            <div className="overflow-hidden  bg-white">
+              <div className="border border-gray-300 rounded-xl overflow-hidden">
+                <h2 className="text-sm font-semibold text-gray-600 flex items-center mb-4 bg-gray-100 p-4">
+                  <Info className="w-5 h-5 text-gray-600 mr-2" />
+                  Request Details
+                </h2>
+
+                <div className="divide-y divide-gray-200">
+                  {/* Due Date */}
+                  <div className="flex justify-between p-4">
+                    <p className="text-sm font-medium text-gray-500">
+                      Due Date
+                    </p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {formatDate(workflow?.due_date)}
+                    </p>
+                  </div>
+
+                  {/* Semester */}
+                  <div className="flex justify-between p-4">
+                    <p className="text-sm font-medium text-gray-500">
+                      Semester
+                    </p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {workflow?.semester}
+                    </p>
+                  </div>
+
+                  {/* School Year */}
+                  <div className="flex justify-between p-4">
+                    <p className="text-sm font-medium text-gray-500">
+                      School Year
+                    </p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {workflow?.school_year}
+                    </p>
+                  </div>
+
+                  {/* Request Type */}
+                  <div className="flex justify-between p-4">
+                    <p className="text-sm font-medium text-gray-500">
+                      Request Type
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 max-w-[150px]">
+                      {workflow?.approval_req_type}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 p-4 space-y-2">
+                      <div>
+                        Description
+                        <div className="bg-gray-100  rounded-md p-2 text-[14px]">
+                          {workflow?.rq_description}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-100 rounded-md p-4 overflow-hidden">
+                        <div className="flex items-center flex-1 min-w-0">
+                          <div className="bg-blue-100 p-3 rounded-lg flex-shrink-0">
+                            <FileText className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <div className="ml-3 overflow-hidden">
+                            <p className="font-medium text-gray-900 truncate max-w-full sm:max-w-xs">
+                              {workflow?.doc_name}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {formatFileSize(workflow?.doc_size)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleDownload}
+                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center transition duration-200 w-full sm:w-auto"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-gray-300 bg-white p-4 rounded-xl">
+              <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                {workflow?.logs?.map((log: WorkflowLog) => (
+                  <div
+                    key={log.log_id}
+                    className="flex items-start gap-3 border-b border-gray-200 pb-3 last:border-0"
+                  >
+                    {/* Avatar Circle (First letter of actor) */}
+                    <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold">
+                      {log.actor_name.charAt(0)}
+                    </div>
+
+                    {/* Log Details */}
+                    <div className="flex-1">
+                      <p className="text-sm">
+                        <span className="font-medium">{log.actor_name}</span>{" "}
+                        <span className="text-gray-600">
+                          ({log.actor_type})
+                        </span>{" "}
+                      </p>
+
+                      {/* Comments if available */}
+                      {log.comments && (
+                        <p className="text-sm text-gray-500 italic">
+                          “{log.comments}”
+                        </p>
+                      )}
+
+                      {/* Status Change */}
+                      {log.old_status && log.new_status && (
+                        <p className="text-xs text-gray-600">
+                          Status:{" "}
+                          <span className="line-through">{log.old_status}</span>{" "}
+                          →{" "}
+                          <span className="font-medium">{log.new_status}</span>
+                        </p>
+                      )}
+
+                      {/* Timestamp */}
+                      <p className="text-xs text-gray-400">
+                        {new Date(log.change_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
