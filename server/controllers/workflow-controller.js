@@ -438,14 +438,16 @@ const fetchApproverApprovalList = async (req, res) => {
   }
 
   try {
-    const query = `
-      SELECT * FROM vw_approver_workflows
-      WHERE user_id = $1
-    `;
+    // fetch all workflows
+    const query = `SELECT * FROM vw_approver_workflows`;
+    const { rows } = await pool.query(query);
 
-    const { rows } = await pool.query(query, [user_id]);
+    // filter only those where approvers array contains this user_id
+    const filtered = rows.filter((row) =>
+      row.approvers.some((appr) => appr.user_id === parseInt(user_id))
+    );
 
-    return res.status(200).json(rows);
+    return res.status(200).json(filtered);
   } catch (error) {
     console.error("Error fetching approver approvals:", error);
     return res.status(500).json({ message: "Internal server error" });
