@@ -1,21 +1,27 @@
 import { useEffect } from "react";
+import { useNavigate, useLocation, usePrompt } from "react-router-dom";
 
-function useUnsavedChanges(hasUnsavedChanges: boolean) {
+function useUnsavedChanges(hasEdits: boolean) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        // TypeScript wants a value even if it's deprecated
-        e.returnValue = "";
-        return ""; // for good measure
-      }
-    };
+    if (!hasEdits) return;
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+    const handleWindowClose = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
     };
-  }, [hasUnsavedChanges]);
+    window.addEventListener("beforeunload", handleWindowClose);
+
+    return () => window.removeEventListener("beforeunload", handleWindowClose);
+  }, [hasEdits]);
+
+  usePrompt(
+    "You have unsaved changes. Do you want to discard them?",
+    hasEdits
+  );
 }
 
-export default useUnsavedChanges;
+export useUnsavedChanges

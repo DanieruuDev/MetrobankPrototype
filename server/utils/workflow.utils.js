@@ -79,8 +79,8 @@ const insertApprovers = async (
       const userId = findId.rows[0].admin_id;
 
       const approvalRes = await client.query(
-        `INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        `INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned, role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, $8) RETURNING *`,
         [
           workflowId,
           userId,
@@ -89,6 +89,7 @@ const insertApprovers = async (
           "Pending",
           approver.date,
           false,
+          approver.role,
         ]
       );
 
