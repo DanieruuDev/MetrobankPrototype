@@ -48,6 +48,7 @@ function EventModal({
     starting_date: null,
   });
   const [branch, setBranch] = useState<number | "">("");
+  const [loading, setLoading] = useState(false);
 
   const handleBranchChange = (branchId: number) => {
     setBranch(branchId);
@@ -82,6 +83,7 @@ function EventModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     console.log("sent?");
+    setLoading(true);
     try {
       console.log("click pass");
       const response = await axios.post(
@@ -122,6 +124,8 @@ function EventModal({
       console.error("Error creating disbursement schedule:", error);
       alert("Failed");
       console.log("click fail");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -316,6 +320,7 @@ function EventModal({
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+              disabled={loading}
             >
               Create
             </button>
