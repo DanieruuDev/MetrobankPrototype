@@ -14,54 +14,33 @@ interface SelectField {
   options: Record<string, string>;
 }
 
-const requestTypeMap: { [key: string]: string } = {
-  CR: "Contract Renewal",
-  SFP: "Scholarship Fee Processing",
-  SFD: "Scholarship Fee Disbursement",
-  AFP: "Allowance Fee Processing",
-  AFD: "Allowance Fee Disbursement",
-  TF: "Thesis Fee",
-  TFD: "Thesis Fee Disbursement",
-  IA: "Internship Allowance",
-  IAD: "Internship Allowance Disbursement",
+const schoolyearMap: Record<string, string> = {
+  "20242025": "2024-2025",
+  "20252026": "2025-2026",
 };
-const schoolyearMap: { [key: number]: string } = {
-  20242025: "2024-2025",
-  20252026: "2025-2026",
-};
-const semesterMap: { [key: number]: string } = {
-  1: "1st Semester",
-  2: "2nd Semester",
-};
-const yrlvlMap: { [key: number]: string } = {
-  1: "1st Year",
-  2: "2nd Year",
-  3: "3rd Year",
-  4: "4th Year",
+const semesterMap: Record<string, string> = {
+  "1": "1st Semester",
+  "2": "2nd Semester",
 };
 
-const selectFields: SelectField[] = [
+const sySelectFields: SelectField[] = [
   {
-    name: "scholar_level",
-    label: "Scholar Year Level",
-    options: yrlvlMap,
-  },
-  {
-    name: "semester",
-    label: "Semester",
-    options: semesterMap,
-  },
-  {
-    name: "school_year",
+    name: "sy_code",
     label: "School Year",
     options: schoolyearMap,
+  },
+];
+const semSelectFields: SelectField[] = [
+  {
+    name: "semester_code",
+    label: "Semester",
+    options: semesterMap,
   },
 ];
 
 function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
   const [error, setError] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const todayDate = new Date().toISOString().split("T")[0];
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: (acceptedFiles) => {
@@ -94,73 +73,75 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
     multiple: false,
   });
 
+  console.log(formData.semester_code, formData.sy_code);
+
   return (
     <div>
-      <div className="mb-5 font-medium text-[20px]">Workflow Details</div>
       <form className="space-y-3">
         <div>
           <label
-            htmlFor="request_title"
+            htmlFor="rq_title"
             className="block mb-1 text-sm font-medium text-gray-700"
           >
-            Request Title
+            Approval Request Title
           </label>
           <input
             type="text"
-            name="request_title"
-            id="request_title"
+            name="rq_title"
+            id="rq_title"
             maxLength={100}
             placeholder="Enter request title..."
             required
             className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
-            value={formData.request_title}
+            value={formData.rq_title}
             onChange={(e) =>
               setFormData((prev) => ({
                 ...prev,
-                request_title: e.target.value,
+                rq_title: e.target.value,
               }))
             }
           />
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <select
-              name="req_type_id"
-              value={formData.req_type_id}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label
+              htmlFor="req_type_id"
+              className="block mb-1 text-sm font-medium text-gray-700"
+            >
+              Approval Request Description
+            </label>
+            <input
+              type="text"
+              name="approval_req_type"
+              id="approval_req_type"
+              maxLength={255}
+              placeholder="Enter approval request description..."
+              required
+              className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
+              value={formData.approval_req_type}
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  req_type_id: e.target.value,
+                  approval_req_type: e.target.value,
                 }))
               }
-              className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
-                  appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
-              required
-            >
-              <option value="" disabled>
-                Select Approval Type
-              </option>
-              {Object.entries(requestTypeMap).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-700">
-              ⏷
-            </div>
+            />
           </div>
-
           <div
             className="relative flex-1"
             onClick={() => dateInputRef.current?.showPicker()}
           >
+            <label
+              htmlFor="due_date"
+              className="block mb-1 text-sm font-medium text-gray-700"
+            >
+              Due Date
+            </label>
             <input
               ref={dateInputRef}
               type="date"
               name="due_date"
-              min={todayDate}
               value={formData.due_date}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, due_date: e.target.value }))
@@ -170,42 +151,87 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
               required
             />
             <Calendar
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-700 pointer-events-none"
+              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-700 pointer-events-none"
               size={20}
             />
           </div>
         </div>
-
-        <div className="flex gap-3 text-[16px]">
-          {selectFields.map(({ name, label, options }) => (
-            <div key={name} className="relative flex-1">
-              <select
-                name={name}
-                value={formData[name] as string}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    [name]: e.target.value,
-                  }))
-                }
-                className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
-                required
-              >
-                <option value="" disabled>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex gap-3">
+            {sySelectFields.map(({ name, label, options }) => (
+              <div key={name} className="relative flex-1">
+                <label
+                  htmlFor={name}
+                  className="block mb-1 text-sm font-medium text-gray-700"
+                >
                   {label}
-                </option>
-                {Object.entries(options).map(([key, value]) => (
-                  <option key={key} value={value}>
-                    {value}
+                </label>
+                <select
+                  name={name}
+                  value={formData[name] as string}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      [name]: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+                  required
+                >
+                  <option value="" disabled>
+                    Select {label}
                   </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-700">
-                ⏷
+                  {Object.entries(options).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 top-6 flex items-center pointer-events-none text-gray-700">
+                  ⏷
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            {semSelectFields.map(({ name, label, options }) => (
+              <div key={name} className="relative flex-1">
+                <label
+                  htmlFor={name}
+                  className="block mb-1 text-sm font-medium text-gray-700"
+                >
+                  {label}
+                </label>
+                <select
+                  name={name}
+                  value={formData[name] as string}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      [name]: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+                  required
+                >
+                  <option value="" disabled>
+                    Select {label}
+                  </option>
+                  {Object.entries(options).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 top-6 flex items-center pointer-events-none text-gray-700">
+                  ⏷
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div
@@ -226,12 +252,18 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
         <div className="text-red">{error}</div>
 
         <div>
+          <label
+            htmlFor="description"
+            className="block mb-1 text-sm font-medium text-gray-700"
+          >
+            Additional Details
+          </label>
           <textarea
             maxLength={255}
             rows={2}
             name="description"
             id="description"
-            placeholder="Enter approval request description..."
+            placeholder="Enter additional details for the approval request..."
             className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px] resize-none"
             value={formData.description}
             onChange={(e) =>

@@ -293,27 +293,24 @@ const createApproval = async (req, res) => {
 
   try {
     const {
-      request_title,
+      rq_title,
       requester_id,
-      req_type_id,
+      approval_req_type,
       description,
       due_date,
-      school_year,
-      semester,
-      scholar_level,
+      sy_code,
+      semester_code,
       approvers,
-    } = req.body; // Validate required fields
+    } = req.body;
 
     if (
-      !request_title ||
+      !rq_title ||
       !requester_id ||
       !file ||
-      !req_type_id ||
       !description ||
       !due_date ||
-      !school_year ||
-      !semester ||
-      !scholar_level ||
+      !sy_code ||
+      !semester_code ||
       !approvers
     ) {
       deleteFile();
@@ -323,55 +320,52 @@ const createApproval = async (req, res) => {
     let appr;
     try {
       appr = JSON.parse(approvers);
-    } catch (err) {
+    } catch {
       deleteFile();
       return res.status(400).json({ message: "Invalid approvers format" });
     }
 
     await client.query("BEGIN");
 
-    let IsWorkflowExist = await checkWorkflowExists(
-      client,
-      req_type_id,
-      school_year,
-      semester,
-      scholar_level
-    );
-
-    if (IsWorkflowExist) {
+    if (
+      await checkWorkflowExists(
+        client,
+        approval_req_type,
+        sy_code,
+        semester_code
+      )
+    ) {
       deleteFile();
       return res.status(400).json({ message: "Workflow already exists" });
     }
 
     const docId = await insertDocument(client, file);
-
     const workflowId = await insertWorkflow(client, {
       docId,
-      req_type_id,
+      approval_req_type,
       requester_id,
       due_date,
-      school_year,
-      semester,
-      scholar_level,
+      sy_code,
+      semester_code,
       description,
-      request_title,
+      rq_title,
     });
 
-    // Fetch requester name and email for the email notifications
+    // Fetch requester info
     const { admin_name, admin_email } = await fetchRequester(
       client,
       requester_id
     );
 
     const workflowDetailsForEmail = {
-      request_title: request_title,
+      rq_title,
       requester_name: admin_name,
-      due_date: due_date,
+      due_date,
       rq_description: description,
       workflow_id: workflowId,
     };
 
-    console.log(approvers);
+    // Insert approvers (DB only, no emails yet)
     const approverQueries = await insertApprovers(
       client,
       appr,
@@ -384,58 +378,53 @@ const createApproval = async (req, res) => {
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
       );
-      await sendItsYourTurnEmail(
-        approverQueries[0].approvers.user_email,
-        workflowDetailsForEmail
-      );
     }
 
-    const getRequestTitleQuery = await client.query(
-      `SELECT rq_title FROM wf_request_type_maintenance WHERE rq_type_id = $1`,
-      [req_type_id]
-    );
-
-    //put a function that save the workflow log
-    const saveLog = await client.query(
-      "INSERT INTO workflow_log (workflow_id, actor_id, actor_type,action, comments) VALUES ($1, $2, $3, $4, $5)",
+    // Save workflow log
+    await client.query(
+      "INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, comments) VALUES ($1, $2, $3, $4, $5)",
       [
         workflowId,
         requester_id,
         "Requester",
         "Created",
-        `Created workflow for ${school_year} ${semester} ${scholar_level}`,
+        `Created workflow for ${rq_title} ${semester_code}`,
       ]
     );
 
     await client.query("COMMIT");
 
-    const rq_title =
-      getRequestTitleQuery.rows.length > 0
-        ? getRequestTitleQuery.rows[0].rq_title
-        : "Unknown Request";
-
-    return res.status(201).json({
+    // Respond first
+    res.status(201).json({
       message: "Approval workflow created successfully!",
       workflowList: {
         workflow_id: workflowId,
-        rq_title: rq_title,
-        due_date: due_date,
+        rq_title,
+        due_date,
         status: "Pending",
         doc_name: file.originalname,
         current_approver:
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
             : "N/A",
-        school_details: `${school_year} - ${semester} (${scholar_level})`,
+        school_details: `${rq_title} - ${semester_code}`,
       },
     });
+
+    if (approverQueries.length > 0) {
+      approverQueries.forEach(({ approvers }) => {
+        sendItsYourTurnEmail(
+          approvers.user_email,
+          workflowDetailsForEmail
+        ).catch((err) => {
+          console.error("Email failed for", approvers.user_email, err);
+        });
+      });
+    }
   } catch (error) {
     await client.query("ROLLBACK");
     deleteFile();
-
-    return res
-      .status(500)
-      .json({ message: error.message || "File upload failed" });
+    res.status(500).json({ message: error.message || "File upload failed" });
   } finally {
     client.release();
   }

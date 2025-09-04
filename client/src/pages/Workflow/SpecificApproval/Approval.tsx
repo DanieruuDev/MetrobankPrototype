@@ -103,6 +103,8 @@ function Approval({
     switch (status) {
       case "Completed":
         return "bg-green-500";
+      case "Current": // Add this case
+        return "bg-blue-500";
       case "Pending":
         return "bg-yellow-400";
       case "In Progress":
@@ -118,6 +120,8 @@ function Approval({
     switch (status) {
       case "Completed":
         return "text-green-600";
+      case "Current": // Add this case
+        return "text-blue-600";
       case "Pending":
         return "text-yellow-600";
       case "In Progress":
@@ -369,7 +373,9 @@ function Approval({
                 </h2>
 
                 {/* Progress Bar */}
-                <div className="mb-8">
+                <div className="mb-8 ml-10">
+                  {" "}
+                  {/* Added ml-10 to align with timeline */}
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
                       <div>
@@ -425,9 +431,12 @@ function Approval({
                         const isCompleted =
                           approver.approver_status === "Completed";
                         const isCurrent = approver.is_current;
-                        const isPending =
-                          approver.approver_status === "Pending";
-                        const isMissed = approver.approver_status === "Missed";
+                        // Fix: Check if current first, then check other statuses
+                        const displayStatus = isCurrent
+                          ? "Current"
+                          : approver.approver_status;
+                        const isPending = displayStatus === "Pending";
+                        const isMissed = displayStatus === "Missed";
 
                         return (
                           <div
@@ -468,7 +477,15 @@ function Approval({
                               <div
                                 className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
                                   expandedApproverId === approver.approver_id
-                                    ? "bg-blue-50 border-blue-200"
+                                    ? isCompleted
+                                      ? "bg-green-50 border-green-100"
+                                      : isCurrent
+                                      ? "bg-blue-50 border-blue-100"
+                                      : isPending
+                                      ? "bg-yellow-50 border-yellow-100"
+                                      : isMissed
+                                      ? "bg-red-50 border-red-100"
+                                      : "bg-gray-50 border-gray-100"
                                     : isCompleted
                                     ? "bg-green-50 border-green-100"
                                     : isCurrent
@@ -484,41 +501,56 @@ function Approval({
                                 }
                               >
                                 <div className="flex justify-between items-start">
-                                  <div>
-                                    <div className="flex items-center">
-                                      <h3 className="font-medium text-gray-900">
+                                  <div className="flex-1 min-w-0 mr-4">
+                                    <div className="flex items-center mb-1">
+                                      <h3 className="font-medium text-gray-900 truncate text-sm">
                                         {approver.approver_email}
                                       </h3>
-                                      {isCurrent && (
-                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                                          Current
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center mt-1">
-                                      <span
-                                        className={`w-2 h-2 rounded-full mr-2 ${getStatusColor(
-                                          approver.approver_status
-                                        )}`}
-                                      ></span>
-                                      <span
-                                        className={`text-sm font-medium ${getStatusTextColor(
-                                          approver.approver_status
-                                        )}`}
-                                      >
-                                        {approver.approver_status}
+                                      <span className="ml-2 bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full flex-shrink-0">
+                                        {approver.approver_title || "Approver"}
                                       </span>
                                     </div>
+                                    <div className="flex items-center">
+                                      <div
+                                        className={`flex items-center px-2 py-0.5 rounded-full ${
+                                          isCompleted
+                                            ? "bg-green-100"
+                                            : isCurrent
+                                            ? "bg-blue-100"
+                                            : isPending
+                                            ? "bg-yellow-100"
+                                            : isMissed
+                                            ? "bg-red-100"
+                                            : "bg-gray-100"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`w-2 h-2 rounded-full mr-1.5 flex-shrink-0 ${getStatusColor(
+                                            displayStatus
+                                          )}`}
+                                        ></span>
+                                        <span
+                                          className={`text-sm font-medium ${getStatusTextColor(
+                                            displayStatus
+                                          )}`}
+                                        >
+                                          {displayStatus}
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center">
-                                    <span className="text-sm text-gray-500 mr-2">
-                                      Step {approver.approver_order}
-                                    </span>
+
+                                  <div className="flex items-center flex-shrink-0">
+                                    <div className="px-2 py-1 rounded-lg mr-2">
+                                      <span className="text-sm font-medium text-gray-700">
+                                        Step {approver.approver_order}
+                                      </span>
+                                    </div>
                                     {expandedApproverId ===
                                     approver.approver_id ? (
-                                      <ChevronUp className="w-5 h-5 text-gray-400" />
+                                      <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     ) : (
-                                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                                      <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     )}
                                   </div>
                                 </div>
@@ -645,7 +677,7 @@ function Approval({
                       })}
 
                     {/* Ended */}
-                    <div className="relative pl-10 pb-4">
+                    <div className="relative pl-10 ">
                       <div
                         className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white ${
                           sortedApprovers

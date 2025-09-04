@@ -7,7 +7,7 @@ import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
 import Request from "./Request";
 import { CheckSquare, ClipboardList, Plus, Search, Trash2 } from "lucide-react";
-import CreateApproval2 from "../../components/approval/CreateApproval2";
+
 import CreateApproval from "../../components/approval/CreateApproval";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
@@ -20,7 +20,7 @@ import ConfirmDialog from "../../components/approval/ConfirmDialog";
 export interface WorkflowDisplaySchema {
   workflow_id: number;
   request_title: string;
-  request_type: string;
+  approval_req_type: string;
   due_date: string;
   status: string;
   doc_name: string;
@@ -51,14 +51,14 @@ export interface DetailedWorkflow {
   school_year: string;
   semester: string;
   scholar_level: string;
-  due_date: string; // ISO date format (e.g., "2024-09-30")
+  due_date: string;
   status: "Not Started" | "In Progress" | "Completed";
   doc_id: number | null;
   doc_name: string | null;
   doc_type: string | null;
   doc_path: string | null;
   doc_size: number | null;
-  doc_uploaded_at: string | null; // ISO timestamp format (e.g., "2024-04-04T10:30:00")
+  doc_uploaded_at: string | null;
   approvers: Approver[];
 }
 
@@ -74,7 +74,7 @@ function Workflow() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
+  const [page, setPage] = useState<number>(1);
   const [totalPage, setTotalPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("my-workflows");
@@ -86,7 +86,7 @@ function Workflow() {
     { label: "Missed", color: "red" },
   ];
   const auth = useContext(AuthContext);
-  const userId = auth?.user?.user_id; // your logged-in user's ID
+  const userId = auth?.user?.user_id;
   const [activeStatus, setActiveStatus] = useState("Not Started");
 
   const getColorClass = (statusLabel: string, isActive: boolean) => {
@@ -201,7 +201,7 @@ function Workflow() {
         collapsed ? "pl-20" : "pl-[250px]"
       } transition-all duration-300`}
     >
-      <Navbar pageName="Workflow Approval" />
+      <Navbar pageName="Approvals" />
 
       <Sidebar />
 
@@ -349,12 +349,9 @@ function Workflow() {
                           {workflow.request_title}
                         </div>
                         <div className="truncate max-w-[100px] px-6">
-                          {workflow.request_type
-                            .split(" ")
-                            .map((word) => word[0])
-                            .join("")
-                            .toUpperCase()}
+                          {workflow.approval_req_type ?? ""}
                         </div>
+
                         <div className="truncate max-w-[160px] px-6">
                           {workflow.doc_name}
                         </div>

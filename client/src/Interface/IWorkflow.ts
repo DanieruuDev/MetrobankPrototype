@@ -42,11 +42,6 @@ export interface ApprovalWorkflow {
   }[];
 }
 
-export interface WFApprover {
-  email: string;
-  order: number;
-  date: string;
-}
 export interface CreateWorkflowSchema {
   requester_id: number;
   req_type_id: string;
@@ -135,15 +130,38 @@ export interface RequestApprovalList {
   semester: string;
 }
 
+export interface ApproverInfo {
+  approver_id: number;
+  user_id: number;
+  approver_name: string;
+  approver_role: string;
+  approver_order: number;
+  is_current: boolean;
+  approver_status: string;
+}
+export interface WorkflowApprovalList {
+  workflow_id: number;
+  workflow_type: string;
+  workflow_title: string;
+  workflow_status: string;
+  created_by: string;
+  approvers: ApproverInfo[];
+}
+
 export interface WorkflowFormData {
-  request_title: string;
+  rq_title: string;
   requester_id: string;
-  req_type_id: string;
   description: string;
   file: File | null;
   approvers: WFApprover[]; //edit later
-  scholar_level: string;
-  semester: string;
   due_date: string;
-  school_year: string;
+  sy_code: string;
+  semester_code: string;
+  approval_req_type: string;
+}
+export interface WFApprover {
+  email: string;
+  role: string;
+  order: number;
+  date: string;
 }

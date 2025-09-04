@@ -1,6 +1,6 @@
 const distributeDueDates = (
   dueDate: string,
-  approvers: { id: number; email: string }[]
+  approvers: { id: number; email: string; role: string }[]
 ) => {
   const totalApprovers = approvers.length;
   const today = new Date();
