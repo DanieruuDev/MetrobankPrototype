@@ -50,9 +50,9 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     [key: number]: boolean;
   }>({});
 
-  const [approvers, setApprovers] = useState<{ id: number; email: string }[]>([
-    { id: Date.now(), email: "" },
-  ]);
+  const [approvers, setApprovers] = useState<
+    { id: number; email: string; role: string }[]
+  >([{ id: Date.now(), email: "", role: "" }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const todayDate = new Date().toISOString().split("T")[0];
@@ -105,7 +105,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   });
 
   const addApprover = () => {
-    setApprovers([...approvers, { id: Date.now(), email: "" }]);
+    setApprovers([...approvers, { id: Date.now(), email: "", role: "" }]);
   };
 
   const removeApprover = (id: number) => {
@@ -347,7 +347,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                 <p className="text-[14px] text-gray-400">
                   Note: Number indicates order of approver
                 </p>
-                {approvers.map(({ id, email }, index) => (
+                {approvers.map(({ id, email, role }, index) => (
                   <div key={id} className="border-b border-[#e4e4e4] pb-2">
                     <label className="text-[#565656] text-[14px] font-medium">
                       Approver Email {index + 1}
@@ -425,6 +425,31 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                           <SquareMinus className="w-8 text-gray-300 hover:text-gray-700" />
                         </button>
                       )}
+                    </div>
+
+                    {/* Role input field */}
+                    <div className="mt-2">
+                      <label className="text-[#565656] text-[14px] font-medium">
+                        Role {index + 1}
+                      </label>
+                      <input
+                        type="text"
+                        value={role}
+                        maxLength={50}
+                        autoComplete="off"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setApprovers(
+                            approvers.map((app) =>
+                              app.id === id ? { ...app, role: val } : app
+                            )
+                          );
+                        }}
+                        className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
+                        placeholder={`Enter Approver ${index + 1} Role`}
+                        disabled={loading}
+                        required
+                      />
                     </div>
                   </div>
                 ))}

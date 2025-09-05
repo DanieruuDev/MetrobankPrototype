@@ -62,8 +62,8 @@ function ApproverTable({
             </span>
           </div>
           <div className="pl-4 pr-2">{a.created_by}</div>
-          <div className="pl-4 pr-2">{a.current_approver_role}</div>
-          <div className="pl-4 pr-2">{a.current_approver_name}</div>
+          <div className="pl-4 pr-2">{a.approver_role || "—"}</div>
+          <div className="pl-4 pr-2">{a.approver_name || "—"}</div>
         </div>
       ))}
     </div>

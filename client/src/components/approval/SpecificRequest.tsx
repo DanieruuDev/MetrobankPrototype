@@ -3,7 +3,6 @@ import axios from "axios";
 import {
   ArrowLeft,
   FileText,
-  UserCircle,
   CheckCircle,
   XCircle,
   Download,
@@ -165,10 +164,10 @@ function SpecificRequest({
             {specificRequest.approval_progress &&
               specificRequest.approval_progress.length > 0 && (
                 <div className="space-y-6">
-                  {/* Progress bar for multiple approvers */}
-                  {hasMultipleApprovers && (
-                    <div className="relative mb-4 px-4">
-                      {/* Progress line container with padding */}
+                  {/* Progress bar - only show line if multiple approvers */}
+                  <div className="relative mb-4 px-4">
+                    {/* Progress line container - only show if multiple approvers */}
+                    {hasMultipleApprovers && (
                       <div className="absolute top-1/2 left-4 right-4 h-1.5 bg-gray-200 rounded-full transform -translate-y-1/2">
                         {/* Progress indicator */}
                         <div
@@ -178,53 +177,52 @@ function SpecificRequest({
                           }}
                         />
                       </div>
+                    )}
 
-                      {/* Approver circles */}
-                      <div className="relative flex justify-between">
-                        {specificRequest.approval_progress
-                          .filter(
-                            (approver) =>
-                              approver.approval_status !== "Replaced"
-                          )
-                          .map((approver, index) => {
-                            const isCompleted =
-                              approver.approval_status === "Completed";
-                            const isCurrent =
-                              specificRequest.is_current &&
-                              specificRequest.approver_order ===
-                                approver.approver_order;
+                    {/* Approver circles */}
+                    <div className="relative flex justify-between">
+                      {specificRequest.approval_progress
+                        .filter(
+                          (approver) => approver.approval_status !== "Replaced"
+                        )
+                        .map((approver, index) => {
+                          const isCompleted =
+                            approver.approval_status === "Completed";
+                          const isCurrent =
+                            specificRequest.is_current &&
+                            specificRequest.approver_order ===
+                              approver.approver_order;
 
-                            return (
+                          return (
+                            <div
+                              key={index}
+                              className="flex flex-col items-center"
+                              style={{
+                                width: `${
+                                  100 / specificRequest.total_approvers
+                                }%`,
+                              }}
+                            >
                               <div
-                                key={index}
-                                className="flex flex-col items-center"
-                                style={{
-                                  width: `${
-                                    100 / specificRequest.total_approvers
-                                  }%`,
-                                }}
+                                className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium mb-2 border-2 border-white ${
+                                  isCompleted
+                                    ? "bg-green-500 text-white shadow-sm"
+                                    : isCurrent
+                                    ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-200"
+                                    : "bg-gray-200 text-gray-500"
+                                }`}
                               >
-                                <div
-                                  className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium mb-2 border-2 border-white ${
-                                    isCompleted
-                                      ? "bg-green-500 text-white shadow-sm"
-                                      : isCurrent
-                                      ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-200"
-                                      : "bg-gray-200 text-gray-500"
-                                  }`}
-                                >
-                                  {isCompleted ? (
-                                    <Check size={14} />
-                                  ) : (
-                                    approver.approver_order
-                                  )}
-                                </div>
+                                {isCompleted ? (
+                                  <Check size={14} />
+                                ) : (
+                                  approver.approver_order
+                                )}
                               </div>
-                            );
-                          })}
-                      </div>
+                            </div>
+                          );
+                        })}
                     </div>
-                  )}
+                  </div>
 
                   {/* Progress percentage display */}
                   <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
@@ -336,12 +334,12 @@ function SpecificRequest({
                                 </p>
                               </div>
                             </div>
-                            {isCompleted && approval.approval_status && (
+                            {isCompleted && approval.approval_time && (
                               <div className="flex items-center gap-1 text-xs text-gray-500">
                                 <Calendar size={12} />
                                 <span>
                                   Completed:{" "}
-                                  {formatDate(approval.approval_status)}
+                                  {formatDate(approval.approval_time)}
                                 </span>
                               </div>
                             )}
@@ -360,110 +358,149 @@ function SpecificRequest({
           </div>
         </div>
 
-        {/* Right column - Request details */}
+        {/* Right column - Request content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Title and status */}
-          <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {specificRequest.request_title}
-              </h1>
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${approverStatusBadge(
-                  String(specificRequest.approver_status)
-                )}`}
-              >
-                {specificRequest.approver_status}
-              </span>
+          {/* Title */}
+
+          {/* Request Details */}
+          <div className="bg-white rounded-xl p-5 border border-gray-200">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
+              <FileText size={16} />
+              Request Details
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Status
+                </label>
+                <span
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${approverStatusBadge(
+                    String(specificRequest.approver_status)
+                  )}`}
+                >
+                  {specificRequest.approver_status}
+                </span>
+              </div>
+
+              {/* Request ID */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Request ID
+                </label>
+                <span className="text-sm font-mono text-gray-800 bg-gray-50 px-2 py-1 rounded">
+                  {specificRequest.workflow_id}
+                </span>
+              </div>
+
+              {/* Requester */}
+
+              {/* Submitted Date */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Submitted
+                </label>
+                <div className="flex items-center gap-1 text-sm text-gray-700">
+                  <Calendar size={14} />
+                  <span>{formatDate(specificRequest.date_started)}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Requester
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
+                    <User size={12} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">
+                      {specificRequest.requester_name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {specificRequest.requester_role_name}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Due Date
+                </label>
+                <div className="flex items-center gap-1 text-sm text-gray-700">
+                  <Calendar size={14} />
+                  <span>{formatDate(specificRequest.due_date)}</span>
+                </div>
+              </div>
             </div>
-            <p className="text-gray-600 leading-relaxed">
-              {specificRequest.description}
-            </p>
-            <div className="text-sm text-gray-500 pt-2 border-t border-gray-100">
-              Request ID:{" "}
-              <span className="font-mono">{specificRequest.workflow_id}</span>
+
+            {/* Description */}
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-gray-500 mb-2">
+                Description
+              </label>
+              <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg">
+                {specificRequest.description}
+              </p>
             </div>
           </div>
 
-          {/* Request details */}
-          <div className="space-y-4">
-            {/* Requester info */}
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
-                <UserCircle size={20} />
+          {/* Attachment */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Attachment
+              </h3>
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-md"
+              >
+                <Download size={16} />
+                Download
+              </button>
+            </div>
+            <div className="p-4 flex items-center gap-4">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 text-blue-600">
+                <FileText size={20} />
               </div>
               <div>
                 <p className="font-medium text-gray-800">
-                  {specificRequest.requester_name}
+                  {specificRequest.doc_name}
                 </p>
-                <p className="text-sm text-gray-500">
-                  {specificRequest.requester_role_name}
+                <p className="text-xs text-gray-500">
+                  Click download to view file
                 </p>
-                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                  <Calendar size={12} />
-                  <span>
-                    Submitted: {formatDate(specificRequest.date_started)}
-                  </span>
-                </div>
               </div>
             </div>
+          </div>
 
-            {/* Attachment */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+          {/* Comment section */}
+          <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
+            {specificRequest.approver_comment ? (
+              <>
                 <h3 className="text-sm font-semibold text-gray-700">
-                  Attachment
+                  Your comment
                 </h3>
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-md"
-                >
-                  <Download size={16} />
-                  Download
-                </button>
-              </div>
-              <div className="p-4 flex items-center gap-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 text-blue-600">
-                  <FileText size={20} />
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700">
+                  {specificRequest.approver_comment}
                 </div>
-                <div>
-                  <p className="font-medium text-gray-800">
-                    {specificRequest.doc_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Click download to view file
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Comment section */}
-            <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
-              {specificRequest.approver_comment ? (
-                <>
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    Your comment
-                  </h3>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700">
-                    {specificRequest.approver_comment}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    Add a comment (optional)
-                  </h3>
-                  <textarea
-                    className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    rows={3}
-                    placeholder="Add any additional notes..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500">Max 255 characters</p>
-                </>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Add a comment (optional)
+                </h3>
+                <textarea
+                  className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Add any additional notes..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+                <p className="text-xs text-gray-500">Max 255 characters</p>
+              </>
+            )}
           </div>
         </div>
       </div>
