@@ -12,7 +12,7 @@ import {
   AlertCircle,
   User,
   Clock,
-  X,
+  Calendar,
 } from "lucide-react";
 import { ApproverDetailedView } from "../../Interface/IWorkflow";
 import { approverStatusBadge } from "../../utils/StatusBadge";
@@ -87,295 +87,386 @@ function SpecificRequest({
     );
   }
 
+  const hasMultipleApprovers = specificRequest.total_approvers > 1;
+  const completionPercentage = Math.round(
+    (specificRequest.completed_approvers / specificRequest.total_approvers) *
+      100
+  );
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "Pending";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 space-y-8 mx-auto max-w-4xl">
-      {/* Header with back button */}
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-xl shadow-sm p-6 space-y-6 mx-auto max-w-6xl">
+      {/* Header with back button and approval buttons */}
+      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
         <button
           onClick={goBack}
-          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
         >
           <ArrowLeft size={16} />
           Back to requests
         </button>
-        <div className="text-sm text-gray-500">
-          Request ID:{" "}
-          <span className="font-mono">{specificRequest.workflow_id}</span>
-        </div>
+
+        {/* Approval buttons at the top */}
+        {specificRequest.is_current &&
+          specificRequest.approver_response === "Pending" && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setStatus("Reject");
+                  setIsModalOpen(true);
+                }}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Reject
+              </button>
+              <button
+                onClick={() => {
+                  setStatus("Approved");
+                  setIsModalOpen(true);
+                }}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Approve
+              </button>
+            </div>
+          )}
       </div>
 
-      {/* Title and status */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {specificRequest.request_title}
-          </h1>
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${approverStatusBadge(
-              String(specificRequest.approver_status)
-            )}`}
-          >
-            {specificRequest.approver_status}
-          </span>
-        </div>
-        <p className="text-gray-600">{specificRequest.description}</p>
-      </div>
-
-      {/* Approval progress */}
-      {specificRequest.approval_progress &&
-        specificRequest.approval_progress.length > 0 && (
-          <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Approval progress */}
+        <div className="lg:col-span-1">
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 h-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <Users size={16} />
                 Approval Progress
               </h3>
-              <span className="text-xs font-medium text-gray-500">
+              <span className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded-md border">
                 {specificRequest.completed_approvers} of{" "}
                 {specificRequest.total_approvers} completed
               </span>
             </div>
 
-            {/* Progress bar */}
-            <div className="relative mb-8 px-4">
-              {/* Progress line container with padding */}
-              <div className="absolute top-1/2 left-4 right-4 h-1 bg-gray-200 transform -translate-y-1/2">
-                {/* Progress indicator - fixed calculation */}
-                <div
-                  className="h-full bg-green-500 transition-all duration-300"
-                  style={{
-                    width: `${
-                      (specificRequest.completed_approvers /
-                        specificRequest.total_approvers) *
-                      100
-                    }%`,
-                  }}
-                />
-              </div>
-
-              {/* Approver circles */}
-              <div className="relative flex justify-between">
-                {specificRequest.approval_progress
-                  .filter((approver) => approver.approval_status !== "Replaced")
-                  .map((approver, index) => {
-                    const isCompleted =
-                      approver.approval_status === "Completed";
-                    const isCurrent =
-                      specificRequest.is_current &&
-                      specificRequest.approver_order ===
-                        approver.approver_order;
-
-                    return (
-                      <div
-                        key={index}
-                        className="flex flex-col items-center"
-                        style={{
-                          width: `${100 / specificRequest.total_approvers}%`,
-                        }}
-                      >
+            {/* Progress visualization */}
+            {specificRequest.approval_progress &&
+              specificRequest.approval_progress.length > 0 && (
+                <div className="space-y-6">
+                  {/* Progress bar for multiple approvers */}
+                  {hasMultipleApprovers && (
+                    <div className="relative mb-4 px-4">
+                      {/* Progress line container with padding */}
+                      <div className="absolute top-1/2 left-4 right-4 h-1.5 bg-gray-200 rounded-full transform -translate-y-1/2">
+                        {/* Progress indicator */}
                         <div
-                          className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium mb-2 ${
-                            isCompleted
-                              ? "bg-green-500 text-white"
-                              : isCurrent
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-200 text-gray-500"
-                          }`}
-                        >
-                          {isCompleted ? (
-                            <Check size={14} />
-                          ) : (
-                            approver.approver_order
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs font-medium text-gray-700 truncate w-full">
-                            {approver.approver_order ===
-                              specificRequest.approver_order &&
-                            specificRequest.approver_id === approver_id
-                              ? "You"
-                              : approver.approver_name.split(" ")[0]}
-                          </p>
-
-                          <p className="text-xs text-gray-400 truncate w-full">
-                            {approver.approver_role}
-                          </p>
-                        </div>
+                          className="h-full bg-green-500 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${completionPercentage}%`,
+                          }}
+                        />
                       </div>
-                    );
-                  })}
-              </div>
-            </div>
 
-            {/* Add the approver details section here */}
-            <div className="space-y-3">
-              {specificRequest.approval_progress
-                .filter((approval) => approval.approval_status !== "Replaced")
-                .map((approval, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center justify-between p-3 rounded-md text-sm ${
-                      approval.response === "Approved"
-                        ? "bg-green-50 border border-green-100"
-                        : approval.response === "Reject"
-                        ? "bg-red-50 border border-red-100"
-                        : specificRequest.is_current &&
-                          specificRequest.approver_order ===
-                            approval.approver_order
-                        ? "bg-blue-50 border border-blue-100"
-                        : "bg-gray-50 border border-gray-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-200">
-                        <User size={14} className="text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800">
-                          {approval.approver_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {approval.approver_role}
-                        </p>
+                      {/* Approver circles */}
+                      <div className="relative flex justify-between">
+                        {specificRequest.approval_progress
+                          .filter(
+                            (approver) =>
+                              approver.approval_status !== "Replaced"
+                          )
+                          .map((approver, index) => {
+                            const isCompleted =
+                              approver.approval_status === "Completed";
+                            const isCurrent =
+                              specificRequest.is_current &&
+                              specificRequest.approver_order ===
+                                approver.approver_order;
+
+                            return (
+                              <div
+                                key={index}
+                                className="flex flex-col items-center"
+                                style={{
+                                  width: `${
+                                    100 / specificRequest.total_approvers
+                                  }%`,
+                                }}
+                              >
+                                <div
+                                  className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium mb-2 border-2 border-white ${
+                                    isCompleted
+                                      ? "bg-green-500 text-white shadow-sm"
+                                      : isCurrent
+                                      ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-200"
+                                      : "bg-gray-200 text-gray-500"
+                                  }`}
+                                >
+                                  {isCompleted ? (
+                                    <Check size={14} />
+                                  ) : (
+                                    approver.approver_order
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {approval.response === "Approved" ? (
-                        <span className="flex items-center text-green-600">
-                          <CheckCircle size={14} className="mr-1" />
-                          Approved
-                        </span>
-                      ) : approval.response === "Reject" ? (
-                        <span className="flex items-center text-red-600">
-                          <XCircle size={14} className="mr-1" />
-                          Rejected
-                        </span>
-                      ) : approval.approval_status === "Replaced" ? (
-                        <span className="flex items-center text-gray-400 italic">
-                          <X size={14} className="mr-1" />
-                          Replaced
-                        </span>
-                      ) : specificRequest.is_current &&
-                        specificRequest.approver_order ===
-                          approval.approver_order ? (
-                        <span className="flex items-center text-blue-600">
-                          <Clock size={14} className="mr-1" />
-                          Your turn
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-gray-500">
-                          <Clock size={14} className="mr-1" />
-                          Pending
-                        </span>
-                      )}
+                  )}
+
+                  {/* Progress percentage display */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        Progress
+                      </span>
+                      <span className="text-lg font-bold text-blue-600">
+                        {completionPercentage}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${completionPercentage}%` }}
+                      ></div>
                     </div>
                   </div>
-                ))}
-            </div>
-          </div>
-        )}
 
-      {/* Request details */}
-      <div className="space-y-6">
-        {/* Requester info */}
-        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
-            <UserCircle size={20} />
-          </div>
-          <div>
-            <p className="font-medium text-gray-800">
-              {specificRequest.requester_name}
-            </p>
-            <p className="text-sm text-gray-500">
-              {specificRequest.requester_role_name}
-            </p>
+                  {/* Submission info */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
+                        <User size={12} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        Requested by
+                      </span>
+                    </div>
+                    <div className="ml-8">
+                      <p className="text-sm font-medium text-gray-800">
+                        {specificRequest.requester_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {specificRequest.requester_role_name}
+                      </p>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                        <Calendar size={12} />
+                        <span>
+                          Submitted: {formatDate(specificRequest.date_started)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Approver steps */}
+                  <div className="space-y-4">
+                    {specificRequest.approval_progress
+                      .filter(
+                        (approval) => approval.approval_status !== "Replaced"
+                      )
+                      .map((approval, index) => {
+                        const isCompleted =
+                          approval.approval_status === "Completed";
+                        const isCurrent =
+                          specificRequest.is_current &&
+                          specificRequest.approver_order ===
+                            approval.approver_order;
+
+                        return (
+                          <div
+                            key={index}
+                            className={`bg-white rounded-lg p-4 border ${
+                              isCompleted
+                                ? "border-green-200"
+                                : isCurrent
+                                ? "border-blue-200"
+                                : "border-gray-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium text-gray-500">
+                                Step {approval.approver_order}
+                              </span>
+                              <span
+                                className={`text-xs font-medium ${
+                                  isCompleted
+                                    ? "text-green-600"
+                                    : isCurrent
+                                    ? "text-blue-600"
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                {isCompleted
+                                  ? "Completed"
+                                  : isCurrent
+                                  ? "Current"
+                                  : "Pending"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <div
+                                className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                                  isCompleted
+                                    ? "bg-green-100 text-green-600"
+                                    : isCurrent
+                                    ? "bg-blue-100 text-blue-600"
+                                    : "bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                <User size={14} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {approval.approver_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {approval.approver_role}
+                                </p>
+                              </div>
+                            </div>
+                            {isCompleted && approval.approval_status && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Calendar size={12} />
+                                <span>
+                                  Completed:{" "}
+                                  {formatDate(approval.approval_status)}
+                                </span>
+                              </div>
+                            )}
+                            {isCurrent && (
+                              <div className="flex items-center gap-1 text-xs text-blue-600">
+                                <Clock size={12} />
+                                <span>Awaiting approval</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
           </div>
         </div>
 
-        {/* Attachment */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700">Attachment</h3>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              <Download size={16} />
-              Download
-            </button>
-          </div>
-          <div className="p-4 flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 text-blue-600">
-              <FileText size={20} />
+        {/* Right column - Request details */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Title and status */}
+          <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900">
+                {specificRequest.request_title}
+              </h1>
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${approverStatusBadge(
+                  String(specificRequest.approver_status)
+                )}`}
+              >
+                {specificRequest.approver_status}
+              </span>
             </div>
-            <div>
-              <p className="font-medium text-gray-800">
-                {specificRequest.doc_name}
-              </p>
-              <p className="text-xs text-gray-500">
-                Click download to view file
-              </p>
+            <p className="text-gray-600 leading-relaxed">
+              {specificRequest.description}
+            </p>
+            <div className="text-sm text-gray-500 pt-2 border-t border-gray-100">
+              Request ID:{" "}
+              <span className="font-mono">{specificRequest.workflow_id}</span>
             </div>
           </div>
-        </div>
 
-        {/* Comment section */}
-        <div className="space-y-3">
-          {specificRequest.approver_comment ? (
-            <>
-              <h3 className="text-sm font-semibold text-gray-700">
-                Your comment
-              </h3>
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700">
-                {specificRequest.approver_comment}
+          {/* Request details */}
+          <div className="space-y-4">
+            {/* Requester info */}
+            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
+                <UserCircle size={20} />
               </div>
-            </>
-          ) : (
-            <>
-              <h3 className="text-sm font-semibold text-gray-700">
-                Add a comment (optional)
-              </h3>
-              <textarea
-                className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                placeholder="Add any additional notes..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-              <p className="text-xs text-gray-500">Max 255 characters</p>
-            </>
-          )}
+              <div>
+                <p className="font-medium text-gray-800">
+                  {specificRequest.requester_name}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {specificRequest.requester_role_name}
+                </p>
+                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                  <Calendar size={12} />
+                  <span>
+                    Submitted: {formatDate(specificRequest.date_started)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Attachment */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Attachment
+                </h3>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-md"
+                >
+                  <Download size={16} />
+                  Download
+                </button>
+              </div>
+              <div className="p-4 flex items-center gap-4">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 text-blue-600">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">
+                    {specificRequest.doc_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Click download to view file
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Comment section */}
+            <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
+              {specificRequest.approver_comment ? (
+                <>
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    Your comment
+                  </h3>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700">
+                    {specificRequest.approver_comment}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    Add a comment (optional)
+                  </h3>
+                  <textarea
+                    className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    placeholder="Add any additional notes..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">Max 255 characters</p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Action buttons */}
-      {specificRequest.is_current &&
-        specificRequest.approver_response === "Pending" && (
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <button
-              onClick={() => {
-                setStatus("Reject");
-                setIsModalOpen(true);
-              }}
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Reject
-            </button>
-            <button
-              onClick={() => {
-                setStatus("Approved");
-                setIsModalOpen(true);
-              }}
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Approve
-            </button>
-          </div>
-        )}
 
       {/* Confirmation Modal */}
       {isModalOpen && (
