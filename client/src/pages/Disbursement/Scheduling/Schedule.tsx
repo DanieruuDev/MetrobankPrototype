@@ -33,6 +33,7 @@ function Schedule() {
   const [error, setError] = useState<string | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const { collapsed } = useSidebar();
   const onClose = (isClosed: boolean) => {
     setIsModalOpen(isClosed);
@@ -122,7 +123,14 @@ function Schedule() {
     console.log(sched_id);
     console.log(schedules);
     setSchedules((prev) => prev.filter((s) => s.sched_id !== sched_id));
+    // Trigger sidebar refresh
+    setSidebarRefreshTrigger((prev) => prev + 1);
     console.log(schedules);
+  };
+
+  const handleScheduleCreated = () => {
+    // Trigger sidebar refresh after successful creation
+    setSidebarRefreshTrigger((prev) => prev + 1);
   };
   return (
     <div
@@ -133,7 +141,11 @@ function Schedule() {
       <Navbar pageName="Schedule and Tracking" />
 
       <Sidebar />
-      <ScheduleSidebar getBadgeColor={getBadgeColor} collapsed={collapsed} />
+      <ScheduleSidebar
+        getBadgeColor={getBadgeColor}
+        collapsed={collapsed}
+        refreshTrigger={sidebarRefreshTrigger}
+      />
 
       <div
         className="pl-[270px] pt-2 pr-4 "
@@ -229,7 +241,10 @@ function Schedule() {
         {isModalOpen && (
           <EventModal
             onClose={onClose}
-            fetchSchedules={() => fetchSchedules(visibleMonth)}
+            fetchSchedules={() => {
+              fetchSchedules(visibleMonth);
+              handleScheduleCreated();
+            }}
             selectedDate={selectedDate}
           />
         )}
@@ -245,9 +260,13 @@ function Schedule() {
               getBadgeColor={getBadgeColor}
               removeScheduleById={removeScheduleById}
               fetchSchedules={fetchSchedules}
+              onScheduleChange={handleScheduleCreated}
             />
           ) : (
-            <AgendaView getBadgeColor={getBadgeColor} />
+            <AgendaView
+              getBadgeColor={getBadgeColor}
+              refreshTrigger={sidebarRefreshTrigger}
+            />
           )}
         </div>
       </div>

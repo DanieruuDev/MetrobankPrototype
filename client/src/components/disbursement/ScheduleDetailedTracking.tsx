@@ -1,10 +1,10 @@
 import { useParams } from "react-router-dom";
-import Navbar from "../../../components/shared/Navbar";
-import Sidebar from "../../../components/shared/Sidebar";
+import Navbar from "../shared/Navbar";
+import Sidebar from "../shared/Sidebar";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSidebar } from "../../../context/SidebarContext";
+import { useSidebar } from "../../context/SidebarContext";
 import * as XLSX from "xlsx";
 import { ArrowLeft } from "lucide-react";
 
@@ -27,7 +27,7 @@ interface ITrackingDetailed {
   students: IStudentInfo[]; // JSON array from backend
 }
 
-function DetailedTracking() {
+function ScheduleDetailedTracking() {
   const { sched_id } = useParams<{ sched_id: string }>();
   const [trackingDetailed, setTrackingDetailed] =
     useState<ITrackingDetailed | null>(null);
@@ -176,7 +176,7 @@ function DetailedTracking() {
           collapsed ? "pl-20" : "pl-[250px]"
         } bg-gray-50 min-h-screen`}
       >
-        <Navbar pageName="Disbursement Tracking" />
+        <Navbar pageName="Schedule & Tracking Details" />
         <Sidebar />
         <div className="p-6 max-w-6xl mx-auto">
           <div className="text-center">
@@ -197,7 +197,7 @@ function DetailedTracking() {
           collapsed ? "pl-20" : "pl-[250px]"
         } bg-gray-50 min-h-screen`}
       >
-        <Navbar pageName="Disbursement Tracking" />
+        <Navbar pageName="Schedule & Tracking Details" />
         <Sidebar />
         <div className="p-6 max-w-6xl mx-auto">
           <p className="text-center text-gray-500">No data available.</p>
@@ -214,7 +214,7 @@ function DetailedTracking() {
         collapsed ? "pl-20" : "pl-[250px]"
       } transition-[padding-left] duration-300 bg-gray-50`}
     >
-      <Navbar pageName="Disbursement Tracking" />
+      <Navbar pageName="Schedule & Tracking Details" />
       <Sidebar />
 
       <div className="p-6 max-w-6xl mx-auto">
@@ -407,4 +407,4 @@ function DetailedTracking() {
   );
 }
 
-export default DetailedTracking;
+export default ScheduleDetailedTracking;

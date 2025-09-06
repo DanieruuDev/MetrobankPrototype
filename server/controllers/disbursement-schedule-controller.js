@@ -236,7 +236,20 @@ const getTwoWeeksDisbursementSchedules = async (req, res) => {
     `;
 
     const result = await pool.query(query, [start, end]);
-    res.status(200).json(result.rows);
+    console.log("Two weeks query result:", result.rows.length, "rows");
+
+    // Map the database fields to match frontend interface
+    const mappedRows = result.rows.map((row) => ({
+      sched_id: row.sched_id,
+      sched_title: row.sched_title,
+      event_type: 1, // Default event type
+      schedule_due: row.schedule_due,
+      schedule_status: row.schedule_status,
+      disbursement_label: row.disbursement_label,
+    }));
+
+    console.log("Mapped rows for sidebar:", mappedRows.length, "rows");
+    res.status(200).json(mappedRows);
   } catch (error) {
     console.error("Error fetching two weeks of disbursement schedules:", error);
     res.status(500).json({ message: "Server error fetching schedules" });

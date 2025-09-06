@@ -38,9 +38,14 @@ interface DisbursementScheduleDetail {
 interface AgendaViewProps {
   getBadgeColor: (type: string) => string;
   onScheduleClick?: (scheduleId: number) => void;
+  refreshTrigger?: number; // Add refresh trigger prop
 }
 
-const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
+const AgendaView = ({
+  getBadgeColor,
+  onScheduleClick,
+  refreshTrigger,
+}: AgendaViewProps) => {
   const [schedules, setSchedules] = useState<DisbursementScheduleDetail[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -88,7 +93,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
 
   useEffect(() => {
     fetchWeeklySchedules();
-  }, [currentWeekStart]);
+  }, [currentWeekStart, refreshTrigger]); // Add refreshTrigger as dependency
 
   const schedulesByDate = useMemo(() => {
     return schedules.reduce((acc, schedule) => {

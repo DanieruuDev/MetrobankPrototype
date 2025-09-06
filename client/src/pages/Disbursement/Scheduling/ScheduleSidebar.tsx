@@ -17,10 +17,12 @@ export interface DisbursementScheduleSummary {
 interface ScheduleSidebarProps {
   getBadgeColor: (type: string) => string;
   collapsed: boolean;
+  refreshTrigger?: number; // Add refresh trigger prop
 }
 const ScheduleSidebar = ({
   getBadgeColor,
   collapsed,
+  refreshTrigger,
 }: ScheduleSidebarProps) => {
   // const [sidebarSchedule, setSidebarSchedule] = useState<
   //   DisbursementSchedule[] | null
@@ -74,12 +76,12 @@ const ScheduleSidebar = ({
 
   useEffect(() => {
     fetchTwoWeeksSchedule();
-  }, []);
+  }, [refreshTrigger]); // Add refreshTrigger as dependency
 
   return (
     <div
       className={`
-    max-w-[250px] w-full overflow-y-auto h-[89.5vh] pb-4 overflow-x-hidden border-[#EBEBEB] border-r-3 pt-2 fixed
+    max-w-[250px] w-full overflow-y-auto h-[89.5vh] pb-4 overflow-x-hidden border-[#EBEBEB] border-r-3 pt-2 pr-2 fixed
     top-[73px] bottom-0 bg-white z-0
     ${
       collapsed ? "left-24 ml-0" : "left-[250px] ml-4"

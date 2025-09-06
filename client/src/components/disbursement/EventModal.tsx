@@ -1,5 +1,5 @@
 import axios from "axios";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import BranchDropdown from "../maintainables/BranchDropdown";
@@ -37,6 +37,9 @@ function EventModal({
 }: EventModalProps) {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
+
+  console.log("Auth context:", auth);
+  console.log("User ID from auth:", userId);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     schedule_due: selectedDate,
@@ -51,6 +54,7 @@ function EventModal({
   const [loading, setLoading] = useState(false);
 
   const handleBranchChange = (branchId: number) => {
+    console.log("Branch selected:", branchId);
     setBranch(branchId);
     setFormData((prev) => ({ ...prev, branch: branchId }));
   };
@@ -60,6 +64,7 @@ function EventModal({
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    console.log(`Input changed - ${name}:`, value);
 
     setFormData((prev) => ({
       ...prev,
@@ -82,33 +87,73 @@ function EventModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    console.log("sent?");
+    console.log("Form submission started");
+    console.log("Form data:", formData);
+    console.log("User ID:", userId);
+
+    // Check if user is authenticated
+    if (!userId) {
+      alert("You must be logged in to create a schedule");
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.title.trim()) {
+      alert("Please enter a title");
+      return;
+    }
+    if (!formData.semester) {
+      alert("Please select a semester");
+      return;
+    }
+    if (!formData.schoolYear) {
+      alert("Please select a school year");
+      return;
+    }
+    if (!formData.branch) {
+      alert("Please select a branch");
+      return;
+    }
+    if (!formData.disbursementType) {
+      alert("Please select a disbursement type");
+      return;
+    }
+    if (!formData.schedule_due) {
+      alert("Please select a due date");
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log("click pass");
+      console.log("Sending API request...");
+      const requestPayload = {
+        event_type: 1,
+        requester: userId,
+        schedule_due: formData.schedule_due
+          ? formatDateForInput(new Date(formData.schedule_due))
+          : null,
+        starting_date: formData.starting_date
+          ? formatDateForInput(new Date(formData.starting_date))
+          : null,
+        sched_title: formData.title,
+        branch_code: formData.branch,
+        semester_code: Number(formData.semester),
+        sy_code: Number(formData.schoolYear),
+        disbursement_type_id: Number(formData.disbursementType),
+        description: formData.description,
+      };
+
+      console.log("Request payload:", requestPayload);
+
       const response = await axios.post(
         "http://localhost:5000/api/disbursement/schedule",
-        {
-          event_type: 1,
-          requester: userId,
-          schedule_due: formData.schedule_due
-            ? formatDateForInput(new Date(formData.schedule_due))
-            : null,
-          starting_date: formData.starting_date
-            ? formatDateForInput(new Date(formData.starting_date))
-            : null,
-          sched_title: formData.title,
-          branch_code: formData.branch,
-          semester_code: Number(formData.semester),
-          sy_code: Number(formData.schoolYear),
-          disbursement_type_id: Number(formData.disbursementType),
-          description: formData.description,
-        }
+        requestPayload
       );
-      console.log("Form Data Submitted:", formData);
-      console.log(response);
+
+      console.log("API Response:", response);
+      console.log("Schedule created successfully!");
+
       fetchSchedules();
-      alert("Successs");
       onClose(false);
       setFormData({
         title: "",
@@ -122,8 +167,12 @@ function EventModal({
       });
     } catch (error) {
       console.error("Error creating disbursement schedule:", error);
-      alert("Failed");
-      console.log("click fail");
+      if (axios.isAxiosError(error)) {
+        console.error("Error response:", error.response?.data);
+        alert(`Error: ${error.response?.data?.message || error.message}`);
+      } else {
+        alert("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -319,10 +368,11 @@ function EventModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               disabled={loading}
             >
-              Create
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "Creating..." : "Create"}
             </button>
           </div>
         </form>
