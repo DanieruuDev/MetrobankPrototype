@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { DisbursementSchedule } from "../../pages/Disbursement/Scheduling/Schedule";
-import { Eye, MoreHorizontal, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import axios from "axios";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { Link } from "react-router-dom";
@@ -19,7 +19,6 @@ interface DayCellProps {
   currentDate: Date;
   removeScheduleById: (disb_sched_id: number) => void;
   fetchSchedules: (date: Date) => void;
-  onScheduleChange?: () => void; // Add callback for schedule changes
 }
 
 export interface EdittableDisbursementData {
@@ -42,7 +41,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   currentDate,
   fetchSchedules,
   removeScheduleById,
-  onScheduleChange,
 }) => {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
@@ -55,6 +53,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     left: number;
   } | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const [loading, setLoading] = useState(false);
   const [loadingEdittable, setLoadingEdittable] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +66,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const toggleOptions = () => setShowOptions((prev) => !prev);
   const getStatusClass = (status: string) => {
@@ -120,8 +118,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
 
   const deleteSchedule = async (sched_id: number, requester: number) => {
     console.log(sched_id, requester);
-    setIsDeleting(true);
-
     try {
       const response = await axios.delete(
         `http://localhost:5000/api/disbursement/schedule/${sched_id}/${requester}`
@@ -129,8 +125,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
 
       toast.success(response.data.message || "Schedule deleted.");
       removeScheduleById(sched_id);
-      // Trigger sidebar refresh
-      onScheduleChange?.();
       closeModal();
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -141,8 +135,6 @@ const RenderDayCell: React.FC<DayCellProps> = ({
         toast.error("An unexpected error occurred.");
       }
       console.error("Delete Schedule Error:", error);
-    } finally {
-      setIsDeleting(false);
     }
   };
   const closeModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
@@ -292,31 +284,15 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                             <span>Edit</span>
                           </button>
                           <button
-                            className={`flex items-center gap-2 px-4 py-2 w-full text-sm transition ${
-                              isDeleting &&
-                              pendingDeleteId === activeSchedule.sched_id
-                                ? "text-gray-400 cursor-not-allowed"
-                                : "text-red-500 hover:bg-red-100"
-                            }`}
+                            className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
                             onClick={() => {
                               setPendingDeleteId(activeSchedule.sched_id);
                               setConfirmOpen(true);
                               setShowOptions(false);
                             }}
-                            disabled={isDeleting}
                           >
-                            {isDeleting &&
-                            pendingDeleteId === activeSchedule.sched_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                            <span>
-                              {isDeleting &&
-                              pendingDeleteId === activeSchedule.sched_id
-                                ? "Deleting..."
-                                : "Delete"}
-                            </span>
+                            <Trash2 className="w-4 h-4" />
+                            <span>Delete</span>
                           </button>
                         </>
                       )}
@@ -344,12 +320,12 @@ const RenderDayCell: React.FC<DayCellProps> = ({
             )}
 
             <div className="text-[20px] font-medium text-[#565656]">
-              {activeSchedule.sched_title}
+              {loading ? "Loading..." : activeSchedule.sched_title}
             </div>
 
             {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
 
-            {!error && (
+            {!loading && !error && (
               <>
                 <div className="flex items-center gap-1 mt-2">
                   <div

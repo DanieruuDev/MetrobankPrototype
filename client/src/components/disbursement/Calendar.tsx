@@ -22,7 +22,6 @@ interface CalendarProps {
   getBadgeColor: (type: string) => string;
   removeScheduleById: (disb_sched_id: number) => void;
   fetchSchedules: (date: Date) => void;
-  onScheduleChange?: () => void;
 }
 
 function Calendar({
@@ -33,7 +32,6 @@ function Calendar({
   getBadgeColor,
   removeScheduleById,
   fetchSchedules,
-  onScheduleChange,
 }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const startDate = startOfWeek(startOfMonth(currentDate));
@@ -70,7 +68,6 @@ function Calendar({
             currentDate={currentDate}
             removeScheduleById={removeScheduleById}
             fetchSchedules={fetchSchedules}
-            onScheduleChange={onScheduleChange}
           />
         );
         day = addDays(day, 1);

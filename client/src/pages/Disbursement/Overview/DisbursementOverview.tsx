@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../../../components/shared/Sidebar";
 import Navbar from "../../../components/shared/Navbar";
 import { Search } from "lucide-react";
@@ -80,7 +80,7 @@ const DisbursementOverview = () => {
     }));
   };
 
-  const fetchDisbursementSummary = useCallback(async () => {
+  const fetchDisbursementSummary = async () => {
     setLoading(true);
     try {
       const response = await axios.get(
@@ -95,7 +95,7 @@ const DisbursementOverview = () => {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  };
 
   const fetchSy = async () => {
     setLoading(true);
@@ -127,11 +127,11 @@ const DisbursementOverview = () => {
     fetchDisbursementSummary();
     fetchSy();
     fetchYrLvl();
-  }, [fetchDisbursementSummary]);
+  }, []);
 
   useEffect(() => {
     fetchDisbursementSummary();
-  }, [fetchDisbursementSummary]);
+  }, [page]);
 
   return (
     <div className="flex">
