@@ -11,7 +11,7 @@ import { CheckSquare, ClipboardList, Plus, Search, Trash2 } from "lucide-react";
 import CreateApproval from "../../components/approval/CreateApproval";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
-import PaginationControl from "../../components/approval/PaginationControl";
+import PaginationControl from "../../components/shared/PaginationControl";
 import Loading from "../../components/shared/Loading";
 import { AuthContext } from "../../context/AuthContext";
 import { useSidebar } from "../../context/SidebarContext";

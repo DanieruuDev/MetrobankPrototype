@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { SpecificRenewalDetail } from "../Renewal";
 import { ArrowLeft } from "lucide-react";
 import { ScholarRenewalResponse } from "../../../../Interface/IRenewal";
-
+import Loading from "../../../../components/shared/Loading";
 interface SpecificRenewalProps {
   student_id: number;
   renewal_id: number;
@@ -183,7 +183,7 @@ function SpecificRenewal({
     }
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <Loading />;
   if (!renewalDetails) return <p>No data found.</p>;
 
   console.log(selectedStatus, renewalDetails);

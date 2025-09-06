@@ -8,7 +8,7 @@ import DonutChart from "../../../components/charts/DonutChart";
 import ComboChart from "../../../components/charts/ComboChart";
 import DropdownFilter from "../../../components/shared/DropdownFilter";
 import { useSidebar } from "../../../context/SidebarContext";
-import PaginationControl from "../../../components/approval/PaginationControl";
+import PaginationControl from "../../../components/shared/PaginationControl";
 import Loading from "../../../components/shared/Loading";
 
 interface StudentDisbursement {

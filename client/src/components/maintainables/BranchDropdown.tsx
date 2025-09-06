@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 interface Branch {
@@ -7,8 +7,8 @@ interface Branch {
 }
 
 interface BranchDropdownProps {
-  formData: number | "";
-  handleInputChange: (value: number) => void; // Accept branch ID directly
+  formData: string | ""; // store branch name now
+  handleInputChange: (value: string) => void; // Accept branch NAME instead of ID
 }
 
 const BranchDropdown: React.FC<BranchDropdownProps> = ({
@@ -17,6 +17,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
 }) => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -33,12 +34,29 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
     fetchBranches();
   }, []);
 
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const selectedBranch = branches.find(
-    (branch) => branch.campus_id === formData
+    (branch) => branch.campus_name === formData
   );
 
   return (
-    <div className="relative w-full">
+    <div ref={dropdownRef} className="relative w-full">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         Branch
       </label>
@@ -52,13 +70,13 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
       </div>
 
       {open && (
-        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-10 mt-1 shadow-lg">
+        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-100 mt-1 shadow-lg">
           {branches.map((branch) => (
             <div
               key={branch.campus_id}
               className="p-2 hover:bg-gray-200 cursor-pointer"
               onClick={() => {
-                handleInputChange(branch.campus_id);
+                handleInputChange(branch.campus_name); // ✅ Pass NAME instead of ID
                 setOpen(false);
               }}
             >

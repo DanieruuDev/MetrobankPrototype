@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FileDown,
   Pencil,
@@ -25,6 +25,9 @@ import GenerateReportModal from "../../../../components/renewal/GenerateReport";
 import { downloadExcel } from "../../../../utils/DownloadExcel";
 import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
 import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog";
+import BranchDropdown from "../../../../components/maintainables/BranchDropdown";
+import Loading from "../../../../components/shared/Loading";
+import PaginationControl from "../../../../components/shared/PaginationControl";
 
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
@@ -39,8 +42,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
   );
+
+  const [page, setPage] = useState<number>(1);
+  const [totalPage, setTotalPage] = useState<number>(1);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [pendingExitEdit, setPendingExitEdit] = useState(false); // track if user wants to exit edit
+  const [, setPendingExitEdit] = useState(false);
   const [isRenewalBtnOpen, SetIsRenewalBtnOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isGnrtRprtOpen, setIsGnrtRprtOpen] = useState(false);
@@ -48,6 +54,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFileActionOpen, setIsFileActionOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const itemsPerPage = 10;
+
   const hasEdits = tempRenewalData.some((row) =>
     Object.keys(row).some(
       (key) =>
@@ -57,36 +66,46 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           row.original[key as keyof RenewalDetails]
     )
   );
-
   const toggleEditMode = () => {
     if (isEdit && hasEdits) {
-      setPendingExitEdit(true); // user wants to exit
-      setIsConfirmOpen(true); // show modal
+      setPendingExitEdit(true);
+      setIsConfirmOpen(true);
     } else {
-      setIsEdit(!isEdit); // no edits, just toggle
+      setIsEdit(!isEdit);
+    }
+  };
+  const getRenewalData = async (sySemester: string, branch: string) => {
+    const [sy, semPart] = sySemester.split("_");
+    const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
+
+    try {
+      setIsLoading(true);
+      const response = await axios.get(
+        `http://localhost:5000/api/renewal/fetch-renewals`,
+        {
+          params: { school_year: sy, semester, branch },
+        }
+      );
+
+      const { data } = response.data;
+
+      const dataWithOriginal = data.map((row: RenewalDetails) => ({
+        ...row,
+        original: { ...row },
+        isEdited: false,
+      }));
+
+      setRenewalData(dataWithOriginal);
+      setTempRenewalData(dataWithOriginal);
+      setTotalPage(Math.ceil(dataWithOriginal.length / 10)); // 10 items per page
+      setPage(1); // start from first page
+    } catch (error) {
+      console.error("Error fetching renewal data:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getRenewalData = async () => {
-    const [sy, semPart] = sySemester.split("_");
-    const semester = semPart === "1st" ? "1st Semester" : "2nd Semester";
-    try {
-      const response = await axios.get(
-        `http://localhost:5000/api/renewal/fetch-renewals/${sy}/${semester}`
-      );
-      const dataWithOriginal = response.data.data.map(
-        (row: RenewalDetails) => ({
-          ...row,
-          original: { ...row },
-          isEdited: false,
-        })
-      );
-      setRenewalData(dataWithOriginal);
-      setTempRenewalData(dataWithOriginal);
-    } catch (error) {
-      console.error("Error fetching renewal data:", error);
-    }
-  };
   const statusBadge = (status: string) => {
     let colorClass = "text-black";
 
@@ -120,6 +139,49 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     )
       return "Delisted";
     return "Not Started";
+  };
+  const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
+    const editedRows = tempRenewalData.filter((row) => row.isEdited);
+
+    const updateRows = editedRows.map((row: RenewalDetailsClone) => {
+      const { renewal_id, original, ...rest } = row;
+
+      const changedFields = Object.fromEntries(
+        Object.entries(rest).filter(
+          ([key, value]) =>
+            key !== "isEdited" &&
+            value !== original[key as keyof RenewalDetails]
+        )
+      );
+      return { renewal_id, changedFields };
+    });
+
+    try {
+      setIsLoading(true);
+      if (updateRows.length > 0) {
+        const res = await axios.put(
+          "http://localhost:5000/api/renewal/update-renewalV2",
+          updateRows
+        );
+        console.log(res);
+        getRenewalData(sySemester, selectedBranch);
+        toast.success(`${res.data.totalUpdated} row(s) ${res.data.message}`);
+        console.log("Res Data:", res.data);
+      } else {
+        toast.info("No changes to update.");
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error("Update failed:", error.response?.data || error.message);
+      } else {
+        console.error("Unexpected error:", error);
+      }
+      alert(error);
+    } finally {
+      setIsLoading(false);
+    }
+
+    console.log(updateRows);
   };
   const handleValidationChange = (
     renewalId: number,
@@ -186,7 +248,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       return updatedRows;
     });
   };
-
   const handleGPAChange = (renewalId: number, newGPA: number | null) => {
     setTempRenewalData((prev) =>
       prev.map((r) => {
@@ -215,49 +276,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         return r;
       })
     );
-  };
-  const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
-    const editedRows = tempRenewalData.filter((row) => row.isEdited);
-
-    const updateRows = editedRows.map((row: RenewalDetailsClone) => {
-      const { renewal_id, original, ...rest } = row;
-
-      const changedFields = Object.fromEntries(
-        Object.entries(rest).filter(
-          ([key, value]) =>
-            key !== "isEdited" &&
-            value !== original[key as keyof RenewalDetails]
-        )
-      );
-      return { renewal_id, changedFields };
-    });
-
-    try {
-      setIsLoading(true);
-      if (updateRows.length > 0) {
-        const res = await axios.put(
-          "http://localhost:5000/api/renewal/update-renewalV2",
-          updateRows
-        );
-        console.log(res);
-        getRenewalData();
-        toast.success(`${res.data.totalUpdated} row(s) ${res.data.message}`);
-        console.log("Res Data:", res.data);
-      } else {
-        toast.info("No changes to update.");
-      }
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error("Update failed:", error.response?.data || error.message);
-      } else {
-        console.error("Unexpected error:", error);
-      }
-      alert(error);
-    } finally {
-      setIsLoading(false);
-    }
-
-    console.log(updateRows);
   };
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -323,24 +341,25 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     // Pass newData directly
     submitSaveChanges(newData);
   };
-
   const handleConfirmSave = () => {
     submitSaveChanges(tempRenewalData); // save changes
     setIsEdit(false); // exit edit mode
     setIsConfirmOpen(false); // close modal
     setPendingExitEdit(false);
   };
-
+  const handleBranchChange = (branch: string) => {
+    setSelectedBranch(branch);
+  };
   const handleCancelModal = () => {
     setIsConfirmOpen(false); // just close modal
     setPendingExitEdit(false); // stay in edit mode
     setIsEdit(false);
     setTempRenewalData(renewalData);
   };
-
+  console.log("outside getter", page);
   useEffect(() => {
-    getRenewalData();
-  }, [sySemester]);
+    getRenewalData(sySemester, selectedBranch);
+  }, [sySemester, selectedBranch]);
   useEffect(() => {
     const passed = tempRenewalData.filter(
       (r) => r.scholarship_status === "Passed"
@@ -382,8 +401,14 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       window.removeEventListener("popstate", handlePopState);
     };
   }, [hasEdits]);
+  useEffect(() => {
+    const newTotalPage = Math.ceil(tempRenewalData.length / itemsPerPage);
+    setTotalPage(newTotalPage);
 
-  console.log(sySemester);
+    // Reset page if current page exceeds total pages (like after filtering/search)
+    if (page > newTotalPage) setPage(1);
+  }, [page, tempRenewalData]);
+
   return (
     <div className="px-4 py-2">
       <div className="flex justify-between mt-4">
@@ -403,7 +428,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             Filter
           </button> */}
         </div>
-        {isLoading && <p>Loading///</p>}
         <div className="flex gap-2">
           {!isEdit ? (
             <>
@@ -523,10 +547,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           </div>
         </div>
         {!isEdit ? (
-          <SYSemesterDropdown
-            value={sySemester}
-            onChange={(value) => setSySemester(value)}
-          />
+          <div className="flex items-center justify-between gap-2 max-w-[350px] w-full">
+            <SYSemesterDropdown
+              value={sySemester}
+              onChange={(value) => setSySemester(value)}
+            />
+            <BranchDropdown
+              formData={selectedBranch}
+              handleInputChange={handleBranchChange}
+            />
+          </div>
         ) : (
           <div>
             <button
@@ -546,19 +576,20 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         )}
       </div>
 
-      <div className="overflow-x-auto scroll-smooth mt-4 rounded-md border border-gray-300">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100">
-            <tr className="text-gray-800 text-sm font-medium text-left">
-              {!isEdit && <div></div>}
-              {Object.entries(renewalTableHead).map(([key, label]) => (
-                <th
-                  key={key}
-                  className={`px-5 py-3 text-left whitespace-nowrap ${
-                    key === "scholar_name"
-                      ? "sticky left-0 bg-gray-100 z-10 shadow-md max-w-[200px] min-w-[200px]"
-                      : ""
-                  }
+      {!isLoading ? (
+        <div className="overflow-x-auto scroll-smooth mt-4 rounded-md border border-gray-300">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100">
+              <tr className="text-gray-800 text-sm font-medium text-left">
+                {!isEdit && <th></th>}
+                {Object.entries(renewalTableHead).map(([key, label]) => (
+                  <th
+                    key={key}
+                    className={`px-5 py-3 text-left whitespace-nowrap ${
+                      key === "scholar_name"
+                        ? "sticky left-0 bg-gray-100 z-10 shadow-md max-w-[200px] min-w-[200px]"
+                        : ""
+                    }
                 ${
                   key === "scholarship_status"
                     ? "sticky left-[200px] bg-gray-100 z-10 shadow-md"
@@ -566,151 +597,166 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 }
                 ${key === "gpa" ? "max-w-[80px] min-w-[80px]" : ""}
                   `}
-                >
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200 text-[14px]">
-            {tempRenewalData &&
-              tempRenewalData.map((renewal) => (
-                <tr key={renewal.renewal_id} className="cursor-pointer group  ">
-                  {!isEdit && (
-                    <td
-                      className="pl-4 group-hover:bg-gray-100"
-                      onClick={() =>
-                        handleRowClick(renewal.student_id, renewal.renewal_id)
-                      }
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 text-[14px]">
+              {tempRenewalData &&
+                tempRenewalData
+                  .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+                  .map((renewal) => (
+                    <tr
+                      key={renewal.renewal_id}
+                      className="cursor-pointer group  "
                     >
-                      <Eye
-                        strokeWidth={1}
-                        className="hover:translate-y-[-1px] hover:text-blue-700"
-                      />
-                    </td>
-                  )}
-                  {Object.keys(renewalTableHead).map((key) => {
-                    const value = renewal[key as keyof RenewalDetails];
-                    const isValidationField = Object.keys(validation)
-                      .filter(
-                        (k) =>
-                          k !== "scholarship_status" &&
-                          k !== "gpa_validation_stat"
-                      )
-                      .includes(key);
-
-                    const isGPAField = key === "gpa";
-                    const isTextField = key === "delisting_root_cause";
-
-                    const validationOptions: RenewalDetails[keyof RenewalDetails][] =
-                      ["Not Started", "Passed", "Failed"];
-
-                    return (
-                      <td
-                        key={key}
-                        className={`px-5 py-3 group-hover:bg-gray-100 ${
-                          key === "scholar_name"
-                            ? "sticky left-0 z-10 shadow-md bg-white max-w-[300px] whitespace-nowrap overflow-hidden"
-                            : key === "scholarship_status"
-                            ? "sticky left-[200px] bg-white z-10 shadow-md max-w-[150px] whitespace-nowrap overflow-hidden"
-                            : "max-w-[400px] whitespace-nowrap overflow-hidden"
-                        }`}
-                      >
-                        {isEdit && isGPAField ? (
-                          <input
-                            type="number"
-                            value={value ?? ""}
-                            step="0.01"
-                            min={0}
-                            max={5}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === "") {
-                                handleGPAChange(renewal.renewal_id, null);
-                                return;
-                              }
-                              let numVal = Number(val);
-                              if (numVal > 5) numVal = 5;
-                              numVal = Math.floor(numVal * 100) / 100;
-
-                              handleGPAChange(renewal.renewal_id, numVal);
-                            }}
-                            className="border border-gray-300 px-2 py-1 rounded-sm w-full"
+                      {!isEdit && (
+                        <td
+                          className="pl-4 group-hover:bg-gray-100"
+                          onClick={() =>
+                            handleRowClick(
+                              renewal.student_id,
+                              renewal.renewal_id
+                            )
+                          }
+                        >
+                          <Eye
+                            strokeWidth={1}
+                            className="hover:translate-y-[-1px] hover:text-blue-700"
                           />
-                        ) : isEdit &&
-                          isTextField &&
-                          renewal.scholarship_status === "Delisted" ? (
-                          <textarea
-                            value={value as string}
-                            rows={1}
-                            onChange={(e) => {
-                              const newValue = e.target.value;
-                              setTempRenewalData((prev) =>
-                                prev.map((r) =>
-                                  r.renewal_id === renewal.renewal_id
-                                    ? { ...r, [key]: newValue }
-                                    : r
-                                )
-                              );
-                            }}
-                            className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none"
-                          />
-                        ) : isEdit && isValidationField ? (
-                          //Switch mode
-                          <div className="flex items-center gap-2">
-                            {/* Switch */}
-                            <div
-                              className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
-                                value === "Passed"
-                                  ? "bg-green-500"
-                                  : value === "Failed"
-                                  ? "bg-red-500"
-                                  : "bg-gray-500"
-                              }`}
-                              onClick={() =>
-                                handleValidationChange(
-                                  renewal.renewal_id,
-                                  key as keyof RenewalDetails,
-                                  value === "Passed" ? "Failed" : "Passed"
-                                )
-                              }
-                            >
-                              <div
-                                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                                  value === "Passed"
-                                    ? "translate-x-5"
-                                    : "translate-x-0"
-                                }`}
-                              ></div>
-                            </div>
+                        </td>
+                      )}
+                      {Object.keys(renewalTableHead).map((key) => {
+                        const value = renewal[key as keyof RenewalDetails];
+                        const isValidationField = Object.keys(validation)
+                          .filter(
+                            (k) =>
+                              k !== "scholarship_status" &&
+                              k !== "gpa_validation_stat"
+                          )
+                          .includes(key);
 
-                            {/* Label */}
-                            <span
-                              className={`text-sm font-medium ${
-                                value === "Passed"
-                                  ? "text-green-600"
-                                  : value === "Failed"
-                                  ? "text-red-600"
-                                  : "text-gray-500"
-                              }`}
-                            >
-                              {value}
-                            </span>
-                          </div>
-                        ) : key === "scholarship_status" ? (
-                          statusBadge(value as string)
-                        ) : (
-                          <span>{statusBadge(value as string)}</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+                        const isGPAField = key === "gpa";
+                        const isTextField = key === "delisting_root_cause";
 
+                        // const validationOptions: RenewalDetails[keyof RenewalDetails][] =
+                        //   ["Not Started", "Passed", "Failed"];
+
+                        return (
+                          <td
+                            key={key}
+                            className={`px-5 py-3 group-hover:bg-gray-100 ${
+                              key === "scholar_name"
+                                ? "sticky left-0 z-10 shadow-md bg-white max-w-[300px] whitespace-nowrap overflow-hidden"
+                                : key === "scholarship_status"
+                                ? "sticky left-[200px] bg-white z-10 shadow-md max-w-[150px] whitespace-nowrap overflow-hidden"
+                                : "max-w-[400px] whitespace-nowrap overflow-hidden"
+                            }`}
+                          >
+                            {isEdit && isGPAField ? (
+                              <input
+                                type="number"
+                                value={value ?? ""}
+                                step="0.01"
+                                min={0}
+                                max={5}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === "") {
+                                    handleGPAChange(renewal.renewal_id, null);
+                                    return;
+                                  }
+                                  let numVal = Number(val);
+                                  if (numVal > 5) numVal = 5;
+                                  numVal = Math.floor(numVal * 100) / 100;
+
+                                  handleGPAChange(renewal.renewal_id, numVal);
+                                }}
+                                className="border border-gray-300 px-2 py-1 rounded-sm w-full"
+                              />
+                            ) : isEdit &&
+                              isTextField &&
+                              renewal.scholarship_status === "Delisted" ? (
+                              <textarea
+                                value={value as string}
+                                rows={1}
+                                onChange={(e) => {
+                                  const newValue = e.target.value;
+                                  setTempRenewalData((prev) =>
+                                    prev.map((r) =>
+                                      r.renewal_id === renewal.renewal_id
+                                        ? { ...r, [key]: newValue }
+                                        : r
+                                    )
+                                  );
+                                }}
+                                className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none"
+                              />
+                            ) : isEdit && isValidationField ? (
+                              //Switch mode
+                              <div className="flex items-center gap-2">
+                                {/* Switch */}
+                                <div
+                                  className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
+                                    value === "Passed"
+                                      ? "bg-green-500"
+                                      : value === "Failed"
+                                      ? "bg-red-500"
+                                      : "bg-gray-500"
+                                  }`}
+                                  onClick={() =>
+                                    handleValidationChange(
+                                      renewal.renewal_id,
+                                      key as keyof RenewalDetails,
+                                      value === "Passed" ? "Failed" : "Passed"
+                                    )
+                                  }
+                                >
+                                  <div
+                                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                      value === "Passed"
+                                        ? "translate-x-5"
+                                        : "translate-x-0"
+                                    }`}
+                                  ></div>
+                                </div>
+
+                                {/* Label */}
+                                <span
+                                  className={`text-sm font-medium ${
+                                    value === "Passed"
+                                      ? "text-green-600"
+                                      : value === "Failed"
+                                      ? "text-red-600"
+                                      : "text-gray-500"
+                                  }`}
+                                >
+                                  {value}
+                                </span>
+                              </div>
+                            ) : key === "scholarship_status" ? (
+                              statusBadge(value as string)
+                            ) : (
+                              <span>{statusBadge(value as string)}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <Loading />
+      )}
+      <PaginationControl
+        currentPage={page}
+        totalPages={totalPage}
+        onPageChange={(newPage) => setPage(newPage)} // keep as is
+      />
       {/* {Modals} */}
       <ScholarshipRenewalModal
         isOpen={isRenewalBtnOpen}

@@ -30,7 +30,7 @@ const registerUser = async (req, res) => {
       `SELECT admin_email FROM public.administration_adminaccounts WHERE admin_email = $1`,
       [email]
     );
-
+    console.log(existingUser);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ message: "Account already exists" });
     }

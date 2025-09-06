@@ -13,10 +13,7 @@ const renewalRouter = express.Router();
 
 renewalRouter.post("/generate-renewal", uploadScholarRenewals);
 
-renewalRouter.get(
-  "/fetch-renewals/:school_year/:semester",
-  fetchAllScholarRenewal
-);
+renewalRouter.get("/fetch-renewals", fetchAllScholarRenewal);
 renewalRouter.get("/get-renewal/:student_id/:renewal_id", getScholarRenewal);
 renewalRouter.put("/update-renewal", updateScholarRenewal);
 renewalRouter.put("/update-renewalV2", updateScholarRenewalV2);

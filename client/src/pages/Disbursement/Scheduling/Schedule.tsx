@@ -130,7 +130,7 @@ function Schedule() {
         collapsed ? "pl-20" : "pl-[250px]"
       } transition-[padding-left] duration-300`}
     >
-      <Navbar pageName="Schedule and Tracking" />
+      <Navbar pageName="Calendar of Activity" />
 
       <Sidebar />
       <ScheduleSidebar getBadgeColor={getBadgeColor} collapsed={collapsed} />

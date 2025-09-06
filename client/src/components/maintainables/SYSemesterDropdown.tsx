@@ -1,60 +1,108 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
+import axios from "axios";
 
 export type Option = {
   label: string;
   value: string;
 };
 
-const options: Option[] = [
-  { label: "2024-2025 1st Semester", value: "2024-2025_1st" },
-  { label: "2024-2025 2nd Semester", value: "2024-2025_2nd" },
-];
-
 type Props = {
   value?: string;
   onChange: (value: string) => void;
 };
 
-function SYSemesterDropdown({ value, onChange }: Props) {
-  const sortedOptions = React.useMemo(() => {
-    return [...options].sort((a, b) => b.value.localeCompare(a.value));
+interface ValidSYSemester {
+  id: number;
+  label: string;
+  sy_code: number;
+  semester_code: number;
+  school_year: string;
+  semester: string;
+}
+
+const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<Option[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ✅ Fetch from valid_sy_semester only
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get<ValidSYSemester[]>(
+          "http://localhost:5000/api/maintenance/valid_sy_semester"
+        );
+
+        const formatted: Option[] = res.data.map((item) => ({
+          label: item.label, // e.g. "2025-2026 1st Semester"
+          value: `${item.school_year}_${item.semester_code}`, // unique combo
+        }));
+
+        setOptions(formatted);
+      } catch (error) {
+        console.error("Error fetching valid SY-Semester:", error);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange(e.target.value);
-  };
+  const selectedOption = options.find((opt) => opt.value === value);
 
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  console.log(selectedOption);
   return (
-    <div className="relative max-w-[250px]">
-      <select
-        value={value}
-        onChange={handleChange}
-        className="w-full appearance-none rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 pr-10 text-sm font-medium text-gray-700  transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-      >
-        {sortedOptions.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+    <div ref={dropdownRef} className="relative w-full">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        SY-Semester
+      </label>
 
-      {/* Custom dropdown arrow */}
-      <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-        <svg
-          className="h-4 w-4 text-gray-500"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.23 8.27a.75.75 0 01.02-1.06z"
-            clipRule="evenodd"
-          />
-        </svg>
+      {/* Dropdown trigger */}
+      <div
+        className="p-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center"
+        onClick={() => setOpen(!open)}
+      >
+        <span>
+          {selectedOption?.label || (value ? value : "Select SY-Semester")}
+        </span>
+
+        <span className="ml-2">&#9662;</span>
       </div>
+
+      {/* Dropdown menu */}
+      {open && (
+        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-100 mt-1 shadow-lg">
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              className="p-2 hover:bg-gray-200 cursor-pointer"
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+              }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};
 
 export default SYSemesterDropdown;
