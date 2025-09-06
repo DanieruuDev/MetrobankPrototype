@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../../components/shared/Sidebar";
 import Navbar from "../../../components/shared/Navbar";
-import SYSemesterDropdown from "../../../components/shared/SYSemesterDropdown";
+import SYSemesterDropdown from "../../../components/maintainables/SYSemesterDropdown";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Banknote, CalendarArrowUp, Vault, Search, X } from "lucide-react";

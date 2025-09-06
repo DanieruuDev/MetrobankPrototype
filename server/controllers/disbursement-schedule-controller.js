@@ -1,75 +1,93 @@
 const pool = require("../database/dbConnect.js");
 
 const {
-  createSchedule,
+  createEventSchedule,
+  createDisbursementSched,
   updateDisbursementDetails,
   updateSchedule,
 } = require("../services/disbursementService");
 
 //Important: Change the semester, yr lvl, and school year into one or valid sy and sem
 
-// Add how many scholar has been added to schedule and how many scholar is remaining in scholarship renewal, all the unstarted I mean
+//currentky working
 const createDisbursementSchedule = async (req, res) => {
   const {
+    event_type,
     disbursement_type_id,
-    disb_title,
-    disbursement_date,
-    amount,
-    yr_lvl_code,
+    sched_title,
+    schedule_due,
+    starting_date,
     sy_code,
     semester_code,
-    branch,
-    created_by,
+    branch_code,
+    requester,
     required_hours,
-    quantity,
+    description,
   } = req.body;
+
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
     if (
+      !event_type ||
       !disbursement_type_id ||
-      !yr_lvl_code ||
+      !sched_title ||
+      !schedule_due ||
+      !starting_date ||
       !sy_code ||
       !semester_code ||
-      !branch ||
-      !created_by ||
-      !quantity
+      !branch_code ||
+      !requester ||
+      !description
     ) {
       return res.status(400).json({ message: "Missing required fields." });
     }
+    console.log("pass validation");
 
-    if (quantity < 1) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({
-        message: "No scholars found to schedule for this disbursement.",
-      });
+    let scheduledCount, disb_sched_id;
+    console.log("Branch", branch_code);
+    const sched_id = await createEventSchedule(client, {
+      event_type,
+      starting_date,
+      sched_title,
+      schedule_due,
+      sy_code,
+      semester_code,
+      requester,
+      description,
+      branch_code,
+      disbursement_type_id,
+    });
+
+    if (!sched_id) {
+      throw new Error("Failed to create event schedule.");
     }
 
-    const disb_sched_id = await createSchedule(client, {
-      disbursement_type_id,
-      disb_title,
-      disbursement_date,
-      amount,
-      yr_lvl_code,
-      sy_code,
-      semester_code,
-      branch,
-      created_by,
-      quantity,
-    });
+    if (event_type === 1) {
+      disb_sched_id = await createDisbursementSched(client, {
+        sched_id,
+        sy_code,
+        semester_code,
+        branch_code,
+        disbursement_type_id,
+      });
 
-    const scheduledCount = await updateDisbursementDetails(client, {
-      disbursement_type_id,
-      yr_lvl_code,
-      sy_code,
-      semester_code,
-      required_hours: disbursement_type_id === 4 ? required_hours : null,
-      disb_sched_id,
-      branch,
-    });
-    console.log(scheduledCount);
+      if (!disb_sched_id || disb_sched_id.length === 0) {
+        throw new Error("No disbursement schedules were created.");
+      }
+
+      scheduledCount = await updateDisbursementDetails(client, {
+        disbursement_type_id,
+        required_hours: disbursement_type_id === 4 ? required_hours : null,
+        disb_sched_id,
+      });
+
+      if (!scheduledCount || scheduledCount === 0) {
+        throw new Error("No scholars were updated in disbursement details.");
+      }
+    }
 
     await client.query("COMMIT");
 
@@ -80,8 +98,10 @@ const createDisbursementSchedule = async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Schedule Error:", error);
-    return res.status(500).json({ message: "Internal Server Error." });
+    console.error("Schedule Error:", error.message || error);
+    return res
+      .status(500)
+      .json({ message: error.message || "Internal Server Error." });
   } finally {
     client.release();
   }
@@ -166,7 +186,7 @@ const fetchDisbursementSchedules = async (req, res) => {
       `
         SELECT 
           *
-        FROM vw_disb_calendar_sched WHERE date BETWEEN $1 AND $2;
+        FROM vw_disb_calendar_sched WHERE schedule_due BETWEEN $1 AND $2;
       `,
       [start.toISOString(), end.toISOString()]
     );
@@ -211,8 +231,8 @@ const getTwoWeeksDisbursementSchedules = async (req, res) => {
     const query = `
       SELECT * 
       FROM vw_disb_sched_summary 
-      WHERE disbursement_date BETWEEN $1 AND $2
-      ORDER BY disbursement_date ASC
+      WHERE schedule_due BETWEEN $1 AND $2
+      ORDER BY schedule_due ASC
     `;
 
     const result = await pool.query(query, [start, end]);
@@ -224,10 +244,9 @@ const getTwoWeeksDisbursementSchedules = async (req, res) => {
 };
 
 const fetchDetailSchedule = async (req, res) => {
+  const { sched_id } = req.params;
   console.log("fetch detailed");
-  const { disb_sched_id } = req.params;
-
-  if (!disb_sched_id) {
+  if (!sched_id) {
     return res
       .status(400)
       .json({ message: "Missing sched_id or user_id in query parameters." });
@@ -237,10 +256,10 @@ const fetchDetailSchedule = async (req, res) => {
     const result = await pool.query(
       `
         SELECT * 
-        FROM vw_disbursement_schedule_detailed 
-        WHERE disb_sched_id = $1
+        FROM vw_schedule_edit_data 
+        WHERE sched_id = $1
       `,
-      [disb_sched_id]
+      [sched_id]
     );
 
     if (result.rows.length === 0) {
@@ -260,14 +279,12 @@ const fetchDetailSchedule = async (req, res) => {
 
 const fetchWeeklyDisbursementSchedules = async (req, res) => {
   try {
-    console.log("Received date:", req.params.date);
     const baseDate = req.params.week ? new Date(req.params.week) : new Date();
-    console.log("Parsed date:", baseDate);
 
     const start = new Date(baseDate);
     const end = new Date(baseDate);
 
-    const dayOfWeek = start.getDay(); // 0 (Sun) - 6 (Sat)
+    const dayOfWeek = start.getDay();
     start.setDate(start.getDate() - dayOfWeek);
     end.setDate(start.getDate() + 6);
 
@@ -280,9 +297,9 @@ const fetchWeeklyDisbursementSchedules = async (req, res) => {
 
     const query = `
       SELECT * 
-      FROM vw_disbursement_schedule_detailed 
-      WHERE disbursement_date BETWEEN $1 AND $2
-      ORDER BY disbursement_date ASC
+      FROM vw_disb_calendar_sched
+      WHERE schedule_due BETWEEN $1 AND $2
+      ORDER BY schedule_due ASC
     `;
 
     const result = await pool.query(query, [
@@ -297,17 +314,17 @@ const fetchWeeklyDisbursementSchedules = async (req, res) => {
 };
 
 const deleteDisbursementSchedule = async (req, res) => {
-  const { disb_sched_id, created_by_id } = req.params;
-
+  const { sched_id, requester } = req.params;
   const client = await pool.connect();
 
+  console.log(sched_id, requester);
   try {
     await client.query("BEGIN");
 
-    // Step 0: Check if user is the creator of the schedule
+    // Step 0: Check ownership
     const authCheck = await client.query(
-      `SELECT created_by FROM disbursement_schedule WHERE disb_sched_id = $1`,
-      [disb_sched_id]
+      `SELECT requester FROM event_schedule WHERE sched_id = $1`,
+      [sched_id]
     );
 
     if (authCheck.rowCount === 0) {
@@ -317,54 +334,42 @@ const deleteDisbursementSchedule = async (req, res) => {
         .json({ message: "Disbursement schedule not found." });
     }
 
-    const creatorId = authCheck.rows[0].created_by;
-    console.log(creatorId, created_by_id);
-    if (creatorId !== Number(created_by_id)) {
-      console.log(typeof creatorId, typeof user_id);
+    const creatorId = authCheck.rows[0].requester;
+    if (creatorId !== Number(requester)) {
       await client.query("ROLLBACK");
       return res
         .status(403)
         .json({ message: "You are not authorized to delete this schedule." });
     }
 
-    // Step 1: Reset disbursement_detail
-    const updateResult = await client.query(
-      `
-      UPDATE disbursement_detail
-      SET 
-        disb_sched_id = NULL,
-        disbursement_status = 'Not Started',
-        completed_at = NULL
-      WHERE disb_sched_id = $1
-      `,
-      [disb_sched_id]
+    // Step 1: Get all disb_detail_ids linked to this sched_id
+    const disbDetails = await client.query(
+      `SELECT disb_detail_id 
+       FROM disbursement_schedule 
+       WHERE sched_id = $1`,
+      [sched_id]
     );
 
-    if (updateResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({
-        message: "No related disbursement details found for this schedule.",
-      });
+    if (disbDetails.rowCount > 0) {
+      const ids = disbDetails.rows.map((r) => r.disb_detail_id);
+      await client.query(
+        `UPDATE disbursement_detail 
+         SET disbursement_status = 'Not Started', completed_at = NULL
+         WHERE disb_detail_id = ANY($1::int[])`,
+        [ids]
+      );
     }
 
-    // Step 2: Delete the disbursement_schedule
-    const deleteResult = await client.query(
-      `DELETE FROM disbursement_schedule WHERE disb_sched_id = $1 RETURNING *`,
-      [disb_sched_id]
-    );
-
-    if (deleteResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res
-        .status(404)
-        .json({ message: "Disbursement schedule not found." });
-    }
+    // Step 3: Delete the event_schedule (cascades into disbursement_schedule)
+    await client.query(`DELETE FROM event_schedule WHERE sched_id = $1`, [
+      sched_id,
+    ]);
 
     await client.query("COMMIT");
 
     return res
       .status(200)
-      .json({ message: "Disbursement schedule deleted successfully." });
+      .json({ message: "Disbursement schedule deleted and statuses reset." });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Transaction Error (deleteDisbursementSchedule):", error);
@@ -374,128 +379,35 @@ const deleteDisbursementSchedule = async (req, res) => {
   }
 };
 
-//Note: Create cahngeDisbursement Detail and make it the update disbursement
-//Make sure to properly fix the logic, if disb sched id change the type then make sure to update
 const updateDisbursementSchedule = async (req, res) => {
-  const { id } = req.params; // disb_sched_id to update
-  const {
-    disbursement_date,
-    title,
-    branch,
-    semester,
-    yr_lvl,
-    school_year,
-    total_scholar,
-    disbursement_type,
-    amount,
-  } = req.body;
+  const { sched_id } = req.params;
+  const { sched_title, schedule_due, description, event_type } = req.body;
 
-  console.log(req.body);
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    const { rows: typeRows } = await client.query(
-      `SELECT disbursement_type_id FROM disbursement_type WHERE disbursement_label = $1`,
-      [disbursement_type]
+    // Update event_schedule directly
+    const { rows: updatedSchedule } = await client.query(
+      `UPDATE event_schedule
+       SET schedule_due = $1,
+           description = $2,
+           sched_title = $3,
+           edit_at = NOW()
+       WHERE sched_id = $4
+       RETURNING *`,
+      [schedule_due, description, sched_title, sched_id]
     );
-
-    if (typeRows.length === 0) {
-      throw new Error("Invalid disbursement label provided.");
-    }
-
-    const newTypeId = typeRows[0].disbursement_type_id;
-
-    const { rows: currentRows } = await client.query(
-      `SELECT disbursement_type_id FROM disbursement_schedule WHERE disb_sched_id = $1`,
-      [id]
-    );
-
-    if (currentRows.length === 0) {
-      throw new Error("Disbursement schedule not found.");
-    }
-
-    const currentTypeId = currentRows[0].disbursement_type_id;
-
-    const updatedSchedule = await client.query(
-      `
-        UPDATE disbursement_schedule
-        SET disbursement_date = $1,
-            disb_title = $2,
-            branch = $3,
-            semester_code = $4,
-            yr_lvl_code = $5,
-            sy_code = $6,
-            quantity = $7,
-            disbursement_type_id = $8,
-            amount = $9,
-            updated_at = NOW()
-        WHERE disb_sched_id = $10
-        RETURNING *
-      `,
-      [
-        disbursement_date,
-        title,
-        branch,
-        semester,
-        yr_lvl,
-        school_year,
-        total_scholar,
-        newTypeId,
-        amount,
-        id,
-      ]
-    );
-    console.log(currentTypeId, newTypeId);
-
-    //change the renewal basis to be the actual yr lvl, semester,
-    if (currentTypeId !== newTypeId) {
-      await client.query(
-        `
-        UPDATE disbursement_detail dd
-        SET disbursement_status = 'Not Started',
-            disb_sched_id = NULL
-        FROM disbursement_tracking dt
-        JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-        WHERE dd.disbursement_id = dt.disbursement_id
-          AND dd.disbursement_type_id = $1
-          AND dd.disb_sched_id = $2
-          AND rs.yr_lvl = $3
-          AND rs.semester = $4
-          AND rs.school_year = $5
-        `,
-        [currentTypeId, id, yr_lvl, semester, school_year]
-      );
-
-      await client.query(
-        `
-        UPDATE disbursement_detail dd
-        SET disbursement_status = 'In Progress',
-            disb_sched_id = $1
-        FROM disbursement_tracking dt
-        JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-        WHERE dd.disbursement_id = dt.disbursement_id
-          AND dd.disbursement_type_id = $2
-          AND dd.disb_sched_id IS NULL
-          AND rs.yr_lvl = $3
-          AND rs.semester = $4
-          AND rs.school_year = $5
-        `,
-        [id, newTypeId, yr_lvl, semester, school_year]
-      );
-    }
+    console.log("✅ Event schedule updated:", updatedSchedule[0]);
+    //title, description, due and start
 
     await client.query("COMMIT");
-
-    return res.status(200).json({
-      message: "Event updated successfully",
-      updatedSchedule: updatedSchedule.rows[0],
-    });
+    res.status(200).json({ message: "Schedule updated successfully" });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Error updating disbursement schedule:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("❌ Error updating disbursement schedule:", error);
+    res.status(500).json({ message: "Internal server error" });
   } finally {
     client.release();
   }

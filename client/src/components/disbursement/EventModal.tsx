@@ -2,7 +2,7 @@ import axios from "axios";
 import { X } from "lucide-react";
 import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
-
+import BranchDropdown from "../maintainables/BranchDropdown";
 interface EventModalProps {
   onClose: (isEventOpen: boolean) => void;
   fetchSchedules: () => void;
@@ -10,30 +10,23 @@ interface EventModalProps {
 }
 
 type SemesterType = "1st" | "2nd" | "";
-type BranchType =
-  | "STI Ortigas-cainta"
-  | "STI  Sta.mesa"
-  | "STI Fairview"
-  | "STI Global"
-  | "";
-type YearLevelType = "1st" | "2nd" | "3rd" | "4th" | "";
 type SchoolYearType = "2024-2025" | "2025-2026" | "";
 type DisbursementType =
   | "Scholarship Fee"
   | "Allowance Fee"
   | "Thesis Fee"
   | "Internship Fee"
+  | "Academic Incentives"
   | "";
 
 interface FormData {
   title: string;
-  date: Date | null;
+  schedule_due: Date | null;
+  starting_date: Date | null;
   semester: SemesterType;
-  branch: BranchType;
+  branch: number | null;
   schoolYear: SchoolYearType;
-  yearLevel: YearLevelType;
   disbursementType: DisbursementType;
-  disbursementAmount: number;
   description: string;
 }
 
@@ -46,70 +39,72 @@ function EventModal({
   const userId = auth?.user?.user_id;
   const [formData, setFormData] = useState<FormData>({
     title: "",
-    date: selectedDate,
+    schedule_due: selectedDate,
     semester: "",
-    branch: "",
+    branch: null,
     schoolYear: "",
-    yearLevel: "",
     disbursementType: "",
     description: "",
-
-    disbursementAmount: 0,
+    starting_date: null,
   });
+  const [branch, setBranch] = useState<number | "">("");
+  const [loading, setLoading] = useState(false);
+
+  const handleBranchChange = (branchId: number) => {
+    setBranch(branchId);
+    setFormData((prev) => ({ ...prev, branch: branchId }));
+  };
   const todayDate = new Date().toISOString().split("T")[0];
-  const [scholarCount, setScholarCount] = useState<number | null>(null);
-  const [loadingScholarCount, setLoadingScholarCount] = useState(false);
+
   const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
 
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "disbursementAmount"
-          ? value === ""
-            ? ""
-            : Math.min(Number(value), 100000000) // Ensure the value doesn't exceed 100,000,000
-          : name === "date"
+        name === "schedule_due" || name === "starting_date"
           ? new Date(value)
           : value,
     }));
   };
+  console.log(formData.branch);
 
   useEffect(() => {
     if (selectedDate) {
       setFormData((prev) => ({
         ...prev,
-        date: selectedDate,
+        schedule_due: selectedDate,
       }));
     }
   }, [selectedDate]);
-  console.log(scholarCount);
-  console.log(formData.date);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-
+    console.log("sent?");
+    setLoading(true);
     try {
       console.log("click pass");
       const response = await axios.post(
         "http://localhost:5000/api/disbursement/schedule",
         {
-          created_by: userId,
-          disbursement_date: formData.date
-            ? formatDateForInput(new Date(formData.date))
+          event_type: 1,
+          requester: userId,
+          schedule_due: formData.schedule_due
+            ? formatDateForInput(new Date(formData.schedule_due))
             : null,
-          disb_title: formData.title,
-          branch: formData.branch,
+          starting_date: formData.starting_date
+            ? formatDateForInput(new Date(formData.starting_date))
+            : null,
+          sched_title: formData.title,
+          branch_code: formData.branch,
           semester_code: Number(formData.semester),
-          yr_lvl_code: Number(formData.yearLevel),
           sy_code: Number(formData.schoolYear),
-          quantity: scholarCount,
           disbursement_type_id: Number(formData.disbursementType),
-          amount: formData.disbursementAmount,
+          description: formData.description,
         }
       );
-
       console.log("Form Data Submitted:", formData);
       console.log(response);
       fetchSchedules();
@@ -117,22 +112,23 @@ function EventModal({
       onClose(false);
       setFormData({
         title: "",
-        date: null,
+        schedule_due: null,
         semester: "",
-        branch: "",
+        branch: null,
         schoolYear: "",
-        yearLevel: "",
         disbursementType: "",
         description: "",
-        disbursementAmount: 0,
+        starting_date: null,
       });
-      setScholarCount(null);
     } catch (error) {
       console.error("Error creating disbursement schedule:", error);
       alert("Failed");
       console.log("click fail");
+    } finally {
+      setLoading(false);
     }
   };
+
   const formatDateForInput = (date: Date) => {
     const year = date.getFullYear();
     const month = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -140,56 +136,6 @@ function EventModal({
     return `${year}-${month}-${day}`;
   };
 
-  useEffect(() => {
-    const fetchScholarCount = async () => {
-      const { semester, schoolYear, yearLevel, disbursementType, branch } =
-        formData;
-
-      if (
-        !semester ||
-        !schoolYear ||
-        !yearLevel ||
-        !disbursementType ||
-        !branch
-      ) {
-        setScholarCount(null);
-        return;
-      }
-
-      const disbursement_id = disbursementType;
-      try {
-        setLoadingScholarCount(true);
-
-        const response = await axios.get(
-          `http://localhost:5000/api/disbursement/scholar/${yearLevel}/${schoolYear}/${semester}`,
-          {
-            params: {
-              disbursement_id,
-              branch, // ✅ include in params
-            },
-          }
-        );
-
-        setScholarCount(response.data.count.count);
-      } catch (error) {
-        console.error("Failed to fetch scholar count:", error);
-        setScholarCount(null);
-      } finally {
-        setLoadingScholarCount(false);
-      }
-    };
-
-    fetchScholarCount();
-  }, [
-    formData.semester,
-    formData.schoolYear,
-    formData.yearLevel,
-    formData.disbursementType,
-    formData.branch,
-    formData,
-  ]);
-
-  console.log(scholarCount && scholarCount > 0);
   return (
     <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
@@ -224,29 +170,53 @@ function EventModal({
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               />
             </div>
-            <div>
-              <label
-                htmlFor="date"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Date
-              </label>
-              <input
-                id="date"
-                type="date"
-                name="date"
-                min={todayDate}
-                value={
-                  formData.date
-                    ? formatDateForInput(new Date(formData.date))
-                    : ""
-                }
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              />
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label
+                  htmlFor="date"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Starting Date
+                </label>
+                <input
+                  id="starting_date"
+                  type="date"
+                  name="starting_date"
+                  min={todayDate}
+                  value={
+                    formData.starting_date
+                      ? formatDateForInput(new Date(formData.starting_date))
+                      : ""
+                  }
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="date"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Due Date
+                </label>
+                <input
+                  id="schedule_due"
+                  type="date"
+                  name="schedule_due"
+                  min={todayDate}
+                  value={
+                    formData.schedule_due
+                      ? formatDateForInput(new Date(formData.schedule_due))
+                      : ""
+                  }
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label
                   htmlFor="semester"
@@ -265,29 +235,6 @@ function EventModal({
                   <option value="">Select</option>
                   <option value="1">1st Semester</option>
                   <option value="2">2nd Semester</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="yearLevel"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Year Level
-                </label>
-                <select
-                  id="yearLevel"
-                  name="yearLevel"
-                  value={formData.yearLevel}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
                 </select>
               </div>
 
@@ -312,49 +259,13 @@ function EventModal({
                 </select>
               </div>
             </div>
-            {loadingScholarCount ? (
-              <p className="text-sm text-gray-500 mt-2">
-                Loading eligible scholars...
-              </p>
-            ) : scholarCount === null ? (
-              <p className="text-sm text-gray-400 mt-2">
-                Fill in Semester, Year Level, School Year, and Disbursement Type
-                to see eligible scholars
-              </p>
-            ) : scholarCount == 0 ? (
-              <p className="text-sm text-red-600 mt-2">
-                No eligible scholars for the selected criteria.
-              </p>
-            ) : scholarCount > 0 ? (
-              <p className="text-sm text-green-600 mt-2">
-                Eligible Scholars: {scholarCount}
-              </p>
-            ) : null}
 
-            <div>
-              <label
-                htmlFor="branch"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Branch
-              </label>
-              <select
-                id="branch"
-                name="branch"
-                value={formData.branch}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-              >
-                <option value="">Select Branch</option>
-                <option value="STI Ortigas-Cainta">STI Ortigas-Cainta</option>
-                <option value="STI Sta. Mesa">STI Sta.Mesa</option>
-                <option value="STI Fairview">STI Fairview</option>
-                <option value="STI Global">STI Global</option>
-              </select>
-            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <BranchDropdown
+                formData={branch}
+                handleInputChange={handleBranchChange}
+              />
 
-            <div className="flex gap-3">
               <div className="flex-1">
                 <label
                   htmlFor="disbursementType"
@@ -374,30 +285,27 @@ function EventModal({
                   <option value="1">Scholarship Fee</option>
                   <option value="2">Allowance Fee</option>
                   <option value="3">Thesis Fee</option>
-                  <option value="4">Internship Fee</option>
+                  <option value="4">Internship Allowance</option>
+                  <option value="5">Academic Incentives</option>
                 </select>
               </div>
+            </div>
 
-              <div className="flex-1">
-                <label
-                  htmlFor="amount"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Disbursement Amount
-                </label>
-                <input
-                  id="disbursementAmount"
-                  type="number"
-                  name="disbursementAmount"
-                  value={formData.disbursementAmount}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                  placeholder="Enter amount"
-                  min={1}
-                  maxLength={12}
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows={2}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+              ></textarea>
             </div>
           </div>
 
@@ -412,7 +320,7 @@ function EventModal({
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
-              disabled={scholarCount === 0 || scholarCount === null}
+              disabled={loading}
             >
               Create
             </button>

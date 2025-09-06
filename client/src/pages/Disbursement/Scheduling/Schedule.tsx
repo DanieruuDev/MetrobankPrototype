@@ -11,14 +11,18 @@ import AgendaView from "../../../components/disbursement/Agenda";
 import { useSidebar } from "../../../context/SidebarContext";
 
 export interface DisbursementSchedule {
-  created_by: number;
-  date: Date;
-  disb_sched_id: number;
-  branch: string;
-  status: string;
+  sched_id: number;
+  sched_title: string;
+  event_type: number;
+  schedule_due: string;
+  schedule_status: string;
   student_count: number;
-  title: string;
-  type: string;
+  disbursement_label: string;
+  description: string;
+  admin_id: number;
+  admin_job: string;
+  admin_email: string;
+  admin_name: string;
 }
 
 function Schedule() {
@@ -66,6 +70,7 @@ function Schedule() {
     const month = date.getMonth() + 1;
     // const apiUrl = import.meta.env.VITE_LOCAL_API_URL;
     // console.log(apiUrl);
+
     try {
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/schedule/${year}/${month}`
@@ -73,7 +78,7 @@ function Schedule() {
       setSchedules(
         response.data.map((schedule: DisbursementSchedule) => ({
           ...schedule,
-          date: new Date(schedule.date),
+          schedule_due: new Date(schedule.schedule_due),
         }))
       );
     } catch (error) {
@@ -110,16 +115,13 @@ function Schedule() {
   //   }
   // };
 
-  console.log(schedules);
   useEffect(() => {
     fetchSchedules(visibleMonth);
   }, [visibleMonth]);
-  const removeScheduleById = (disb_sched_id: number) => {
-    console.log(disb_sched_id);
+  const removeScheduleById = (sched_id: number) => {
+    console.log(sched_id);
     console.log(schedules);
-    setSchedules((prev) =>
-      prev.filter((s) => s.disb_sched_id !== disb_sched_id)
-    );
+    setSchedules((prev) => prev.filter((s) => s.sched_id !== sched_id));
     console.log(schedules);
   };
   return (
@@ -242,6 +244,7 @@ function Schedule() {
               setVisibleMonth={setVisibleMonth}
               getBadgeColor={getBadgeColor}
               removeScheduleById={removeScheduleById}
+              fetchSchedules={fetchSchedules}
             />
           ) : (
             <AgendaView getBadgeColor={getBadgeColor} />

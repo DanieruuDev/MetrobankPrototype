@@ -21,6 +21,7 @@ interface CalendarProps {
   setVisibleMonth: (date: Date) => void;
   getBadgeColor: (type: string) => string;
   removeScheduleById: (disb_sched_id: number) => void;
+  fetchSchedules: (date: Date) => void;
 }
 
 function Calendar({
@@ -30,6 +31,7 @@ function Calendar({
   setVisibleMonth,
   getBadgeColor,
   removeScheduleById,
+  fetchSchedules,
 }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const startDate = startOfWeek(startOfMonth(currentDate));
@@ -38,7 +40,7 @@ function Calendar({
   const scheduleMap = useMemo(() => {
     const map = new Map<string, DisbursementSchedule[]>();
     schedules.forEach((schedule) => {
-      const dateKey = format(schedule.date, "yyyy-MM-dd");
+      const dateKey = format(schedule.schedule_due, "yyyy-MM-dd");
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -65,6 +67,7 @@ function Calendar({
             getBadgeColor={getBadgeColor}
             currentDate={currentDate}
             removeScheduleById={removeScheduleById}
+            fetchSchedules={fetchSchedules}
           />
         );
         day = addDays(day, 1);

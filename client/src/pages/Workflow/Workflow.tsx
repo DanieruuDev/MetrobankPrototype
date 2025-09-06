@@ -7,7 +7,7 @@ import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
 import Request from "./Request";
 import { CheckSquare, ClipboardList, Plus, Search, Trash2 } from "lucide-react";
-import CreateApproval2 from "../../components/approval/CreateApproval2";
+
 import CreateApproval from "../../components/approval/CreateApproval";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { workflowStatusBG } from "../../utils/StatusBadge";
@@ -20,7 +20,7 @@ import ConfirmDialog from "../../components/approval/ConfirmDialog";
 export interface WorkflowDisplaySchema {
   workflow_id: number;
   request_title: string;
-  request_type: string;
+  approval_req_type: string;
   due_date: string;
   status: string;
   doc_name: string;
@@ -29,10 +29,12 @@ export interface WorkflowDisplaySchema {
 }
 export interface Approver {
   approver_id: number;
+  approver_name: string;
+  approver_role: string;
   approver_email: string;
   approver_status: "Pending" | "Completed" | "Missed" | "Replaced";
-  approver_due_date: string; // ISO date format
-  approver_assigned_at: string; // ISO timestamp format
+  approver_due_date: string;
+  approver_assigned_at: string;
   approver_order: number;
   response_id: number | null;
   response: "Pending" | "Approved" | "Reject" | null;
@@ -41,25 +43,40 @@ export interface Approver {
   response_updated_at: string | null;
   is_current: boolean;
 }
+
+export interface WorkflowLog {
+  log_id: number;
+  actor_id: number;
+  actor_type: "Approver" | "Requester" | "System";
+  actor_name: string; // ✅ newly added
+  actor_email: string | null; // ✅ newly added (null for System)
+  action: string;
+  comments: string | null;
+  old_status: string | null;
+  new_status: string | null;
+  change_at: string;
+}
+
 export interface DetailedWorkflow {
   workflow_id: number;
   requester_id: number;
   requester_email: string;
   request_title: string;
-  request_type: string;
+  approval_req_type: string;
   rq_description: string | null;
   school_year: string;
   semester: string;
   scholar_level: string;
-  due_date: string; // ISO date format (e.g., "2024-09-30")
+  due_date: string;
   status: "Not Started" | "In Progress" | "Completed";
   doc_id: number | null;
   doc_name: string | null;
   doc_type: string | null;
   doc_path: string | null;
   doc_size: number | null;
-  doc_uploaded_at: string | null; // ISO timestamp format (e.g., "2024-04-04T10:30:00")
+  doc_uploaded_at: string | null;
   approvers: Approver[];
+  logs: WorkflowLog[];
 }
 
 function Workflow() {
@@ -74,7 +91,7 @@ function Workflow() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(1); // Default to page 2 as in your screenshot
+  const [page, setPage] = useState<number>(1);
   const [totalPage, setTotalPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("my-workflows");
@@ -84,9 +101,10 @@ function Workflow() {
     { label: "In Progress", color: "yellow" },
     { label: "Completed", color: "green" },
     { label: "Missed", color: "red" },
+    { label: "Failed", color: "red" },
   ];
   const auth = useContext(AuthContext);
-  const userId = auth?.user?.user_id; // your logged-in user's ID
+  const userId = auth?.user?.user_id;
   const [activeStatus, setActiveStatus] = useState("Not Started");
 
   const getColorClass = (statusLabel: string, isActive: boolean) => {
@@ -100,9 +118,12 @@ function Workflow() {
       "Not Started": isActive
         ? "bg-gray-700 text-white"
         : "text-gray-700 hover:bg-gray-200",
-      Missed: isActive
-        ? "bg-red-600 text-white"
+      Failed: isActive
+        ? "bg-red-700 text-white"
         : "text-red-600 hover:bg-red-100",
+      Missed: isActive
+        ? "bg-red-500 text-white"
+        : "text-red-500 hover:bg-red-100",
       All: isActive
         ? "bg-gray-900 text-white"
         : "text-gray-700 hover:bg-gray-200",
@@ -201,7 +222,7 @@ function Workflow() {
         collapsed ? "pl-20" : "pl-[250px]"
       } transition-all duration-300`}
     >
-      <Navbar pageName="Workflow Approval" />
+      <Navbar pageName="Approvals" />
 
       <Sidebar />
 
@@ -309,7 +330,7 @@ function Workflow() {
                   className="grid text-[#565656] text-[14px] font-bold rounded-md bg-[#EFEFEF] items-center"
                   style={{
                     gridTemplateColumns:
-                      "2fr 1fr 1fr min-content 1fr 2fr min-content",
+                      "1.5fr 1.5fr 1fr min-content 1fr 2fr min-content",
                   }}
                 >
                   <div className="text-left px-6 max-w-[300px]">
@@ -337,7 +358,7 @@ function Workflow() {
                         className="grid py-1 items-center hover:bg-gray-50 transition cursor-pointer z-10 text-[13px] border-b border-b-[#c7c7c792]"
                         style={{
                           gridTemplateColumns:
-                            "2fr 1fr 1fr min-content 1fr 2fr min-content",
+                            "1.5fr 1.5fr 1fr min-content 1fr 2fr min-content",
                         }}
                         onClick={() => {
                           if (userId !== undefined) {
@@ -348,13 +369,10 @@ function Workflow() {
                         <div className="truncate px-6 ">
                           {workflow.request_title}
                         </div>
-                        <div className="truncate max-w-[100px] px-6">
-                          {workflow.request_type
-                            .split(" ")
-                            .map((word) => word[0])
-                            .join("")
-                            .toUpperCase()}
+                        <div className="truncate max-w-[250px] px-6">
+                          {workflow.approval_req_type ?? ""}
                         </div>
+
                         <div className="truncate max-w-[160px] px-6">
                           {workflow.doc_name}
                         </div>

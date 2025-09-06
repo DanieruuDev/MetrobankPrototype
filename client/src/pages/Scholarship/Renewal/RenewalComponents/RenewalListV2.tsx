@@ -1,7 +1,18 @@
-import React, { useEffect, useState } from "react";
-import { FileDown, Pencil, Plus, Save, Search } from "lucide-react";
-import SYSemesterDropdown from "../../../../components/shared/SYSemesterDropdown";
-import { renewalTableHead } from "../../../../Interface/IRenewal";
+import React, { useEffect, useState, useContext } from "react";
+import {
+  FileDown,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  File,
+  Download,
+  Upload,
+  ChevronDown,
+  Eye,
+} from "lucide-react";
+import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterDropdown";
+import { RenewalRow, renewalTableHead } from "../../../../Interface/IRenewal";
 import {
   RenewalDetailsClone,
   RenewalDetails,
@@ -11,8 +22,14 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import GenerateReportModal from "../../../../components/renewal/GenerateReport";
+import { downloadExcel } from "../../../../utils/DownloadExcel";
+import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
+import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog";
 
-function RenewalListV2() {
+interface RenewalListV2Props {
+  handleRowClick: (student_id: number, renewal_id: number) => void;
+}
+function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [sySemester, setSySemester] = useState<string>("2024-2025_2nd");
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
@@ -22,10 +39,15 @@ function RenewalListV2() {
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
   );
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingExitEdit, setPendingExitEdit] = useState(false); // track if user wants to exit edit
   const [isRenewalBtnOpen, SetIsRenewalBtnOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isGnrtRprtOpen, setIsGnrtRprtOpen] = useState(false);
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFileActionOpen, setIsFileActionOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const hasEdits = tempRenewalData.some((row) =>
     Object.keys(row).some(
       (key) =>
@@ -35,6 +57,15 @@ function RenewalListV2() {
           row.original[key as keyof RenewalDetails]
     )
   );
+
+  const toggleEditMode = () => {
+    if (isEdit && hasEdits) {
+      setPendingExitEdit(true); // user wants to exit
+      setIsConfirmOpen(true); // show modal
+    } else {
+      setIsEdit(!isEdit); // no edits, just toggle
+    }
+  };
 
   const getRenewalData = async () => {
     const [sy, semPart] = sySemester.split("_");
@@ -59,11 +90,17 @@ function RenewalListV2() {
   const statusBadge = (status: string) => {
     let colorClass = "text-black";
 
-    if (status === "Passed") colorClass = "text-green-500 font-medium";
-    else if (status === "Failed") colorClass = "text-red-500 font-medium";
-    else if (status === "Delisted") colorClass = "text-red-600 font-medium";
-    else if (status === "Not Started") colorClass = "text-gray-600 font-medium"; //
-    return <span className={`${colorClass} `}>{status}</span>;
+    if (status === "Passed")
+      colorClass = "bg-green-500 text-white font-medium text-[12px]";
+    else if (status === "Failed")
+      colorClass = "bg-red-500 text-white font-medium text-[12px]";
+    else if (status === "Delisted")
+      colorClass = "bg-red-600  text-white font-medium text-[12px]";
+    else if (status === "Not Started")
+      colorClass = "bg-gray-500 text-white font-medium text-[12px]"; //
+    return (
+      <span className={`${colorClass} px-2 rounded-md py-1`}>{status}</span>
+    );
   };
   const computeScholarshipStatus = (
     renewal: RenewalDetails
@@ -77,7 +114,11 @@ function RenewalListV2() {
     );
 
     if (statuses.every((s) => s === "Passed")) return "Passed";
-    if (statuses.includes("Failed")) return "Delisted";
+    if (
+      statuses.includes("Failed") &&
+      statuses.every((s) => s !== "Not Started")
+    )
+      return "Delisted";
     return "Not Started";
   };
   const handleValidationChange = (
@@ -85,8 +126,8 @@ function RenewalListV2() {
     field: keyof RenewalDetails,
     newValue: "Not Started" | "Passed" | "Failed"
   ) => {
-    setTempRenewalData((prev) =>
-      prev.map((r) => {
+    setTempRenewalData((prev) => {
+      const updatedRows = prev.map((r) => {
         if (r.renewal_id === renewalId) {
           const updated = { ...r, [field]: newValue };
 
@@ -108,10 +149,16 @@ function RenewalListV2() {
                     (k) => updated[k as keyof RenewalDetails] === "Failed"
                   )
                   .join(", ")
-              : null;
+              : "Not Started";
 
           const delisted_date =
             scholarship_status === "Delisted" ? new Date().toISOString() : null;
+
+          const allPassed = Object.keys(validation)
+            .filter((k) => k !== "scholarship_status")
+            .every((k) => updated[k as keyof RenewalDetails] === "Passed");
+
+          const renewal_date = allPassed ? new Date().toISOString() : null;
 
           return {
             ...updated,
@@ -119,11 +166,25 @@ function RenewalListV2() {
             isEdited,
             delisting_root_cause,
             delisted_date,
+            renewal_date,
           };
         }
         return r;
-      })
-    );
+      });
+
+      // Sort: "Not Started" first alphabetically, "Passed"/"Delisted" move down alphabetically
+      updatedRows.sort((a, b) => {
+        const aPriority = a.scholarship_status === "Not Started" ? 0 : 1;
+        const bPriority = b.scholarship_status === "Not Started" ? 0 : 1;
+
+        if (aPriority !== bPriority) return aPriority - bPriority;
+
+        // If same priority, sort alphabetically by scholar name
+        return a.scholar_name.localeCompare(b.scholar_name);
+      });
+
+      return updatedRows;
+    });
   };
 
   const handleGPAChange = (renewalId: number, newGPA: number | null) => {
@@ -155,7 +216,7 @@ function RenewalListV2() {
       })
     );
   };
-  const submitSaveChanges = async () => {
+  const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
     const editedRows = tempRenewalData.filter((row) => row.isEdited);
 
     const updateRows = editedRows.map((row: RenewalDetailsClone) => {
@@ -172,6 +233,7 @@ function RenewalListV2() {
     });
 
     try {
+      setIsLoading(true);
       if (updateRows.length > 0) {
         const res = await axios.put(
           "http://localhost:5000/api/renewal/update-renewalV2",
@@ -179,7 +241,8 @@ function RenewalListV2() {
         );
         console.log(res);
         getRenewalData();
-        toast.success(`${res.data.updatedRows} row(s) ${res.data.message}`);
+        toast.success(`${res.data.totalUpdated} row(s) ${res.data.message}`);
+        console.log("Res Data:", res.data);
       } else {
         toast.info("No changes to update.");
       }
@@ -190,6 +253,8 @@ function RenewalListV2() {
         console.error("Unexpected error:", error);
       }
       alert(error);
+    } finally {
+      setIsLoading(false);
     }
 
     console.log(updateRows);
@@ -208,6 +273,70 @@ function RenewalListV2() {
       );
     }
   };
+  const handleFileChanges = (updatedRows: RenewalRow[]) => {
+    const newData = tempRenewalData.map((row) => {
+      const excelRow = updatedRows.find((r) => r.student_id === row.student_id);
+      if (!excelRow) return row;
+
+      const updated: RenewalDetails = { ...row, ...excelRow };
+
+      const scholarship_status = computeScholarshipStatus(updated);
+
+      const delisting_root_cause =
+        scholarship_status === "Delisted"
+          ? Object.keys(validation)
+              .filter((k) => k !== "scholarship_status")
+              .filter((k) => updated[k as keyof RenewalDetails] === "Failed")
+              .join(", ")
+          : "Not Started";
+
+      const delisted_date =
+        scholarship_status === "Delisted" ? new Date().toISOString() : null;
+
+      const allPassed = Object.keys(validation)
+        .filter((k) => k !== "scholarship_status")
+        .every((k) => updated[k as keyof RenewalDetails] === "Passed");
+
+      const renewal_date = allPassed ? new Date().toISOString() : null;
+
+      const isEdited = Object.keys(updated).some(
+        (key) =>
+          key !== "original" &&
+          key !== "isEdited" &&
+          updated[key as keyof RenewalDetails] !==
+            row.original[key as keyof RenewalDetails]
+      );
+
+      return {
+        ...updated,
+        scholarship_status,
+        delisting_root_cause,
+        delisted_date,
+        renewal_date,
+        isEdited,
+        original: row.original,
+      };
+    });
+
+    setTempRenewalData(newData);
+
+    // Pass newData directly
+    submitSaveChanges(newData);
+  };
+
+  const handleConfirmSave = () => {
+    submitSaveChanges(tempRenewalData); // save changes
+    setIsEdit(false); // exit edit mode
+    setIsConfirmOpen(false); // close modal
+    setPendingExitEdit(false);
+  };
+
+  const handleCancelModal = () => {
+    setIsConfirmOpen(false); // just close modal
+    setPendingExitEdit(false); // stay in edit mode
+    setIsEdit(false);
+    setTempRenewalData(renewalData);
+  };
 
   useEffect(() => {
     getRenewalData();
@@ -224,7 +353,36 @@ function RenewalListV2() {
     setCountDelisted(delisted);
   }, [tempRenewalData]);
 
-  console.log(renewalData);
+  //handle back and reload, prevent data loss
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasEdits) {
+        // This shows the native browser popup on reload/close
+        e.preventDefault();
+        e.returnValue = ""; // Chrome requirement
+      }
+    };
+
+    const handlePopState = () => {
+      if (hasEdits) {
+        window.history.pushState(null, "", window.location.pathname);
+        setIsConfirmOpen(true);
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
+
+    // Push initial state so popstate works on first back
+    window.history.pushState(null, "", window.location.pathname);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [hasEdits]);
+
   console.log(sySemester);
   return (
     <div className="px-4 py-2">
@@ -245,7 +403,7 @@ function RenewalListV2() {
             Filter
           </button> */}
         </div>
-
+        {isLoading && <p>Loading///</p>}
         <div className="flex gap-2">
           {!isEdit ? (
             <>
@@ -256,13 +414,69 @@ function RenewalListV2() {
                 <Plus className="w-4 h-4" />
                 Add Renewal
               </button>
-              <button
-                className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer text-sm"
-                onClick={() => setIsGnrtRprtOpen(true)}
-              >
-                <FileDown className="w-4 h-4" />
-                Generate Report
-              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setIsFileActionOpen(!isFileActionOpen)}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer text-sm"
+                >
+                  <File className="w-4 h-4" />
+                  File Actions
+                  <ChevronDown
+                    className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
+                      isFileActionOpen ? "rotate-180" : "rotate-0"
+                    }`}
+                  />
+                </button>
+
+                {isFileActionOpen && (
+                  <div
+                    className={`bg-white shadow-md rounded-md flex flex-col justify-center border border-gray-300 mt-2 absolute left-0 right-0 z-[20]`}
+                  >
+                    <button
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
+                      onClick={() => setIsUploadOpen(true)}
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload File
+                    </button>
+                    <UploadFileRenewalModal
+                      isOpen={isUploadOpen}
+                      onClose={() => setIsUploadOpen(false)}
+                      renewalData={tempRenewalData} // pass current data
+                      onFileChanges={handleFileChanges}
+                    />
+
+                    <button
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
+                      onClick={() => setIsGnrtRprtOpen(true)}
+                    >
+                      <FileDown className="w-4 h-4" />
+                      Generate Report
+                    </button>
+                    <button
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
+                      onClick={() => {
+                        const headers = Object.keys(renewalTableHead);
+                        const data = renewalData.map((r) =>
+                          Object.keys(renewalTableHead).map(
+                            (key) => r[key as keyof RenewalDetails] ?? null
+                          )
+                        );
+
+                        downloadExcel(
+                          `RenewalReport-${sySemester}.xlsx`,
+                          headers,
+                          data
+                        );
+                      }}
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             ""
@@ -274,7 +488,7 @@ function RenewalListV2() {
                 ? "text-white bg-blue-500 hover:bg-blue-400"
                 : "hover:bg-gray-200"
             }`}
-            onClick={() => setIsEdit(!isEdit)}
+            onClick={toggleEditMode}
           >
             <Pencil className="w-4 h-4" />
             {isEdit ? "Editing" : "Edit"}
@@ -316,7 +530,7 @@ function RenewalListV2() {
         ) : (
           <div>
             <button
-              onClick={submitSaveChanges}
+              onClick={() => submitSaveChanges(tempRenewalData)}
               disabled={!hasEdits}
               className={`flex gap-2 p-2 rounded-md text-[14px] items-center transition
     ${
@@ -336,6 +550,7 @@ function RenewalListV2() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-100">
             <tr className="text-gray-800 text-sm font-medium text-left">
+              {!isEdit && <div></div>}
               {Object.entries(renewalTableHead).map(([key, label]) => (
                 <th
                   key={key}
@@ -360,10 +575,20 @@ function RenewalListV2() {
           <tbody className="bg-white divide-y divide-gray-200 text-[14px]">
             {tempRenewalData &&
               tempRenewalData.map((renewal) => (
-                <tr
-                  key={renewal.renewal_id}
-                  className="cursor-pointer hover:bg-gray-100"
-                >
+                <tr key={renewal.renewal_id} className="cursor-pointer group  ">
+                  {!isEdit && (
+                    <td
+                      className="pl-4 group-hover:bg-gray-100"
+                      onClick={() =>
+                        handleRowClick(renewal.student_id, renewal.renewal_id)
+                      }
+                    >
+                      <Eye
+                        strokeWidth={1}
+                        className="hover:translate-y-[-1px] hover:text-blue-700"
+                      />
+                    </td>
+                  )}
                   {Object.keys(renewalTableHead).map((key) => {
                     const value = renewal[key as keyof RenewalDetails];
                     const isValidationField = Object.keys(validation)
@@ -383,7 +608,7 @@ function RenewalListV2() {
                     return (
                       <td
                         key={key}
-                        className={`px-5 py-3 ${
+                        className={`px-5 py-3 group-hover:bg-gray-100 ${
                           key === "scholar_name"
                             ? "sticky left-0 z-10 shadow-md bg-white max-w-[300px] whitespace-nowrap overflow-hidden"
                             : key === "scholarship_status"
@@ -431,34 +656,47 @@ function RenewalListV2() {
                             className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none"
                           />
                         ) : isEdit && isValidationField ? (
-                          <select
-                            name={key}
-                            id={key}
-                            value={value as "Not Started" | "Passed" | "Failed"}
-                            className={`border border-gray-300 px-2 py-1 rounded-sm ${
-                              value === "Passed"
-                                ? "text-green-500"
-                                : value === "Failed"
-                                ? "text-red-500"
-                                : "text-gray-500"
-                            }`}
-                            onChange={(e) =>
-                              handleValidationChange(
-                                renewal.renewal_id,
-                                key as keyof RenewalDetails,
-                                e.target.value as
-                                  | "Not Started"
-                                  | "Passed"
-                                  | "Failed"
-                              )
-                            }
-                          >
-                            {validationOptions.map((opt) => (
-                              <option key={opt} value={opt as string}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
+                          //Switch mode
+                          <div className="flex items-center gap-2">
+                            {/* Switch */}
+                            <div
+                              className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
+                                value === "Passed"
+                                  ? "bg-green-500"
+                                  : value === "Failed"
+                                  ? "bg-red-500"
+                                  : "bg-gray-500"
+                              }`}
+                              onClick={() =>
+                                handleValidationChange(
+                                  renewal.renewal_id,
+                                  key as keyof RenewalDetails,
+                                  value === "Passed" ? "Failed" : "Passed"
+                                )
+                              }
+                            >
+                              <div
+                                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                  value === "Passed"
+                                    ? "translate-x-5"
+                                    : "translate-x-0"
+                                }`}
+                              ></div>
+                            </div>
+
+                            {/* Label */}
+                            <span
+                              className={`text-sm font-medium ${
+                                value === "Passed"
+                                  ? "text-green-600"
+                                  : value === "Failed"
+                                  ? "text-red-600"
+                                  : "text-gray-500"
+                              }`}
+                            >
+                              {value}
+                            </span>
+                          </div>
                         ) : key === "scholarship_status" ? (
                           statusBadge(value as string)
                         ) : (
@@ -486,6 +724,14 @@ function RenewalListV2() {
       <GenerateReportModal
         isOpen={isGnrtRprtOpen}
         onClose={() => setIsGnrtRprtOpen(false)}
+      />
+      <ConfirmationDialog
+        isOpen={isConfirmOpen}
+        message="You have unsaved changes. Do you want to save or discard them?"
+        onConfirm={handleConfirmSave} // Save
+        onCancel={handleCancelModal} // Cancel
+        confirmText="Save"
+        cancelText="Discard Changes"
       />
     </div>
   );

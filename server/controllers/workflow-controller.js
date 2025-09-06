@@ -15,6 +15,7 @@ const {
   insertWorkflow,
   insertApprovers,
   fetchRequester,
+  insertWorkflowLog,
 } = require("../utils/workflow.utils.js");
 
 //get specific approval (author id/ workflow id)
@@ -342,27 +343,24 @@ const createApproval = async (req, res) => {
 
   try {
     const {
-      request_title,
+      rq_title,
       requester_id,
-      req_type_id,
+      approval_req_type,
       description,
       due_date,
-      school_year,
-      semester,
-      scholar_level,
+      sy_code,
+      semester_code,
       approvers,
-    } = req.body; // Validate required fields
+    } = req.body;
 
     if (
-      !request_title ||
+      !rq_title ||
       !requester_id ||
       !file ||
-      !req_type_id ||
       !description ||
       !due_date ||
-      !school_year ||
-      !semester ||
-      !scholar_level ||
+      !sy_code ||
+      !semester_code ||
       !approvers
     ) {
       deleteFile();
@@ -372,55 +370,52 @@ const createApproval = async (req, res) => {
     let appr;
     try {
       appr = JSON.parse(approvers);
-    } catch (err) {
+    } catch {
       deleteFile();
       return res.status(400).json({ message: "Invalid approvers format" });
     }
 
     await client.query("BEGIN");
 
-    let IsWorkflowExist = await checkWorkflowExists(
-      client,
-      req_type_id,
-      school_year,
-      semester,
-      scholar_level
-    );
-
-    if (IsWorkflowExist) {
+    if (
+      await checkWorkflowExists(
+        client,
+        approval_req_type,
+        sy_code,
+        semester_code
+      )
+    ) {
       deleteFile();
       return res.status(400).json({ message: "Workflow already exists" });
     }
 
     const docId = await insertDocument(client, file);
-
     const workflowId = await insertWorkflow(client, {
       docId,
-      req_type_id,
+      approval_req_type,
       requester_id,
       due_date,
-      school_year,
-      semester,
-      scholar_level,
+      sy_code,
+      semester_code,
       description,
-      request_title,
+      rq_title,
     });
 
-    // Fetch requester name and email for the email notifications
+    // Fetch requester info
     const { admin_name, admin_email } = await fetchRequester(
       client,
       requester_id
     );
 
     const workflowDetailsForEmail = {
-      request_title: request_title,
+      rq_title,
       requester_name: admin_name,
-      due_date: due_date,
+      due_date,
       rq_description: description,
       workflow_id: workflowId,
     };
 
-    console.log(approvers);
+    // Insert approvers (DB only, no emails yet)
     const approverQueries = await insertApprovers(
       client,
       appr,
@@ -434,65 +429,53 @@ const createApproval = async (req, res) => {
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
       );
-      await sendItsYourTurnEmail(
-        approverQueries[0].approvers.user_email,
-        workflowDetailsForEmail
-      );
-      // Send the "You have been added" email to all subsequent approvers
-      for (let i = 1; i < approverQueries.length; i++) {
-        await sendApproverAddedEmail(
-          approverQueries[i].approvers.user_email,
-          workflowDetailsForEmail
-        );
-      }
     }
 
-    const getRequestTitleQuery = await client.query(
-      `SELECT rq_title FROM wf_request_type_maintenance WHERE rq_type_id = $1`,
-      [req_type_id]
-    );
-
-    //put a function that save the workflow log
-    const saveLog = await client.query(
-      "INSERT INTO workflow_log (workflow_id, actor_id, actor_type,action, comments) VALUES ($1, $2, $3, $4, $5)",
+    // Save workflow log
+    await client.query(
+      "INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, comments) VALUES ($1, $2, $3, $4, $5)",
       [
         workflowId,
         requester_id,
         "Requester",
         "Created",
-        `Created workflow for ${school_year} ${semester} ${scholar_level}`,
+        `Created workflow for ${rq_title} ${semester_code}`,
       ]
     );
 
     await client.query("COMMIT");
 
-    const rq_title =
-      getRequestTitleQuery.rows.length > 0
-        ? getRequestTitleQuery.rows[0].rq_title
-        : "Unknown Request";
-
-    return res.status(201).json({
+    // Respond first
+    res.status(201).json({
       message: "Approval workflow created successfully!",
       workflowList: {
         workflow_id: workflowId,
-        rq_title: rq_title,
-        due_date: due_date,
+        rq_title,
+        due_date,
         status: "Pending",
         doc_name: file.originalname,
         current_approver:
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
             : "N/A",
-        school_details: `${school_year} - ${semester} (${scholar_level})`,
+        school_details: `${rq_title} - ${semester_code}`,
       },
     });
+
+    if (approverQueries.length > 0) {
+      approverQueries.forEach(({ approvers }) => {
+        sendItsYourTurnEmail(
+          approvers.user_email,
+          workflowDetailsForEmail
+        ).catch((err) => {
+          console.error("Email failed for", approvers.user_email, err);
+        });
+      });
+    }
   } catch (error) {
     await client.query("ROLLBACK");
     deleteFile();
-
-    return res
-      .status(500)
-      .json({ message: error.message || "File upload failed" });
+    res.status(500).json({ message: error.message || "File upload failed" });
   } finally {
     client.release();
   }
@@ -506,14 +489,16 @@ const fetchApproverApprovalList = async (req, res) => {
   }
 
   try {
-    const query = `
-      SELECT * FROM vw_approver_workflows
-      WHERE user_id = $1
-    `;
+    // fetch all workflows
+    const query = `SELECT * FROM vw_approver_workflows`;
+    const { rows } = await pool.query(query);
 
-    const { rows } = await pool.query(query, [user_id]);
+    // filter only those where approvers array contains this user_id
+    const filtered = rows.filter((row) =>
+      row.approvers.some((appr) => appr.user_id === parseInt(user_id))
+    );
 
-    return res.status(200).json(rows);
+    return res.status(200).json(filtered);
   } catch (error) {
     console.error("Error fetching approver approvals:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -544,7 +529,7 @@ const fetchApproverApproval = async (req, res) => {
 //When approving the approval
 const approveApproval = async (req, res) => {
   const { approver_id, response, comment } = req.body;
-
+  console.log(approver_id);
   if (!approver_id || !response) {
     return res
       .status(400)
@@ -559,13 +544,15 @@ const approveApproval = async (req, res) => {
 
     // Fetch workflow_id, approver_order, and requester_id for the current approver
     const currentApproverDataQuery = await client.query(
-      `SELECT wa.workflow_id, wa.approver_order, w.requester_id
-          FROM wf_approver wa
-          JOIN workflow w ON wa.workflow_id = w.workflow_id
-          WHERE wa.approver_id = $1`,
+      `SELECT wa.workflow_id, wa.approver_order, w.requester_id, wa.user_id
+   FROM wf_approver wa
+   JOIN workflow w ON wa.workflow_id = w.workflow_id
+   WHERE wa.approver_id = $1`,
       [approver_id]
     );
+
     const currentApproverData = currentApproverDataQuery.rows[0];
+    const user_id = currentApproverData.user_id;
 
     if (!currentApproverData) {
       await client.query("ROLLBACK");
@@ -577,26 +564,6 @@ const approveApproval = async (req, res) => {
     const workflow_id = currentApproverData.workflow_id;
     const currentApproverOrder = currentApproverData.approver_order;
     const requester_id = currentApproverData.requester_id; // Step 1: Update approver response
-
-    // --- Add Backend Security Check ---
-    // Verify that the user making the request is the current approver
-    // This check was commented out in a previous version, adding it back but keeping commented for now
-    /*
-    const isCurrentUserCheck = await client.query(
-        `SELECT is_current FROM wf_approver WHERE approver_id = $1`,
-        [approver_id]
-    );
-
-    // If the approver step is not found or the approver is not the current one
-    if (isCurrentUserCheck.rows.length === 0 || isCurrentUserCheck.rows[0].is_current !== true) {
-        await client.query("ROLLBACK");
-        // Return a 403 Forbidden status here for better semantics
-        return res.status(403).json({
-            message: "Unauthorized. You are not the current approver for this step.",
-        });
-    }
-    */
-    // --- END Backend Security Check ---
 
     await client.query(
       `
@@ -653,9 +620,19 @@ const approveApproval = async (req, res) => {
 
     if (response === "Approved") {
       // Only move to next if Approved
+      await insertWorkflowLog(
+        client,
+        workflow_id,
+        user_id,
+        "Approver",
+        response,
+        "Pending", // old_status
+        "Completed", // new_status
+        comment // approver's comment
+      );
       const nextApproverQuery = await client.query(
         `
-        SELECT approver_id, user_email FROM wf_approver
+        SELECT approver_id, user_email, user_id FROM wf_approver
         WHERE workflow_id = $1
         AND status = 'Pending'
         AND approver_order > $2
@@ -667,6 +644,8 @@ const approveApproval = async (req, res) => {
 
       if (nextApproverQuery.rows.length > 0) {
         const nextApproverId = nextApproverQuery.rows[0].approver_id;
+        const nextUserId = nextApproverQuery.rows[0].user_id;
+        console.log(nextApproverQuery.rows);
         const nextApproverEmail = nextApproverQuery.rows[0].user_email; // Get email
         console.log("Next approver set to:", nextApproverId);
         await client.query(
@@ -676,6 +655,16 @@ const approveApproval = async (req, res) => {
           WHERE approver_id = $1
           `,
           [nextApproverId]
+        );
+        await insertWorkflowLog(
+          client,
+          workflow_id,
+          nextUserId,
+          "Approver",
+          "Updated",
+          "Pending",
+          "Current",
+          null
         );
 
         // Send "Its Your Turn" email to the next approver
@@ -695,6 +684,16 @@ const approveApproval = async (req, res) => {
       } else {
         console.log(
           "No next approver found. Checking for workflow completion."
+        );
+        await insertWorkflowLog(
+          client,
+          workflow_id,
+          user_id,
+          "System",
+          "Completed",
+          "Pending",
+          "Completed",
+          null
         );
         // If no next pending approver, check if workflow is completed
         const pendingCheckQuery = `
@@ -727,27 +726,32 @@ const approveApproval = async (req, res) => {
         }
       }
     } else if (response === "Reject") {
-      // If rejected, mark the workflow as rejected immediately
+      await insertWorkflowLog(
+        client,
+        workflow_id,
+        user_id,
+        "Approver",
+        "Rejected",
+        "Pending",
+        "Rejected",
+        comment
+      );
       const updateWorkflowQuery = `
-            UPDATE workflow
-            SET status = 'Rejected', completed_at = NOW()
-            WHERE workflow_id = $1
-        `;
+        UPDATE workflow
+        SET status = 'Failed', completed_at = NOW()
+        WHERE workflow_id = $1
+      `;
       await client.query(updateWorkflowQuery, [workflow_id]);
       console.log("Workflow marked as rejected.");
 
-      // Send Workflow Rejected email to the requester
-      // workflowDetailsForEmail is already fetched
-      // Pass the comment from the rejecting approver
-      await sendWorkflowRejectedEmail(
-        requesterEmail,
-        workflowDetailsForEmail,
-        comment
-      );
+      // await sendWorkflowRejectedEmail(
+      //   requesterEmail,
+      //   workflowDetailsForEmail,
+      //   comment
+      // );
     }
 
-    await client.query("COMMIT"); // Step 5: Fetch and return essential data for frontend refresh
-    // This query now selects fields needed by the frontend after approval.
+    await client.query("COMMIT");
 
     const detailedQuery = `
       SELECT workflow_status, approver_response, approver_comment, approver_status, is_current
@@ -766,14 +770,13 @@ const approveApproval = async (req, res) => {
       } = result.rows[0];
       res.status(200).json({
         message: "Approval recorded successfully",
-        workflow_status, // Overall workflow status
-        approver_response, // Specific approver's response
-        approver_comment, // Specific approver's comment
-        approver_status, // Specific approver's status (should be 'Completed')
-        is_current, // Specific approver's is_current (should be false)
+        workflow_status,
+        approver_response,
+        approver_comment,
+        approver_status,
+        is_current,
       });
     } else {
-      // This case indicates an issue fetching details immediately after the update
       res
         .status(404)
         .json({ message: "Approver details not found after update" });

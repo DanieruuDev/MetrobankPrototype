@@ -1,137 +1,164 @@
-import React, { ChangeEvent, useCallback, useEffect, useState } from "react";
-import { DisbursementScheduleDetail } from "./RenderDayCell";
+import React, { ChangeEvent, useEffect, useState } from "react";
+
+import { EdittableDisbursementData } from "./RenderDayCell";
+// import BranchDropdown from "../maintainables/BranchDropdown";
 import axios from "axios";
+import { toast } from "react-toastify";
+import ConfirmationDialog from "../shared/ConfirmationDialog";
 
 interface UpdateEventProps {
-  activeSchedule: DisbursementScheduleDetail;
+  edittableData: EdittableDisbursementData | null;
+  setEdittableData: React.Dispatch<
+    React.SetStateAction<EdittableDisbursementData | null>
+  >;
   closeModal: () => void;
+  loading: boolean;
+  fetchSchedules: (date: Date) => void;
 }
 
 const UpdateEvent: React.FC<UpdateEventProps> = ({
-  activeSchedule,
+  edittableData,
   closeModal,
+  fetchSchedules,
 }) => {
-  const [scheduleData, setScheduleData] =
-    useState<DisbursementScheduleDetail>(activeSchedule);
-  const [loadingScholarCount, setLoadingScholarCount] = useState(false);
   const todayDate = new Date().toISOString().split("T")[0];
-  const [scholarCount, setScholarCount] = useState<number | null>(
-    Number(scheduleData.total_scholar)
-  );
-  const formatDateOnly = (date: Date | string): string => {
-    const d = new Date(date);
-    return d.toLocaleDateString("en-CA"); // 'YYYY-MM-DD' in local timezone
-  };
+  const [loading, setLoading] = useState(false);
 
+  const [tempData, setTempData] = useState<EdittableDisbursementData | null>(
+    edittableData
+  );
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  const handleDiscardClick = () => {
+    if (hasChanges()) {
+      setIsConfirmOpen(true);
+    } else {
+      closeModal();
+    }
+  };
+  console.log("Original", edittableData);
+
+  const handleConfirmDiscard = () => {
+    setIsConfirmOpen(false);
+    closeModal();
+  };
+  const hasChanges = (): boolean => {
+    if (!edittableData || !tempData) return false;
+
+    return (
+      tempData.sched_title !== edittableData.sched_title ||
+      new Date(tempData.schedule_due).getTime() !==
+        new Date(edittableData.schedule_due).getTime() ||
+      tempData.branch_code !== edittableData.branch_code ||
+      tempData.description !== edittableData.description ||
+      tempData.disbursement_type_id !== edittableData.disbursement_type_id ||
+      tempData.semester_code !== edittableData.semester_code ||
+      tempData.sy_code !== edittableData.sy_code
+    );
+  };
   const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
 
-    setScheduleData((prev) => ({
-      ...prev,
-      [name]:
-        name === "amount"
-          ? value === ""
-            ? ""
-            : Math.min(Number(value), 100000000)
-          : name === "date"
-          ? new Date(value)
-          : value,
-    }));
+    setTempData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        [name]: name === "schedule_due" ? new Date(value) : value,
+      };
+    });
   };
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    if (!tempData) {
+      toast.error("No data to update.", { position: "top-right" });
+      setLoading(false);
+      return;
+    }
+    if (!hasChanges()) {
+      toast.info("No changes detected.", { position: "top-right" });
+      return;
+    }
+    const localDate = new Date(tempData.schedule_due);
+    const scheduleDueUTC = new Date(
+      localDate.getTime() - localDate.getTimezoneOffset() * 60000
+    ).toISOString();
 
+    console.log(localDate);
+    try {
+      const response = await axios.put(
+        `http://localhost:5000/api/disbursement/schedule/${tempData?.sched_id}`,
+        {
+          sched_title: tempData?.sched_title,
+          schedule_due: scheduleDueUTC,
+          description: tempData?.description,
+          event_type: tempData?.event_type,
+        }
+      );
+      fetchSchedules(localDate);
+      console.log("Schedule updated:", response.data);
+      toast.success("Schedule updated successfully!", {
+        position: "top-right",
+      });
+
+      closeModal();
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed to update schedule.", { position: "top-right" });
+    } finally {
+      setLoading(false);
+    }
+  };
   const formatDateForInput = (date: Date) => {
     const year = date.getFullYear();
     const month = `${date.getMonth() + 1}`.padStart(2, "0");
     const day = `${date.getDate()}`.padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
-  console.log(scheduleData.disbursement_date);
-  console.log(formatDateOnly(scheduleData.disbursement_date));
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("submit");
-    try {
-      const formattedData = {
-        ...scheduleData,
-        disbursement_date: formatDateOnly(scheduleData.disbursement_date),
-        yr_lvl: scheduleData.yr_lvl.charAt(0),
-        semester: scheduleData.semester.charAt(0),
-        school_year: scheduleData.school_year.replace(/-/g, ""),
-      };
-      const response = await axios.put(
-        `http://localhost:5000/api/disbursement/schedule/${scheduleData.disb_sched_id}`,
-        formattedData
-      );
-      console.log("Schedule created:", response.data);
-      alert("Success");
-      closeModal();
-    } catch (error) {
-      console.log(error);
-      alert("Failed");
-      closeModal();
-    }
-  };
-  const hasScheduleDataChanged = useCallback(() => {
-    return (
-      scheduleData.semester.charAt(0) !== activeSchedule.semester.charAt(0) ||
-      scheduleData.yr_lvl.charAt(0) !== activeSchedule.yr_lvl.charAt(0) ||
-      scheduleData.school_year.replace("-", "") !==
-        activeSchedule.school_year.replace("-", "") ||
-      scheduleData.disbursement_type !== activeSchedule.disbursement_type
-    );
-  }, [scheduleData, activeSchedule]);
+  // const handleBranchChange = (branchId: number) => {
+  //   setTempData((prev) => {
+  //     if (!prev) return prev;
+  //     return { ...prev, branch_code: branchId };
+  //   });
+  // };
 
   useEffect(() => {
-    const fetchScholarCount = async () => {
-      const { semester, school_year, yr_lvl, disbursement_type } = scheduleData;
+    setTempData(edittableData);
+  }, [edittableData]);
 
-      if (!semester || !school_year || !yr_lvl || !disbursement_type) {
-        setScholarCount(null);
-        return;
-      }
+  console.log("temp", tempData);
+  if (!tempData || loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex justify-center items-center bg-[rgba(0,0,0,0.5)]">
+        <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+        <style>
+          {`
+          .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+        </style>
+      </div>
+    );
+  }
 
-      try {
-        setLoadingScholarCount(true);
-        const response = await axios.get(
-          `http://localhost:5000/api/disbursement/scholar/${Number(
-            yr_lvl.charAt(0)
-          )}/${Number(school_year.replace("-", ""))}/${Number(
-            semester.charAt(0)
-          )}`,
-          { params: { disbursement_type } }
-        );
-
-        setScholarCount(response.data.count.count);
-      } catch (error) {
-        console.error("Failed to fetch scholar count:", error);
-        setScholarCount(null);
-      } finally {
-        setLoadingScholarCount(false);
-      }
-    };
-
-    if (hasScheduleDataChanged()) {
-      fetchScholarCount();
-    } else {
-      setScholarCount(Number(scheduleData.total_scholar));
-    }
-  }, [
-    scheduleData.semester,
-    scheduleData.school_year,
-    scheduleData.yr_lvl,
-    scheduleData.disbursement_type,
-    scheduleData,
-    hasScheduleDataChanged,
-  ]);
-
+  console.log(tempData?.sched_title);
   return (
     <div className="fixed inset-0 z-50 flex justify-center items-center bg-[rgba(0,0,0,0.5)]">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-        <h2 className="text-lg font-medium mb-4">Update Event</h2>
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        <h2 className="text-lg font-bold  text-blue-700">Edit Event</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Update the details of the selected event below.
+        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleEditSubmit} className="space-y-5">
           <div>
             <label
               htmlFor="title"
@@ -140,203 +167,82 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
               Title
             </label>
             <input
-              id="title"
+              id="sched_title"
               type="text"
-              name="title"
-              maxLength={25}
-              value={scheduleData.title}
+              name="sched_title"
+              maxLength={50}
+              value={tempData?.sched_title ?? ""}
               onChange={handleInputChange}
               placeholder="Enter a title"
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              required
+              disabled={loading}
             />
           </div>
+
           <div>
             <label
-              htmlFor="date"
+              htmlFor="schedule_due"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Date
+              Due Date
             </label>
             <input
-              id="disbursement_date"
+              id="schedule_due"
               type="date"
-              name="disbursement_date"
+              name="schedule_due"
               min={todayDate}
               value={
-                scheduleData.disbursement_date
-                  ? formatDateForInput(new Date(scheduleData.disbursement_date))
+                tempData?.schedule_due
+                  ? formatDateForInput(new Date(tempData.schedule_due))
                   : ""
               }
               onChange={handleInputChange}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              required
+              disabled={loading}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label
-                htmlFor="semester"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Semester
-              </label>
-              <select
-                id="semester"
-                name="semester"
-                value={scheduleData.semester.charAt(0)}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-              >
-                <option value="">Select</option>
-                <option value="1">1st Semester</option>
-                <option value="2">2nd Semester</option>
-              </select>
-            </div>
 
-            <div>
-              <label
-                htmlFor="yr_lvl"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Year Level
-              </label>
-              <select
-                id="yr_lvl"
-                name="yr_lvl"
-                value={scheduleData.yr_lvl.charAt(0)}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-              >
-                <option value="">Select</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-                <option value="3">3rd Year</option>
-                <option value="4">4th Year</option>
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="school_year"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                School Year
-              </label>
-              <select
-                id="school_year"
-                name="school_year"
-                value={scheduleData.school_year.replace("-", "")}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-              >
-                <option value="">Select</option>
-                <option value="20242025">2024-2025</option>
-                <option value="20252026">2025-2026</option>
-              </select>
-            </div>
-          </div>
-          {loadingScholarCount ? (
-            <p className="text-sm text-gray-500 mt-2">
-              Loading eligible scholars...
-            </p>
-          ) : scholarCount === null ? (
-            <p className="text-sm text-gray-400 mt-2">
-              Fill in Semester, Year Level, School Year, and Disbursement Type
-              to see eligible scholars
-            </p>
-          ) : scholarCount == 0 ? (
-            <p className="text-sm text-red-600 mt-2">
-              No eligible scholars for the selected criteria.
-            </p>
-          ) : scholarCount > 0 ? (
-            <p className="text-sm text-green-600 mt-2">
-              Eligible Scholars: {scholarCount}
-            </p>
-          ) : null}
           <div>
             <label
-              htmlFor="branch"
+              htmlFor="description"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Branch
+              Description
             </label>
-            <select
-              id="branch"
-              name="branch"
-              value={scheduleData.branch}
+            <textarea
+              id="description"
+              name="description"
+              value={tempData?.description}
               onChange={handleInputChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              required
-            >
-              <option value="">Select Branch</option>
-              <option value="ortigas-cainta">Ortigas-Cainta</option>
-              <option value="sta-mesa">Sta. Mesa</option>
-              <option value="fairview">Fairview</option>
-              <option value="global">Global</option>
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label
-                htmlFor="disbursement_type"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Disbursement Type
-              </label>
-              <select
-                id="disbursement_type"
-                name="disbursement_type"
-                value={scheduleData.disbursement_type}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-              >
-                <option value="">Select Type</option>
-                <option value="Scholarship Fee">Scholarship Fee</option>
-                <option value="Allowance Fee">Allowance Fee</option>
-                <option value="Thesis Fee">Thesis Fee</option>
-                <option value="Internship Fee">Internship Fee</option>
-              </select>
-            </div>
-
-            <div className="flex-1">
-              <label
-                htmlFor="amount"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Disbursement Amount
-              </label>
-              <input
-                id="amount"
-                type="number"
-                name="amount"
-                value={scheduleData.amount}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                required
-                placeholder="Enter amount"
-                min={1}
-                maxLength={12}
-              />
-            </div>
+              rows={2}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+            ></textarea>
           </div>
 
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={closeModal}
-              className="px-4 py-2 bg-gray-300 rounded"
+              onClick={handleDiscardClick}
+              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition-colors"
             >
-              Cancel
+              Discard Changes
             </button>
+            <ConfirmationDialog
+              isOpen={isConfirmOpen}
+              message="You have unsaved changes. Do you really want to discard them?"
+              onConfirm={handleConfirmDiscard}
+              onCancel={() => setIsConfirmOpen(false)}
+              confirmText="Discard"
+              cancelText="Cancel"
+            />
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:opacity-50"
+              disabled={loading}
             >
-              Save
+              {loading ? "Saving..." : "Update Schedule"}
             </button>
           </div>
         </form>

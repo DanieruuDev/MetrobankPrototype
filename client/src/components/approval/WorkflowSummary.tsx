@@ -53,18 +53,19 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
         <div className="grid grid-cols-3 ">
           <div className="space-y-1">
             <div className="text-[#808080] text-[16px]">Title</div>
-            <div>{formData?.request_title}</div>
+            <div>{formData?.rq_title}</div>
           </div>
           <div className="space-y-1">
             <div className="text-[#808080] text-[16px]">Workflow Type</div>
-            <div>{formData?.req_type_id}</div>
+            <div>{formData?.approval_req_type}</div>
           </div>
           <div className="space-y-1">
-            <div className="text-[#808080] text-[16px]">YR-SY-SEM</div>
-            <div>
-              {formData?.scholar_level} | {formData?.school_year} |
-              {formData?.semester}
-            </div>
+            <div className="text-[#808080] text-[16px]">School Year</div>
+            <div>{formData?.sy_code}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[#808080] text-[16px]">Semester</div>
+            <div>{formData?.semester_code}</div>
           </div>
         </div>
         <div className="grid grid-cols-3 ">

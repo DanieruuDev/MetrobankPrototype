@@ -6,16 +6,12 @@ import axios from "axios";
 import ScheduleSection from "../../../components/disbursement/ScheduleSelection";
 
 export interface DisbursementScheduleSummary {
-  disb_sched_id: number;
-  disb_title: string;
-  disbursement_type: string;
-  semester: string;
-  school_year: string;
-  year_level: string;
-  disbursement_date: string;
-  status: string;
-  total_scholars: number;
-  branch: string; // add this
+  sched_id: number;
+  sched_title: string;
+  event_type: number;
+  schedule_due: string;
+  schedule_status: string;
+  disbursement_label: string;
 }
 
 interface ScheduleSidebarProps {
@@ -34,7 +30,7 @@ const ScheduleSidebar = ({
   const [twoWeekSched, setTwoWeekSched] = useState<
     DisbursementScheduleSummary[] | null
   >([]);
-  console.log("two weeks  ", twoWeekSched);
+
   // const fetchSidebarSchedules = async (date: Date) => {
   //   setLoading(true);
   //   setError(null);
@@ -117,7 +113,7 @@ const ScheduleSidebar = ({
           getBadgeColor={getBadgeColor}
           emptyMessage="No schedule for today."
           filterFn={(sched) => {
-            const schedDate = new Date(sched.disbursement_date);
+            const schedDate = new Date(sched.schedule_due);
             const today = new Date();
             return schedDate.toDateString() === today.toDateString();
           }}
@@ -134,7 +130,7 @@ const ScheduleSidebar = ({
           getBadgeColor={getBadgeColor}
           emptyMessage="No upcoming schedules."
           filterFn={(sched) => {
-            const schedDate = new Date(sched.disbursement_date);
+            const schedDate = new Date(sched.schedule_due);
             const today = new Date();
             return schedDate > today;
           }}

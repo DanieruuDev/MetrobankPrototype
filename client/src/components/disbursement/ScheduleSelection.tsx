@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Calendar, CircleDot } from "lucide-react";
 import { DisbursementScheduleSummary } from "../../pages/Disbursement/Scheduling/ScheduleSidebar";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -22,76 +22,100 @@ const ScheduleSection = ({
   const [isOpen, setIsOpen] = useState(true);
   const navigate = useNavigate();
   const filtered = schedules.filter(filterFn);
-  console.log(schedules);
+
   return (
-    <div className="max-w-[230px] mt-3">
+    <div className="max-w-[260px] mt-3">
+      {/* Section Header */}
       <div
-        className="flex justify-between items-center group cursor-pointer"
+        className="flex justify-between items-center group cursor-pointer pb-1 border-b border-gray-200"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <h2 className="font-semibold text-[16px] text-[#565656] group-hover:text-[#101010]">
+        <h2 className="font-semibold text-[15px] text-[#444] group-hover:text-[#101010]">
           {title}
         </h2>
-        <button className="cursor-pointer transition-transform duration-300">
-          <ChevronDown
-            className={`text-[#565656] w-5 h-5 group-hover:text-[#101010] transform transition-transform duration-300 ${
-              isOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
+        <ChevronDown
+          className={`text-[#666] w-5 h-5 transition-transform duration-300 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </div>
+
+      {/* Collapsible content */}
       {isOpen && (
-        <div className="transition-all duration-300 ease-in-out overflow-hidden mt-1">
-          <div className="space-y-2">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-gray-400 mt-2">{emptyMessage}</p>
-            ) : (
-              filtered.map((sched) => {
-                const formattedDate = sched.disbursement_date
-                  ? format(new Date(sched.disbursement_date), "MMM dd, yyyy")
+        <div className="transition-all duration-300 ease-in-out overflow-hidden mt-2">
+          {filtered.length === 0 ? (
+            <p className="text-sm text-gray-400 italic">{emptyMessage}</p>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((sched) => {
+                const formattedDate = sched.schedule_due
+                  ? format(new Date(sched.schedule_due), "MMM dd, yyyy")
                   : "No date";
 
                 return (
                   <div
-                    key={sched.disb_sched_id}
-                    className="bg-[#F1F1F1] p-2 rounded-md text-[#797979] font-medium text-[12px] flex-col flex cursor-pointer hover:bg-[#e0e0e0]"
+                    key={sched.sched_id}
+                    className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm hover:border-blue-300 transition cursor-pointer"
                     onClick={() =>
-                      navigate(`/tracking/detailed/${sched.disb_sched_id}`)
+                      navigate(`/tracking/detailed/${sched.sched_id}`)
                     }
                   >
-                    <h2 className="text-[#4d4d4d] font-medium text-[14px] mb-1 flex items-center">
+                    {/* Title */}
+                    <h1 className="text-[15px] font-semibold text-gray-900 mb-1 truncate">
+                      {sched.sched_title}
+                    </h1>
+
+                    {/* Label Badge */}
+                    <div className="flex items-center gap-2 mb-2">
                       <span
+                        className="w-2.5 h-2.5 rounded-full"
                         style={{
                           backgroundColor: getBadgeColor(
-                            sched.disbursement_type
+                            sched.disbursement_label
                           ),
                         }}
-                        className="p-1 rounded-md mr-1"
                       ></span>
-                      {sched.disbursement_type}
-                    </h2>
+                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md">
+                        {sched.disbursement_label}
+                      </span>
+                    </div>
 
-                    <p className="text-[12px] text-gray-600 mb-2">
-                      Date: {formattedDate}
-                    </p>
+                    <div className="flex items-center gap-2 justify-between">
+                      {/* Date */}
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{formattedDate}</span>
+                      </div>
 
-                    <table>
-                      <tbody>
-                        <tr>
-                          <td className="border-r pr-4">{sched.branch}</td>
-                          <td className="pl-4">{sched.year_level}</td>
-                        </tr>
-                        <tr>
-                          <td className="border-r pr-4">{sched.semester}</td>
-                          <td className="pl-4">{sched.school_year}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                      {/* Status */}
+                      <div className="flex items-center gap-1 mt-1 text-xs font-medium">
+                        <CircleDot
+                          className={`w-3.5 h-3.5 ${
+                            sched.schedule_status === "Completed"
+                              ? "text-green-500"
+                              : sched.schedule_status === "In Progress"
+                              ? "text-blue-500"
+                              : "text-gray-400"
+                          }`}
+                        />
+                        <span
+                          className={`${
+                            sched.schedule_status === "Completed"
+                              ? "text-green-600"
+                              : sched.schedule_status === "In Progress"
+                              ? "text-blue-600"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          {sched.schedule_status || "Unknown"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

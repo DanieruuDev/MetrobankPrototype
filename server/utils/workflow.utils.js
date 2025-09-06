@@ -7,14 +7,13 @@ const {
 
 const checkWorkflowExists = async (
   client,
-  req_type_id,
-  school_year,
-  semester,
-  scholar_level
+  approval_req_type,
+  sy_code,
+  semester_code
 ) => {
   const res = await client.query(
-    "SELECT * FROM workflow WHERE rq_type_id = $1 AND school_year = $2 AND semester = $3 AND scholar_level = $4",
-    [req_type_id, school_year, semester, scholar_level]
+    "SELECT * FROM workflow WHERE approval_req_type = $1 AND sy_code = $2 AND semester_code = $3",
+    [approval_req_type, sy_code, semester_code]
   );
 
   return res.rows.length > 0;
@@ -32,28 +31,26 @@ const insertDocument = async (client, file) => {
 const insertWorkflow = async (client, details) => {
   const {
     docId,
-    req_type_id,
+    approval_req_type,
     requester_id,
     due_date,
-    school_year,
-    semester,
-    scholar_level,
+    sy_code,
+    semester_code,
     description,
-    request_title,
+    rq_title,
   } = details;
 
   const res = await client.query(
-    "INSERT INTO workflow(document_id, rq_type_id, requester_id, due_date, school_year, semester, scholar_level, description, rq_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+    "INSERT INTO workflow(document_id, approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
     [
       docId,
-      req_type_id,
+      approval_req_type,
       requester_id,
       due_date,
-      school_year,
-      semester,
-      scholar_level,
+      sy_code,
+      semester_code,
       description,
-      request_title,
+      rq_title,
     ]
   );
 
@@ -76,63 +73,71 @@ const insertApprovers = async (
   workflowId,
   workflowDetails
 ) => {
-  const approverQueries = [];
-  let isFirstApprover = true;
+  const approverQueries = await Promise.all(
+    approverList.map(async (approver) => {
+      const findId = await client.query(
+        `SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1`,
+        [approver.email]
+      );
+      if (findId.rows.length === 0) {
+        throw new Error(`Approver with email ${approver.email} not found`);
+      }
+      const userId = findId.rows[0].admin_id;
 
-  for (const approver of approverList) {
-    const findId = await client.query(
-      `SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1`,
-      [approver.email]
-    );
+      const approvalRes = await client.query(
+        `INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned, role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7, $8) RETURNING *`,
+        [
+          workflowId,
+          userId,
+          approver.email,
+          approver.order,
+          "Pending",
+          approver.date,
+          false,
+          approver.role,
+        ]
+      );
 
-    if (findId.rows.length === 0) {
-      throw new Error(`Approver with email ${approver.email} not found`);
-    }
+      const responseRes = await client.query(
+        `INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *`,
+        [approvalRes.rows[0].approver_id]
+      );
 
-    const userId = findId.rows[0].admin_id;
-    console.log(findId.rows[0]);
-    const existingApprover = await client.query(
-      "SELECT 1 FROM wf_approver WHERE workflow_id = $1 AND user_id = $2",
-      [workflowId, userId]
-    );
-
-    if (existingApprover.rows.length > 0) {
-      throw new Error(`Duplicate approver: ${approver.email}`);
-    }
-
-    const approvalRes = await client.query(
-      "INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-      [
-        workflowId,
-        userId,
-        approver.email,
-        approver.order,
-        isFirstApprover ? "Pending" : "Not yet applicable",
-        approver.date,
-        false,
-      ]
-    );
-
-    const responseRes = await client.query(
-      "INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *",
-      [approvalRes.rows[0].approver_id]
-    );
-
-    approverQueries.push({
-      approvers: approvalRes.rows[0],
-      approval_response: responseRes.rows[0],
-    });
-
-    if (isFirstApprover) {
-      await sendItsYourTurnEmail(approver.email, workflowDetails);
-      isFirstApprover = false;
-    } else {
-      await sendApproverAddedEmail(approver.email, workflowDetails);
-    }
-  }
+      return {
+        approvers: approvalRes.rows[0],
+        approval_response: responseRes.rows[0],
+      };
+    })
+  );
 
   return approverQueries;
 };
+
+async function insertWorkflowLog(
+  client,
+  workflow_id,
+  actor_id,
+  actor_type,
+  action,
+  old_status,
+  new_status,
+  comments = null
+) {
+  const query = `
+    INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, old_status, new_status, comments, change_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+  `;
+  await client.query(query, [
+    workflow_id,
+    actor_id, // approver_id or requester_id
+    actor_type, // 'Approver' or 'Requester'
+    action, // 'Approved' / 'Rejected'
+    old_status,
+    new_status,
+    comments,
+  ]);
+}
 
 module.exports = {
   checkWorkflowExists,
@@ -140,4 +145,5 @@ module.exports = {
   insertWorkflow,
   fetchRequester,
   insertApprovers,
+  insertWorkflowLog,
 };

@@ -16,6 +16,7 @@ interface CreateApproval2Props {
   fetchWorkflows: (page: number) => void;
 }
 
+//!Notes: Try to change the approval request decription into a checkbox of data for type of reques
 function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,8 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const userId = auth?.user?.user_id;
   const [approversValid, setApproversValid] = useState(false);
 
+  const [showValidation, setShowValidation] = useState(false);
+
   const isApproverValid = (): boolean => {
     if (!approversValid) {
       toast.error("Please fix approver errors before continuing.");
@@ -31,18 +34,18 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }
     return true;
   };
+  console.log(userId);
 
   const [formData, setFormData] = useState<WorkflowFormData>({
-    request_title: "",
+    rq_title: "",
     requester_id: String(userId),
-    req_type_id: "",
     description: "",
     file: null,
     approvers: [],
-    scholar_level: "",
-    semester: "",
     due_date: "",
-    school_year: "",
+    semester_code: "",
+    sy_code: "",
+    approval_req_type: "",
   });
 
   const steps = [
@@ -52,11 +55,11 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   ];
 
   const isWorkflowInfoValid = (data: WorkflowFormData): boolean => {
-    if (!data.request_title.trim()) {
+    if (!data.rq_title.trim()) {
       toast.error("Request Title is required.");
       return false;
     }
-    if (!data.req_type_id) {
+    if (!data.approval_req_type) {
       toast.error("Approval Type is required.");
       return false;
     }
@@ -64,16 +67,12 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       toast.error("Due Date is required.");
       return false;
     }
-    if (!data.scholar_level) {
-      toast.error("Scholar Year Level is required.");
-      return false;
-    }
-    if (!data.semester) {
-      toast.error("Semester is required.");
-      return false;
-    }
-    if (!data.school_year) {
+    if (!data.sy_code) {
       toast.error("School Year is required.");
+      return false;
+    }
+    if (!data.semester_code) {
+      toast.error("Semester is required.");
       return false;
     }
     if (!data.description.trim()) {
@@ -91,8 +90,14 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     if (stepNum !== 3) {
       if (stepNum === 1 && isWorkflowInfoValid(formData)) {
         setStepNum(2);
-      } else if (stepNum === 2 && isApproverValid()) {
-        setStepNum(3);
+      } else if (stepNum === 2) {
+        // Set showValidation to true to trigger validation display
+        setShowValidation(true);
+        // Trigger validation event for AddApprover component
+        window.dispatchEvent(new Event("validation-attempt"));
+        if (isApproverValid()) {
+          setStepNum(3);
+        }
       }
     }
   };
@@ -100,6 +105,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const clickBackButton = () => {
     if (stepNum > 1) {
       setStepNum(stepNum - 1);
+      setShowValidation(false);
     }
   };
 
@@ -112,6 +118,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
           formData={formData}
           setFormData={setFormData}
           onValidateApprovers={(status) => setApproversValid(status.valid)}
+          showValidation={showValidation} // Pass the showValidation prop
         />
       );
     } else {
@@ -119,26 +126,45 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }
   };
 
+  // In CreateApproval.tsx, update the handleSubmit function:
   const handleSubmit = async () => {
+    if (!formData.approvers || formData.approvers.length === 0) {
+      toast.error("Please add at least one approver");
+      return;
+    }
+
+    console.log(formData.semester_code, formData.sy_code);
     setError(null);
     setLoading(true);
-    console.log("Form Data before sending:", formData);
+
+    console.log("Complete Form Data:", {
+      ...formData,
+      approvers: formData.approvers,
+      file: formData.file ? formData.file.name : "No file",
+    });
 
     const sendData = new FormData();
-    sendData.append("request_title", formData.request_title);
+    sendData.append("rq_title", formData.rq_title);
     sendData.append("requester_id", formData.requester_id);
-    sendData.append("req_type_id", formData.req_type_id);
+    sendData.append("approval_req_type", formData.approval_req_type);
     sendData.append("description", formData.description);
-    sendData.append("scholar_level", formData.scholar_level);
-    sendData.append("semester", formData.semester);
     sendData.append("due_date", formData.due_date);
-    sendData.append("school_year", formData.school_year);
+    sendData.append("sy_code", formData.sy_code);
+    sendData.append("semester_code", formData.semester_code);
 
     if (formData.file) {
       sendData.append("file", formData.file);
     }
 
-    sendData.append("approvers", JSON.stringify(formData.approvers));
+    sendData.append(
+      "approvers",
+      JSON.stringify(
+        formData.approvers.map((approver, index) => ({
+          ...approver,
+          order: index + 1,
+        }))
+      )
+    );
 
     try {
       const res = await axios.post(
@@ -154,26 +180,28 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       fetchWorkflows(1);
       setIsModal(false);
       toast.success("Approval request created successfully!");
-      console.log(res.data);
+      console.log("Response:", res.data);
     } catch (error) {
-      console.error("Error submitting form:", error);
-      setError("Failed to submit request. Please try again.");
-      let message = "Failed to create approval request. Please try again.";
+      console.error("Error details:", error);
 
-      if (axios.isAxiosError(error) && error.response) {
-        const serverMessage = error.response.data?.message;
+      if (axios.isAxiosError(error)) {
+        console.error("Response data:", error.response?.data);
+        console.error("Response status:", error.response?.status);
 
-        if (serverMessage?.toLowerCase().includes("already exists")) {
-          message =
-            "A workflow with the same school year, semester, and year level already exists.";
+        if (error.response?.data?.errors) {
+          // Handle validation errors from backend
+          const errors = error.response.data.errors;
+          Object.keys(errors).forEach((key) => {
+            toast.error(`${key}: ${errors[key]}`);
+          });
         } else {
-          message = serverMessage || message;
+          toast.error(
+            error.response?.data?.message || "Failed to create workflow"
+          );
         }
-      } else if (error instanceof Error) {
-        message = error.message;
+      } else {
+        toast.error("An unexpected error occurred");
       }
-
-      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -192,9 +220,9 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         pauseOnHover
       />
 
-      <div className="fixed inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
+      <div className="fixed border inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
         <div
-          className={`relative bg-white rounded-lg p-5 shadow-lg max-w-2xl w-full max-h-[95vh] overflow-y-auto`}
+          className={`relative bg-white rounded-lg p-5 shadow-lg max-w-xl w-full max-h-[95vh] overflow-y-auto`}
         >
           {/* Show loading spinner inside modal */}
           {loading && (
@@ -274,6 +302,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
               <button
                 className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
                 onClick={handleSubmit}
+                disabled={loading}
               >
                 Create Workflow
               </button>

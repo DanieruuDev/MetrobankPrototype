@@ -41,7 +41,7 @@ const Sidebar = () => {
     },
     {
       to: "/schedule",
-      label: "Schedule",
+      label: "Calendar of Activity",
       Icon: Calendar,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
@@ -126,7 +126,7 @@ const Sidebar = () => {
               <div className="min-w-0">
                 <h1 className="font-extrabold text-base leading-tight truncate">
                   Metrobank <br />
-                  S.T.R.O.N.G.
+                  STRONG
                 </h1>
                 <p className="text-xs font-normal truncate">Administration</p>
               </div>

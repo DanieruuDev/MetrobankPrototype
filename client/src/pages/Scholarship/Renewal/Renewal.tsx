@@ -30,7 +30,7 @@ function Renewal() {
 
       {detailedRenewal === null ? (
         <>
-          <RenewalListV2 />
+          <RenewalListV2 handleRowClick={handleRowClick} />
         </>
       ) : (
         <SpecificRenewal
