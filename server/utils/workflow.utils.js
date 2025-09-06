@@ -1,4 +1,10 @@
-const { sendApproverAddedEmail } = require("./emailing");
+const {
+  sendApproverAddedEmail,
+  sendItsYourTurnEmail,
+  sendWorkflowCompletedEmail,
+  sendWorkflowRejectedEmail,
+} = require("./emailing");
+
 const checkWorkflowExists = async (
   client,
   req_type_id,
@@ -71,6 +77,7 @@ const insertApprovers = async (
   workflowDetails
 ) => {
   const approverQueries = [];
+  let isFirstApprover = true;
 
   for (const approver of approverList) {
     const findId = await client.query(
@@ -100,10 +107,10 @@ const insertApprovers = async (
         userId,
         approver.email,
         approver.order,
-        "Pending",
+        isFirstApprover ? "Pending" : "Not yet applicable",
         approver.date,
         false,
-      ] // Use lowercase false
+      ]
     );
 
     const responseRes = await client.query(
@@ -116,7 +123,12 @@ const insertApprovers = async (
       approval_response: responseRes.rows[0],
     });
 
-    await sendApproverAddedEmail(approver.email, workflowDetails);
+    if (isFirstApprover) {
+      await sendItsYourTurnEmail(approver.email, workflowDetails);
+      isFirstApprover = false;
+    } else {
+      await sendApproverAddedEmail(approver.email, workflowDetails);
+    }
   }
 
   return approverQueries;

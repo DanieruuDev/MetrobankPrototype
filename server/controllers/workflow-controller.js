@@ -6,9 +6,9 @@ const {
   sendItsYourTurnEmail,
   sendWorkflowCompletedEmail,
   sendWorkflowRejectedEmail,
-  // Assuming you might add a sendWorkflowSubmittedEmail function later
-  // sendWorkflowSubmittedEmail,
-} = require("../utils/emailing"); // Ensure this path is correct
+  sendWorkflowMovedForward,
+  sendApproverReplacedEmail,
+} = require("../utils/emailing");
 const {
   checkWorkflowExists,
   insertDocument,
@@ -99,32 +99,30 @@ const getApprovalsWithStatus = async (req, res) => {
 
     if (status && status !== "All") {
       dataQuery = await pool.query(
-        `SELECT * 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1 AND status = $2 
-         LIMIT $3 OFFSET $4`,
+        `SELECT * FROM vw_workflow_display 
+          WHERE requester_id = $1 AND status = $2 
+          LIMIT $3 OFFSET $4`,
         [user_id, status, limit, offset]
       );
 
       countQuery = await pool.query(
         `SELECT COUNT(*) 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1 AND status = $2`,
+          FROM vw_workflow_display 
+          WHERE requester_id = $1 AND status = $2`,
         [user_id, status]
       );
     } else {
       dataQuery = await pool.query(
-        `SELECT * 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1 
-         LIMIT $2 OFFSET $3`,
+        `SELECT * FROM vw_workflow_display 
+          WHERE requester_id = $1 
+          LIMIT $2 OFFSET $3`,
         [user_id, limit, offset]
       );
 
       countQuery = await pool.query(
         `SELECT COUNT(*) 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1`,
+          FROM vw_workflow_display 
+          WHERE requester_id = $1`,
         [user_id]
       );
     }
@@ -190,7 +188,8 @@ const deleteApproval = async (req, res) => {
 const changeApprover = async (req, res) => {
   try {
     const { requester_id } = req.params;
-    const { workflow_id, old_approver_id, new_approver_id, reason } = req.body; // Find new approver id and email by email
+    const { workflow_id, old_approver_id, new_approver_id, reason } = req.body;
+    // Find new approver id and email by email
 
     const getNewApproverId = await pool.query(
       `SELECT admin_id, admin_email FROM administration_adminaccounts WHERE admin_email = $1`,
@@ -198,7 +197,8 @@ const changeApprover = async (req, res) => {
     );
     if (getNewApproverId.rowCount === 0) {
       return res.status(404).json({ message: "New approver not found." });
-    } // Check workflow exists and get author
+    }
+    // Check workflow exists and get author
 
     const workflowCheck = await pool.query(
       "SELECT requester_id FROM workflow WHERE workflow_id = $1",
@@ -227,7 +227,26 @@ const changeApprover = async (req, res) => {
 
     const oldApprover = oldApproverCheck.rows[0];
     const approverOrder = oldApprover.approver_order;
-    const oldIsCurrent = oldApprover.is_current; // Update old approver: status to 'Replaced' and is_current to false if it was true
+    const oldIsCurrent = oldApprover.is_current;
+    const oldApproverEmail = oldApprover.user_email;
+
+    // Send email to the old approver informing them they have been replaced
+    // NOTE: This call is now inside the try block and has access to the old approver's email
+    await sendApproverReplacedEmail(oldApproverEmail, {
+      request_title: (
+        await pool.query(
+          "SELECT rq_title FROM workflow WHERE workflow_id = $1",
+          [workflow_id]
+        )
+      ).rows[0].rq_title,
+      requester_name: (
+        await pool.query(
+          "SELECT admin_name FROM administration_adminaccounts WHERE admin_id = $1",
+          [requester_id]
+        )
+      ).rows[0].admin_name,
+    });
+    // Update old approver: status to 'Replaced' and is_current to false if it was true
 
     await pool.query(
       `UPDATE wf_approver
@@ -246,28 +265,58 @@ const changeApprover = async (req, res) => {
         approverOrder,
         oldIsCurrent,
       ]
-    ); // Get the newly inserted approver_id
+    );
+    // Get the newly inserted approver_id
     const newApproverResult = await pool.query(
       `SELECT approver_id FROM wf_approver
-   WHERE user_id = $1 AND workflow_id = $2 AND approver_order = $3
-   ORDER BY approver_id DESC LIMIT 1`,
+    WHERE user_id = $1 AND workflow_id = $2 AND approver_order = $3
+    ORDER BY approver_id DESC LIMIT 1`,
       [getNewApproverId.rows[0].admin_id, workflow_id, approverOrder]
     );
 
-    const newApproverId = newApproverResult.rows[0].approver_id; // Insert into approver_response with status Pending
+    const newApproverId = newApproverResult.rows[0].approver_id;
+    // Insert into approver_response with status Pending
 
     await pool.query(
       `INSERT INTO approver_response (approver_id, response)
-   VALUES ($1, 'Pending')`,
+       VALUES ($1, 'Pending')`,
       [newApproverId]
-    ); // Log reassignment
+    );
+    // Log reassignment
 
     await pool.query(
       `INSERT INTO reassignment_log (workflow_id, old_approver_id, new_approver_id, reason)
-       VALUES ($1, $2, $3, $4)`,
+        VALUES ($1, $2, $3, $4)`,
       [workflow_id, old_approver_id, getNewApproverId.rows[0].admin_id, reason]
     );
 
+    // If the old approver was the current one, send a "your turn" email to the new approver
+    if (oldIsCurrent) {
+      const workflowDetailsForEmail = {
+        request_title: (
+          await pool.query(
+            "SELECT rq_title FROM workflow WHERE workflow_id = $1",
+            [workflow_id]
+          )
+        ).rows[0].rq_title,
+        requester_name: (
+          await pool.query(
+            "SELECT admin_name FROM administration_adminaccounts WHERE admin_id = $1",
+            [requester_id]
+          )
+        ).rows[0].admin_name,
+        due_date: (
+          await pool.query(
+            "SELECT due_date FROM workflow WHERE workflow_id = $1",
+            [workflow_id]
+          )
+        ).rows[0].due_date,
+      };
+      await sendItsYourTurnEmail(
+        getNewApproverId.rows[0].admin_email,
+        workflowDetailsForEmail
+      );
+    }
     return res.status(200).json({ message: "Approver successfully changed." });
   } catch (error) {
     console.error("Error changing approver:", error);
@@ -380,6 +429,7 @@ const createApproval = async (req, res) => {
     );
 
     if (approverQueries.length > 0) {
+      // Set the first approver as the current one and send the "it's your turn" email
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
@@ -388,6 +438,13 @@ const createApproval = async (req, res) => {
         approverQueries[0].approvers.user_email,
         workflowDetailsForEmail
       );
+      // Send the "You have been added" email to all subsequent approvers
+      for (let i = 1; i < approverQueries.length; i++) {
+        await sendApproverAddedEmail(
+          approverQueries[i].approvers.user_email,
+          workflowDetailsForEmail
+        );
+      }
     }
 
     const getRequestTitleQuery = await client.query(
@@ -503,9 +560,9 @@ const approveApproval = async (req, res) => {
     // Fetch workflow_id, approver_order, and requester_id for the current approver
     const currentApproverDataQuery = await client.query(
       `SELECT wa.workflow_id, wa.approver_order, w.requester_id
-         FROM wf_approver wa
-         JOIN workflow w ON wa.workflow_id = w.workflow_id
-         WHERE wa.approver_id = $1`,
+          FROM wf_approver wa
+          JOIN workflow w ON wa.workflow_id = w.workflow_id
+          WHERE wa.approver_id = $1`,
       [approver_id]
     );
     const currentApproverData = currentApproverDataQuery.rows[0];
@@ -572,9 +629,9 @@ const approveApproval = async (req, res) => {
     // Also fetch request_title from the workflow table
     const requesterAndWorkflowDetailsQuery = await client.query(
       `SELECT aa.admin_email, aa.admin_name, w.rq_type_id, w.due_date, w.description, w.workflow_id, w.rq_title
-         FROM administration_adminaccounts aa
-         JOIN workflow w ON aa.admin_id = w.requester_id
-         WHERE w.workflow_id = $1 AND aa.admin_id = $2`,
+          FROM administration_adminaccounts aa
+          JOIN workflow w ON aa.admin_id = w.requester_id
+          WHERE w.workflow_id = $1 AND aa.admin_id = $2`,
       [workflow_id, requester_id]
     );
     const requesterEmail =
@@ -591,7 +648,8 @@ const approveApproval = async (req, res) => {
       due_date: requesterAndWorkflowDetailsQuery.rows[0]?.due_date,
       rq_description: requesterAndWorkflowDetailsQuery.rows[0]?.description,
       workflow_id: workflow_id,
-    }; // Step 4: Move to next approver or mark workflow as completed/rejected
+    };
+    // Step 4: Move to next approver or mark workflow as completed/rejected
 
     if (response === "Approved") {
       // Only move to next if Approved
@@ -623,6 +681,17 @@ const approveApproval = async (req, res) => {
         // Send "Its Your Turn" email to the next approver
         // workflowDetailsForEmail is already fetched
         await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+
+        // Notify the requester that the workflow has moved forward
+        await sendWorkflowMovedForward(requesterEmail, {
+          ...workflowDetailsForEmail,
+          next_approver_name: (
+            await pool.query(
+              "SELECT admin_name FROM administration_adminaccounts WHERE admin_email = $1",
+              [nextApproverEmail]
+            )
+          ).rows[0].admin_name,
+        });
       } else {
         console.log(
           "No next approver found. Checking for workflow completion."
