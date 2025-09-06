@@ -148,16 +148,6 @@ const uploadScholarRenewals = async (req, res) => {
 const fetchAllScholarRenewal = async (req, res) => {
   try {
     const { school_year, semester, branch } = req.query;
-    let { page, limit } = req.query;
-
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
-    chunkSize = 5; // default: 5 pages per chunk
-
-    // figure out which chunk to fetch
-    const chunkIndex = Math.floor((page - 1) / chunkSize);
-    const offset = chunkIndex * limit * chunkSize;
-    const fetchLimit = limit * chunkSize;
 
     let baseQuery = `
       FROM vw_renewal_details
@@ -171,22 +161,14 @@ const fetchAllScholarRenewal = async (req, res) => {
       values.push(branch);
     }
 
-    // fetch chunk of data
-    const dataQuery = await pool.query(
-      `SELECT * ${baseQuery} LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
-      [...values, fetchLimit, offset]
-    );
+    // Fetch all rows
+    const dataQuery = await pool.query(`SELECT * ${baseQuery}`, values);
+    const totalCount = dataQuery.rows.length;
 
-    const countQuery = await pool.query(`SELECT COUNT(*) ${baseQuery}`, values);
-    const totalCount = parseInt(countQuery.rows[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
-    console.log(dataQuery.rows);
     res.status(200).json({
       message: "Renewal records retrieved successfully.",
-      data: dataQuery.rows, // up to chunkSize * limit rows
-      totalPages,
-      currentPage: page,
-      chunkSize,
+      data: dataQuery.rows, // all rows
+      totalCount,
     });
   } catch (error) {
     console.error("Error fetching renewal data:", error);
