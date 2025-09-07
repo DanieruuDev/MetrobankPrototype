@@ -168,7 +168,7 @@ function Request() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 rounded-xl">
       {approverId ? (
         <SpecificRequest
           approver_id={approverId}
