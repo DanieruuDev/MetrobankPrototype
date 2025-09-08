@@ -79,7 +79,7 @@ const ScheduleSidebar = ({
   return (
     <div
       className={`
-    max-w-[250px] w-full overflow-y-auto h-[89.5vh] pb-4 overflow-x-hidden border-[#EBEBEB] border-r-3 pt-2 fixed
+    max-w-[250px] w-full overflow-y-auto h-[89.5vh] pb-4 overflow-x-hidden border-[#EBEBEB] border-r-3 pt-2 pr-3  fixed
     top-[73px] bottom-0 bg-white z-0
     ${
       collapsed ? "left-24 ml-0" : "left-[250px] ml-4"

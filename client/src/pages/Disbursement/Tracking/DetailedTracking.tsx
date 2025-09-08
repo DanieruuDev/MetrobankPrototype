@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import * as XLSX from "xlsx";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X, Users, Filter } from "lucide-react";
 
 interface ITrackingStudent {
   student_id: number;
@@ -305,28 +305,43 @@ function DetailedTracking() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="pl-[250px] pt-[73px] min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading disbursement details...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!trackingDetailed) {
-    return (
-      <div className="pl-[250px] pt-[73px] min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">No disbursement data found</p>
-        </div>
-      </div>
-    );
-  }
+  // Keep layout scaffold (Navbar/Sidebar) visible; render loading/content inside
 
   const scheduleInfo = trackingDetailed?.[0];
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>("All");
+  const [selectedBranch, setSelectedBranch] = useState<string>("All");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+
+  const allStudentRows = scheduleInfo
+    ? scheduleInfo.disbursement_schedules.flatMap((s) =>
+        s.students.map((st) => ({ schedule: s, student: st }))
+      )
+    : [];
+  const hasActiveFilters =
+    selectedBranch !== "All" || selectedSchoolYear !== "All";
+  const uniqueSchoolYears = Array.from(
+    new Set(allStudentRows.map((r) => r.student.school_year))
+  ).sort((a, b) => Number(a) - Number(b));
+  const uniqueBranches = Array.from(
+    new Set(
+      scheduleInfo
+        ? scheduleInfo.disbursement_schedules.map((s) => s.branch_code)
+        : []
+    )
+  ).sort();
+  const filteredRows = allStudentRows.filter(({ schedule, student }) => {
+    const syOk =
+      selectedSchoolYear === "All" ||
+      String(student.school_year) === String(selectedSchoolYear);
+    const branchOk =
+      selectedBranch === "All" || schedule.branch_code === selectedBranch;
+    return syOk && branchOk;
+  });
+
+  const clearFilters = () => {
+    setSelectedBranch("All");
+    setSelectedSchoolYear("All");
+  };
 
   return (
     <div
@@ -337,141 +352,291 @@ function DetailedTracking() {
       <Navbar pageName="Disbursement Tracking" />
       <Sidebar />
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <button
-              onClick={() => navigate(-1)}
-              className="group flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft
-                size={25}
-                className="group-hover:-translate-x-1 transition-transform"
-              />
-            </button>
-            <span className="text-gray-600 text-sm pb-4 ml-1">
-              ID: {sched_id}
-            </span>
+        {isLoading && (
+          <div className="min-h-[220px] bg-white border border-gray-100 rounded-lg flex items-center justify-center shadow-sm">
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-3 text-gray-600 text-sm">
+                Loading disbursement details...
+              </p>
+            </div>
           </div>
-          <div className="flex space-x-2">
-            <button
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:bg-green-300"
-              onClick={handleComplete}
-              disabled={
-                isCompleting || scheduleInfo?.schedule_status === "Completed"
-              }
-            >
-              {isCompleting ? (
-                <>
-                  <span className="inline-block animate-spin mr-2">↻</span>
-                  Completing...
-                </>
-              ) : (
-                "Mark as Complete"
-              )}
-            </button>
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-              onClick={handleExportToExcel}
-            >
-              Export to Excel
-            </button>
+        )}
+        {!isLoading && !trackingDetailed && (
+          <div className="min-h-[220px] bg-white border border-gray-100 rounded-lg flex items-center justify-center shadow-sm">
+            <p className="text-gray-600 text-sm">No disbursement data found</p>
           </div>
-        </div>
+        )}
+        {!isLoading && trackingDetailed && (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-5 gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="group inline-flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <ArrowLeft
+                  size={22}
+                  className="group-hover:-translate-x-1 transition-transform"
+                />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm disabled:bg-green-300 transition-colors"
+                onClick={handleComplete}
+                disabled={
+                  isCompleting || scheduleInfo?.schedule_status === "Completed"
+                }
+              >
+                {isCompleting ? (
+                  <>
+                    <span className="inline-block animate-spin mr-2">↻</span>
+                    Completing...
+                  </>
+                ) : (
+                  "Mark as Complete"
+                )}
+              </button>
+              <button
+                className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm transition-colors"
+                onClick={handleExportToExcel}
+              >
+                Export to Excel
+              </button>
+            </div>
+          </div>
+        )}
 
         {scheduleInfo && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 mt-2">
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <h3 className="font-medium text-gray-500 mb-2">
-                Disbursement Information
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="text-lg font-semibold">
-                    {scheduleInfo.sched_title}
-                  </p>
-                  <p className="text-[14px] mb-2 font-semibold">
-                    Type:{" "}
-                    {scheduleInfo.disbursement_schedules[0].disbursement_label}
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    {new Date(scheduleInfo.schedule_due).toLocaleDateString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        weekday: "long",
-                      }
-                    )}
-                  </p>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+            <div className="p-6">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                      Disbursement Information
+                    </h3>
+                    <p className="mt-1 text-2xl font-semibold text-gray-900 truncate">
+                      {scheduleInfo.sched_title}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded border border-blue-100">
+                        <span className="font-medium">Type:</span>
+                        {
+                          scheduleInfo.disbursement_schedules[0]
+                            .disbursement_label
+                        }
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-gray-50 text-gray-700 px-2.5 py-1 rounded border border-gray-200">
+                        <span className="font-medium">Schedule ID:</span>
+                        {scheduleInfo.sched_id}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {getStatusBadge(scheduleInfo.schedule_status)}
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Status:</span>
-                  {getStatusBadge(scheduleInfo.schedule_status)}
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-gray-200 rounded-md border border-gray-200">
+                  <div className="p-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                      Due Date
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                      {new Date(scheduleInfo.schedule_due).toLocaleDateString(
+                        "en-US",
+                        { year: "numeric", month: "long", day: "numeric" }
+                      )}
+                    </p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                      Event Type
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                      {scheduleInfo.event_type}
+                    </p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                      School Year
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                      {scheduleInfo.event_sy_code}
+                    </p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                      Semester
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">
+                      {scheduleInfo.event_semester_code}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="font-semibold">
-              Student List ({trackingDetailed.length})
-            </h3>
-          </div>
+        {scheduleInfo && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-4 py-4 border-b border-gray-100">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-md">
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Students</h3>
+                      <p className="text-xs text-gray-600">{`${filteredRows.length} of ${allStudentRows.length} students`}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasActiveFilters && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedSchoolYear !== "All" && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-white border border-gray-300 px-2 py-1 rounded">
+                            SY: {selectedSchoolYear}
+                            <button
+                              onClick={() => setSelectedSchoolYear("All")}
+                              className="hover:text-gray-900"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        )}
+                        {selectedBranch !== "All" && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-white border border-gray-300 px-2 py-1 rounded">
+                            Branch: {selectedBranch}
+                            <button
+                              onClick={() => setSelectedBranch("All")}
+                              className="hover:text-gray-900"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {hasActiveFilters && (
+                      <button
+                        onClick={clearFilters}
+                        className="inline-flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900"
+                        title="Reset filters"
+                      >
+                        <X className="w-4 h-4" />
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm border ${
+                        showFilters
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "text-gray-700 border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      <Filter className="w-4 h-4" />
+                      Filters
+                    </button>
+                  </div>
+                </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Year Level
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Semester / SY
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Branch
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scholarship Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Disbursement Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {scheduleInfo.disbursement_schedules.flatMap((schedule) =>
-                  schedule.students.map((student) => (
+                {showFilters && (
+                  <div className="pt-2">
+                    <div className="flex gap-2 justify-end">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">
+                          School Year
+                        </label>
+                        <select
+                          className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+                          value={selectedSchoolYear}
+                          onChange={(e) =>
+                            setSelectedSchoolYear(e.target.value)
+                          }
+                        >
+                          <option value="All">All</option>
+                          {uniqueSchoolYears.map((sy) => (
+                            <option key={sy} value={String(sy)}>
+                              {sy}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">Branch</label>
+                        <select
+                          className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-28"
+                          value={selectedBranch}
+                          onChange={(e) => setSelectedBranch(e.target.value)}
+                        >
+                          <option value="All">All</option>
+                          {uniqueBranches.map((b) => (
+                            <option key={b} value={b}>
+                              {b}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0 z-[1]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Year Level
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Semester / SY
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Branch
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Scholarship Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Disbursement Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {filteredRows.map(({ schedule, student }, idx) => (
                     <tr
                       key={`${schedule.disb_sched_id}-${student.student_id}`}
-                      className="hover:bg-gray-50"
+                      className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                         {student.student_id}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
                         {student.scholar_name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                         {student.yr_lvl}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                         {student.semester} - {student.school_year}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {student.campus}
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {schedule.branch_code}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
                             student.scholarship_status === "ACTIVE"
@@ -484,16 +649,16 @@ function DetailedTracking() {
                           {student.scholarship_status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                         {getStatusBadge(student.disbursement_status)}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
