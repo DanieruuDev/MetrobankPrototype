@@ -146,7 +146,7 @@ function App() {
           />
 
           <Route
-            path="/tracking/detailed/:disbursement_id"
+            path="/tracking/detailed/:sched_id"
             element={
               <PrivateRoute
                 allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}

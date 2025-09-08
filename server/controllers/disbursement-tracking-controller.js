@@ -25,11 +25,11 @@ const getTrackingSummary = async (req, res) => {
 };
 
 const getTrackingDetailed = async (req, res) => {
-  const { disb_sched_id } = req.params;
+  const { sched_id } = req.params;
   try {
     const result = await pool.query(
-      `SELECT * FROM vw_tracking_detailed WHERE disb_sched_id = $1`,
-      [disb_sched_id]
+      `SELECT * FROM vw_tracking_detailed WHERE sched_id = $1`,
+      [sched_id]
     );
     res.status(200).json(result.rows);
   } catch (error) {

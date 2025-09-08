@@ -8,36 +8,64 @@ import { useSidebar } from "../../../context/SidebarContext";
 import * as XLSX from "xlsx";
 import { ArrowLeft } from "lucide-react";
 
-interface ITrackingDetailed {
-  amount: string;
-  branch: string;
-  disb_sched_id: number;
-  disb_title: string;
-  disbursement_date: string;
-  quantity: number;
-  scholar_name: string;
-  scholarship_status: string;
-  status: string;
+interface ITrackingStudent {
   student_id: number;
-  disbursement_label: string;
+  scholar_name: string;
+  course: string;
+  campus: string;
+  scholarship_status: string;
+
+  // academic basis from renewal_scholar
+  yr_lvl: number;
+  semester: number;
+  school_year: number;
+
+  // disbursement details
+  disbursement_status: string;
+  required_hours: number | null;
+  completed_at: string | null;
+  disbursement_amount: number | null;
 }
 
-// Define types for status styles
+interface ITrackingDisbursement {
+  disb_sched_id: number;
+  branch_code: string;
+  disbursement_type_id: number;
+  disbursement_label: string;
+  students: ITrackingStudent[];
+}
+
+interface ITrackingDetailed {
+  sched_id: number;
+  sched_title: string;
+  event_type: number;
+  schedule_status: string;
+  schedule_due: string;
+  event_start_date: string;
+  event_description: string;
+  requester: number;
+
+  // event-level academic info
+  event_sy_code: number;
+  event_semester_code: number;
+
+  disbursement_schedules: ITrackingDisbursement[];
+}
+
 type ScholarshipStatus = "ACTIVE" | "INACTIVE" | "PENDING";
 type DisbursementStatus =
   | "Completed"
   | "In Progress"
   | "Not Started"
   | "Cancelled";
-type StatusStyles = Record<
-  ScholarshipStatus | DisbursementStatus,
-  {
-    fill: { fgColor: { rgb: string } };
-  }
->;
+type StatusStyle = {
+  fill?: { fgColor: { rgb: string } };
+};
+
+type StatusStyles = Record<ScholarshipStatus | DisbursementStatus, StatusStyle>;
 
 function DetailedTracking() {
-  const { disbursement_id } = useParams<{ disbursement_id: string }>();
+  const { sched_id } = useParams<{ sched_id: string }>();
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
@@ -45,13 +73,13 @@ function DetailedTracking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
-
+  console.log(sched_id);
   useEffect(() => {
     const fetchTrackingDetailed = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get<ITrackingDetailed[]>(
-          `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
+        const response = await axios.get(
+          `http://localhost:5000/api/disbursement/tracking/${sched_id}`
         );
         console.log(response.data);
         setTrackingDetailed(response.data);
@@ -63,16 +91,16 @@ function DetailedTracking() {
     };
 
     fetchTrackingDetailed();
-  }, [disbursement_id]);
+  }, [sched_id]);
 
   const handleComplete = async () => {
     try {
       setIsCompleting(true);
       await axios.put(
-        `http://localhost:5000/api/disbursement/tracking/complete/${disbursement_id}`
+        `http://localhost:5000/api/disbursement/tracking/complete/${sched_id}`
       );
       const response = await axios.get<ITrackingDetailed[]>(
-        `http://localhost:5000/api/disbursement/tracking/${disbursement_id}`
+        `http://localhost:5000/api/disbursement/tracking/${sched_id}`
       );
       setTrackingDetailed(response.data);
     } catch (error) {
@@ -87,9 +115,9 @@ function DetailedTracking() {
 
     const scheduleInfo = trackingDetailed[0];
 
-    // ============= STYLE DEFINITIONS =============
+    // ===== STYLE DEFINITIONS =====
     const headerStyle = {
-      fill: { fgColor: { rgb: "2F5597" } }, // Dark blue background
+      fill: { fgColor: { rgb: "2F5597" } },
       font: { bold: true, color: { rgb: "FFFFFF" }, name: "Calibri", size: 11 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -101,7 +129,7 @@ function DetailedTracking() {
     };
 
     const titleStyle = {
-      fill: { fgColor: { rgb: "BDD7EE" } }, // Light blue background
+      fill: { fgColor: { rgb: "BDD7EE" } },
       font: { bold: true, size: 14, name: "Calibri" },
       alignment: { horizontal: "center" },
       border: {
@@ -123,194 +151,141 @@ function DetailedTracking() {
       },
     };
 
-    const currencyStyle = {
-      ...dataStyle,
-      numFmt: '"₱"#,##0.00', // Peso sign with comma formatting
-    };
-
-    // Status-specific styles
     const statusStyles: StatusStyles = {
-      ACTIVE: { fill: { fgColor: { rgb: "FFFF00" } } }, // Yellow
-      INACTIVE: { fill: { fgColor: { rgb: "FFC000" } } }, // Orange
-      PENDING: { fill: { fgColor: { rgb: "FFE699" } } }, // Light Yellow
-      Completed: { fill: { fgColor: { rgb: "92D050" } } }, // Green
-      "In Progress": { fill: { fgColor: { rgb: "00B0F0" } } }, // Blue
-      "Not Started": { fill: { fgColor: { rgb: "FF0000" } } }, // Red
-      Cancelled: { fill: { fgColor: { rgb: "7030A0" } } }, // Purple
+      ACTIVE: { fill: { fgColor: { rgb: "FFFF00" } } },
+      INACTIVE: { fill: { fgColor: { rgb: "FFC000" } } },
+      PENDING: { fill: { fgColor: { rgb: "FFE699" } } },
+      Completed: { fill: { fgColor: { rgb: "92D050" } } },
+      "In Progress": { fill: { fgColor: { rgb: "00B0F0" } } },
+      "Not Started": { fill: { fgColor: { rgb: "FF0000" } } },
+      Cancelled: { fill: { fgColor: { rgb: "7030A0" } } },
     };
 
-    // Helper to get style safely
-    const getStatusStyle = (status: string) =>
-      statusStyles[status as ScholarshipStatus | DisbursementStatus] || {};
+    const getStatusStyle = (status: string): StatusStyle =>
+      statusStyles[status as keyof StatusStyles] ?? {};
 
-    // ============= PREPARE DATA =============
-    // Student Data with styles
+    // ===== PREPARE STUDENT DATA =====
+    // Flatten and deduplicate students
+    const uniqueStudents = Object.values(
+      scheduleInfo.disbursement_schedules
+        .flatMap((ds) =>
+          ds.students.map((student) => ({
+            ...student,
+            disbursement_label: ds.disbursement_label,
+            branch_code: ds.branch_code,
+          }))
+        )
+        .reduce((acc, student) => {
+          acc[student.student_id] = student;
+          return acc;
+        }, {} as Record<number, ITrackingStudent & { disbursement_label: string; branch_code: string }>)
+    );
+
     const studentData = [
       // Header row
       [
         { v: "Student ID", t: "s", s: headerStyle },
         { v: "Name", t: "s", s: headerStyle },
+        { v: "Year Level", t: "s", s: headerStyle },
+        { v: "Course", t: "s", s: headerStyle },
+        { v: "Campus", t: "s", s: headerStyle },
         { v: "Scholarship Status", t: "s", s: headerStyle },
-        { v: "Amount", t: "s", s: headerStyle },
         { v: "Disbursement Status", t: "s", s: headerStyle },
+        { v: "Disbursement Label", t: "s", s: headerStyle },
+        { v: "Branch", t: "s", s: headerStyle },
       ],
       // Data rows
-      ...trackingDetailed.map((student, index) => {
-        // Alternate row color
+      ...uniqueStudents.map((student, index) => {
         const rowStyle =
           index % 2 === 0
             ? { ...dataStyle, fill: { fgColor: { rgb: "FFFFFF" } } }
             : { ...dataStyle, fill: { fgColor: { rgb: "F2F2F2" } } };
 
-        const scholarshipStyle = getStatusStyle(student.scholarship_status);
-        const disbursementStyle = getStatusStyle(student.status);
-
         return [
           { v: student.student_id, t: "n", s: rowStyle },
           { v: student.scholar_name, t: "s", s: rowStyle },
+          { v: student.yr_lvl, t: "s", s: rowStyle },
+          { v: student.course, t: "s", s: rowStyle },
+          { v: student.campus, t: "s", s: rowStyle },
           {
             v: student.scholarship_status,
             t: "s",
-            s: { ...rowStyle, ...scholarshipStyle },
+            s: { ...rowStyle, ...getStatusStyle(student.scholarship_status) },
           },
           {
-            v: Number(student.amount),
-            t: "n",
-            s: { ...currencyStyle, ...rowStyle },
-          },
-          {
-            v: student.status,
+            v: student.disbursement_status,
             t: "s",
-            s: { ...rowStyle, ...disbursementStyle },
+            s: { ...rowStyle, ...getStatusStyle(student.disbursement_status) },
           },
+          { v: student.disbursement_label, t: "s", s: rowStyle },
+          { v: student.branch_code, t: "s", s: rowStyle },
         ];
       }),
     ];
 
-    // Summary Information with branch and disbursement label added
+    // ===== SUMMARY INFO =====
     const summaryInfo = [
-      [{ v: "Disbursement Information", t: "s", s: titleStyle, $colSpan: 5 }],
+      [{ v: "Schedule Information", t: "s", s: titleStyle, $colSpan: 9 }],
       [
         { v: "Title:", t: "s", s: { ...dataStyle, font: { bold: true } } },
-        { v: scheduleInfo.disb_title, t: "s", s: dataStyle, $colSpan: 4 },
+        { v: scheduleInfo.sched_title, t: "s", s: dataStyle, $colSpan: 8 },
       ],
       [
-        { v: "Date:", t: "s", s: { ...dataStyle, font: { bold: true } } },
+        { v: "Due Date:", t: "s", s: { ...dataStyle, font: { bold: true } } },
         {
-          v: new Date(scheduleInfo.disbursement_date).toLocaleDateString(
-            "en-US",
-            {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              weekday: "long",
-            }
-          ),
+          v: new Date(scheduleInfo.schedule_due).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
           t: "s",
           s: dataStyle,
-          $colSpan: 4,
+          $colSpan: 8,
         },
       ],
       [
         { v: "Status:", t: "s", s: { ...dataStyle, font: { bold: true } } },
         {
-          v: scheduleInfo.status,
+          v: scheduleInfo.schedule_status,
           t: "s",
-          s: { ...dataStyle, ...getStatusStyle(scheduleInfo.status) },
-          $colSpan: 4,
+          s: { ...dataStyle, ...getStatusStyle(scheduleInfo.schedule_status) },
+          $colSpan: 8,
         },
-      ],
-      // Add Branch row
-      [
-        { v: "Branch:", t: "s", s: { ...dataStyle, font: { bold: true } } },
-        {
-          v: scheduleInfo.branch.replace("-", " "),
-          t: "s",
-          s: dataStyle,
-          $colSpan: 4,
-        },
-      ],
-      // Add Disbursement Label row
-      [
-        {
-          v: "Disbursement Label:",
-          t: "s",
-          s: { ...dataStyle, font: { bold: true } },
-        },
-        {
-          v: scheduleInfo.disbursement_label || "",
-          t: "s",
-          s: dataStyle,
-          $colSpan: 4,
-        },
-      ],
-      [{ v: "Financial Details", t: "s", s: titleStyle, $colSpan: 5 }],
-      [
-        {
-          v: "Amount per student:",
-          t: "s",
-          s: { ...dataStyle, font: { bold: true } },
-        },
-        { v: Number(scheduleInfo.amount), t: "n", s: currencyStyle },
-        { v: "", t: "s", s: dataStyle },
-        {
-          v: "Total Students:",
-          t: "s",
-          s: { ...dataStyle, font: { bold: true } },
-        },
-        { v: scheduleInfo.quantity, t: "n", s: dataStyle },
-      ],
-      [
-        {
-          v: "Total Amount:",
-          t: "s",
-          s: { ...dataStyle, font: { bold: true } },
-        },
-        {
-          v: Number(scheduleInfo.amount) * scheduleInfo.quantity,
-          t: "n",
-          s: currencyStyle,
-        },
-        { v: "", t: "s", s: dataStyle, $colSpan: 3 },
       ],
     ];
 
-    // Combine all rows into full data
+    // ===== COMBINE DATA =====
     const fullData = [...summaryInfo, ...studentData];
-
-    // Create worksheet
     const ws = XLSX.utils.aoa_to_sheet(fullData);
 
-    // Set column widths
+    // Column widths
     ws["!cols"] = [
-      { wch: 15 }, // Student ID
-      { wch: 35 }, // Name
-      { wch: 25 }, // Scholarship Status
-      { wch: 20 }, // Amount
-      { wch: 25 }, // Disbursement Status
+      { wch: 12 },
+      { wch: 30 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 15 },
     ];
 
-    // Merge title cells
-    ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Disbursement Info title
-      { s: { r: 6, c: 0 }, e: { r: 6, c: 4 } }, // Financial Details title
-    ];
+    // Merge cells for titles
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
 
-    // Create workbook and append sheet
+    // Workbook + save
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Disbursement Report");
+    XLSX.utils.book_append_sheet(wb, ws, "Tracking Report");
 
-    // Format filename safe for use
-    const fileName = `Disbursement_${scheduleInfo.disb_title.replace(
+    const fileName = `Tracking_${scheduleInfo.sched_title.replace(
       /\s+/g,
       "_"
-    )}_${disbursement_id}.xlsx`;
+    )}_${scheduleInfo.sched_id}.xlsx`;
 
-    // Export file
     XLSX.writeFile(wb, fileName);
   };
 
-  // ... (rest of your component code remains exactly the same)
   const getStatusBadge = (status: string) => {
     const statusClasses = {
       "Not Started": "bg-gray-200 text-gray-800",
@@ -360,9 +335,7 @@ function DetailedTracking() {
       } transition-[padding-left] duration-300  bg-gray-50`}
     >
       <Navbar pageName="Disbursement Tracking" />
-
       <Sidebar />
-
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -376,14 +349,16 @@ function DetailedTracking() {
               />
             </button>
             <span className="text-gray-600 text-sm pb-4 ml-1">
-              ID: {disbursement_id}
+              ID: {sched_id}
             </span>
           </div>
           <div className="flex space-x-2">
             <button
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:bg-green-300"
               onClick={handleComplete}
-              disabled={isCompleting || scheduleInfo?.status === "Completed"}
+              disabled={
+                isCompleting || scheduleInfo?.schedule_status === "Completed"
+              }
             >
               {isCompleting ? (
                 <>
@@ -412,71 +387,28 @@ function DetailedTracking() {
               <div className="space-y-2">
                 <div>
                   <p className="text-lg font-semibold">
-                    {scheduleInfo.disb_title}
+                    {scheduleInfo.sched_title}
                   </p>
                   <p className="text-[14px] mb-2 font-semibold">
-                    Type: {scheduleInfo.disbursement_label}
+                    Type:{" "}
+                    {scheduleInfo.disbursement_schedules[0].disbursement_label}
                   </p>
                   <p className="text-gray-600 text-sm">
-                    {new Date(
-                      scheduleInfo.disbursement_date
-                    ).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      weekday: "long",
-                    })}
+                    {new Date(scheduleInfo.schedule_due).toLocaleDateString(
+                      "en-US",
+                      {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        weekday: "long",
+                      }
+                    )}
                   </p>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Status:</span>
-                  {getStatusBadge(scheduleInfo.status)}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <h3 className="font-medium text-gray-500 mb-2">
-                Financial Details
-              </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Amount per student:</span>
-                  <span className="font-medium">
-                    ₱{Number(scheduleInfo.amount).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Total students:</span>
-                  <span className="font-medium">{scheduleInfo.quantity}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-gray-100">
-                  <span className="text-gray-500">Total amount:</span>
-                  <span className="font-medium text-blue-600">
-                    ₱
-                    {(
-                      Number(scheduleInfo.amount) * scheduleInfo.quantity
-                    ).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-              <h3 className="font-medium text-gray-500 mb-2">
-                Branch Information
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="font-medium capitalize">
-                    {scheduleInfo.branch}
-                  </p>
-                </div>
-                <div className="text-sm text-gray-500">
-                  <p>
-                    All students in this disbursement are from the same branch
-                  </p>
+                  {getStatusBadge(scheduleInfo.schedule_status)}
                 </div>
               </div>
             </div>
@@ -501,10 +433,16 @@ function DetailedTracking() {
                     Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scholarship Status
+                    Year Level
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    Semester / SY
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Branch
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Scholarship Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Disbursement Status
@@ -512,33 +450,46 @@ function DetailedTracking() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {trackingDetailed.map((student) => (
-                  <tr key={student.student_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {student.student_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {student.scholar_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          student.scholarship_status === "Active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {student.scholarship_status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ₱{Number(student.amount).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {getStatusBadge(student.status)}
-                    </td>
-                  </tr>
-                ))}
+                {scheduleInfo.disbursement_schedules.flatMap((schedule) =>
+                  schedule.students.map((student) => (
+                    <tr
+                      key={`${schedule.disb_sched_id}-${student.student_id}`}
+                      className="hover:bg-gray-50"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {student.student_id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.scholar_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.yr_lvl}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.semester} - {student.school_year}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {student.campus}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            student.scholarship_status === "ACTIVE"
+                              ? "bg-green-100 text-green-800"
+                              : student.scholarship_status === "PENDING"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {student.scholarship_status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getStatusBadge(student.disbursement_status)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
