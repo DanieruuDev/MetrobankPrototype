@@ -97,22 +97,24 @@ function Approval({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Completed":
-        return "bg-green-500";
-      case "Current": // Add this case
-        return "bg-blue-500";
-      case "Pending":
-        return "bg-yellow-400";
-      case "In Progress":
-        return "bg-blue-500";
-      case "Missed":
-        return "bg-red-500";
-      default:
-        return "bg-gray-400";
-    }
-  };
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case "Completed":
+  //       return "bg-green-500";
+  //     case "Current": // Add this case
+  //       return "bg-blue-500";
+  //     case "Pending":
+  //       return "bg-yellow-400";
+  //     case "In Progress":
+  //       return "bg-blue-500";
+  //     case "Missed":
+  //       return "bg-red-500";
+  //     case "Reject":
+  //       return "bg-red-600";
+  //     default:
+  //       return "bg-gray-400";
+  //   }
+  // };
 
   const getStatusTextColor = (status: string) => {
     switch (status) {
@@ -126,6 +128,8 @@ function Approval({
         return "text-blue-600";
       case "Missed":
         return "text-red-600";
+      case "Reject":
+        return "text-red-700";
       default:
         return "text-gray-600";
     }
@@ -218,6 +222,8 @@ function Approval({
                         ? "bg-yellow-100 text-yellow-800"
                         : workflow?.status === "In Progress"
                         ? "bg-blue-100 text-blue-800"
+                        : workflow?.status === "Failed"
+                        ? "bg-red-100 text-red-800"
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
@@ -282,16 +288,29 @@ function Approval({
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
                       <div>
-                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                          {Math.round(calculateCompletionPercentage())}%
-                          Complete
-                        </span>
+                        {workflow.status === "Failed" ? (
+                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-red-600 bg-red-200">
+                            Failed
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                            {Math.round(calculateCompletionPercentage())}%
+                            Complete
+                          </span>
+                        )}
                       </div>
                     </div>
+
                     <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
                       <div
-                        style={{ width: `${calculateCompletionPercentage()}%` }}
-                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
+                        style={{
+                          width:
+                            workflow.status === "Failed"
+                              ? "100%" // always fill bar for failed
+                              : `${calculateCompletionPercentage()}%`,
+                        }}
+                        className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500
+        ${workflow.status === "Failed" ? "bg-red-500" : "bg-blue-500"}`}
                       ></div>
                     </div>
                   </div>
@@ -340,14 +359,13 @@ function Approval({
                         (approver) => approver.approver_status !== "Replaced"
                       )
                       .map((approver) => {
-                        const isCompleted =
-                          approver.approver_status === "Completed";
+                        const isApproved = approver.response === "Approved";
+                        const isRejected = approver.response === "Reject";
                         const isCurrent = approver.is_current;
                         const displayStatus = isCurrent
                           ? "Current"
                           : approver.approver_status;
                         const isPending = displayStatus === "Pending";
-                        const isMissed = displayStatus === "Missed";
 
                         return (
                           <div
@@ -357,19 +375,21 @@ function Approval({
                             {/* Step indicator */}
                             <div
                               className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white ${
-                                isCompleted
+                                isApproved
                                   ? "bg-green-500"
                                   : isCurrent
                                   ? "bg-blue-500 animate-pulse"
                                   : isPending
                                   ? "bg-yellow-400"
-                                  : isMissed
+                                  : isRejected
                                   ? "bg-red-500"
                                   : "bg-gray-400"
                               }`}
                             >
-                              {isCompleted ? (
+                              {isApproved ? (
                                 <Check className="w-5 h-5 text-white" />
+                              ) : isRejected ? (
+                                <X className="w-5 h-5 text-white" />
                               ) : (
                                 <span className="text-white font-medium">
                                   {approver.approver_order}
@@ -388,22 +408,22 @@ function Approval({
                               <div
                                 className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
                                   expandedApproverId === approver.approver_id
-                                    ? isCompleted
+                                    ? isApproved
                                       ? "bg-green-50 border-green-100"
                                       : isCurrent
                                       ? "bg-blue-50 border-blue-100"
                                       : isPending
                                       ? "bg-yellow-50 border-yellow-100"
-                                      : isMissed
+                                      : isRejected
                                       ? "bg-red-50 border-red-100"
                                       : "bg-gray-50 border-gray-100"
-                                    : isCompleted
+                                    : isApproved
                                     ? "bg-green-50 border-green-100"
                                     : isCurrent
                                     ? "bg-blue-50 border-blue-100"
                                     : isPending
                                     ? "bg-yellow-50 border-yellow-100"
-                                    : isMissed
+                                    : isRejected
                                     ? "bg-red-50 border-red-100"
                                     : "bg-gray-50 border-gray-100"
                                 }`}
@@ -436,28 +456,29 @@ function Approval({
                                     <div className="flex items-center">
                                       <div
                                         className={`flex items-center px-2 py-0.5 rounded-full ${
-                                          isCompleted
+                                          isApproved
                                             ? "bg-green-100"
                                             : isCurrent
                                             ? "bg-blue-100"
                                             : isPending
                                             ? "bg-yellow-100"
-                                            : isMissed
+                                            : isRejected
                                             ? "bg-red-100"
                                             : "bg-gray-100"
                                         }`}
                                       >
                                         <span
-                                          className={`w-2 h-2 rounded-full mr-1.5 flex-shrink-0 ${getStatusColor(
-                                            displayStatus
-                                          )}`}
-                                        ></span>
-                                        <span
                                           className={`text-sm font-medium ${getStatusTextColor(
-                                            displayStatus
+                                            displayStatus === "Completed" &&
+                                              approver.response === "Reject"
+                                              ? "Reject"
+                                              : displayStatus
                                           )}`}
                                         >
-                                          {displayStatus}
+                                          {displayStatus === "Completed" &&
+                                          approver.response
+                                            ? approver.response // show "Approved" or "Reject"
+                                            : displayStatus}
                                         </span>
                                       </div>
                                     </div>
@@ -488,23 +509,7 @@ function Approval({
                                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                                         Approval Details
                                       </h4>
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                          <p className="text-xs text-gray-500">
-                                            Response
-                                          </p>
-                                          <p
-                                            className={`font-medium ${
-                                              approver.response === "Approved"
-                                                ? "text-green-600"
-                                                : approver.response === "Reject"
-                                                ? "text-red-600"
-                                                : "text-yellow-600"
-                                            }`}
-                                          >
-                                            {approver.response || "Pending"}
-                                          </p>
-                                        </div>
+                                      <div className="grid grid-cols-2 gap-4 items-center">
                                         {approver.response_time && (
                                           <div>
                                             <p className="text-xs text-gray-500">
@@ -517,44 +522,46 @@ function Approval({
                                             </p>
                                           </div>
                                         )}
+                                        {approver.comment && (
+                                          <div className="mt-3">
+                                            <p className="text-xs text-gray-500">
+                                              Comment
+                                            </p>
+                                            <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded">
+                                              {approver.comment}
+                                            </p>
+                                          </div>
+                                        )}
                                       </div>
-                                      {approver.comment && (
-                                        <div className="mt-3">
-                                          <p className="text-xs text-gray-500">
-                                            Comment
-                                          </p>
-                                          <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded">
-                                            {approver.comment}
-                                          </p>
-                                        </div>
-                                      )}
                                     </div>
                                   )}
 
                                   {/* Change approver button */}
-                                  {approver.approver_status !== "Completed" && (
-                                    <button
-                                      className="w-full px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-100"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openModal(approver);
-                                      }}
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4 mr-2"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
+                                  {approver.approver_status !== "Completed" &&
+                                    approver.response !== "Reject" &&
+                                    approver.approver_status !== "Canceled" && (
+                                      <button
+                                        className="w-full px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-100"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openModal(approver);
+                                        }}
                                       >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                      Change Approver
-                                    </button>
-                                  )}
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          className="h-4 w-4 mr-2"
+                                          viewBox="0 0 20 20"
+                                          fill="currentColor"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                        Change Approver
+                                      </button>
+                                    )}
                                 </div>
                               )}
                             </div>

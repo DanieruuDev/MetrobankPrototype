@@ -32,6 +32,8 @@ export const approverStatusBadge = (status: string) => {
       return "bg-red-200 text-red-900";
     case "Replaced":
       return "bg-gray-200 text-gray-800";
+    case "Canceled":
+      return "bg-gray-300 text-gray-800";
   }
 };
 // export const approverStatusText = (status: string) => {};

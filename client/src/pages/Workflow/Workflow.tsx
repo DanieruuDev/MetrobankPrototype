@@ -6,7 +6,15 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import Approval from "./SpecificApproval/Approval";
 import Request from "./Request";
-import { CheckSquare, ClipboardList, Plus, Search, Trash2 } from "lucide-react";
+import {
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import CreateApproval from "../../components/approval/CreateApproval";
 import { formatDate } from "../../utils/DateConvertionFormat";
@@ -95,6 +103,8 @@ function Workflow() {
   const [totalPage, setTotalPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("my-workflows");
+  const [isOpen, setIsOpen] = useState(false);
+
   const statuses = [
     { label: "All" },
     { label: "Not Started", color: "gray" },
@@ -268,22 +278,45 @@ function Workflow() {
             <>
               <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
                 {/* Status Bar */}
-                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
-                  {statuses.map((status) => {
-                    const isActive = activeStatus === status.label;
-                    return (
-                      <button
-                        key={status.label}
-                        onClick={() => setActiveStatus(status.label)}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${getColorClass(
-                          status.label,
-                          isActive
-                        )}`}
-                      >
-                        {status.label}
-                      </button>
-                    );
-                  })}
+
+                <div className="flex items-center gap-2">
+                  {/* Toggle */}
+
+                  {/* Status buttons */}
+                  <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+                    {statuses
+                      .filter(
+                        (s) =>
+                          isOpen ||
+                          s.label === "Not Started" ||
+                          s.label === "All"
+                      )
+                      .map((status) => {
+                        const isActive = activeStatus === status.label;
+                        return (
+                          <button
+                            key={status.label}
+                            onClick={() => setActiveStatus(status.label)}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${getColorClass(
+                              status.label,
+                              isActive
+                            )}`}
+                          >
+                            {status.label}
+                          </button>
+                        );
+                      })}
+                  </div>
+                  <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    {isOpen ? (
+                      <ChevronLeft size={16} strokeWidth={3.0} />
+                    ) : (
+                      <ChevronRight size={16} strokeWidth={3.0} />
+                    )}
+                  </button>
                 </div>
 
                 {/* Right Side Controls: Search, Filter, Create */}

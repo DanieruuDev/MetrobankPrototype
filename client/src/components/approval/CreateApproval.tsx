@@ -46,6 +46,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     semester_code: "",
     sy_code: "",
     approval_req_type: "",
+    request_type_ids: [],
   });
 
   const steps = [

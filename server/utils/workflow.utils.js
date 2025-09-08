@@ -108,7 +108,7 @@ const insertApprovers = async (
   return approverQueries;
 };
 
-async function insertWorkflowLog(
+const insertWorkflowLog = async (
   client,
   workflow_id,
   actor_id,
@@ -117,7 +117,7 @@ async function insertWorkflowLog(
   old_status,
   new_status,
   comments = null
-) {
+) => {
   const query = `
     INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, old_status, new_status, comments, change_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
@@ -131,7 +131,30 @@ async function insertWorkflowLog(
     new_status,
     comments,
   ]);
-}
+};
+
+const checkReject = async (client, workflowId) => {
+  try {
+    const res = await client.query("SELECT * FROM check_reject($1)", [
+      workflowId,
+    ]);
+
+    await insertWorkflowLog(
+      client,
+      workflowId,
+      res.rows[0].user_id,
+      "System",
+      "Canceled",
+      "Pending",
+      "Canceled",
+      "Workflow has been canceled"
+    );
+    return res.rows; // contains workflow + rejecting approver details
+  } catch (error) {
+    console.error("Error in checkReject:", error);
+    throw error;
+  }
+};
 
 module.exports = {
   checkWorkflowExists,
@@ -140,4 +163,5 @@ module.exports = {
   fetchRequester,
   insertApprovers,
   insertWorkflowLog,
+  checkReject,
 };

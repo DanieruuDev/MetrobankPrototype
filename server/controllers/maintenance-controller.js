@@ -73,6 +73,21 @@ const getValidSYSem = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch SY-Semester" });
   }
 };
+const getWfRequestType = async (req, res) => {
+  try {
+    const response = await pool.query(
+      "SELECT * FROM wf_request_type_maintenance"
+    );
+    res.status(200).json({ success: true, data: response.rows });
+  } catch (error) {
+    console.error("Error fetching Workflow Request:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch Workflow Request",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   getSchoolYear,
@@ -80,4 +95,5 @@ module.exports = {
   getBranch,
   getSemester,
   getValidSYSem,
+  getWfRequestType,
 };

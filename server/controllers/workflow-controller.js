@@ -16,6 +16,7 @@ const {
   insertApprovers,
   fetchRequester,
   insertWorkflowLog,
+  checkReject,
 } = require("../utils/workflow.utils.js");
 
 //get specific approval (author id/ workflow id)
@@ -439,11 +440,9 @@ const fetchApproverApprovalList = async (req, res) => {
   }
 
   try {
-    // fetch all workflows
     const query = `SELECT * FROM vw_approver_workflows`;
     const { rows } = await pool.query(query);
 
-    // filter only those where approvers array contains this user_id
     const filtered = rows.filter((row) =>
       row.approvers.some((appr) => appr.user_id === parseInt(user_id))
     );
@@ -679,6 +678,7 @@ const approveApproval = async (req, res) => {
         SET status = 'Failed', completed_at = NOW()
         WHERE workflow_id = $1
       `;
+      await checkReject(client, workflow_id);
       await client.query(updateWorkflowQuery, [workflow_id]);
       console.log("Workflow marked as rejected.");
 

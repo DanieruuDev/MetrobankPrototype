@@ -63,13 +63,13 @@ export interface ApproverDetailedView {
   approver_role_name: string;
   workflow_id: number;
   approver_order: number;
-  approver_status: string;
+  approver_status: string; // Pending, Completed, Missed, Replaced
   workflow_status: string;
+  completed_at: string;
   description: string;
   approver_due_date: string; // ISO string
   assigned_at: string; // ISO string
   is_reassigned: boolean;
-  is_current: boolean;
   requester_id: number;
   requester_name: string;
   requester_role: string;
@@ -77,7 +77,6 @@ export interface ApproverDetailedView {
   date_started: string; // ISO string
   due_date: string; // ISO string
   school_year: string;
-  year_level: string;
   semester: string;
   request_title: string;
   doc_id: number;
@@ -86,7 +85,7 @@ export interface ApproverDetailedView {
   file_path: string;
   file_size: number;
   document_uploaded_at: string; // ISO string
-  approver_response: string;
+  approver_response: string; // Approved | Reject | Pending
   approver_comment: string | null;
   response_time: string | null; // ISO string or null
 
@@ -97,12 +96,15 @@ export interface ApproverDetailedView {
   approval_progress: Array<{
     approver_name: string;
     approver_role: string;
-    approval_status: string;
-    approval_time: string | null;
-    response: string;
+    approval_status: string; // Completed | Pending | Missed | Replaced
+    approval_time: string | null; // ISO string
     approver_order: number;
+    response: string | null; // Approved | Reject | null
     comment: string | null;
+    user_id: number;
   }>;
+
+  // NEW: fetched directly from query
   current_approver: string | null;
 }
 
@@ -138,6 +140,8 @@ export interface ApproverInfo {
   approver_order: number;
   is_current: boolean;
   approver_status: string;
+  completed_at: string;
+  approver_due_date: string;
 }
 export interface WorkflowApprovalList {
   workflow_id: number;
@@ -146,6 +150,7 @@ export interface WorkflowApprovalList {
   workflow_status: string;
   created_by: string;
   approvers: ApproverInfo[];
+  completed_at: string;
 }
 
 export interface WorkflowFormData {
@@ -158,6 +163,7 @@ export interface WorkflowFormData {
   sy_code: string;
   semester_code: string;
   approval_req_type: string;
+  request_type_ids: string[];
 }
 export interface WFApprover {
   email: string;

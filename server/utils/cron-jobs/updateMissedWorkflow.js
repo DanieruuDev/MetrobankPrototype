@@ -7,7 +7,7 @@ const updateMissedWorkflows = async () => {
       SET status = 'Missed'
       WHERE due_date < CURRENT_DATE
         AND completed_at IS NULL
-        AND status NOT IN ('Completed', 'Missed');
+        AND status NOT IN ('Completed', 'Missed', 'Failed');
     `);
     console.log(`[CRON] Missed workflows updated: ${result.rowCount} row(s)`);
   } catch (error) {
