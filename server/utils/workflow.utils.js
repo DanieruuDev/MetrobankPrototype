@@ -1,4 +1,5 @@
 const { sendApproverAddedEmail } = require("./emailing");
+const { createNotification } = require("../services/notificationService");
 const checkWorkflowExists = async (
   client,
   approval_req_type,
@@ -133,23 +134,51 @@ const insertWorkflowLog = async (
   ]);
 };
 
-const checkReject = async (client, workflowId) => {
+const checkReject = async (client, workflowId, workflowDetailsForEmail) => {
   try {
-    const res = await client.query("SELECT * FROM check_reject($1)", [
+    // 1️⃣ Get the rejector (existing function)
+    const rejectResult = await client.query("SELECT * FROM check_reject($1)", [
       workflowId,
     ]);
 
+    const rejector = rejectResult.rows[0];
+    if (!rejector) return []; // no rejection found
+
+    console.log(rejector);
+    // Log the system cancellation
     await insertWorkflowLog(
       client,
       workflowId,
-      res.rows[0].user_id,
+      rejector.user_id,
       "System",
       "Canceled",
       "Pending",
       "Canceled",
       "Workflow has been canceled"
     );
-    return res.rows; // contains workflow + rejecting approver details
+
+    // 2️⃣ Get all canceled approvers for this workflow
+    const canceledResult = await client.query(
+      `SELECT user_id, user_email
+       FROM wf_approver
+       WHERE workflow_id = $1
+         AND status = 'Canceled'`,
+      [workflowId]
+    );
+
+    for (const canceled of canceledResult.rows) {
+      await createNotification({
+        type: "WORKFLOW_REJECTED",
+        title: "Workflow Canceled",
+        message: `Approval for "${workflowDetailsForEmail.request_title}" has been canceled due to a rejection.`,
+        relatedId: workflowId,
+        actorId: rejector.user_id, // the approver who rejected
+        actionRequired: false,
+        recipients: [{ approvers: { user_id: canceled.user_id } }],
+      });
+    }
+
+    return canceledResult.rows;
   } catch (error) {
     console.error("Error in checkReject:", error);
     throw error;

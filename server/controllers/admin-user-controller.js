@@ -96,7 +96,7 @@ const loginUser = async (req, res) => {
         role_name: user.role_name,
       },
       process.env.SECRET_KEY,
-      { expiresIn: "15min" }
+      { expiresIn: "1h" }
     );
 
     return res.status(200).json({ email: user.admin_email, token });

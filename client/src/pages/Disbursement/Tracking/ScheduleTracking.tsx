@@ -131,7 +131,8 @@ const ScheduleTracking = () => {
         <Navbar pageName="Disbursement Tracking" />
         <Sidebar />
         <div className="mt-5 px-4">
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
               {
                 label: "Completed",
@@ -168,30 +169,39 @@ const ScheduleTracking = () => {
             ].map((card, idx) => {
               const color =
                 card.label === "Completed"
-                  ? "text-green-500"
+                  ? "text-green-600"
                   : card.label === "In Progress"
-                  ? "text-yellow-500"
+                  ? "text-yellow-600"
                   : card.label === "Overdue"
-                  ? "text-red-500"
+                  ? "text-red-600"
                   : "text-gray-800";
 
               return (
                 <div
                   key={idx}
-                  className={`bg-white p-4 rounded-xl shadow flex items-center gap-4`}
+                  className={`bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4`}
                 >
-                  {card.icon && <div className={`${color}`}>{card.icon}</div>}
+                  {card.icon && (
+                    <div className={`${color} p-2 bg-gray-50 rounded-lg`}>
+                      {card.icon}
+                    </div>
+                  )}
                   <div>
-                    <div className={`text-sm ${color}`}>{card.label}</div>
-                    <div className="text-xl font-semibold">{card.value}</div>
+                    <div className={`text-xs font-medium ${color}`}>
+                      {card.label}
+                    </div>
+                    <div className="text-lg sm:text-xl font-semibold text-gray-900">
+                      {card.value}
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+          {/* Filters Bar */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit border border-gray-200">
               {["All", "Completed", "In Progress", "Overdue"].map((status) => {
                 const isActive = selectedStatus === status;
 
@@ -199,7 +209,7 @@ const ScheduleTracking = () => {
                   <button
                     key={status}
                     onClick={() => setSelectedStatus(status)}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${getColorClass(
+                    className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${getColorClass(
                       status,
                       isActive
                     )}`}
@@ -210,20 +220,20 @@ const ScheduleTracking = () => {
               })}
             </div>
 
-            <div className="flex items-center gap-2 ">
+            <div className="flex items-center gap-2">
               <div className="relative flex items-center">
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search by title..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-7 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent text-sm"
+                  className="pl-9 pr-7 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-sm bg-white"
                 />
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 {searchTerm && (
                   <button
                     onClick={handleClearSearch}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -234,81 +244,110 @@ const ScheduleTracking = () => {
             </div>
           </div>
 
-          <div>
-            <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
-              <thead className="bg-gray-100 text-sm text-gray-500">
-                <tr>
-                  <th className="py-2 px-4 text-left">Disbursement ID</th>
-                  <th className="py-2 px-4 text-left">Title</th>
-                  <th className="py-2 px-4 text-left">Disbursement Type</th>
-                  <th className="py-2 px-4 text-left">Schedule</th>
-                  <th className="py-2 px-4 text-left">Status</th>
-                  <th className="py-2 px-4 text-left">Total</th>
-                  <th className="py-2 px-4 text-left">Recipients</th>
-                  <th className="py-2 px-4"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSummary?.length === 0 ? (
+          {/* Table */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 text-xs text-gray-600 sticky top-0 z-10">
                   <tr>
-                    <td colSpan={8} className="text-center text-gray-500 py-8">
-                      {searchTerm
-                        ? `No disbursements found matching "${searchTerm}" in the "${selectedStatus}" category.`
-                        : `No disbursements found in the "${selectedStatus}" category.`}
-                    </td>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Schedule ID
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Title
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Schedule
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium uppercase tracking-wider">
+                      Recipients
+                    </th>
+                    <th className="px-6 py-3"></th>
                   </tr>
-                ) : (
-                  filteredSummary?.map((item) => (
-                    <tr
-                      key={item.disb_sched_id}
-                      className="border-b border-gray-300 py-4 text-[13px] font-medium text-gray-700"
-                    >
-                      <td className="py-3 px-4">{item.disb_sched_id}</td>
-                      <td className="py-3 px-4">{item.disb_title}</td>
-                      <td className="py-3 px-4">{item.disbursement_type}</td>
-                      <td className="py-3 px-4">
-                        {formatDate(item.disbursement_date)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {item.status.toLowerCase() === "completed" && (
-                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
-                            Completed
-                          </span>
-                        )}
-                        {item.status.toLowerCase() === "in progress" && (
-                          <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">
-                            In Progress
-                          </span>
-                        )}
-                        {item.status.toLowerCase() === "not started" && (
-                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                            Not Started
-                          </span>
-                        )}
-                        {item.status.toLowerCase() === "failed" && (
-                          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
-                            Failed
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4">{item.total}</td>
-                      <td className="py-3 px-4">{item.number_of_recipients}</td>
-                      <td className="py-3 text-blue-500 cursor-pointer font-semibold">
-                        <span
-                          className="border py-1 px-2 rounded-sm border-gray-400 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-200 transition-colors cursor-pointer"
-                          onClick={() => {
-                            handleTypeClick(item.disb_sched_id);
-                          }}
-                        >
-                          View Details
-                        </span>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredSummary?.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="text-center text-gray-500 py-12 text-sm"
+                      >
+                        {searchTerm
+                          ? `No disbursements found matching "${searchTerm}" in the "${selectedStatus}" category.`
+                          : `No disbursements found in the "${selectedStatus}" category.`}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredSummary?.map((item, index) => (
+                      <tr
+                        key={item.disb_sched_id}
+                        className={`${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        }`}
+                      >
+                        <td className="px-6 py-3 text-sm font-medium text-gray-900">
+                          {item.disb_sched_id}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-800">
+                          {item.disb_title}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-700">
+                          {item.disbursement_type}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-700">
+                          {formatDate(item.disbursement_date)}
+                        </td>
+                        <td className="px-6 py-3">
+                          {item.status.toLowerCase() === "completed" && (
+                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">
+                              Completed
+                            </span>
+                          )}
+                          {item.status.toLowerCase() === "in progress" && (
+                            <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
+                              In Progress
+                            </span>
+                          )}
+                          {item.status.toLowerCase() === "not started" && (
+                            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs">
+                              Not Started
+                            </span>
+                          )}
+                          {item.status.toLowerCase() === "failed" && (
+                            <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">
+                              Failed
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-800">
+                          {item.total}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-800">
+                          {item.number_of_recipients}
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <button
+                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md text-sm text-blue-700 hover:bg-blue-50"
+                            onClick={() => handleTypeClick(item.disb_sched_id)}
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

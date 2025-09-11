@@ -120,7 +120,7 @@ function Request() {
   const flattenApprovers = (requests: WorkflowApprovalList[]) =>
     requests.flatMap((workflow) => {
       const currentApprover = workflow.approvers.find(
-        (ap) => ap.is_current === true
+        (ap) => ap.is_current && ap.approver_status !== "Replaced"
       );
       return workflow.approvers.map((approver) => ({
         ...approver,
@@ -135,10 +135,12 @@ function Request() {
         current_approver_role: currentApprover
           ? currentApprover.approver_role
           : "—",
-        is_current_display: approver.is_current === true,
+        is_current_display:
+          approver.is_current && approver.approver_status !== "Replaced",
         completed_at: workflow.completed_at,
       }));
     });
+
   const dedupeByWorkflow = (arr: typeof allApproversOriginal) =>
     Array.from(new Map(arr.map((a) => [a.workflow_id, a])).values());
 
@@ -149,7 +151,7 @@ function Request() {
       (a) =>
         a.is_current &&
         a.approver_status !== "Completed" &&
-        a.approver_status !== "Replaced" &&
+        !(a.approver_status === "Replaced" && a.user_id === userId) &&
         a.approver_status !== "Missed" &&
         a.user_id === userId &&
         a.workflow_status !== "Failed"
@@ -161,11 +163,18 @@ function Request() {
       (a) =>
         !a.is_current &&
         a.approver_status !== "Completed" &&
-        a.approver_status !== "Replaced" &&
+        !(a.approver_status === "Replaced" && a.user_id === userId) &&
         a.approver_status !== "Missed" &&
-        a.workflow_status !== "Failed"
+        a.workflow_status !== "Failed" &&
+        a.approver_status === "Pending" &&
+        a.user_id === userId
     )
   );
+  allApproversOriginal.filter((a) => {
+    if (!(a.approver_status === "Replaced" && a.user_id === userId)) {
+      console.log(a);
+    }
+  });
 
   const completedTurnOriginal = dedupeByWorkflow(
     allApproversOriginal.filter(
@@ -181,7 +190,9 @@ function Request() {
   );
 
   const replacedOriginal = dedupeByWorkflow(
-    allApproversOriginal.filter((a) => a.approver_status === "Replaced")
+    allApproversOriginal.filter(
+      (a) => a.approver_status === "Replaced" && a.user_id === userId
+    )
   );
 
   const statuses = [
@@ -422,14 +433,17 @@ function Request() {
             )}
 
             {/* Replaced Section */}
+            {/* Replaced Section */}
             {(activeStatus === "All" || activeStatus === "Replaced") &&
-              replacedOriginal.length > 0 && (
+              replacedOriginal.filter((a) => a.user_id === userId).length >
+                0 && (
                 <ApproverSection
                   title="Replaced"
                   iconColor="text-gray-600"
                   bgColor="bg-gray-100"
                   items={allApproversOriginal.filter(
-                    (a) => a.approver_status === "Replaced"
+                    (a) =>
+                      a.approver_status === "Replaced" && a.user_id === userId
                   )}
                   onRowClick={(approver) =>
                     handleRowClick(approver.approver_id)
@@ -441,6 +455,7 @@ function Request() {
                   isRequestLoading={isRequestLoading}
                 />
               )}
+
             {/* Cancel Section */}
             {(activeStatus === "All" || activeStatus === "Canceled") && (
               <ApproverSection

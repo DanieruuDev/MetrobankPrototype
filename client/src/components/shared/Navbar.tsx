@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import { LogOut, ChevronDown, ChevronUp, User } from "lucide-react";
+import NotificationWrapper from "../notification/NotificationWrapper";
 
 interface NavbarProps {
   pageName: string;
@@ -34,7 +35,6 @@ const Navbar = ({ pageName }: NavbarProps) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
   const getInitials = (name: string) => {
     if (!name) return "";
     const names = name.trim().split(" ");
@@ -57,6 +57,9 @@ const Navbar = ({ pageName }: NavbarProps) => {
         {auth?.user ? (
           <div className="relative" ref={dropdownRef}>
             <div className="flex items-center space-x-3">
+              <div>
+                <NotificationWrapper userId={auth?.info?.admin_id || 0} />
+              </div>
               {/* Role badge */}
               <div
                 className="

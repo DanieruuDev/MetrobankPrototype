@@ -18,6 +18,7 @@ const {
   insertWorkflowLog,
   checkReject,
 } = require("../utils/workflow.utils.js");
+const { createNotification } = require("../services/notificationService.js");
 
 //get specific approval (author id/ workflow id)
 const getApproval = async (req, res) => {
@@ -269,6 +270,53 @@ const changeApprover = async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [workflow_id, old_approver_id, getNewApproverId.rows[0].admin_id, reason]
     );
+    await insertWorkflowLog(
+      pool, // client or pool
+      workflow_id,
+      oldApprover.user_id,
+      "Approver", // actor_type
+      "Reassigned", // action
+      oldApprover.status, // old_status
+      "Reassigned", // new_status
+      reason // comments
+    );
+
+    // Notify old approver
+    console.log("old approver id:", oldApprover.user_id);
+    await createNotification({
+      type: "WORKFLOW_PARTICIPATION",
+      title: "You have been replaced as approver",
+      message: `You have been replaced as an approver for workflow "${workflow_id}".`,
+      relatedId: workflow_id,
+      actorId: requester_id,
+      actionRequired: false,
+      recipients: [{ approvers: { user_id: oldApprover.user_id } }],
+    });
+
+    // After inserting new approver
+    await insertWorkflowLog(
+      pool,
+      workflow_id,
+      getNewApproverId.rows[0].admin_id,
+      "Approver",
+      "Reassigned",
+      null,
+      "Pending",
+      `Approver ${oldApprover.user_id} has been replaced by ${getNewApproverId.rows[0].admin_id}`
+    );
+
+    // Notify new approver
+    await createNotification({
+      type: "WORKFLOW_APPROVER_TURN",
+      title: "You have been assigned as approver",
+      message: `You have been assigned as an approver for workflow "${workflow_id}".`,
+      relatedId: workflow_id,
+      actorId: requester_id,
+      actionRequired: true, // requires action
+      recipients: [
+        { approvers: { user_id: getNewApproverId.rows[0].admin_id } },
+      ],
+    });
 
     return res.status(200).json({ message: "Approver successfully changed." });
   } catch (error) {
@@ -279,6 +327,7 @@ const changeApprover = async (req, res) => {
 
 //create approval
 //Done with modular
+//done with adding notification
 const createApproval = async (req, res) => {
   const file = req.file;
   const deleteFile = () => {
@@ -374,14 +423,47 @@ const createApproval = async (req, res) => {
       workflowId,
       workflowDetailsForEmail
     );
-
+    console.log(approvers);
     if (approverQueries.length > 0) {
+      // 1️⃣ Notify all approvers that they are part of this workflow
+      await createNotification({
+        type: "WORKFLOW_PARTICIPATION",
+        title: "You are part of a workflow",
+        message: `Added you as an approver for workflow "${rq_title}".`,
+        relatedId: workflowId,
+        actorId: requester_id, // requester created the workflow
+        actionRequired: false,
+        recipients: [approverQueries],
+      });
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
       );
+
+      const firstApprover = approverQueries[0].approvers;
+      console.log(firstApprover.user_id);
+      await createNotification({
+        type: "WORKFLOW_APPROVER_TURN",
+        title: "Approval Required",
+        message: `It’s your turn to review and approve workflow "${rq_title}".`,
+        relatedId: workflowId,
+        actorId: requester_id, // requester is still the actor
+        actionRequired: true,
+        actionType: "VISIT_PAGE",
+        actionPayload: { workflowId, approverId: firstApprover.approver_id },
+        recipients: [{ approvers: { user_id: firstApprover.user_id } }],
+      });
     }
 
+    await createNotification({
+      type: "WORKFLOW_REQUESTED",
+      title: "Workflow Created",
+      message: `Workflow "${rq_title}" has been submitted and is pending approval.`,
+      relatedId: workflowId,
+      actorId: requester_id,
+      actionRequired: false,
+      recipients: [{ approvers: { user_id: requester_id } }],
+    });
     // Save workflow log
     await client.query(
       "INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, comments) VALUES ($1, $2, $3, $4, $5)",
@@ -476,6 +558,7 @@ const fetchApproverApproval = async (req, res) => {
   }
 };
 //When approving the approval
+//added notification
 const approveApproval = async (req, res) => {
   const { approver_id, response, comment } = req.body;
   console.log(approver_id);
@@ -618,6 +701,27 @@ const approveApproval = async (req, res) => {
         // Send "Its Your Turn" email to the next approver
         // workflowDetailsForEmail is already fetched
         await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+
+        await createNotification({
+          type: "WORKFLOW_APPROVER_TURN",
+          title: "It's Your Turn to Approve",
+          message: `You have a pending approval for "${workflowDetailsForEmail.request_title}".`,
+          relatedId: workflow_id,
+          actorId: user_id, // current approver who approved
+          actionRequired: true,
+          actionType: "APPROVE",
+          recipients: [{ approvers: { user_id: nextUserId } }],
+        });
+
+        await createNotification({
+          type: "WORKFLOW_PARTICIPATION",
+          title: "Workflow Progressed",
+          message: `Request "${workflowDetailsForEmail.request_title}" has been moved to the next approver.`,
+          relatedId: workflow_id,
+          actorId: user_id, // current approver who approved
+          actionRequired: false,
+          recipients: [{ approvers: { user_id: requester_id } }], // send to requester
+        });
       } else {
         console.log(
           "No next approver found. Checking for workflow completion."
@@ -654,8 +758,15 @@ const approveApproval = async (req, res) => {
           await client.query(updateWorkflowQuery, [workflow_id]);
           console.log("Workflow marked as completed.");
 
-          // Send Workflow Completed email to the requester
-          // workflowDetailsForEmail is already fetched
+          await createNotification({
+            type: "WORKFLOW_COMPLETED",
+            title: "Workflow is Completed",
+            message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
+            relatedId: workflow_id,
+            actorId: null,
+            actionRequired: false,
+            recipients: [{ approvers: { user_id: requester_id } }],
+          });
           await sendWorkflowCompletedEmail(
             requesterEmail,
             workflowDetailsForEmail
@@ -678,7 +789,16 @@ const approveApproval = async (req, res) => {
         SET status = 'Failed', completed_at = NOW()
         WHERE workflow_id = $1
       `;
-      await checkReject(client, workflow_id);
+      await createNotification({
+        type: "WORKFLOW_REJECTED",
+        title: "Workflow was Rejected",
+        message: `Request "${workflowDetailsForEmail.request_title}" was rejected by ${currentApproverData.user_id}.`,
+        relatedId: workflow_id,
+        actorId: user_id,
+        actionRequired: false,
+        recipients: [{ approvers: { user_id: requester_id } }],
+      });
+      await checkReject(client, workflow_id, workflowDetailsForEmail);
       await client.query(updateWorkflowQuery, [workflow_id]);
       console.log("Workflow marked as rejected.");
 

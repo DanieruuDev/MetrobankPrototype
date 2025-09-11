@@ -16,7 +16,7 @@ interface User {
   role_name: string;
 }
 interface Info {
-  user_id: number;
+  admin_id: number;
   email: string;
   role_id: number;
   role_name: string;
@@ -107,6 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role_id: decoded.role_id,
         role_name: decoded.role_name,
       });
+      console.log(decoded.user_id);
       setToken(authToken);
       localStorage.setItem("token", authToken);
 
