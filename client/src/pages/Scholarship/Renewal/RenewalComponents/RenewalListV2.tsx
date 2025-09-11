@@ -28,12 +28,12 @@ import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog
 import BranchDropdown from "../../../../components/maintainables/BranchDropdown";
 import Loading from "../../../../components/shared/Loading";
 import PaginationControl from "../../../../components/shared/PaginationControl";
-
+import { formatDate } from "../../../../utils/DateConvertionFormat";
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
 }
 function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
-  const [sySemester, setSySemester] = useState<string>("2024-2025_2nd");
+  const [sySemester, setSySemester] = useState<string>("");
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
@@ -547,7 +547,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           </div>
         </div>
         {!isEdit ? (
-          <div className="flex items-center justify-between gap-2 max-w-[350px] w-full">
+          <div className="flex items-center justify-between gap-2 max-w-[380px] w-full">
             <SYSemesterDropdown
               value={sySemester}
               onChange={(value) => setSySemester(value)}
@@ -738,8 +738,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                               </div>
                             ) : key === "scholarship_status" ? (
                               statusBadge(value as string)
+                            ) : key === "renewal_date" ||
+                              key === "delisted_date" ? (
+                              <span>
+                                {value ? formatDate(value as string) : "-"}
+                              </span>
                             ) : (
-                              <span>{statusBadge(value as string)}</span>
+                              <span>{value as string}</span>
                             )}
                           </td>
                         );

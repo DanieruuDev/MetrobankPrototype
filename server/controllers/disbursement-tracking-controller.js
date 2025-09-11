@@ -39,55 +39,46 @@ const getTrackingDetailed = async (req, res) => {
 };
 
 const markCompleteSchedule = async (req, res) => {
-  const { disb_sched_id } = req.params;
-
+  const { sched_id } = req.params;
+  const client = await pool.connect();
   try {
-    if (!disb_sched_id || isNaN(disb_sched_id)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid disbursement schedule ID." });
+    if (!sched_id || isNaN(sched_id)) {
+      return res.status(400).json({ message: "Invalid schedule ID." });
     }
-
-    const client = await pool.connect();
 
     try {
       await client.query("BEGIN");
+      2;
 
-      // Update disbursement_schedule and return only updated fields
-      const updateScheduleQuery = `
-          UPDATE disbursement_schedule
-          SET status = 'Completed', updated_at = NOW()
-          WHERE disb_sched_id = $1
-          RETURNING disb_sched_id, status, updated_at;
-        `;
-      const scheduleResult = await client.query(updateScheduleQuery, [
-        disb_sched_id,
-      ]);
+      // 1. Update event_schedule
+      const updateEventQuery = `
+        UPDATE event_schedule
+        SET schedule_status = 'Completed', edit_at = NOW()
+        WHERE sched_id = $1
+        RETURNING sched_id, schedule_status, edit_at;
+      `;
+      const eventResult = await client.query(updateEventQuery, [sched_id]);
 
-      if (scheduleResult.rowCount === 0) {
+      if (eventResult.rowCount === 0) {
         await client.query("ROLLBACK");
-        return res
-          .status(404)
-          .json({ message: "Disbursement schedule not found." });
+        return res.status(404).json({ message: "Event schedule not found." });
       }
 
-      // Update disbursement_detail and return only updated fields
       const updateDetailQuery = `
-          UPDATE disbursement_detail
-          SET disbursement_status = 'Completed',
-              completed_at = NOW()
-          WHERE disb_sched_id = $1
-          RETURNING disb_detail_id, disbursement_status, completed_at;
-        `;
-      const detailResult = await client.query(updateDetailQuery, [
-        disb_sched_id,
-      ]);
+  UPDATE disbursement_detail
+  SET disbursement_status = 'Completed', completed_at = NOW()
+  WHERE disb_detail_id IN (
+    SELECT disb_detail_id FROM disbursement_schedule WHERE sched_id = $1
+  )
+  RETURNING disb_detail_id, disbursement_status, completed_at;
+`;
+      const detailResult = await client.query(updateDetailQuery, [sched_id]);
 
       await client.query("COMMIT");
 
       return res.status(200).json({
-        message: "Marked as completed.",
-        updated_schedule: scheduleResult.rows[0],
+        message: "Schedule and related disbursements marked as completed.",
+        updated_event: eventResult.rows[0],
         updated_details: detailResult.rows,
       });
     } catch (err) {

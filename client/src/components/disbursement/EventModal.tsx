@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import BranchDropdown from "../maintainables/BranchDropdown";
+import { toast } from "react-toastify";
 interface EventModalProps {
   onClose: (isEventOpen: boolean) => void;
   fetchSchedules: () => void;
@@ -47,7 +48,7 @@ function EventModal({
     description: "",
     starting_date: null,
   });
-  const [branch, setBranch] = useState<number | "">("");
+  const [branch, setBranch] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   const handleBranchChange = (branchId: number) => {
@@ -105,10 +106,11 @@ function EventModal({
           description: formData.description,
         }
       );
+      toast("Event created successfully");
       console.log("Form Data Submitted:", formData);
       console.log(response);
       fetchSchedules();
-      alert("Successs");
+
       onClose(false);
       setFormData({
         title: "",
@@ -312,6 +314,7 @@ function EventModal({
           <div className="flex justify-end space-x-3 mt-8">
             <button
               type="button"
+              disabled={loading}
               onClick={() => onClose(false)}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all"
             >
@@ -322,7 +325,7 @@ function EventModal({
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
               disabled={loading}
             >
-              Create
+              {loading ? "Loading" : "Create"}
             </button>
           </div>
         </form>

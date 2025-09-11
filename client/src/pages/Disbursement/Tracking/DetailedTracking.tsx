@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import * as XLSX from "xlsx";
 import { ArrowLeft, X, Users, Filter } from "lucide-react";
+import { toast } from "react-toastify";
 
 interface ITrackingStudent {
   student_id: number;
@@ -99,12 +100,14 @@ function DetailedTracking() {
       await axios.put(
         `http://localhost:5000/api/disbursement/tracking/complete/${sched_id}`
       );
-      const response = await axios.get<ITrackingDetailed[]>(
+      const response = await axios.get(
         `http://localhost:5000/api/disbursement/tracking/${sched_id}`
       );
+      toast.success("Disbursement completed");
       setTrackingDetailed(response.data);
     } catch (error) {
       console.error("Error completing disbursement:", error);
+      toast.error("Failed to complete");
     } finally {
       setIsCompleting(false);
     }

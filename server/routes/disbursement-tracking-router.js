@@ -9,6 +9,6 @@ const disbursementTracking = express.Router();
 
 disbursementTracking.get("/:sy_code/:semester_code", getTrackingSummary);
 disbursementTracking.get("/:sched_id", getTrackingDetailed);
-disbursementTracking.put("/complete/:disb_sched_id", markCompleteSchedule);
+disbursementTracking.put("/complete/:sched_id", markCompleteSchedule);
 
 module.exports = disbursementTracking;
