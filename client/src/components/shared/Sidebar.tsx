@@ -45,12 +45,12 @@ const Sidebar = () => {
       Icon: Calendar,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
-    {
-      to: "/tracking",
-      label: "Disbursement Tracking",
-      Icon: ClipboardList,
-      allowedRoles: ["mb hr", "mbs head", "system_admin"],
-    },
+    // {
+    //   to: "/tracking",
+    //   label: "Disbursement Tracking",
+    //   Icon: ClipboardList,
+    //   allowedRoles: ["mb hr", "mbs head", "system_admin"],
+    // },
     {
       to: "/financial-overview",
       label: "Disbursement Overview",
