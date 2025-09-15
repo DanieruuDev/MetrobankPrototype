@@ -7,8 +7,8 @@ interface Branch {
 }
 
 interface BranchDropdownProps {
-  formData: number; // store branch name now
-  handleInputChange: (value: number) => void; // Accept branch NAME instead of ID
+  formData: string; // store branch name now
+  handleInputChange: (value: string) => void; // Accept branch NAME instead of ID
 }
 
 const BranchDropdown: React.FC<BranchDropdownProps> = ({
@@ -52,7 +52,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
   }, []);
 
   const selectedBranch = branches.find(
-    (branch) => branch.campus_id === formData
+    (branch) => branch.campus_name === formData
   );
 
   return (
@@ -76,7 +76,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
               key={branch.campus_id}
               className="p-2 hover:bg-gray-200 cursor-pointer"
               onClick={() => {
-                handleInputChange(branch.campus_id); // ✅ Pass NAME instead of ID
+                handleInputChange(branch.campus_name); // ✅ Pass NAME instead of ID
                 setOpen(false);
               }}
             >

@@ -28,7 +28,7 @@ import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog
 import BranchDropdown from "../../../../components/maintainables/BranchDropdown";
 import Loading from "../../../../components/shared/Loading";
 import PaginationControl from "../../../../components/shared/PaginationControl";
-import { formatDate } from "../../../../utils/DateConvertionFormat";
+
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
 }
@@ -77,7 +77,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const getRenewalData = async (sySemester: string, branch: string) => {
     const [sy, semPart] = sySemester.split("_");
     const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
-
+    console.log("Inside get renewal: ", sySemester, "");
     try {
       setIsLoading(true);
       const response = await axios.get(
@@ -356,8 +356,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setIsEdit(false);
     setTempRenewalData(renewalData);
   };
-  console.log("outside getter", page);
+
   useEffect(() => {
+    console.log(sySemester);
     getRenewalData(sySemester, selectedBranch);
   }, [sySemester, selectedBranch]);
   useEffect(() => {
@@ -738,13 +739,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                               </div>
                             ) : key === "scholarship_status" ? (
                               statusBadge(value as string)
-                            ) : key === "renewal_date" ||
-                              key === "delisted_date" ? (
-                              <span>
-                                {value ? formatDate(value as string) : "-"}
-                              </span>
                             ) : (
-                              <span>{value as string}</span>
+                              <span>{statusBadge(value as string)}</span>
                             )}
                           </td>
                         );

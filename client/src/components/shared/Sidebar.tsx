@@ -4,7 +4,6 @@ import {
   BookOpen,
   CheckCircle,
   Calendar,
-  ClipboardList,
   BarChart,
   ChevronRight,
   PieChart,

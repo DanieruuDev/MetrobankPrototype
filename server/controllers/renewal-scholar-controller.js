@@ -497,7 +497,7 @@ const updateScholarRenewalV2 = async (req, res) => {
         }`;
         const result = await client.query(query, [...values, renewal_id]);
 
-        if (result.rowCount > 0) updatedRows.add(renewal_id); // <-- track updated id
+        if (result.rowCount > 0) updatedRows.add(renewal_id);
       }
 
       // 2️⃣ Handle renewal_scholar update if renewal_date exists

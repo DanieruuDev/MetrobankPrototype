@@ -25,7 +25,7 @@ interface FormData {
   schedule_due: Date | null;
   starting_date: Date | null;
   semester: SemesterType;
-  branch: number | null;
+  branch: string;
   schoolYear: SchoolYearType;
   disbursementType: DisbursementType;
   description: string;
@@ -42,18 +42,18 @@ function EventModal({
     title: "",
     schedule_due: selectedDate,
     semester: "",
-    branch: null,
+    branch: "",
     schoolYear: "",
     disbursementType: "",
     description: "",
     starting_date: null,
   });
-  const [branch, setBranch] = useState<number>(0);
+  const [branch, setBranch] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const handleBranchChange = (branchId: number) => {
-    setBranch(branchId);
-    setFormData((prev) => ({ ...prev, branch: branchId }));
+  const handleBranchChange = (branch: string) => {
+    setBranch(branch);
+    setFormData((prev) => ({ ...prev, branch: branch }));
   };
   const todayDate = new Date().toISOString().split("T")[0];
 
@@ -116,7 +116,7 @@ function EventModal({
         title: "",
         schedule_due: null,
         semester: "",
-        branch: null,
+        branch: "",
         schoolYear: "",
         disbursementType: "",
         description: "",
