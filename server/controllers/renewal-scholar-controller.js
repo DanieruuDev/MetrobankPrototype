@@ -155,9 +155,11 @@ const fetchAllScholarRenewal = async (req, res) => {
     `;
 
     const values = [school_year, semester];
+    let paramIndex = values.length; // track parameter index
 
     if (branch) {
-      baseQuery += ` AND campus = $3`;
+      paramIndex++;
+      baseQuery += ` AND campus = $${paramIndex}`;
       values.push(branch);
     }
 
@@ -167,7 +169,7 @@ const fetchAllScholarRenewal = async (req, res) => {
 
     res.status(200).json({
       message: "Renewal records retrieved successfully.",
-      data: dataQuery.rows, // all rows
+      data: dataQuery.rows,
       totalCount,
     });
   } catch (error) {

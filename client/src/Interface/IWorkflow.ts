@@ -63,7 +63,7 @@ export interface ApproverDetailedView {
   approver_role_name: string;
   workflow_id: number;
   approver_order: number;
-  approver_status: string; // Pending, Completed, Missed, Replaced
+  approver_status: string; // Pending | Completed | Missed | Replaced
   workflow_status: string;
   completed_at: string;
   description: string;
@@ -88,8 +88,8 @@ export interface ApproverDetailedView {
   approver_response: string; // Approved | Reject | Pending
   approver_comment: string | null;
   response_time: string | null; // ISO string or null
-
-  // New fields for approval tracking
+  response_id: number;
+  // Approval tracking
   total_approvers: number;
   completed_approvers: number;
   remaining_approvers: number;
@@ -99,13 +99,31 @@ export interface ApproverDetailedView {
     approval_status: string; // Completed | Pending | Missed | Replaced
     approval_time: string | null; // ISO string
     approver_order: number;
-    response: string | null; // Approved | Reject | null
+    response: string | null; // Approved | Reject | Returned | Pending
     comment: string | null;
     user_id: number;
   }>;
 
-  // NEW: fetched directly from query
+  // Current approver
   current_approver: string | null;
+
+  // 🔥 NEW: return feedback and requester back-and-forth
+  return_conversation: Array<{
+    return_id: number;
+    reason: string;
+    created_by: string; // approver/admin name
+    created_at: string; // ISO string
+    requester_take_action: boolean;
+    requester_responses: Array<{
+      req_response_id: number;
+      message: string | null;
+      file_name: string | null;
+      file_type: string | null;
+      file_size: number | null;
+      responded_at: string; // ISO string
+      requester_name: string;
+    }>;
+  }>;
 }
 
 // For cases where you might want just the approval progress items:
@@ -146,10 +164,12 @@ export interface ApproverInfo {
 export interface WorkflowApprovalList {
   workflow_id: number;
   approval_req_type: string;
+  school_year: string;
+  semester: string;
   workflow_title: string;
   workflow_status: string;
   created_by: string;
-  approvers: ApproverInfo[];
+  approver: ApproverInfo;
   completed_at: string;
 }
 

@@ -7,6 +7,7 @@ import Workflow from "./pages/Workflow/Workflow";
 import NotFound from "./pages/NotFound";
 import Renewal from "./pages/Scholarship/Renewal/Renewal";
 import Approval from "./pages/Workflow/SpecificApproval/Approval";
+import Request from "./pages/Workflow/Request";
 import Schedule from "./pages/Disbursement/Scheduling/Schedule";
 import DisbursementOverview from "./pages/Disbursement/Overview/DisbursementOverview";
 import ScheduleTracking from "./pages/Disbursement/Tracking/ScheduleTracking";
@@ -45,6 +46,23 @@ function App() {
                 ]}
               >
                 <Workflow />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/workflow-approval/request"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "STI Registrar",
+                  "MB HR",
+                  "MB Financial",
+                  "MB Foundation",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                ]}
+              >
+                <Request />
               </PrivateRoute>
             }
           />

@@ -93,14 +93,13 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
       console.log("Renewal data retrieved:", response.data);
 
       // ✅ Construct and send new SY_Semester to parent
-      const newSySemester = `${schoolYear}_${semester
-        .split(" ")[0]
-        .toLowerCase()}`;
-      console.log(newSySemester);
-      onChangeSySemester?.(newSySemester);
+      const semCode = semester.startsWith("1") ? "1" : "2";
+      const newSySemester = `${schoolYear}_${semCode}`;
 
+      onChangeSySemester?.(newSySemester);
+      console.log(newSySemester);
       // ✅ Trigger data refresh
-      getRenewalData(schoolYear, semester);
+      getRenewalData(newSySemester, "");
 
       // ✅ Clean up
       setSchoolYear("");

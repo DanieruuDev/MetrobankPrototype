@@ -5,11 +5,11 @@ import {
   Plus,
   Save,
   Search,
-  File,
   Download,
   Upload,
   ChevronDown,
   Eye,
+  UserRoundPen,
 } from "lucide-react";
 import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterDropdown";
 import { RenewalRow, renewalTableHead } from "../../../../Interface/IRenewal";
@@ -36,13 +36,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [sySemester, setSySemester] = useState<string>("");
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
+  const [countNotStarted, setCountNotStarted] = useState<number>(0);
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
     []
   );
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
   );
-
   const [page, setPage] = useState<number>(1);
   const [totalPage, setTotalPage] = useState<number>(1);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -54,7 +54,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFileActionOpen, setIsFileActionOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCriteria, setShowCriteria] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<
+    "All" | "Not Started" | "Passed" | "Delisted"
+  >("All");
   const itemsPerPage = 10;
 
   const hasEdits = tempRenewalData.some((row) =>
@@ -77,13 +81,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const getRenewalData = async (sySemester: string, branch: string) => {
     const [sy, semPart] = sySemester.split("_");
     const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
-    console.log("Inside get renewal: ", sySemester, "");
+    if (!sy || !semester) return;
+    console.log("get renewal", sySemester, branch);
+    console.log("Triggered data here once generated");
     try {
       setIsLoading(true);
       const response = await axios.get(
         `http://localhost:5000/api/renewal/fetch-renewals`,
         {
-          params: { school_year: sy, semester, branch },
+          params: {
+            school_year: sy,
+            semester,
+            branch,
+          },
         }
       );
 
@@ -277,20 +287,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       })
     );
   };
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
 
-    if (value.trim() === "") {
-      setTempRenewalData(renewalData);
-    } else {
-      setTempRenewalData(
-        renewalData.filter((item) =>
-          item.scholar_name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      );
-    }
-  };
   const handleFileChanges = (updatedRows: RenewalRow[]) => {
     const newData = tempRenewalData.map((row) => {
       const excelRow = updatedRows.find((r) => r.student_id === row.student_id);
@@ -357,23 +354,65 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setTempRenewalData(renewalData);
   };
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (value.trim() === "") {
+      setTempRenewalData(renewalData);
+    } else {
+      setTempRenewalData(
+        renewalData.filter((item) =>
+          item.scholar_name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      );
+    }
+  };
+  const filterData = (search: string, status: string) => {
+    let filtered = renewalData;
+
+    // filter by status
+    if (status !== "All") {
+      filtered = filtered.filter((item) => item.scholarship_status === status);
+    }
+
+    // filter by search
+    if (search.trim() !== "") {
+      filtered = filtered.filter((item) =>
+        item.scholar_name.toLowerCase().includes(search)
+      );
+    }
+
+    setTempRenewalData(filtered);
+  };
+
+  useEffect(() => {
+    filterData(searchQuery, selectedStatus);
+  }, [selectedStatus]);
   useEffect(() => {
     console.log(sySemester);
+
     getRenewalData(sySemester, selectedBranch);
   }, [sySemester, selectedBranch]);
   useEffect(() => {
-    const passed = tempRenewalData.filter(
+    const passed = renewalData.filter(
       (r) => r.scholarship_status === "Passed"
     ).length;
-    const delisted = tempRenewalData.filter(
+    const delisted = renewalData.filter(
       (r) => r.scholarship_status === "Delisted"
+    ).length;
+    const notStarted = renewalData.filter(
+      (r) => r.scholarship_status === "Not Started"
     ).length;
 
     setCountPassed(passed);
     setCountDelisted(delisted);
-  }, [tempRenewalData]);
+    setCountNotStarted(notStarted);
+  }, [renewalData]);
 
-  //handle back and reload, prevent data loss
+  useEffect(() => {
+    console.log("Parent sySemester updated:", sySemester);
+  }, [sySemester]);
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasEdits) {
@@ -406,148 +445,30 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     const newTotalPage = Math.ceil(tempRenewalData.length / itemsPerPage);
     setTotalPage(newTotalPage);
 
-    // Reset page if current page exceeds total pages (like after filtering/search)
     if (page > newTotalPage) setPage(1);
   }, [page, tempRenewalData]);
-
+  console.log("Outside temp; ", tempRenewalData);
   return (
     <div className="px-4 py-2">
-      <div className="flex justify-between mt-4">
-        <div className="flex flex-1 gap-2">
-          <div className="flex items-center max-w-[400px] w-full pl-3 pr-2 border border-gray-300 rounded-md bg-gray-50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
-            <Search className="w-4 h-4 text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Search scholars..."
-              className="w-full bg-transparent outline-none text-gray-700 placeholder-gray-400 py-2 text-sm"
-              value={searchQuery}
-              onChange={handleSearch}
-            />
-          </div>
-          {/* <button className="flex items-center px-3 py-2 border border-gray-300 rounded-md gap-1 text-sm cursor-pointer hover:bg-[#f3f4f6]">
-            <Filter size={15} color="#4f4f4f" strokeWidth={2.25} />
-            Filter
-          </button> */}
-        </div>
-        <div className="flex gap-2">
-          {!isEdit ? (
-            <>
-              <button
-                className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition cursor-pointer text-sm"
-                onClick={() => SetIsRenewalBtnOpen(true)}
-              >
-                <Plus className="w-4 h-4" />
-                Add Renewal
-              </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setIsFileActionOpen(!isFileActionOpen)}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer text-sm"
-                >
-                  <File className="w-4 h-4" />
-                  File Actions
-                  <ChevronDown
-                    className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
-                      isFileActionOpen ? "rotate-180" : "rotate-0"
-                    }`}
-                  />
-                </button>
-
-                {isFileActionOpen && (
-                  <div
-                    className={`bg-white shadow-md rounded-md flex flex-col justify-center border border-gray-300 mt-2 absolute left-0 right-0 z-[20]`}
-                  >
-                    <button
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
-                      onClick={() => setIsUploadOpen(true)}
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload File
-                    </button>
-                    <UploadFileRenewalModal
-                      isOpen={isUploadOpen}
-                      onClose={() => setIsUploadOpen(false)}
-                      renewalData={tempRenewalData} // pass current data
-                      onFileChanges={handleFileChanges}
-                    />
-
-                    <button
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
-                      onClick={() => setIsGnrtRprtOpen(true)}
-                    >
-                      <FileDown className="w-4 h-4" />
-                      Generate Report
-                    </button>
-                    <button
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition cursor-pointer text-sm"
-                      onClick={() => {
-                        const headers = Object.keys(renewalTableHead);
-                        const data = renewalData.map((r) =>
-                          Object.keys(renewalTableHead).map(
-                            (key) => r[key as keyof RenewalDetails] ?? null
-                          )
-                        );
-
-                        downloadExcel(
-                          `RenewalReport-${sySemester}.xlsx`,
-                          headers,
-                          data
-                        );
-                      }}
-                    >
-                      <Download className="w-4 h-4" />
-                      Download
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            ""
-          )}
-
+      {/* Information of renewal */}
+      <div className="bg-white border border-[#D1D1D1] rounded-sm p-4">
+        <div className="flex justify-between mb-2">
+          <h1 className="font-bold text-[15px]">RENEWAL INFORMATION</h1>
           <button
-            className={`flex items-center gap-2 px-2 py-2 text-gray-600 rounded-lg  transition cursor-pointer text-sm ${
-              isEdit
-                ? "text-white bg-blue-500 hover:bg-blue-400"
-                : "hover:bg-gray-200"
-            }`}
-            onClick={toggleEditMode}
+            className="text-blue-500 underline cursor-pointer"
+            onClick={() => setShowCriteria(!showCriteria)}
           >
-            <Pencil className="w-4 h-4" />
-            {isEdit ? "Editing" : "Edit"}
+            {showCriteria ? "Hide Criteria" : "Change Criteria"}
           </button>
         </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4 ">
-        <div className="flex items-center space-x-4 ">
-          <div className="flex items-center gap-1">
-            <span className="font-bold ">{countPassed + countDelisted}</span>
-            <span className="font-bold">/ {tempRenewalData.length} </span>
-            <span>processed</span>
-          </div>
+        {/* Criteria selection */}
 
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center">
-              <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
-              <span className="text-sm text-gray-700">
-                {countPassed} Passed
-              </span>
-            </div>
-
-            {countDelisted > 0 && (
-              <div className="flex items-center">
-                <div className="h-3 w-3 rounded-full bg-red-500 mr-2"></div>
-                <span className="text-sm text-gray-700">
-                  {countDelisted} Delisted
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        {!isEdit ? (
+        <div
+          className={`flex flex-col sm:flex-row justify-between items-center mt-4 gap-4 ${
+            showCriteria ? "block" : "hidden"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2 max-w-[380px] w-full">
             <SYSemesterDropdown
               value={sySemester}
@@ -558,206 +479,445 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               handleInputChange={handleBranchChange}
             />
           </div>
-        ) : (
-          <div>
-            <button
-              onClick={() => submitSaveChanges(tempRenewalData)}
-              disabled={!hasEdits}
-              className={`flex gap-2 p-2 rounded-md text-[14px] items-center transition
-    ${
-      hasEdits
-        ? "bg-green-500 text-white hover:bg-green-600 cursor-pointer"
-        : "bg-gray-300 text-gray-600 cursor-not-allowed"
-    }`}
-            >
-              <Save strokeWidth={1.5} size={20} />
-              Save and Submit
-            </button>
+        </div>
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border border-[#e7e7e7] rounded-sm text-[14px] ${
+            showCriteria ? " hidden" : "block"
+          }`}
+        >
+          <div className="border border-[#CDCDCD] py-4 px-5 space-y-2">
+            <div className="font-medium text-[#828282]">GENERATED BY</div>
+            <div className="font-bold">John Doe</div>
           </div>
-        )}
+          <div className="border border-[#CDCDCD] py-4 px-5 space-y-2">
+            <div className="font-medium text-[#828282]">BRANCH</div>
+            <div className="font-bold">{selectedBranch || "All"}</div>
+          </div>
+          <div className="border border-[#CDCDCD] py-4 px-5 space-y-2">
+            <div className="font-medium text-[#828282]">RENEWAL DATE</div>
+            <div className="font-bold">Soon to add</div>
+          </div>
+          <div className="border border-[#CDCDCD] py-4 px-5 space-y-2">
+            <div className="font-medium text-[#828282]">RENEWAL BASIS</div>
+            <div className="font-bold">
+              {renewalData[0]?.renewal_school_year_basis &&
+              renewalData[0]?.renewal_semester_basis
+                ? `${renewalData[0].renewal_school_year_basis} ${renewalData[0].renewal_semester_basis}`
+                : "none"}
+              &nbsp;
+            </div>
+          </div>
+          <div className="border border-[#CDCDCD] py-4 px-5 space-y-2">
+            <div className="font-medium text-[#828282]">RENEWAL FOR</div>
+            <div className="font-bold">
+              {renewalData[0]?.school_year && renewalData[0]?.semester
+                ? `${renewalData[0].school_year} ${renewalData[0].semester}`
+                : renewalData[0]?.school_year ||
+                  renewalData[0]?.semester ||
+                  sySemester}
+            </div>
+          </div>
+          <div className="border border-[#CDCDCD] py-4 px-5 space-y-2">
+            <div className="font-medium text-[#828282]">IS ARCHIVED</div>
+            <div className="font-bold">Soo to add</div>
+          </div>
+        </div>
       </div>
 
-      {!isLoading ? (
-        <div className="overflow-x-auto scroll-smooth mt-4 rounded-md border border-gray-300">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100">
-              <tr className="text-gray-800 text-sm font-medium text-left">
-                {!isEdit && <th></th>}
-                {Object.entries(renewalTableHead).map(([key, label]) => (
-                  <th
-                    key={key}
-                    className={`px-5 py-3 text-left whitespace-nowrap ${
-                      key === "scholar_name"
-                        ? "sticky left-0 bg-gray-100 z-10 shadow-md max-w-[200px] min-w-[200px]"
-                        : ""
-                    }
+      <div className="bg-white border mt-5 border-[#D1D1D1] border-collapse rounded-md">
+        <div className="p-4">
+          <div className="flex justify-between mb-3">
+            <div className="flex gap-2 items-center">
+              <div className="w-[38px] h-[38px] bg-[#EFF6FF] rounded-md flex justify-center items-center">
+                <UserRoundPen
+                  strokeWidth={2}
+                  className="text-[#155DFC]"
+                  width={18}
+                  height={18}
+                />
+              </div>
+              <div>
+                <div className="font-bold text-[14px]">STUDENT PROCESSED:</div>
+
+                <div className="text-[#4E4E4E] text-[13px] flex">
+                  <span>{countPassed + countDelisted}&nbsp;</span>
+                  <span> of {renewalData.length} </span>
+                  &nbsp;students
+                </div>
+              </div>
+            </div>
+            {!isEdit && (
+              <div className="flex items-center">
+                <button
+                  className="flex items-center gap-2 px-2 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition cursor-pointer text-sm"
+                  onClick={() => SetIsRenewalBtnOpen(true)}
+                >
+                  <Plus className="w-4 h-4" />
+                  Generate Renewal
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+            {/* Left side: Tabs + Search */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-[800px]">
+              {/* Tabs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 rounded-sm border border-[#CDCDCD] divide-x divide-[#CDCDCD] text-sm h-8 flex-1">
+                {/* All */}
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "All"
+          ? "bg-gray-200 text-gray-700 font-medium"
+          : "text-gray-500 hover:bg-gray-100"
+      }
+    `}
+                  onClick={() => setSelectedStatus("All")}
+                >
+                  All
+                </div>
+
+                {/* Not Started */}
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "Not Started"
+          ? "bg-gray-200 text-gray-700 font-medium"
+          : "text-gray-500 hover:bg-gray-100"
+      }
+    `}
+                  onClick={() => setSelectedStatus("Not Started")}
+                >
+                  Not Started {countNotStarted}
+                </div>
+
+                {/* Passed */}
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "Passed"
+          ? "bg-green-100 text-green-600 font-semibold"
+          : "text-gray-500 hover:bg-green-50"
+      }
+    `}
+                  onClick={() => setSelectedStatus("Passed")}
+                >
+                  Passed {countPassed}
+                </div>
+
+                {/* Delisted */}
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "Delisted"
+          ? "bg-red-100 text-red-600 font-semibold"
+          : "text-gray-500 hover:bg-red-50"
+      }
+    `}
+                  onClick={() => setSelectedStatus("Delisted")}
+                >
+                  Delisted {countDelisted}
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="flex items-center pl-3 pr-2 border border-gray-300 rounded-md bg-gray-50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 flex-1 h-8">
+                <Search className="w-4 h-4 text-gray-400 mr-2" />
+                <input
+                  type="text"
+                  placeholder="Search scholars..."
+                  className="w-full bg-transparent outline-none text-gray-700 placeholder-gray-400 text-sm"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+            </div>
+
+            {/* Right side: File Action / Save+Submit + Edit */}
+            <div
+              className={`flex ${
+                !isEdit
+                  ? "border border-gray-300 divide-x divide-[#CDCDCD]"
+                  : "rounded-sm overflow-hidden"
+              } rounded-sm text-sm self-end md:self-auto`}
+            >
+              {/* Left side: File Action OR Save and Submit */}
+              {isEdit ? (
+                <button
+                  onClick={() => submitSaveChanges(tempRenewalData)}
+                  disabled={!hasEdits}
+                  className={`flex items-center gap-2 px-3 h-8 transition cursor-pointer ${
+                    hasEdits
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  }`}
+                >
+                  <Save className="w-4 h-4" strokeWidth={1.5} />
+                  Save changes
+                </button>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsFileActionOpen(!isFileActionOpen)}
+                    className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
+                        isFileActionOpen ? "rotate-180" : "rotate-0"
+                      }`}
+                    />
+                    File Action
+                  </button>
+
+                  {isFileActionOpen && (
+                    <div className="absolute left-0 mt-1 w-40 bg-white shadow-md rounded-md border border-gray-300 z-20">
+                      <button
+                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
+                        onClick={() => setIsUploadOpen(true)}
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload File
+                      </button>
+
+                      <UploadFileRenewalModal
+                        isOpen={isUploadOpen}
+                        onClose={() => setIsUploadOpen(false)}
+                        renewalData={tempRenewalData}
+                        onFileChanges={handleFileChanges}
+                      />
+
+                      <button
+                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
+                        onClick={() => setIsGnrtRprtOpen(true)}
+                      >
+                        <FileDown className="w-4 h-4" />
+                        Generate Report
+                      </button>
+
+                      <button
+                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
+                        onClick={() => {
+                          const headers = Object.keys(renewalTableHead);
+                          const data = renewalData.map((r) =>
+                            Object.keys(renewalTableHead).map(
+                              (key) => r[key as keyof RenewalDetails] ?? null
+                            )
+                          );
+                          downloadExcel(
+                            `RenewalReport-${sySemester}.xlsx`,
+                            headers,
+                            data
+                          );
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                        Download
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Edit / Editing button */}
+              <button
+                className={`flex items-center gap-2 px-3 h-8 transition cursor-pointer ${
+                  isEdit
+                    ? "bg-blue-500 text-white hover:bg-blue-400"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+                onClick={toggleEditMode}
+              >
+                <Pencil className="w-4 h-4" />
+                {isEdit ? "Editing" : "Edit"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {!isLoading ? (
+          <div className="overflow-x-auto scroll-smooth mt-4 ">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-100">
+                <tr className="text-gray-800 text-sm font-medium text-left border border-gray-300">
+                  {!isEdit && <th className="border border-gray-300"></th>}
+                  {Object.entries(renewalTableHead).map(([key, label]) => (
+                    <th
+                      key={key}
+                      className={`px-5 py-3  text-left whitespace-nowrap text-[#757575] border border-gray-300 ${
+                        key === "scholar_name"
+                          ? "sticky left-[-1px] bg-gray-100 z-10 shadow-md max-w-[200px] min-w-[200px] "
+                          : ""
+                      }
                 ${
                   key === "scholarship_status"
-                    ? "sticky left-[200px] bg-gray-100 z-10 shadow-md"
+                    ? "sticky left-[198px] bg-gray-100 z-10 shadow-md "
                     : ""
                 }
                 ${key === "gpa" ? "max-w-[80px] min-w-[80px]" : ""}
                   `}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200 text-[14px]">
-              {tempRenewalData &&
-                tempRenewalData
-                  .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                  .map((renewal) => (
-                    <tr
-                      key={renewal.renewal_id}
-                      className="cursor-pointer group  "
                     >
-                      {!isEdit && (
-                        <td
-                          className="pl-4 group-hover:bg-gray-100"
-                          onClick={() =>
-                            handleRowClick(
-                              renewal.student_id,
-                              renewal.renewal_id
-                            )
-                          }
-                        >
-                          <Eye
-                            strokeWidth={1}
-                            className="hover:translate-y-[-1px] hover:text-blue-700"
-                          />
-                        </td>
-                      )}
-                      {Object.keys(renewalTableHead).map((key) => {
-                        const value = renewal[key as keyof RenewalDetails];
-                        const isValidationField = Object.keys(validation)
-                          .filter(
-                            (k) =>
-                              k !== "scholarship_status" &&
-                              k !== "gpa_validation_stat"
-                          )
-                          .includes(key);
-
-                        const isGPAField = key === "gpa";
-                        const isTextField = key === "delisting_root_cause";
-
-                        // const validationOptions: RenewalDetails[keyof RenewalDetails][] =
-                        //   ["Not Started", "Passed", "Failed"];
-
-                        return (
-                          <td
-                            key={key}
-                            className={`px-5 py-3 group-hover:bg-gray-100 ${
-                              key === "scholar_name"
-                                ? "sticky left-0 z-10 shadow-md bg-white max-w-[300px] whitespace-nowrap overflow-hidden"
-                                : key === "scholarship_status"
-                                ? "sticky left-[200px] bg-white z-10 shadow-md max-w-[150px] whitespace-nowrap overflow-hidden"
-                                : "max-w-[400px] whitespace-nowrap overflow-hidden"
-                            }`}
-                          >
-                            {isEdit && isGPAField ? (
-                              <input
-                                type="number"
-                                value={value ?? ""}
-                                step="0.01"
-                                min={0}
-                                max={5}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (val === "") {
-                                    handleGPAChange(renewal.renewal_id, null);
-                                    return;
-                                  }
-                                  let numVal = Number(val);
-                                  if (numVal > 5) numVal = 5;
-                                  numVal = Math.floor(numVal * 100) / 100;
-
-                                  handleGPAChange(renewal.renewal_id, numVal);
-                                }}
-                                className="border border-gray-300 px-2 py-1 rounded-sm w-full"
-                              />
-                            ) : isEdit &&
-                              isTextField &&
-                              renewal.scholarship_status === "Delisted" ? (
-                              <textarea
-                                value={value as string}
-                                rows={1}
-                                onChange={(e) => {
-                                  const newValue = e.target.value;
-                                  setTempRenewalData((prev) =>
-                                    prev.map((r) =>
-                                      r.renewal_id === renewal.renewal_id
-                                        ? { ...r, [key]: newValue }
-                                        : r
-                                    )
-                                  );
-                                }}
-                                className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none"
-                              />
-                            ) : isEdit && isValidationField ? (
-                              //Switch mode
-                              <div className="flex items-center gap-2">
-                                {/* Switch */}
-                                <div
-                                  className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
-                                    value === "Passed"
-                                      ? "bg-green-500"
-                                      : value === "Failed"
-                                      ? "bg-red-500"
-                                      : "bg-gray-500"
-                                  }`}
-                                  onClick={() =>
-                                    handleValidationChange(
-                                      renewal.renewal_id,
-                                      key as keyof RenewalDetails,
-                                      value === "Passed" ? "Failed" : "Passed"
-                                    )
-                                  }
-                                >
-                                  <div
-                                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                                      value === "Passed"
-                                        ? "translate-x-5"
-                                        : "translate-x-0"
-                                    }`}
-                                  ></div>
-                                </div>
-
-                                {/* Label */}
-                                <span
-                                  className={`text-sm font-medium ${
-                                    value === "Passed"
-                                      ? "text-green-600"
-                                      : value === "Failed"
-                                      ? "text-red-600"
-                                      : "text-gray-500"
-                                  }`}
-                                >
-                                  {value}
-                                </span>
-                              </div>
-                            ) : key === "scholarship_status" ? (
-                              statusBadge(value as string)
-                            ) : (
-                              <span>{statusBadge(value as string)}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
+                      {label.toUpperCase()}
+                    </th>
                   ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <Loading />
-      )}
-      <PaginationControl
-        currentPage={page}
-        totalPages={totalPage}
-        onPageChange={(newPage) => setPage(newPage)} // keep as is
-      />
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200 text-[14px]">
+                {tempRenewalData &&
+                  tempRenewalData
+                    .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+                    .map((renewal) => (
+                      <tr
+                        key={renewal.renewal_id}
+                        className="cursor-pointer group border border-gray-300 "
+                      >
+                        {!isEdit && (
+                          <td
+                            className="px-4 group-hover:bg-gray-100  "
+                            onClick={() =>
+                              handleRowClick(
+                                renewal.student_id,
+                                renewal.renewal_id
+                              )
+                            }
+                          >
+                            <Eye
+                              strokeWidth={1}
+                              className="hover:translate-y-[-1px] hover:text-blue-700 "
+                            />
+                          </td>
+                        )}
+                        {Object.keys(renewalTableHead).map((key) => {
+                          const value = renewal[key as keyof RenewalDetails];
+                          const isValidationField = Object.keys(validation)
+                            .filter(
+                              (k) =>
+                                k !== "scholarship_status" &&
+                                k !== "gpa_validation_stat"
+                            )
+                            .includes(key);
+
+                          const isGPAField = key === "gpa";
+                          const isTextField = key === "delisting_root_cause";
+
+                          // const validationOptions: RenewalDetails[keyof RenewalDetails][] =
+                          //   ["Not Started", "Passed", "Failed"];
+
+                          return (
+                            <td
+                              key={key}
+                              className={`px-5 py-3 border border-gray-300 group-hover:bg-gray-100 ${
+                                key === "scholar_name"
+                                  ? "sticky left-[-1px] z-10 shadow-md bg-white max-w-[300px] whitespace-nowrap overflow-hidden "
+                                  : key === "scholarship_status"
+                                  ? "sticky left-[198px] bg-white z-10 shadow-md max-w-[150px] whitespace-nowrap overflow-hidden "
+                                  : "max-w-[400px] whitespace-nowrap overflow-hidden"
+                              }`}
+                            >
+                              {isEdit && isGPAField ? (
+                                <input
+                                  type="number"
+                                  value={value ?? ""}
+                                  step="0.01"
+                                  min={0}
+                                  max={5}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === "") {
+                                      handleGPAChange(renewal.renewal_id, null);
+                                      return;
+                                    }
+                                    let numVal = Number(val);
+                                    if (numVal > 5) numVal = 5;
+                                    numVal = Math.floor(numVal * 100) / 100;
+
+                                    handleGPAChange(renewal.renewal_id, numVal);
+                                  }}
+                                  className="border border-gray-300 px-2 py-1 rounded-sm w-full"
+                                />
+                              ) : isEdit &&
+                                isTextField &&
+                                renewal.scholarship_status === "Delisted" ? (
+                                <textarea
+                                  value={value as string}
+                                  rows={1}
+                                  onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setTempRenewalData((prev) =>
+                                      prev.map((r) =>
+                                        r.renewal_id === renewal.renewal_id
+                                          ? { ...r, [key]: newValue }
+                                          : r
+                                      )
+                                    );
+                                  }}
+                                  className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none"
+                                />
+                              ) : isEdit && isValidationField ? (
+                                //Switch mode
+                                <div className="flex items-center gap-2">
+                                  {/* Switch */}
+                                  <div
+                                    className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
+                                      value === "Passed"
+                                        ? "bg-green-500"
+                                        : value === "Failed"
+                                        ? "bg-red-500"
+                                        : "bg-gray-500"
+                                    }`}
+                                    onClick={() =>
+                                      handleValidationChange(
+                                        renewal.renewal_id,
+                                        key as keyof RenewalDetails,
+                                        value === "Passed" ? "Failed" : "Passed"
+                                      )
+                                    }
+                                  >
+                                    <div
+                                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                        value === "Passed"
+                                          ? "translate-x-5"
+                                          : "translate-x-0"
+                                      }`}
+                                    ></div>
+                                  </div>
+
+                                  {/* Label */}
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      value === "Passed"
+                                        ? "text-green-600"
+                                        : value === "Failed"
+                                        ? "text-red-600"
+                                        : "text-gray-500"
+                                    }`}
+                                  >
+                                    {value}
+                                  </span>
+                                </div>
+                              ) : key === "scholarship_status" ? (
+                                statusBadge(value as string)
+                              ) : (
+                                <span>{statusBadge(value as string)}</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Loading />
+        )}
+        <PaginationControl
+          currentPage={page}
+          totalPages={totalPage}
+          onPageChange={(newPage) => setPage(newPage)} // keep as is
+        />
+      </div>
+
       {/* {Modals} */}
       <ScholarshipRenewalModal
         isOpen={isRenewalBtnOpen}

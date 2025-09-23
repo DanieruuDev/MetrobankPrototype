@@ -14,24 +14,27 @@ const {
   emailFinder,
   emailFinderWithRole,
   fetchEmailUsingRole,
-  getApprovalsWithStatus,
+  getApprovals,
+  handleRequesterResponse,
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    return cb(null, "./public/images");
-  },
-  filename: function (req, file, cb) {
-    return cb(null, `${Date.now()}_${file.originalname}`);
-  },
-});
-const upload = multer({ storage });
+
+const upload = multer({ dest: "uploads/" }); // temporary storage
+
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     return cb(null, "./public/images");
+//   },
+//   filename: function (req, file, cb) {
+//     return cb(null, `${Date.now()}_${file.originalname}`);
+//   },
+// });
 
 const workflowRouter = express.Router();
 
 workflowRouter.post("/upload", upload.single("file"), uploadFile);
 
-workflowRouter.get("/get-workflows/:user_id/:status", getApprovalsWithStatus);
+workflowRouter.get("/get-workflows/:user_id", getApprovals);
 
 workflowRouter.get("/get-workflow/:user_id/:workflow_id", getApproval);
 
@@ -48,5 +51,10 @@ workflowRouter.get("/fetch-email/:role", fetchEmailUsingRole);
 
 workflowRouter.put("/approve-approval", approveApproval);
 workflowRouter.put("/change-approval/:requester_id", changeApprover);
+workflowRouter.post(
+  "/requester-response",
+  upload.single("file"),
+  handleRequesterResponse
+);
 
 module.exports = workflowRouter;
