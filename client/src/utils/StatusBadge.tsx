@@ -24,6 +24,8 @@ export const workflowStatusText = (status: string) => {
 
 export const approverStatusBadge = (status: string) => {
   switch (status) {
+    case "Current":
+      return "bg-blue-100 text-blue-800";
     case "Pending":
       return "bg-yellow-100 text-yellow-800";
     case "Completed":
@@ -32,6 +34,8 @@ export const approverStatusBadge = (status: string) => {
       return "bg-red-200 text-red-900";
     case "Replaced":
       return "bg-gray-200 text-gray-800";
+    case "Returned":
+      return "bg-orange-300 text-orange-900";
     case "Canceled":
       return "bg-gray-300 text-gray-800";
   }

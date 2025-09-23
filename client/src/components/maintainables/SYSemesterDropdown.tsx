@@ -24,7 +24,6 @@ const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const fetchData = async () => {
       try {

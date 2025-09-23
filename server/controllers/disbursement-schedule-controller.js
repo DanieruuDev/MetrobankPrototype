@@ -26,7 +26,7 @@ const createDisbursementSchedule = async (req, res) => {
   } = req.body;
 
   const client = await pool.connect();
-
+  console.log(branch_code);
   try {
     await client.query("BEGIN");
 
@@ -44,10 +44,15 @@ const createDisbursementSchedule = async (req, res) => {
     ) {
       return res.status(400).json({ message: "Missing required fields." });
     }
-    console.log("pass validation");
 
     let scheduledCount, disb_sched_id;
-    console.log("Branch", branch_code);
+
+    const branchIdResult = await client.query(
+      "SELECT campus_id FROM maintenance_campus WHERE campus_name = $1",
+      [branch_code]
+    );
+    let branchId = branchIdResult.rows[0].campus_id;
+    console.log("BRANCH ID KO", branchId);
     const sched_id = await createEventSchedule(client, {
       event_type,
       starting_date,
@@ -57,7 +62,7 @@ const createDisbursementSchedule = async (req, res) => {
       semester_code,
       requester,
       description,
-      branch_code,
+      branchId,
       disbursement_type_id,
     });
 
@@ -70,7 +75,7 @@ const createDisbursementSchedule = async (req, res) => {
         sched_id,
         sy_code,
         semester_code,
-        branch_code,
+        branchId,
         disbursement_type_id,
       });
 

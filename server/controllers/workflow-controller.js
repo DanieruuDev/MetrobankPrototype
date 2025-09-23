@@ -1,13 +1,12 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
 const path = require("path");
+const { uploadFile, getDownloadStream } = require("../utils/b2.js");
 const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
   sendWorkflowCompletedEmail,
   sendWorkflowRejectedEmail,
-  // Assuming you might add a sendWorkflowSubmittedEmail function later
-  // sendWorkflowSubmittedEmail,
 } = require("../utils/emailing"); // Ensure this path is correct
 const {
   checkWorkflowExists,
@@ -16,7 +15,11 @@ const {
   insertApprovers,
   fetchRequester,
   insertWorkflowLog,
-  checkReject,
+  updateApproverAndResponse,
+  getRequesterAndWorkflowDetails,
+  handleApprovedCase,
+  handleRejectCase,
+  handleReturnedCase,
 } = require("../utils/workflow.utils.js");
 const { createNotification } = require("../services/notificationService.js");
 
@@ -46,99 +49,23 @@ const getApproval = async (req, res) => {
   }
 };
 
-//get all approvals (with author id)
 const getApprovals = async (req, res) => {
   try {
     const { user_id } = req.params;
-    let { page, limit } = req.query;
 
     if (!user_id) {
       return res.status(400).json({ message: "Invalid Admin ID" });
-    } // Parse query params
+    }
 
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
-    const offset = (page - 1) * limit; // Query paginated data
-
-    const dataQuery = await pool.query(
-      "SELECT * FROM vw_workflow_display WHERE requester_id = $1 LIMIT $2 OFFSET $3",
-      [user_id, limit, offset]
-    ); // Query total count
-
-    const countQuery = await pool.query(
-      "SELECT COUNT(*) FROM vw_workflow_display WHERE requester_id = $1",
+    const result = await pool.query(
+      `SELECT * 
+         FROM vw_workflow_display 
+         WHERE requester_id = $1`,
       [user_id]
     );
 
-    const totalCount = parseInt(countQuery.rows[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
-
     return res.status(200).json({
-      data: dataQuery.rows,
-      totalPages,
-      currentPage: page,
-    });
-  } catch (error) {
-    console.error("Error fetching approvals:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-const getApprovalsWithStatus = async (req, res) => {
-  try {
-    const { user_id, status } = req.params;
-    let { page, limit } = req.query;
-
-    if (!user_id) {
-      return res.status(400).json({ message: "Invalid Admin ID" });
-    }
-    console.log(status);
-    // Parse query params
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
-    const offset = (page - 1) * limit;
-
-    let dataQuery, countQuery;
-
-    if (status && status !== "All") {
-      dataQuery = await pool.query(
-        `SELECT * 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1 AND status = $2 
-         LIMIT $3 OFFSET $4`,
-        [user_id, status, limit, offset]
-      );
-
-      countQuery = await pool.query(
-        `SELECT COUNT(*) 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1 AND status = $2`,
-        [user_id, status]
-      );
-    } else {
-      dataQuery = await pool.query(
-        `SELECT * 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1 
-         LIMIT $2 OFFSET $3`,
-        [user_id, limit, offset]
-      );
-
-      countQuery = await pool.query(
-        `SELECT COUNT(*) 
-         FROM vw_workflow_display 
-         WHERE requester_id = $1`,
-        [user_id]
-      );
-    }
-
-    const totalCount = parseInt(countQuery.rows[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
-
-    return res.status(200).json({
-      data: dataQuery.rows,
-      totalPages,
-      currentPage: page,
+      data: result.rows,
     });
   } catch (error) {
     console.error("Error fetching approvals:", error);
@@ -390,7 +317,20 @@ const createApproval = async (req, res) => {
       return res.status(400).json({ message: "Workflow already exists" });
     }
 
-    const docId = await insertDocument(client, file);
+    const b2Result = await uploadFile(
+      file.path,
+      `${Date.now()}_${file.originalname}`, // unique name
+      process.env.B2_BUCKET_ID
+    );
+    deleteFile();
+
+    const docId = await insertDocument(client, {
+      doc_name: b2Result.data.fileName,
+      path: `${process.env.B2_BUCKET_ID}/${b2Result.data.fileName}`,
+      size: file.size,
+      doc_type: file.mimetype,
+    });
+
     const workflowId = await insertWorkflow(client, {
       docId,
       approval_req_type,
@@ -486,7 +426,7 @@ const createApproval = async (req, res) => {
         rq_title,
         due_date,
         status: "Pending",
-        doc_name: file.originalname,
+        doc_name: b2Result.data.fileName,
         current_approver:
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
@@ -522,14 +462,16 @@ const fetchApproverApprovalList = async (req, res) => {
   }
 
   try {
-    const query = `SELECT * FROM vw_approver_workflows`;
-    const { rows } = await pool.query(query);
+    const query = `
+      SELECT *
+      FROM vw_approver_workflows
+      WHERE (approver->>'user_id')::int = $1
+      ORDER BY workflow_id;
+    `;
 
-    const filtered = rows.filter((row) =>
-      row.approvers.some((appr) => appr.user_id === parseInt(user_id))
-    );
+    const { rows } = await pool.query(query, [user_id]);
 
-    return res.status(200).json(filtered);
+    return res.status(200).json(rows);
   } catch (error) {
     console.error("Error fetching approver approvals:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -560,21 +502,19 @@ const fetchApproverApproval = async (req, res) => {
 //When approving the approval
 //added notification
 const approveApproval = async (req, res) => {
-  const { approver_id, response, comment } = req.body;
-  console.log(approver_id);
+  const { approver_id, response, comment, response_id } = req.body;
+
   if (!approver_id || !response) {
     return res
       .status(400)
       .json({ message: "Approver ID and response are required" });
   }
 
-  console.log("Approver ID:", approver_id, "Response:", response);
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    // Fetch workflow_id, approver_order, and requester_id for the current approver
     const currentApproverDataQuery = await client.query(
       `SELECT wa.workflow_id, wa.approver_order, w.requester_id, wa.user_id
    FROM wf_approver wa
@@ -584,7 +524,6 @@ const approveApproval = async (req, res) => {
     );
 
     const currentApproverData = currentApproverDataQuery.rows[0];
-    const user_id = currentApproverData.user_id;
 
     if (!currentApproverData) {
       await client.query("ROLLBACK");
@@ -593,220 +532,90 @@ const approveApproval = async (req, res) => {
         .json({ message: "Current approver data not found." });
     }
 
-    const workflow_id = currentApproverData.workflow_id;
-    const currentApproverOrder = currentApproverData.approver_order;
-    const requester_id = currentApproverData.requester_id; // Step 1: Update approver response
+    const { workflow_id, approver_order, requester_id, user_id } =
+      currentApproverData;
 
-    await client.query(
-      `
+    const requesterAndWorkflowDetails = await getRequesterAndWorkflowDetails(
+      client,
+      workflow_id,
+      requester_id
+    );
+
+    console.log("Parameter", response, comment, approver_id);
+    const workflowDetailsForEmail =
+      requesterAndWorkflowDetails.workflowDetailsForEmail;
+    console.log(workflowDetailsForEmail);
+    if (response === "Approved") {
+      await handleApprovedCase(
+        client,
+        workflow_id,
+        approver_order,
+        user_id,
+        comment,
+        workflowDetailsForEmail,
+        requester_id
+      );
+      await updateApproverAndResponse(client, approver_id, response, comment);
+      console.log("Approved");
+    } else if (response === "Reject") {
+      await handleRejectCase(
+        client,
+        workflow_id,
+        user_id,
+        comment,
+        workflowDetailsForEmail,
+        requester_id
+      );
+      await updateApproverAndResponse(client, approver_id, response, comment);
+    } else if (response === "Return") {
+      console.log("");
+      try {
+        await client.query("BEGIN");
+
+        await handleReturnedCase(
+          client,
+          response_id,
+          comment,
+          user_id,
+          workflow_id,
+          requester_id,
+          approver_id
+        );
+
+        await client.query(
+          `
       UPDATE approver_response
       SET response = $1, comment = $2, updated_at = NOW()
       WHERE approver_id = $3
       `,
-      [response, comment, approver_id]
-    ); // Step 2: Update approver status to Completed
+          ["Returned", comment, approver_id]
+        );
 
-    await client.query(
-      `
-      UPDATE wf_approver
-      SET status = 'Completed'
-      WHERE approver_id = $1
-      `,
-      [approver_id]
-    ); // Step 3: Set current approver's is_current to FALSE
-
-    await client.query(
-      `
-      UPDATE wf_approver
-      SET is_current = false
-      WHERE workflow_id = $1 AND approver_id = $2
-      `,
-      [workflow_id, approver_id] // Use workflow_id from currentApproverData
-    );
-
-    // Fetch requester email and workflow details needed for requester notifications
-    // Also fetch request_title from the workflow table
-    const requesterAndWorkflowDetailsQuery = await client.query(
-      `SELECT aa.admin_email, aa.admin_name, w.rq_type_id, w.due_date, w.description, w.workflow_id, w.rq_title
-         FROM administration_adminaccounts aa
-         JOIN workflow w ON aa.admin_id = w.requester_id
-         WHERE w.workflow_id = $1 AND aa.admin_id = $2`,
-      [workflow_id, requester_id]
-    );
-    const requesterEmail =
-      requesterAndWorkflowDetailsQuery.rows[0]?.admin_email ||
-      "requester@example.com"; // Fallback
-    const requesterName =
-      requesterAndWorkflowDetailsQuery.rows[0]?.admin_name ||
-      "Unknown Requester";
-    const workflowDetailsForEmail = {
-      request_title:
-        requesterAndWorkflowDetailsQuery.rows[0]?.rq_title ||
-        "Unknown Request Type", // Use rq_title from workflow table
-      requester_name: requesterName,
-      due_date: requesterAndWorkflowDetailsQuery.rows[0]?.due_date,
-      rq_description: requesterAndWorkflowDetailsQuery.rows[0]?.description,
-      workflow_id: workflow_id,
-    }; // Step 4: Move to next approver or mark workflow as completed/rejected
-
-    if (response === "Approved") {
-      // Only move to next if Approved
-      await insertWorkflowLog(
-        client,
-        workflow_id,
-        user_id,
-        "Approver",
-        response,
-        "Pending", // old_status
-        "Completed", // new_status
-        comment // approver's comment
-      );
-      const nextApproverQuery = await client.query(
-        `
-        SELECT approver_id, user_email, user_id FROM wf_approver
-        WHERE workflow_id = $1
-        AND status = 'Pending'
-        AND approver_order > $2
-        ORDER BY approver_order
-        LIMIT 1
-        `,
-        [workflow_id, currentApproverOrder] // Use workflow_id and currentApproverOrder from initial fetch
-      );
-
-      if (nextApproverQuery.rows.length > 0) {
-        const nextApproverId = nextApproverQuery.rows[0].approver_id;
-        const nextUserId = nextApproverQuery.rows[0].user_id;
-        console.log(nextApproverQuery.rows);
-        const nextApproverEmail = nextApproverQuery.rows[0].user_email; // Get email
-        console.log("Next approver set to:", nextApproverId);
+        console.log("Before update of wf_approver and workflow");
         await client.query(
           `
-          UPDATE wf_approver
-          SET is_current = true
-          WHERE approver_id = $1
-          `,
-          [nextApproverId]
-        );
-        await insertWorkflowLog(
-          client,
-          workflow_id,
-          nextUserId,
-          "Approver",
-          "Updated",
-          "Pending",
-          "Current",
-          null
+      UPDATE wf_approver
+      SET status = 'Returned'
+      WHERE approver_id = $1
+      `,
+          [approver_id]
         );
 
-        // Send "Its Your Turn" email to the next approver
-        // workflowDetailsForEmail is already fetched
-        await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
-
-        await createNotification({
-          type: "WORKFLOW_APPROVER_TURN",
-          title: "It's Your Turn to Approve",
-          message: `You have a pending approval for "${workflowDetailsForEmail.request_title}".`,
-          relatedId: workflow_id,
-          actorId: user_id, // current approver who approved
-          actionRequired: true,
-          actionType: "APPROVE",
-          recipients: [{ approvers: { user_id: nextUserId } }],
-        });
-
-        await createNotification({
-          type: "WORKFLOW_PARTICIPATION",
-          title: "Workflow Progressed",
-          message: `Request "${workflowDetailsForEmail.request_title}" has been moved to the next approver.`,
-          relatedId: workflow_id,
-          actorId: user_id, // current approver who approved
-          actionRequired: false,
-          recipients: [{ approvers: { user_id: requester_id } }], // send to requester
-        });
-      } else {
-        console.log(
-          "No next approver found. Checking for workflow completion."
+        await client.query(
+          `
+      UPDATE workflow
+      SET status = 'Returned'
+      WHERE workflow_id = $1
+      `,
+          [workflow_id]
         );
-        await insertWorkflowLog(
-          client,
-          workflow_id,
-          user_id,
-          "System",
-          "Completed",
-          "Pending",
-          "Completed",
-          null
-        );
-        // If no next pending approver, check if workflow is completed
-        const pendingCheckQuery = `
-            SELECT COUNT(*) AS pending_count
-            FROM wf_approver
-            WHERE workflow_id = $1
-            AND status NOT IN ('Completed', 'Missed', 'Replaced')
-        `;
-        const pendingResult = await client.query(pendingCheckQuery, [
-          workflow_id,
-        ]);
-        const pendingCount = parseInt(pendingResult.rows[0].pending_count);
-
-        // If no more pending approvers, mark workflow as completed
-        if (pendingCount === 0) {
-          const updateWorkflowQuery = `
-                UPDATE workflow
-                SET status = 'Completed', completed_at = NOW()
-                WHERE workflow_id = $1
-            `;
-          await client.query(updateWorkflowQuery, [workflow_id]);
-          console.log("Workflow marked as completed.");
-
-          await createNotification({
-            type: "WORKFLOW_COMPLETED",
-            title: "Workflow is Completed",
-            message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
-            relatedId: workflow_id,
-            actorId: null,
-            actionRequired: false,
-            recipients: [{ approvers: { user_id: requester_id } }],
-          });
-          await sendWorkflowCompletedEmail(
-            requesterEmail,
-            workflowDetailsForEmail
-          );
-        }
+        console.log("After update of wf_approver and workflow");
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        console.error("🚨 Error in Returned flow:", err);
+        throw err; // just bubble it up
       }
-    } else if (response === "Reject") {
-      await insertWorkflowLog(
-        client,
-        workflow_id,
-        user_id,
-        "Approver",
-        "Rejected",
-        "Pending",
-        "Rejected",
-        comment
-      );
-      const updateWorkflowQuery = `
-        UPDATE workflow
-        SET status = 'Failed', completed_at = NOW()
-        WHERE workflow_id = $1
-      `;
-      await createNotification({
-        type: "WORKFLOW_REJECTED",
-        title: "Workflow was Rejected",
-        message: `Request "${workflowDetailsForEmail.request_title}" was rejected by ${currentApproverData.user_id}.`,
-        relatedId: workflow_id,
-        actorId: user_id,
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: requester_id } }],
-      });
-      await checkReject(client, workflow_id, workflowDetailsForEmail);
-      await client.query(updateWorkflowQuery, [workflow_id]);
-      console.log("Workflow marked as rejected.");
-
-      // await sendWorkflowRejectedEmail(
-      //   requesterEmail,
-      //   workflowDetailsForEmail,
-      //   comment
-      // );
     }
 
     await client.query("COMMIT");
@@ -872,30 +681,34 @@ const emailFinder = async (req, res) => {
 };
 
 const downloadFile = async (req, res) => {
-  const file_path = decodeURIComponent(req.params.file_path);
-  if (!file_path) {
-    return res.status(400).send("Invalid file path");
+  const fileName = decodeURIComponent(req.params.file_path); // use same param
+  if (!fileName) {
+    return res.status(400).send("Invalid file name");
   }
-  console.log(file_path);
-  const fullPath = path.join(__dirname, "../", file_path);
-  console.log("Downloading file from:", fullPath);
 
-  res.download(fullPath, (err) => {
-    if (err) {
-      console.error("Error downloading file:", err);
-      res.status(500).send("Error downloading file");
-    }
-  });
-};
-
-const uploadFile = async (req, res) => {
   try {
-    console.log(req.body);
-    console.log(req.file);
+    console.log("Downloading file from B2:", fileName);
 
-    res.json({ message: "File uploaded successfully!", file: req.file });
-  } catch (error) {
-    res.status(500).json({ error: "File upload failed" });
+    // Get the file stream from B2
+    const fileStream = await getDownloadStream(fileName);
+
+    // Set headers for download
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Pipe the B2 stream directly to the response
+    fileStream.on("error", (err) => {
+      console.error("Stream error:", err);
+      res.status(500).end("Error reading file stream");
+    });
+
+    fileStream.pipe(res);
+  } catch (err) {
+    console.error("Error downloading file:", err);
+    res.status(500).send("Error downloading file");
   }
 };
 
@@ -977,7 +790,103 @@ const fetchEmailUsingRole = async (req, res) => {
     console.error("Error in fetchEmailUsingRole:", error);
     return res.status(500).json({ message: "Server error." });
   }
-}; //currently use in createapproval
+};
+
+const handleRequesterResponse = async (req, res) => {
+  const { return_id, comment, requester_id, workflow_id, response_id } =
+    req.body;
+  const file = req.file;
+  console.log(file);
+  const deleteFile = () => {
+    if (file) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (err) {
+        console.error("Error deleting file:", err);
+      }
+    }
+  };
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let fileName = null;
+    let fileType = null;
+    let fileSize = null;
+    if (file) {
+      const bucketId = process.env.B2_BUCKET_ID;
+      const uniqueFileName = `${Date.now()}_${file.originalname}`;
+
+      await uploadFile(file.path, uniqueFileName, bucketId);
+
+      fileName = uniqueFileName;
+      fileType = file.mimetype;
+      fileSize = file.size;
+
+      deleteFile();
+    }
+    const insertRes = await client.query(
+      `
+      INSERT INTO requester_response (
+        response_id,
+        requester_id,
+        message,
+        file_name,
+        file_type,
+        file_size
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING req_response_id
+      `,
+      [return_id, requester_id, comment, fileName, fileType, fileSize]
+    );
+
+    const reqResponseId = insertRes.rows[0].req_response_id;
+    console.log(reqResponseId);
+
+    await client.query(
+      `UPDATE approver_response SET response = $1 WHERE response_id = $2`,
+      ["Pending", response_id]
+    );
+
+    await client.query(
+      `UPDATE return_feedback SET requester_take_action = $1 WHERE return_id = $2`,
+      [true, return_id]
+    );
+    console.log("Return feedback udpate done");
+    await client.query(
+      `UPDATE workflow SET status = 'In Progress' WHERE workflow_id = $1`,
+      [workflow_id]
+    );
+    console.log("workflow udpate done");
+    await client.query(
+      `UPDATE wf_approver
+       SET status = 'Pending'
+       WHERE workflow_id = $1
+         AND status = 'Returned'`,
+      [workflow_id]
+    );
+    console.log(" wf_approver udpate done");
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      success: true,
+      message: "Requester response submitted and workflow resumed",
+      responseId: reqResponseId,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error handling requester response:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save requester response",
+      error: err.message,
+    });
+  } finally {
+    client.release();
+  }
+};
 
 module.exports = {
   uploadFile,
@@ -992,5 +901,6 @@ module.exports = {
   emailFinder,
   emailFinderWithRole,
   fetchEmailUsingRole,
-  getApprovalsWithStatus,
+  getApprovals,
+  handleRequesterResponse,
 };

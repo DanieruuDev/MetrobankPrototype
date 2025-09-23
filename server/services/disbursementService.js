@@ -8,10 +8,10 @@ const createEventSchedule = async (client, data) => {
     semester_code,
     requester,
     description,
-    branch_code,
+    branchId,
     disbursement_type_id,
   } = data;
-
+  console.log("Branch id to: ", branchId);
   const { rows: existingDisb } = await client.query(
     `
   SELECT ds.disb_sched_id
@@ -23,12 +23,12 @@ const createEventSchedule = async (client, data) => {
     AND ds.disbursement_type_id = $4
   LIMIT 1
   `,
-    [sy_code, semester_code, branch_code, disbursement_type_id]
+    [sy_code, semester_code, branchId, disbursement_type_id]
   );
 
   if (existingDisb.length > 0) {
     throw new Error(
-      `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, Branch ${branch_code}, and Disbursement Type ${disbursement_type_id}.`
+      `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, Branch ${branchId}, and Disbursement Type ${disbursement_type_id}.`
     );
   }
 
@@ -42,12 +42,12 @@ const createEventSchedule = async (client, data) => {
       AND mc.campus_id = $3
     LIMIT 1
     `,
-    [sy_code, semester_code, branch_code]
+    [sy_code, semester_code, branchId]
   );
-  console.log("Branch", branch_code);
+  console.log("Branch", branchId);
   if (!students.length) {
     throw new Error(
-      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branch_code} for this event.`
+      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branchId} for this event.`
     );
   }
 
@@ -87,13 +87,8 @@ const createEventSchedule = async (client, data) => {
 };
 
 const createDisbursementSched = async (client, data) => {
-  const {
-    sched_id,
-    sy_code,
-    semester_code,
-    branch_code,
-    disbursement_type_id,
-  } = data;
+  const { sched_id, sy_code, semester_code, branchId, disbursement_type_id } =
+    data;
 
   const { rows: disbDetails } = await client.query(
     `
@@ -107,12 +102,12 @@ const createDisbursementSched = async (client, data) => {
     AND mc.campus_id = $3
     AND dd.disbursement_type_id = $4
   `,
-    [sy_code, semester_code, branch_code, disbursement_type_id]
+    [sy_code, semester_code, branchId, disbursement_type_id]
   );
 
   if (!disbDetails.length) {
     throw new Error(
-      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branch_code} for disbursement type ${disbursement_type_id}.`
+      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branchId} for disbursement type ${disbursement_type_id}.`
     );
   }
 
@@ -125,7 +120,7 @@ const createDisbursementSched = async (client, data) => {
     VALUES ($1, $2, $3, $4)
     RETURNING disb_sched_id
     `,
-      [sched_id, disb_detail_id, branch_code, disbursement_type_id]
+      [sched_id, disb_detail_id, branchId, disbursement_type_id]
     );
     insertedIds.push(rows[0].disb_sched_id);
   }

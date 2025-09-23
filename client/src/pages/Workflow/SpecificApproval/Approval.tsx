@@ -1,6 +1,16 @@
+"use client";
+
+import type React from "react";
+
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { Approver, DetailedWorkflow, WorkflowLog } from "../Workflow";
+import type {
+  Approver,
+  DetailedWorkflow,
+  WorkflowLog,
+  RequesterResponse,
+  ReturnFeedback,
+} from "../Workflow";
 import {
   Download,
   FileText,
@@ -15,6 +25,8 @@ import {
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { AuthContext } from "../../../context/AuthContext";
+import ChangeApproverModal from "../../../components/approval/ChangeApproverModal";
+import { toast } from "react-toastify";
 
 interface ApprovalProps {
   detailedWorkflow?: DetailedWorkflow;
@@ -32,12 +44,18 @@ function Approval({
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const [isLoading, setIsLoading] = useState(true);
+  const [isResponseLoading, setIsResponseLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedApprover, setSelectedApprover] = useState<Approver | null>(
     null
   );
   const [newApprover, setNewApprover] = useState("");
   const [reason, setReason] = useState("");
+
+  const [returnedResponseFile, setReturnedResponseFile] = useState<File | null>(
+    null
+  );
+  const [returnedResponseComment, setReturnedResponseComment] = useState("");
 
   // Use approver_id for expanded state (instead of approver_order)
   const [expandedApproverId, setExpandedApproverId] = useState<number | null>(
@@ -52,6 +70,20 @@ function Approval({
   useEffect(() => {
     if (detailedWorkflow) {
       setIsLoading(false);
+    }
+  }, [detailedWorkflow]);
+
+  useEffect(() => {
+    if (detailedWorkflow?.approvers) {
+      const returnedApprover = detailedWorkflow.approvers.find(
+        (approver) => approver.approver_status === "Returned"
+      );
+      if (returnedApprover && returnedApprover.return_feedback.length > 0) {
+        console.log(
+          returnedApprover && returnedApprover.return_feedback.length > 0
+        );
+        setExpandedApproverId(returnedApprover.approver_id);
+      }
     }
   }, [detailedWorkflow]);
 
@@ -96,40 +128,16 @@ function Approval({
       alert(error || "Failed to change approver.");
     }
   };
-
-  // const getStatusColor = (status: string) => {
-  //   switch (status) {
-  //     case "Completed":
-  //       return "bg-green-500";
-  //     case "Current": // Add this case
-  //       return "bg-blue-500";
-  //     case "Pending":
-  //       return "bg-yellow-400";
-  //     case "In Progress":
-  //       return "bg-blue-500";
-  //     case "Missed":
-  //       return "bg-red-500";
-  //     case "Reject":
-  //       return "bg-red-600";
-  //     default:
-  //       return "bg-gray-400";
-  //   }
-  // };
-
   const getStatusTextColor = (status: string) => {
     switch (status) {
-      case "Completed":
-        return "text-green-600";
-      case "Current": // Add this case
-        return "text-blue-600";
+      case "Approved":
+        return "text-green-700";
       case "Pending":
-        return "text-yellow-600";
-      case "In Progress":
-        return "text-blue-600";
-      case "Missed":
-        return "text-red-600";
+        return "text-yellow-700";
       case "Reject":
         return "text-red-700";
+      case "Returned":
+        return "text-orange-700";
       default:
         return "text-gray-600";
     }
@@ -137,8 +145,15 @@ function Approval({
 
   // Toggle expansion by approver_id
   const toggleStepExpansion = (approverId: number) => {
+    const approver = detailedWorkflow?.approvers?.find(
+      (a) => a.approver_id === approverId
+    );
+    const isReturned = approver?.approver_status === "Returned";
+
     if (expandedApproverId === approverId) {
-      setExpandedApproverId(null);
+      if (!isReturned) {
+        setExpandedApproverId(null);
+      }
     } else {
       setExpandedApproverId(approverId);
     }
@@ -150,12 +165,50 @@ function Approval({
       return;
     }
 
-    const filePath = encodeURIComponent(workflow.doc_path);
+    const filePath = encodeURIComponent(workflow.doc_name); // encode special chars
     const link = document.createElement("a");
     link.href = `http://localhost:5000/api/workflow/download/${filePath}`;
+    link.setAttribute("download", workflow.doc_name); // filename for browser
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleReturendResponse = async (
+    return_id: number,
+    response_id: number
+  ) => {
+    setIsResponseLoading(true);
+    if (!returnedResponseComment || !workflow) {
+      toast.warn("⚠️ Please provide a comment for your response.");
+      return;
+    }
+
+    try {
+      await axios.post(
+        "http://localhost:5000/api/workflow/requester-response",
+        {
+          return_id,
+          comment: returnedResponseComment,
+          requester_id: userId,
+          file: returnedResponseFile,
+          workflow_id: workflow.workflow_id,
+          response_id,
+        },
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      toast.success("✅ Response submitted successfully!");
+      fetchWorkflow(Number(userId), workflow.workflow_id);
+    } catch (error) {
+      console.log(error);
+      toast.error(`❌ Failed to submit response: ${error}`);
+    } finally {
+      setIsResponseLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -196,7 +249,6 @@ function Approval({
     return (completedSteps / totalSteps) * 100;
   };
 
-  console.log(workflow);
   return (
     <div className="min-h-[88vh] bg-gray-50 pt-6 pb-12">
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -361,10 +413,15 @@ function Approval({
                       .map((approver) => {
                         const isApproved = approver.response === "Approved";
                         const isRejected = approver.response === "Reject";
-                        const isCurrent = approver.is_current;
-                        const displayStatus = isCurrent
+                        const isReturned = approver.response === "Returned";
+                        const isCurrent = approver.is_current && !isReturned; // returned takes precedence
+
+                        const displayStatus = isReturned
+                          ? "Returned"
+                          : isCurrent
                           ? "Current"
                           : approver.approver_status;
+
                         const isPending = displayStatus === "Pending";
 
                         return (
@@ -383,6 +440,8 @@ function Approval({
                                   ? "bg-yellow-400"
                                   : isRejected
                                   ? "bg-red-500"
+                                  : isReturned
+                                  ? "bg-orange-500"
                                   : "bg-gray-400"
                               }`}
                             >
@@ -390,6 +449,18 @@ function Approval({
                                 <Check className="w-5 h-5 text-white" />
                               ) : isRejected ? (
                                 <X className="w-5 h-5 text-white" />
+                              ) : isReturned ? (
+                                <svg
+                                  className="w-5 h-5 text-white"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414L2.586 8l3.707-3.707a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
                               ) : (
                                 <span className="text-white font-medium">
                                   {approver.approver_order}
@@ -416,6 +487,8 @@ function Approval({
                                       ? "bg-yellow-50 border-yellow-100"
                                       : isRejected
                                       ? "bg-red-50 border-red-100"
+                                      : isReturned
+                                      ? "bg-orange-50 border-orange-200"
                                       : "bg-gray-50 border-gray-100"
                                     : isApproved
                                     ? "bg-green-50 border-green-100"
@@ -425,6 +498,8 @@ function Approval({
                                     ? "bg-yellow-50 border-yellow-100"
                                     : isRejected
                                     ? "bg-red-50 border-red-100"
+                                    : isReturned
+                                    ? "bg-orange-50 border-orange-200"
                                     : "bg-gray-50 border-gray-100"
                                 }`}
                                 onClick={() =>
@@ -464,6 +539,8 @@ function Approval({
                                             ? "bg-yellow-100"
                                             : isRejected
                                             ? "bg-red-100"
+                                            : isReturned
+                                            ? "bg-orange-100"
                                             : "bg-gray-100"
                                         }`}
                                       >
@@ -472,12 +549,15 @@ function Approval({
                                             displayStatus === "Completed" &&
                                               approver.response === "Reject"
                                               ? "Reject"
+                                              : displayStatus === "Completed" &&
+                                                approver.response === "Returned"
+                                              ? "Returned"
                                               : displayStatus
                                           )}`}
                                         >
                                           {displayStatus === "Completed" &&
                                           approver.response
-                                            ? approver.response // show "Approved" or "Reject"
+                                            ? approver.response
                                             : displayStatus}
                                         </span>
                                       </div>
@@ -499,8 +579,237 @@ function Approval({
                                   </div>
                                 </div>
                               </div>
+                              {/* Return Feedback Section - Always present but conditionally visible */}
+                              {(isReturned ||
+                                approver.return_feedback.length > 0) && (
+                                <div
+                                  className={`bg-orange-50 p-4 rounded-lg border border-orange-200 mt-2 transition-all duration-200 ${
+                                    expandedApproverId ===
+                                      approver.approver_id ||
+                                    approver.approver_status === "Returned"
+                                      ? "block"
+                                      : "hidden"
+                                  }`}
+                                >
+                                  <h4 className="text-sm font-medium text-orange-800 mb-4 flex items-center">
+                                    <svg
+                                      className="w-4 h-4 mr-2"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                    Return Feedback
+                                  </h4>
 
-                              {/* Expanded content */}
+                                  {approver.return_feedback.length === 0 &&
+                                    isReturned && (
+                                      <div className="text-sm text-orange-700 italic">
+                                        This step was returned but no specific
+                                        feedback was provided.
+                                      </div>
+                                    )}
+
+                                  {/* Return Feedback Items */}
+                                  {approver.return_feedback.map(
+                                    (feedback: ReturnFeedback) => (
+                                      <div
+                                        key={feedback.return_id}
+                                        className="mb-4 last:mb-0"
+                                      >
+                                        <div className="flex items-start justify-between mb-2">
+                                          <div className="flex-1">
+                                            <p className="text-xs text-orange-600 font-medium">
+                                              Returned by{" "}
+                                              {feedback.created_by_name} (
+                                              {feedback.created_by_email}){" "}
+                                              {feedback.requester_take_action && (
+                                                <span className="bg-orange-200 text-orange-800 px-2 py-1 rounded-full text-xs ml-2">
+                                                  Action Required
+                                                </span>
+                                              )}
+                                            </p>
+                                          </div>
+                                          <p className="text-xs text-orange-600">
+                                            {formatDate(feedback.created_at)}
+                                          </p>
+                                        </div>
+                                        <p className="text-sm text-orange-800 bg-orange-50 p-3 rounded">
+                                          {feedback.reason}
+                                        </p>
+
+                                        {/* Previous Responses */}
+                                        {feedback.requester_responses &&
+                                          feedback.requester_responses.length >
+                                            0 && (
+                                            <div className="mb-4">
+                                              <p className="text-xs font-medium text-gray-600 mb-2">
+                                                Previous Responses:
+                                              </p>
+                                              <div className="space-y-2 max-h-32 overflow-y-auto">
+                                                {feedback.requester_responses.map(
+                                                  (
+                                                    response: RequesterResponse
+                                                  ) => (
+                                                    <div
+                                                      key={
+                                                        response.req_response_id
+                                                      }
+                                                      className="bg-gray-50 p-2 rounded text-sm"
+                                                    >
+                                                      <p className="text-gray-700">
+                                                        {response.message}
+                                                      </p>
+                                                      {response.file_name && (
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                          📎{" "}
+                                                          {response.file_name}
+                                                        </p>
+                                                      )}
+                                                      <p className="text-xs text-gray-400 mt-1">
+                                                        {formatDate(
+                                                          response.responded_at
+                                                        )}
+                                                      </p>
+                                                    </div>
+                                                  )
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                        {/* Response Form */}
+                                        {feedback.requester_take_action ===
+                                        false ? (
+                                          <div className="space-y-3">
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                Your Response
+                                              </label>
+                                              <textarea
+                                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                                placeholder="Explain how you've addressed the concerns..."
+                                                rows={3}
+                                                value={returnedResponseComment}
+                                                onChange={(e) =>
+                                                  setReturnedResponseComment(
+                                                    e.target.value
+                                                  )
+                                                }
+                                              />
+                                            </div>
+
+                                            {/* File Upload */}
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                Supporting Document (Optional)
+                                              </label>
+                                              <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center hover:border-orange-400 transition-colors">
+                                                <input
+                                                  type="file"
+                                                  id={`file-${feedback.return_id}`}
+                                                  className="hidden"
+                                                  onChange={(e) => {
+                                                    const file =
+                                                      e.target.files?.[0];
+                                                    if (file) {
+                                                      setReturnedResponseFile(
+                                                        file
+                                                      );
+                                                    }
+                                                  }}
+                                                />
+                                                <label
+                                                  htmlFor={`file-${feedback.return_id}`}
+                                                  className="cursor-pointer"
+                                                >
+                                                  <div className="flex flex-col items-center">
+                                                    <svg
+                                                      className="w-6 h-6 text-gray-400 mb-1"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      viewBox="0 0 24 24"
+                                                    >
+                                                      <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                                                      />
+                                                    </svg>
+                                                    <span className="text-xs text-gray-600">
+                                                      {returnedResponseFile
+                                                        ? returnedResponseFile.name
+                                                        : "Click to upload"}
+                                                    </span>
+                                                  </div>
+                                                </label>
+                                              </div>
+                                              {returnedResponseFile && (
+                                                <div className="mt-2 flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                  <span className="text-xs text-gray-700">
+                                                    {returnedResponseFile.name}
+                                                  </span>
+                                                  <button
+                                                    onClick={() =>
+                                                      setReturnedResponseFile(
+                                                        null
+                                                      )
+                                                    }
+                                                    className="text-red-500 hover:text-red-700"
+                                                  >
+                                                    <X size={14} />
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            <button
+                                              className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium transition-colors duration-200 flex items-center justify-center"
+                                              disabled={isResponseLoading}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleReturendResponse(
+                                                  feedback.return_id,
+                                                  approver.response_id
+                                                );
+                                              }}
+                                            >
+                                              {!isResponseLoading ? (
+                                                <>
+                                                  <svg
+                                                    className="w-4 h-4 mr-2"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                                    />
+                                                  </svg>
+                                                  Submit Response
+                                                </>
+                                              ) : (
+                                                "Submitting..."
+                                              )}
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          ""
+                                        )}
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              )}
+
                               {expandedApproverId === approver.approver_id && (
                                 <div className="mt-3 space-y-3 pl-4">
                                   {/* Response details only */}
@@ -539,6 +848,7 @@ function Approval({
                                   {/* Change approver button */}
                                   {approver.approver_status !== "Completed" &&
                                     approver.response !== "Reject" &&
+                                    approver.response !== "Returned" &&
                                     approver.approver_status !== "Canceled" && (
                                       <button
                                         className="w-full px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-100"
@@ -750,76 +1060,17 @@ function Approval({
 
       {/* Change Approver Modal */}
       {showModal && selectedApprover && (
-        <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)]  flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Change Approver
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Current Approver
-                  </label>
-                  <div className="bg-gray-100 p-3 rounded-lg text-gray-900">
-                    {selectedApprover.approver_email}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Approver Email
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-                    placeholder="Enter email address"
-                    value={newApprover}
-                    onChange={(e) => setNewApprover(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reason for Change
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <textarea
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-32 transition-colors duration-200"
-                    placeholder="Please provide a reason for changing the approver..."
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  ></textarea>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center"
-                  onClick={handleChangeApprover}
-                >
-                  <Check className="w-4 h-4 mr-1" />
-                  Confirm Change
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <>
+          <ChangeApproverModal
+            setShowModal={setShowModal}
+            selectedApprover={selectedApprover}
+            newApprover={newApprover}
+            setNewApprover={setNewApprover}
+            reason={reason}
+            setReason={setReason}
+            handleChangeApprover={handleChangeApprover}
+          />
+        </>
       )}
     </div>
   );
