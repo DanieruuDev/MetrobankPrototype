@@ -33,6 +33,7 @@ function Schedule() {
   const [error, setError] = useState<string | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const { collapsed } = useSidebar();
   const onClose = (isClosed: boolean) => {
     setIsModalOpen(isClosed);
@@ -133,7 +134,11 @@ function Schedule() {
       <Navbar pageName="Calendar of Activity" />
 
       <Sidebar />
-      <ScheduleSidebar getBadgeColor={getBadgeColor} collapsed={collapsed} />
+      <ScheduleSidebar
+        getBadgeColor={getBadgeColor}
+        collapsed={collapsed}
+        refreshKey={sidebarRefreshKey}
+      />
 
       <div
         className="pl-[270px] pt-2 pr-4 "
@@ -229,7 +234,10 @@ function Schedule() {
         {isModalOpen && (
           <EventModal
             onClose={onClose}
-            fetchSchedules={() => fetchSchedules(visibleMonth)}
+            fetchSchedules={() => {
+              fetchSchedules(visibleMonth);
+              setSidebarRefreshKey((prev) => prev + 1);
+            }}
             selectedDate={selectedDate}
           />
         )}

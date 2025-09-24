@@ -83,6 +83,7 @@ const Sidebar = () => {
       className={`fixed left-0 top-0 bottom-0 transition-all duration-300 
         bg-gradient-to-b from-[#024FA8] to-[#0376C0] shadow-lg
         ${collapsed ? "w-20 px-2" : "w-[240px] px-4"}
+        z-50
         pt-6 text-white font-sans`}
     >
       {/* Header with logo and toggle button */}
