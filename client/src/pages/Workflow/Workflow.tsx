@@ -129,9 +129,12 @@ function Workflow() {
     DetailedWorkflow | undefined
   >();
   const { collapsed } = useSidebar();
-  const [workflowToDelete, setWorkflowToDelete] = useState<number | null>(null);
+  const [workflowToArchived, setWorkflowToArchived] = useState<number | null>(
+    null
+  );
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [eyeLoading, setEyeLoading] = useState(false);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -226,6 +229,7 @@ function Workflow() {
   };
 
   const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
+    setEyeLoading(true);
     try {
       const response = await axios.get(
         `http://localhost:5000/api/workflow/get-workflow/${requester_id}/${workflow_id}`
@@ -234,15 +238,22 @@ function Workflow() {
       setDetailedWorkflow(response.data);
     } catch (error) {
       console.error("Error fetching workflow:", error);
+    } finally {
+      setEyeLoading(false);
     }
   };
-  const deleteWorkflow = async (requester_id: number, workflow_id: number) => {
+  const archivedWorkflow = async (
+    requester_id: number,
+    workflow_id: number
+  ) => {
+    console.log(requester_id, workflow_id);
+
     try {
-      await axios.delete(
-        `http://localhost:5000/api/workflow/delete-workflow/${requester_id}/${workflow_id}`
+      await axios.put(
+        `http://localhost:5000/api/workflow/archive-workflow/${requester_id}/${workflow_id}`
       );
 
-      toast.success("Approval workflow deleted successfully!");
+      toast.success("Approval workflow archived successfully!");
 
       setWorkflowDisplay((prevItems) =>
         prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
@@ -275,21 +286,21 @@ function Workflow() {
     fetchWorkflows();
   }, []);
 
-  const openDeleteConfirm = (workflowId: number) => {
-    setWorkflowToDelete(workflowId);
+  const openArchivedConfirm = (workflowId: number) => {
+    setWorkflowToArchived(workflowId);
     setIsConfirmOpen(true);
   };
 
-  const cancelDelete = () => {
-    setWorkflowToDelete(null);
+  const cancelArchived = () => {
+    setWorkflowToArchived(null);
     setIsConfirmOpen(false);
   };
 
-  const confirmDelete = () => {
-    if (userId !== undefined && workflowToDelete !== null) {
-      deleteWorkflow(userId, workflowToDelete);
+  const confirmArchived = () => {
+    if (userId !== undefined && workflowToArchived !== null) {
+      archivedWorkflow(userId, workflowToArchived);
     }
-    setWorkflowToDelete(null);
+    setWorkflowToArchived(null);
     setIsConfirmOpen(false);
   };
 
@@ -438,9 +449,9 @@ function Workflow() {
           </div>
           <ConfirmDialog
             isOpen={isConfirmOpen}
-            message="Are you sure you want to delete this approval workflow?"
-            onConfirm={confirmDelete}
-            onCancel={cancelDelete}
+            message="Are you sure you want to archived this approval workflow?"
+            onConfirm={confirmArchived}
+            onCancel={cancelArchived}
           />
           {isModal && (
             <CreateApproval
@@ -470,9 +481,10 @@ function Workflow() {
                       if (userId !== undefined)
                         fetchWorkflow(userId, workflowId);
                     }}
-                    onDelete={openDeleteConfirm}
+                    onArchived={openArchivedConfirm}
                     titleIcon={icon}
                     titleColor={color}
+                    eyeLoading={eyeLoading}
                   />
                 );
               }

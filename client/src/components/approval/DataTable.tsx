@@ -4,14 +4,14 @@ import {
   CheckCircle,
   XCircle,
   RotateCcw,
-  Trash2,
   Disc,
   CircleAlert,
   FileX,
   Search,
+  Archive,
+  Edit,
 } from "lucide-react";
 import type React from "react";
-
 import { useState } from "react";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import PaginationControl from "../../components/shared/PaginationControl";
@@ -32,7 +32,7 @@ interface DataTableProps {
   workflows: WorkflowDisplaySchema[];
   loading: boolean;
   onRowClick: (workflowId: number) => void;
-  onDelete: (workflowId: number) => void;
+  onArchived: (workflowId: number) => void;
   titleIcon?: React.ReactNode;
   titleColor?: string;
   emptyStateConfig?: {
@@ -41,6 +41,7 @@ interface DataTableProps {
     description?: string;
     showCreateButton?: boolean;
   };
+  eyeLoading: boolean;
 }
 
 const getStatusIcon = (status: string) => {
@@ -140,10 +141,11 @@ export default function DataTable({
   workflows,
   loading,
   onRowClick,
-  onDelete,
+  onArchived,
   titleIcon,
   titleColor,
   emptyStateConfig,
+  eyeLoading,
 }: DataTableProps) {
   const itemsPerPage = 10;
   const [page, setPage] = useState(1);
@@ -153,6 +155,9 @@ export default function DataTable({
     (page - 1) * itemsPerPage,
     page * itemsPerPage
   );
+  const onEdit = (workflow_id: number) => {
+    console.log(workflow_id);
+  };
 
   const emptyState = getEmptyStateConfig(title, emptyStateConfig);
 
@@ -169,7 +174,6 @@ export default function DataTable({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-      {/* Header */}
       <div
         className={`px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2`}
       >
@@ -179,7 +183,6 @@ export default function DataTable({
         </h3>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -227,9 +230,14 @@ export default function DataTable({
             ) : (
               paginatedData.map((workflow) => (
                 <tr
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRowClick(workflow.workflow_id);
+                  }}
                   key={workflow.workflow_id}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-                  onClick={() => onRowClick(workflow.workflow_id)}
+                  className={`${
+                    eyeLoading && "cursor-wait"
+                  } hover:bg-gray-50 transition-colors duration-150 cursor-pointer`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-col">
@@ -255,24 +263,37 @@ export default function DataTable({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate
-                      ? formatDate(workflow.due_date)
-                      : workflow.due_date}
+                    {formatDate(workflow.due_date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-xs">
                     {workflow.school_details || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(workflow.workflow_id);
-                      }}
-                      className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors duration-150"
-                      title="Delete workflow"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center  gap-1">
+                      {onEdit && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(workflow.workflow_id);
+                          }}
+                          className="text-blue-600 cursor-pointer hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors duration-150"
+                          title="Edit workflow"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onArchived(workflow.workflow_id);
+                        }}
+                        className="text-yellow-600 cursor-pointer hover:text-yellow-900 p-1 rounded-md hover:bg-yellow-50 transition-colors duration-150"
+                        title="Archive workflow"
+                      >
+                        <Archive size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

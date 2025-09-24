@@ -26,9 +26,9 @@ const ConfirmDialog = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+            className="px-4 py-2 rounded bg-yellow-600 text-white hover:bg-yellow-700"
           >
-            Delete
+            Archive
           </button>
         </div>
       </div>
