@@ -37,7 +37,7 @@ const createNotification = async ({
 }) => {
   const client = await pool.connect();
   console.log(recipients);
-  console.log("Change approver");
+
   try {
     await client.query("BEGIN");
 
