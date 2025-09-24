@@ -11,7 +11,7 @@ const checkWorkflowExists = async (
   semester_code
 ) => {
   const res = await client.query(
-    "SELECT * FROM workflow WHERE approval_req_type = $1 AND sy_code = $2 AND semester_code = $3",
+    "SELECT * FROM workflow WHERE approval_req_type = $1 AND sy_code = $2 AND semester_code = $3 AND is_archived = FALSE",
     [approval_req_type, sy_code, semester_code]
   );
 

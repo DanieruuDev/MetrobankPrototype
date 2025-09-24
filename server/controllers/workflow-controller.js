@@ -888,6 +888,81 @@ const handleRequesterResponse = async (req, res) => {
   }
 };
 
+const archiveApproval = async (req, res) => {
+  const { requester_id, workflow_id } = req.params;
+
+  if (!requester_id || !workflow_id) {
+    return res
+      .status(400)
+      .json({ message: "Missing requester_id or workflow_id" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      "UPDATE workflow SET is_archived = true WHERE requester_id = $1 AND workflow_id = $2 RETURNING *",
+      [requester_id, workflow_id]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        message: "No workflow found with given requester_id and workflow_id",
+      });
+    }
+
+    const archivedWorkflow = result.rows[0];
+
+    // ✅ Fetch approvers correctly
+    const approversRes = await client.query(
+      `
+      SELECT a.admin_id AS user_id, a.admin_name
+      FROM wf_approver wa
+      JOIN administration_adminaccounts a 
+        ON wa.user_id = a.admin_id
+      WHERE wa.workflow_id = $1
+      `,
+      [workflow_id]
+    );
+
+    const approvers = approversRes.rows;
+
+    if (approvers.length > 0) {
+      const wrappedApprovers = approvers.map((a) => ({
+        approvers: { user_id: a.user_id },
+      }));
+
+      console.log("Recipients:", wrappedApprovers);
+
+      await createNotification({
+        type: "WORKFLOW_PARTICIPATION",
+        title: "Workflow Archived",
+        message: `The workflow "${archivedWorkflow.rq_title}" has been archived.`,
+        relatedId: workflow_id,
+        actorId: requester_id,
+        actionRequired: false,
+        actionType: "VIEW_ONLY",
+        recipients: wrappedApprovers,
+      });
+    }
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      message: "Workflow archived successfully and approvers notified",
+      workflow: archivedWorkflow,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error archiving workflow:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   uploadFile,
   changeApprover,
@@ -903,4 +978,5 @@ module.exports = {
   fetchEmailUsingRole,
   getApprovals,
   handleRequesterResponse,
+  archiveApproval,
 };
