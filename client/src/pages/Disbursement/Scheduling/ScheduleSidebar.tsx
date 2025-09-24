@@ -17,10 +17,12 @@ export interface DisbursementScheduleSummary {
 interface ScheduleSidebarProps {
   getBadgeColor: (type: string) => string;
   collapsed: boolean;
+  refreshKey?: number;
 }
 const ScheduleSidebar = ({
   getBadgeColor,
   collapsed,
+  refreshKey,
 }: ScheduleSidebarProps) => {
   // const [sidebarSchedule, setSidebarSchedule] = useState<
   //   DisbursementSchedule[] | null
@@ -74,7 +76,7 @@ const ScheduleSidebar = ({
 
   useEffect(() => {
     fetchTwoWeeksSchedule();
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div

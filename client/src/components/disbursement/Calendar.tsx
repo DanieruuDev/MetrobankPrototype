@@ -10,7 +10,7 @@ import {
   subMonths,
   isSameMonth,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { DisbursementSchedule } from "../../pages/Disbursement/Scheduling/Schedule";
 import RenderDayCell from "./RenderDayCell";
 
@@ -73,7 +73,7 @@ function Calendar({
         day = addDays(day, 1);
       }
       rows.push(
-        <div className="grid grid-cols-7" key={day.toString()}>
+        <div className="grid grid-cols-7 flex-1" key={day.toString()}>
           {week}
         </div>
       );
@@ -87,7 +87,7 @@ function Calendar({
   }, [currentDate, setVisibleMonth]);
 
   return (
-    <div className="w-full mx-auto p-4">
+    <div className="w-full mx-auto p-4 h-[70vh] lg:h-[78vh] xl:h-[82vh]">
       <div className="flex justify-between items-center mb-6 px-2">
         <h2
           className={`text-2xl font-semibold ${
@@ -101,13 +101,30 @@ function Calendar({
         <div className="flex items-center">
           <button
             onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-            className="text-gray-700 p-2 hover:bg-gray-200 rounded-full"
+            className="text-gray-700 p-2 hover:bg-gray-200 rounded-full transition-colors"
+            aria-label="Previous month"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
+
+          <button
+            onClick={() => setCurrentDate(new Date())}
+            className="inline-flex items-center gap-2 px-4 py-2 mx-2 rounded-full 
+                       bg-blue-50 border border-blue-200 
+                       text-blue-700 font-medium text-sm
+                       hover:bg-blue-100 hover:border-blue-300 hover:shadow-sm
+                       active:bg-blue-200 active:scale-95
+                       "
+            aria-label="Jump to today"
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span>Today</span>
+          </button>
+
           <button
             onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-            className="text-gray-700 p-2 hover:bg-gray-200 rounded-full"
+            className="text-gray-700 p-2 hover:bg-gray-200 rounded-full transition-colors"
+            aria-label="Next month"
           >
             <ChevronRight className="w-6 h-6" />
           </button>
@@ -118,7 +135,9 @@ function Calendar({
           <div key={d + index}>{d}</div>
         ))}
       </div>
-      <div>{renderDays()}</div>
+      <div className="flex flex-col flex-1 h-[calc(100%-64px)]">
+        {renderDays()}
+      </div>
     </div>
   );
 }

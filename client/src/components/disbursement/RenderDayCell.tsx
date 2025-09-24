@@ -242,6 +242,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
               setConfirmOpen(false);
               setPendingDeleteId(null);
             }}
+            confirmLabel="Delete"
           />
 
           <div className="p-4 pb-3">

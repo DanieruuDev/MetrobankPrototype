@@ -3,6 +3,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   isOpen: boolean;
+  confirmLabel?: "Archive" | "Delete"; // 👈 restricts to Archive or Delete
 }
 
 const ConfirmDialog = ({
@@ -10,8 +11,14 @@ const ConfirmDialog = ({
   onConfirm,
   onCancel,
   isOpen,
+  confirmLabel = "Archive", // default to Archive
 }: ConfirmDialogProps) => {
   if (!isOpen) return null;
+
+  const confirmButtonStyles =
+    confirmLabel === "Delete"
+      ? "bg-red-600 hover:bg-red-700"
+      : "bg-yellow-600 hover:bg-yellow-700";
 
   return (
     <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] flex items-center justify-center z-50">
@@ -26,9 +33,9 @@ const ConfirmDialog = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded bg-yellow-600 text-white hover:bg-yellow-700"
+            className={`px-4 py-2 rounded text-white ${confirmButtonStyles}`}
           >
-            Archive
+            {confirmLabel}
           </button>
         </div>
       </div>

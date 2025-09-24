@@ -452,6 +452,7 @@ function Workflow() {
             message="Are you sure you want to archived this approval workflow?"
             onConfirm={confirmArchived}
             onCancel={cancelArchived}
+            confirmLabel="Archive"
           />
           {isModal && (
             <CreateApproval
