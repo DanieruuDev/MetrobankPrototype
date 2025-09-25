@@ -527,8 +527,8 @@ function Approval({
                                       </span>
                                     </div>
 
-                                    {/* Status chip */}
-                                    <div className="flex items-center">
+                                    {/* Status + Due chip */}
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <div
                                         className={`flex items-center px-2 py-0.5 rounded-full ${
                                           isApproved
@@ -561,6 +561,16 @@ function Approval({
                                             : displayStatus}
                                         </span>
                                       </div>
+
+                                      {/* Due date chip */}
+                                      {approver.approver_due_date && (
+                                        <span className="text-xs text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md ml-1">
+                                          Due:{" "}
+                                          {formatDate(
+                                            approver.approver_due_date
+                                          )}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 

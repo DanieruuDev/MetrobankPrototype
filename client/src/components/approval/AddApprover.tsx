@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { WorkflowFormData } from "../../Interface/IWorkflow";
-import distributeDueDates from "../../utils/DistributeDueDate";
 import { Plus, X, GripVertical } from "lucide-react";
 
 interface ApproverValidationStatus {
@@ -9,6 +8,7 @@ interface ApproverValidationStatus {
     hasInvalidEmail: boolean;
     hasDuplicate: boolean;
     hasEmptyFields: boolean;
+    hasInvalidDueDate?: boolean;
   };
 }
 
@@ -23,11 +23,22 @@ interface ApproverInput {
   id: string;
   email: string;
   role: string;
+  due_date?: string; // yyyy-mm-dd per-approver due date
 }
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email.trim());
+};
+
+const isValidFutureOrToday = (isoDate: string | undefined): boolean => {
+  if (!isoDate) return false;
+  const input = new Date(isoDate + "T00:00:00");
+  if (isNaN(input.getTime())) return false;
+  const today = new Date();
+  // normalize to start of day
+  today.setHours(0, 0, 0, 0);
+  return input.getTime() >= today.getTime();
 };
 
 function AddApprover({
@@ -42,16 +53,20 @@ function AddApprover({
         id: (index + 1).toString(),
         email: a.email,
         role: a.role,
+        due_date: a.date,
       }));
     }
-    return [{ id: "1", email: "", role: "" }];
+    return [{ id: "1", email: "", role: "", due_date: undefined }];
   });
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const addApprover = () => {
     const newId = (approvers.length + 1).toString();
-    setApprovers([...approvers, { id: newId, email: "", role: "" }]);
+    setApprovers([
+      ...approvers,
+      { id: newId, email: "", role: "", due_date: undefined },
+    ]);
   };
 
   const removeApprover = (id: string) => {
@@ -62,12 +77,14 @@ function AddApprover({
 
   const updateApprover = (
     id: string,
-    field: "role" | "email",
+    field: "role" | "email" | "due_date",
     value: string
   ) => {
     setApprovers(
       approvers.map((approver) =>
-        approver.id === id ? { ...approver, [field]: value } : approver
+        approver.id === id
+          ? ({ ...approver, [field]: value } as ApproverInput)
+          : approver
       )
     );
   };
@@ -108,7 +125,8 @@ function AddApprover({
       (approver) =>
         approver.role.trim() !== "" &&
         approver.email.trim() !== "" &&
-        isValidEmail(approver.email.trim())
+        isValidEmail(approver.email.trim()) &&
+        isValidFutureOrToday(approver.due_date)
     );
   }, [approvers]);
 
@@ -128,7 +146,17 @@ function AddApprover({
 
   const hasEmptyFields = useCallback((): boolean => {
     return approvers.some(
-      (approver) => approver.role.trim() === "" || approver.email.trim() === ""
+      (approver) =>
+        approver.role.trim() === "" ||
+        approver.email.trim() === "" ||
+        !approver.due_date
+    );
+  }, [approvers]);
+
+  const hasInvalidDueDates = useCallback((): boolean => {
+    return approvers.some(
+      (approver) =>
+        approver.due_date && !isValidFutureOrToday(approver.due_date)
     );
   }, [approvers]);
 
@@ -145,29 +173,16 @@ function AddApprover({
         isValidEmail(approver.email.trim())
     );
 
-    const approversWithIds = validApprovers.map((approver, index) => ({
-      id: index + 1,
+    return validApprovers.map((approver, index) => ({
       email: approver.email.trim(),
-      role: approver.role.trim(),
-    }));
-
-    const approversWithDueDates = distributeDueDates(
-      formData.due_date,
-      approversWithIds
-    );
-
-    return approversWithDueDates.map((approver, index) => ({
-      email: approver.email,
       order: index + 1,
-      role: approver.role,
-      date: formatDateToYYYYMMDD(approver.dueDateForApproval),
+      role: approver.role.trim(),
+      // Only keep manual per-approver due date; no auto distribution
+      date: approver.due_date ? approver.due_date : "",
     }));
-  }, [approvers, formData.due_date, isApproverFilled]);
+  }, [approvers, isApproverFilled]);
 
-  const formatDateToYYYYMMDD = (mmddyyyy: string): string => {
-    const [month, day, year] = mmddyyyy.split("/");
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  };
+  // no-op: manual date is already yyyy-mm-dd from the <input type="date"/>
 
   const getProgressCount = (): number => {
     return approvers.filter(
@@ -200,6 +215,7 @@ function AddApprover({
           id: (index + 1).toString(),
           email: a.email,
           role: a.role,
+          due_date: a.date,
         }))
       );
     }
@@ -212,11 +228,13 @@ function AddApprover({
           isApproverFilled() &&
           !hasDuplicates() &&
           !hasInvalidEmails() &&
-          !hasEmptyFields(),
+          !hasEmptyFields() &&
+          !hasInvalidDueDates(),
         errors: {
           hasInvalidEmail: hasInvalidEmails(),
           hasDuplicate: hasDuplicates(),
           hasEmptyFields: hasEmptyFields(),
+          hasInvalidDueDate: hasInvalidDueDates(),
         },
       });
     }
@@ -226,6 +244,7 @@ function AddApprover({
     hasDuplicates,
     hasInvalidEmails,
     hasEmptyFields,
+    hasInvalidDueDates,
     onValidateApprovers,
   ]);
 
@@ -257,11 +276,13 @@ function AddApprover({
             const trimmedEmail = approver.email.trim();
             const hasValidEmail = trimmedEmail && isValidEmail(trimmedEmail);
             const hasValidRole = trimmedRole !== "";
+            const hasValidDueDate = isValidFutureOrToday(approver.due_date);
             const isDuplicate =
               trimmedEmail &&
               approvers.filter((a) => a.email.trim() === trimmedEmail).length >
                 1;
-            const isValid = hasValidRole && hasValidEmail && !isDuplicate;
+            const isValid =
+              hasValidRole && hasValidEmail && hasValidDueDate && !isDuplicate;
 
             // Determine ring color based on validation state
             let ringClass = "ring-1 ring-white";
@@ -390,6 +411,39 @@ function AddApprover({
                         Please enter an email address
                       </p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Approver Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={approver.due_date || ""}
+                      onChange={(e) =>
+                        updateApprover(approver.id, "due_date", e.target.value)
+                      }
+                      min={new Date().toISOString().slice(0, 10)}
+                      className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        hasValidDueDate
+                          ? "border-green-300 bg-green-50"
+                          : showValidation && !hasValidDueDate
+                          ? "border-red-300 bg-red-50"
+                          : "border-gray-300"
+                      }`}
+                    />
+                    {showValidation && !approver.due_date && (
+                      <p className="text-[#991B1B] text-[12px] mt-1">
+                        Please select a due date
+                      </p>
+                    )}
+                    {showValidation &&
+                      approver.due_date &&
+                      !hasValidDueDate && (
+                        <p className="text-[#991B1B] text-[12px] mt-1">
+                          Due date cannot be in the past
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
