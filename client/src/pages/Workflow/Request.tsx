@@ -168,7 +168,7 @@ function Request() {
                 <span>My Workflows</span>
               </NavLink>
               <NavLink
-                to={"workflow-request"}
+                to={"/workflow-approval/request"}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer bg-[#024FA8] text-white shadow-md`}
               >
                 <CheckSquare size={16} />
