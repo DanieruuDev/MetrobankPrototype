@@ -3,7 +3,7 @@ import React, { useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "react-toastify";
 import { WorkflowFormData } from "../../Interface/IWorkflow";
-import { RequestTypeModal } from "../maintainables/RequestTypeCheckbox";
+
 interface WorkflowDetailsProps {
   formData: WorkflowFormData;
   setFormData: React.Dispatch<React.SetStateAction<WorkflowFormData>>;
@@ -41,8 +41,6 @@ const semSelectFields: SelectField[] = [
 function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
   const [error, setError] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: (acceptedFiles) => {
       const file = acceptedFiles[0];
@@ -272,28 +270,6 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             }
             required
           ></textarea>
-
-          <div>
-            <i className="text-gray-700  text-[14px]">
-              Suggested input for approval request
-            </i>
-            <button
-              className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 py-[9.5px] px-2 hover:bg-gray-200 cursor-pointer text-gray-700 truncate text-[14px]"
-              onClick={() => setIsModalOpen(true)}
-              type="button"
-            >
-              {selectedTypes.length > 0
-                ? `Selected: ${selectedTypes.join(", ")}`
-                : "Choose Request Types"}
-            </button>
-            <p className="mt-2 text-sm text-gray-600"></p>
-            <RequestTypeModal
-              value={selectedTypes}
-              onChange={setSelectedTypes}
-              isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-            />
-          </div>
         </div>
       </form>
     </div>

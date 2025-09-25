@@ -1,28 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 interface RequestType {
   rq_type_id: string;
   rq_title: string;
 }
-interface Props {
-  value: string[];
+
+interface RequestTypeDropdownProps {
+  value: string[]; // selected request type IDs
   onChange: (selected: string[]) => void;
-  isOpen: boolean;
-  onClose: () => void;
 }
 
-export function RequestTypeModal({
-  value = [],
+const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
+  value,
   onChange,
-  isOpen,
-  onClose,
-}: Props) {
+}) => {
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return; // only fetch when modal is open
     const fetchData = async () => {
       try {
         const res = await axios.get(
@@ -31,13 +28,26 @@ export function RequestTypeModal({
         setRequestTypes(res.data.data);
       } catch (err) {
         console.error("Error fetching request types", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchData();
-  }, [isOpen]);
+  }, []);
 
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ✅ Toggle selection
   const toggleSelect = (id: string) => {
     const newSelected = value.includes(id)
       ? value.filter((s) => s !== id)
@@ -45,6 +55,7 @@ export function RequestTypeModal({
     onChange(newSelected);
   };
 
+  // ✅ Select All
   const toggleSelectAll = () => {
     if (value.length === requestTypes.length) {
       onChange([]);
@@ -53,73 +64,61 @@ export function RequestTypeModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">Select Request Types</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
+    <div ref={dropdownRef} className="relative w-full">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Request Types
+      </label>
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <>
-            {/* Select All */}
-            <label className="flex items-center space-x-2 mb-2">
+      {/* Dropdown Trigger */}
+      <div
+        className="p-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center"
+        onClick={() => setOpen(!open)}
+      >
+        <span>
+          {value.length > 0
+            ? `${value.length} selected`
+            : "Select Request Types"}
+        </span>
+        <span className="ml-2">&#9662;</span>
+      </div>
+
+      {/* Dropdown Menu */}
+      {open && (
+        <div className="absolute w-full border border-gray-300 rounded-md max-h-48 overflow-y-auto bg-white z-50 mt-1 shadow-lg p-2 space-y-1">
+          {/* Select All */}
+          <label className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded">
+            <input
+              type="checkbox"
+              checked={value.length === requestTypes.length}
+              onChange={toggleSelectAll}
+            />
+            <span className="font-semibold">Select All</span>
+            <span className="ml-auto text-xs text-gray-500">
+              {value.length}/{requestTypes.length}
+            </span>
+          </label>
+
+          <hr className="my-1" />
+
+          {/* List */}
+          {requestTypes.map((type) => (
+            <label
+              key={type.rq_type_id}
+              className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded"
+            >
               <input
                 type="checkbox"
-                checked={value.length === requestTypes.length}
-                onChange={toggleSelectAll}
+                checked={value.includes(type.rq_type_id)}
+                onChange={() => toggleSelect(type.rq_type_id)}
               />
-              <span className="font-semibold">Select All</span>
-              <span className="ml-auto text-xs text-gray-500">
-                {value.length}/{requestTypes.length}
-              </span>
+              <span>{type.rq_title}</span>
             </label>
-
-            {/* List */}
-            <div className="max-h-40 overflow-y-auto space-y-2 mb-4">
-              {requestTypes.map((type) => (
-                <label
-                  key={type.rq_type_id}
-                  className="flex items-center space-x-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={value.includes(type.rq_type_id)}
-                    onChange={() => toggleSelect(type.rq_type_id)}
-                  />
-                  <span>{type.rq_title}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Save
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default RequestTypeDropdown;
