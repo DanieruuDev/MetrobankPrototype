@@ -46,13 +46,43 @@ function Request() {
 
   // ✅ centralize status definitions
   const requestStatuses = [
-    { label: "All", color: "gray" },
-    { label: "Requires Action", icon: <TriangleAlert />, color: "blue" },
-    { label: "Completed", icon: <CircleCheck />, color: "green" },
-    { label: "Missed", icon: <Clock />, color: "yellow" },
-    { label: "Canceled", icon: <XCircle />, color: "gray" },
-    { label: "Returned", icon: <RotateCcw />, color: "orange" },
-    { label: "Replaced", icon: <ArrowRightLeft />, color: "gray" },
+    { label: "All", icon: null, text: "text-gray-600", bg: "bg-gray-600" },
+    {
+      label: "Requires Action",
+      icon: <TriangleAlert />,
+      text: "text-blue-600",
+      bg: "bg-blue-600",
+    },
+    {
+      label: "Completed",
+      icon: <CircleCheck />,
+      text: "text-green-600",
+      bg: "bg-green-600",
+    },
+    {
+      label: "Missed",
+      icon: <Clock />,
+      text: "text-yellow-600",
+      bg: "bg-yellow-600",
+    },
+    {
+      label: "Canceled",
+      icon: <XCircle />,
+      text: "text-gray-600",
+      bg: "bg-gray-600",
+    },
+    {
+      label: "Returned",
+      icon: <RotateCcw />,
+      text: "text-orange-600",
+      bg: "bg-orange-600",
+    },
+    {
+      label: "Replaced",
+      icon: <ArrowRightLeft />,
+      text: "text-gray-600",
+      bg: "bg-gray-600",
+    },
   ];
 
   // ✅ centralize filter rules
@@ -188,30 +218,33 @@ function Request() {
                   key={status.label}
                   onClick={() => setActiveStatus(status.label)}
                   className={`relative px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center gap-2
-                    ${
-                      isActive
-                        ? `bg-${status.color}-600 text-white shadow-md`
-                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                    }`}
+          ${
+            isActive
+              ? `${status.bg} text-white shadow-md`
+              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+          }
+        `}
                 >
                   {status.icon && (
                     <div
                       className={`flex items-center justify-center w-5 h-5 ${
-                        isActive ? "text-white" : `text-${status.color}-600`
+                        isActive ? "text-white" : status.text
                       }`}
                     >
                       {status.icon}
                     </div>
                   )}
                   <div>{status.label}</div>
+
                   {count > 0 && (
                     <span
                       className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full
-                        ${
-                          status.label === "Requires Action"
-                            ? "bg-red-500 text-white animate-pulse"
-                            : "bg-gray-200 text-gray-700"
-                        }`}
+              ${
+                status.label === "Requires Action"
+                  ? "bg-red-500 text-white animate-pulse"
+                  : "bg-gray-200 text-gray-700"
+              }
+            `}
                     >
                       {count}
                     </span>
