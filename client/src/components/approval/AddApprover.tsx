@@ -234,19 +234,9 @@ function AddApprover({
       <div className="mb-5 font-medium text-[20px]">Add Approver/s</div>
       <div className="bg-[#EFF6FF] p-4 rounded-md flex justify-between">
         <div>
-          <div className="text-[#1E4296] text-[16px] flex gap-1">
-            <h2 className="font-bold">Workflow Type: </h2>
-            <p>{formData.approval_req_type}</p>
-          </div>
-
           <div className="text-[14px] text-[#1E4296]">
             Progress: {getProgressCount()}/{approvers.length} approvers assigned
           </div>
-        </div>
-
-        <div className="text-[#1E4296] text-[16px] flex gap-1">
-          <h2 className="font-bold">Deadline: </h2>
-          <p>{formData.due_date}</p>
         </div>
       </div>
 

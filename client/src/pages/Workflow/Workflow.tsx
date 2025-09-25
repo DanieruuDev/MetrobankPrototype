@@ -4,7 +4,7 @@ import { useContext, useEffect, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import { toast } from "react-toastify";
 import axios from "axios";
-import Approval from "./SpecificApproval/Approval";
+
 import DataTable from "../../components/approval/DataTable";
 import {
   CheckSquare,
@@ -125,16 +125,14 @@ function Workflow() {
   const [workflowDisplay, setWorkflowDisplay] = useState<
     WorkflowDisplaySchema[]
   >([]);
-  const [detailedWorkflow, setDetailedWorkflow] = useState<
-    DetailedWorkflow | undefined
-  >();
+
   const { collapsed } = useSidebar();
   const [workflowToArchived, setWorkflowToArchived] = useState<number | null>(
     null
   );
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [eyeLoading, setEyeLoading] = useState(false);
+
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -228,20 +226,6 @@ function Workflow() {
     return groups;
   };
 
-  const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
-    setEyeLoading(true);
-    try {
-      const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-workflow/${requester_id}/${workflow_id}`
-      );
-      console.log(response.data);
-      setDetailedWorkflow(response.data);
-    } catch (error) {
-      console.error("Error fetching workflow:", error);
-    } finally {
-      setEyeLoading(false);
-    }
-  };
   const archivedWorkflow = async (
     requester_id: number,
     workflow_id: number
@@ -348,151 +332,138 @@ function Workflow() {
 
       <Sidebar />
 
-      {detailedWorkflow ? (
-        <Approval
-          detailedWorkflow={detailedWorkflow}
-          setDetailedWorkflow={setDetailedWorkflow}
-          fetchWorkflow={fetchWorkflow}
-        />
-      ) : (
-        <div className="px-5 pt-5">
-          <div className="mb-6">
-            <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-full w-fit">
-              <NavLink
-                to={"/workflow-approval"}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer bg-[#024FA8] text-white shadow-md`}
-              >
-                <ClipboardList size={16} />
-                <span>My Workflows</span>
-              </NavLink>
+      <div className="px-5 pt-5">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-full w-fit">
+            <NavLink
+              to={"/workflow-approval"}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer bg-[#024FA8] text-white shadow-md`}
+            >
+              <ClipboardList size={16} />
+              <span>My Workflows</span>
+            </NavLink>
 
-              <NavLink
-                to={"/workflow-approval/request"}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer text-gray-600 hover:bg-gray-200`}
-              >
-                <CheckSquare size={16} />
-                <span>Approval Requests</span>
-              </NavLink>
-            </div>
+            <NavLink
+              to={"/workflow-approval/request"}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer text-gray-600 hover:bg-gray-200`}
+            >
+              <CheckSquare size={16} />
+              <span>Approval Requests</span>
+            </NavLink>
           </div>
+        </div>
 
-          <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
-            {/* Status Bar */}
+        <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+          {/* Status Bar */}
 
-            <div className="flex flex-wrap gap-2 p-1 bg-white rounded-xl border border-gray-200 shadow-sm w-fit">
-              {statuses.map((status) => {
-                const isActive = activeStatus === status.label;
-                const count = counts[status.label] || 0;
+          <div className="flex flex-wrap gap-2 p-1 bg-white rounded-xl border border-gray-200 shadow-sm w-fit">
+            {statuses.map((status) => {
+              const isActive = activeStatus === status.label;
+              const count = counts[status.label] || 0;
 
-                return (
-                  <button
-                    key={status.label}
-                    onClick={() => setActiveStatus(status.label)}
-                    className={`relative px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center gap-2
+              return (
+                <button
+                  key={status.label}
+                  onClick={() => setActiveStatus(status.label)}
+                  className={`relative px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer flex items-center gap-2
             ${
               isActive
                 ? `bg-${status.color}-600 text-white shadow-md`
                 : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
             }`}
-                  >
-                    {status.icon && (
-                      <div
-                        className={`flex items-center justify-center w-5 h-5 ${
-                          isActive ? "text-white" : `text-${status.color}-600`
-                        }`}
-                      >
-                        {status.icon}
-                      </div>
-                    )}
-                    <div>{status.label}</div>
+                >
+                  {status.icon && (
+                    <div
+                      className={`flex items-center justify-center w-5 h-5 ${
+                        isActive ? "text-white" : `text-${status.color}-600`
+                      }`}
+                    >
+                      {status.icon}
+                    </div>
+                  )}
+                  <div>{status.label}</div>
 
-                    {/* 🔹 Badge */}
-                    {count > 0 && (
-                      <span
-                        className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full
+                  {/* 🔹 Badge */}
+                  {count > 0 && (
+                    <span
+                      className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full
                 ${
                   status.label === "Needs Attention"
                     ? "bg-red-500 text-white animate-pulse"
                     : "bg-gray-200 text-gray-700"
                 }`}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Right Side Controls: Search, Filter, Create */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Search Bar */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="pl-10 pr-4 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent transition-all"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
-              </div>
-
-              {/* Create Approval Button */}
-              <button
-                onClick={() => setIsModal(!isModal)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-[#0f61c0] rounded-lg shadow-sm hover:bg-[#0d4ea3] transition-all duration-200 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                Create Approval
-              </button>
-            </div>
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-          <ConfirmDialog
-            isOpen={isConfirmOpen}
-            message="Are you sure you want to archived this approval workflow?"
-            onConfirm={confirmArchived}
-            onCancel={cancelArchived}
-            confirmLabel="Archive"
-          />
-          {isModal && (
-            <CreateApproval
-              setIsModal={setIsModal}
-              fetchWorkflows={fetchWorkflows}
-              // setIsModalOpen={setIsModal}
-              // requester_id={3}
-              // setWorkflowDisplay={setWorkflowDisplay}
-              // fetchWorkflows={fetchWorkflows}
-            />
-          )}
-          <div className="mt-4 space-y-6">
-            {Object.entries(getGroupedWorkflows()).map(
-              ([groupName, workflows]) => {
-                const { icon, color } = groupStyles[groupName] || {
-                  icon: <ClipboardList className="text-gray-500" size={16} />,
-                  color: "gray",
-                };
 
-                return (
-                  <DataTable
-                    key={groupName}
-                    title={groupName}
-                    workflows={workflows}
-                    loading={loading}
-                    onRowClick={(workflowId) => {
-                      if (userId !== undefined)
-                        fetchWorkflow(userId, workflowId);
-                    }}
-                    onArchived={openArchivedConfirm}
-                    titleIcon={icon}
-                    titleColor={color}
-                    eyeLoading={eyeLoading}
-                  />
-                );
-              }
-            )}
+          {/* Right Side Controls: Search, Filter, Create */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search Bar */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="pl-10 pr-4 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent transition-all"
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
+            </div>
+
+            {/* Create Approval Button */}
+            <button
+              onClick={() => setIsModal(!isModal)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium text-white bg-[#0f61c0] rounded-lg shadow-sm hover:bg-[#0d4ea3] transition-all duration-200 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Create Approval
+            </button>
           </div>
         </div>
-      )}
+        <ConfirmDialog
+          isOpen={isConfirmOpen}
+          message="Are you sure you want to archived this approval workflow?"
+          onConfirm={confirmArchived}
+          onCancel={cancelArchived}
+          confirmLabel="Archive"
+        />
+        {isModal && (
+          <CreateApproval
+            setIsModal={setIsModal}
+            fetchWorkflows={fetchWorkflows}
+            // setIsModalOpen={setIsModal}
+            // requester_id={3}
+            // setWorkflowDisplay={setWorkflowDisplay}
+            // fetchWorkflows={fetchWorkflows}
+          />
+        )}
+        <div className="mt-4 space-y-6">
+          {Object.entries(getGroupedWorkflows()).map(
+            ([groupName, workflows]) => {
+              const { icon, color } = groupStyles[groupName] || {
+                icon: <ClipboardList className="text-gray-500" size={16} />,
+                color: "gray",
+              };
+
+              return (
+                <DataTable
+                  key={groupName}
+                  title={groupName}
+                  workflows={workflows}
+                  loading={loading}
+                  onArchived={openArchivedConfirm}
+                  titleIcon={icon}
+                  titleColor={color}
+                />
+              );
+            }
+          )}
+        </div>
+      </div>
     </div>
   );
 }

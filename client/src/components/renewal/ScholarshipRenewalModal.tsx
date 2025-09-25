@@ -177,7 +177,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {schoolYear || (
-                  <span className="text-gray-400">Enter School Year Basis</span>
+                  <span className="text-gray-400">Enter School Year</span>
                 )}
               </div>
               <svg
@@ -231,7 +231,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {yearLevel || (
-                  <span className="text-gray-400">Enter Year Level Basis</span>
+                  <span className="text-gray-400">Enter Year Level</span>
                 )}
               </div>
               <svg
@@ -285,7 +285,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {semester || (
-                  <span className="text-gray-400">Enter Semester Basis</span>
+                  <span className="text-gray-400">Enter Semester</span>
                 )}
               </div>
               <svg

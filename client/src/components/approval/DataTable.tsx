@@ -1,4 +1,3 @@
-"use client";
 import {
   Clock,
   CheckCircle,
@@ -15,6 +14,7 @@ import type React from "react";
 import { useState } from "react";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import PaginationControl from "../../components/shared/PaginationControl";
+import { useNavigate } from "react-router-dom";
 
 export interface WorkflowDisplaySchema {
   workflow_id: number;
@@ -31,7 +31,6 @@ interface DataTableProps {
   title: string;
   workflows: WorkflowDisplaySchema[];
   loading: boolean;
-  onRowClick: (workflowId: number) => void;
   onArchived: (workflowId: number) => void;
   titleIcon?: React.ReactNode;
   titleColor?: string;
@@ -41,7 +40,6 @@ interface DataTableProps {
     description?: string;
     showCreateButton?: boolean;
   };
-  eyeLoading: boolean;
 }
 
 const getStatusIcon = (status: string) => {
@@ -140,15 +138,14 @@ export default function DataTable({
   title,
   workflows,
   loading,
-  onRowClick,
   onArchived,
   titleIcon,
   titleColor,
   emptyStateConfig,
-  eyeLoading,
 }: DataTableProps) {
   const itemsPerPage = 10;
   const [page, setPage] = useState(1);
+  const navigate = useNavigate();
 
   const totalPages = Math.ceil(workflows.length / itemsPerPage);
   const paginatedData = workflows.slice(
@@ -232,12 +229,10 @@ export default function DataTable({
                 <tr
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRowClick(workflow.workflow_id);
+                    navigate(`/workflow-approval/${workflow.workflow_id}`);
                   }}
                   key={workflow.workflow_id}
-                  className={`${
-                    eyeLoading && "cursor-wait"
-                  } hover:bg-gray-50 transition-colors duration-150 cursor-pointer`}
+                  className={` hover:bg-gray-50 transition-colors duration-150 cursor-pointer`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-col">

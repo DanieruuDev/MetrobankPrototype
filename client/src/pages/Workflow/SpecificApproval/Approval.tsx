@@ -1,7 +1,5 @@
 "use client";
 
-import type React from "react";
-
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import type {
@@ -27,28 +25,26 @@ import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { AuthContext } from "../../../context/AuthContext";
 import ChangeApproverModal from "../../../components/approval/ChangeApproverModal";
 import { toast } from "react-toastify";
+import { useNavigate, useParams } from "react-router-dom";
+import Navbar from "../../../components/shared/Navbar";
+import { useSidebar } from "../../../context/SidebarContext";
+import Sidebar from "../../../components/shared/Sidebar";
 
-interface ApprovalProps {
-  detailedWorkflow?: DetailedWorkflow;
-  setDetailedWorkflow: React.Dispatch<
-    React.SetStateAction<DetailedWorkflow | undefined>
-  >;
-  fetchWorkflow: (requester_id: number, workflow_id: number) => void;
-}
-
-function Approval({
-  detailedWorkflow,
-  setDetailedWorkflow,
-  fetchWorkflow,
-}: ApprovalProps) {
+function Approval() {
+  const { workflow_id } = useParams();
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
+  const navigate = useNavigate();
+  const [detailedWorkflow, setDetailedWorkflow] = useState<
+    DetailedWorkflow | undefined
+  >();
   const [isLoading, setIsLoading] = useState(true);
   const [isResponseLoading, setIsResponseLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedApprover, setSelectedApprover] = useState<Approver | null>(
     null
   );
+  const { collapsed } = useSidebar();
   const [newApprover, setNewApprover] = useState("");
   const [reason, setReason] = useState("");
 
@@ -61,6 +57,24 @@ function Approval({
   const [expandedApproverId, setExpandedApproverId] = useState<number | null>(
     null
   );
+  const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/api/workflow/get-workflow/${requester_id}/${workflow_id}`
+      );
+      console.log(response.data);
+      setDetailedWorkflow(response.data);
+    } catch (error) {
+      console.error("Error fetching workflow:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkflow(Number(userId), Number(workflow_id));
+  }, [workflow_id]);
 
   const workflow =
     Array.isArray(detailedWorkflow) && detailedWorkflow.length > 0
@@ -88,8 +102,7 @@ function Approval({
   }, [detailedWorkflow]);
 
   const handleBack = () => {
-    localStorage.removeItem("detailedWorkflow");
-    setDetailedWorkflow(undefined);
+    navigate(-1);
   };
 
   const openModal = (approver: Approver) => {
@@ -250,7 +263,14 @@ function Approval({
   };
 
   return (
-    <div className="min-h-[88vh] bg-gray-50 pt-6 pb-12">
+    <div
+      className={`${
+        collapsed ? "pl-20" : "pl-[250px]"
+      } transition-all duration-300 bg-gray-50 min-h-screen`}
+    >
+      <Navbar pageName="Approvals" />
+
+      <Sidebar />
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Card */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
@@ -285,8 +305,8 @@ function Approval({
               </div>
 
               <div className="flex flex-col md:flex-row md:items-end md:justify-between">
-                <div>
-                  <h1 className="text-2xl md:text-md font-bold text-gray-900">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
                     {workflow?.request_title}
                     <span className="text-blue-600 ml-2">
                       #{workflow?.workflow_id}
@@ -294,14 +314,14 @@ function Approval({
                   </h1>
                 </div>
 
-                <div className="mt-4 md:mt-0">
+                <div className="mt-4 md:mt-0 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <div className="bg-blue-50 p-2 rounded-lg">
                       <User className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Requester</p>
-                      <p className="font-medium text-gray-800">
+                      <p className="font-medium text-gray-800 truncate max-w-48">
                         {workflow?.requester_email}
                       </p>
                     </div>
@@ -320,7 +340,7 @@ function Approval({
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-6">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-5 h-5 text-blue-600 mr-2"
+                    className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
@@ -333,19 +353,17 @@ function Approval({
                   Approval Progress
                 </h2>
 
-                {/* Progress Bar */}
+                {/* Progress Bar - Fixed width constraints to prevent layout shift */}
                 <div className="mb-8 ml-10">
-                  {" "}
-                  {/* Added ml-10 to align with timeline */}
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
-                      <div>
+                      <div className="min-w-0">
                         {workflow.status === "Failed" ? (
-                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-red-600 bg-red-200">
+                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-red-600 bg-red-200 whitespace-nowrap">
                             Failed
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200 whitespace-nowrap">
                             {Math.round(calculateCompletionPercentage())}%
                             Complete
                           </span>
@@ -353,15 +371,15 @@ function Approval({
                       </div>
                     </div>
 
-                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 w-full">
                       <div
                         style={{
                           width:
                             workflow.status === "Failed"
-                              ? "100%" // always fill bar for failed
+                              ? "100%"
                               : `${calculateCompletionPercentage()}%`,
                         }}
-                        className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500
+                        className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-700 ease-out
         ${workflow.status === "Failed" ? "bg-red-500" : "bg-blue-500"}`}
                       ></div>
                     </div>
@@ -370,15 +388,15 @@ function Approval({
 
                 {/* Timeline */}
                 <div className="relative">
-                  {/* Vertical line */}
+                  {/* Vertical line - Fixed positioning to prevent layout shifts */}
                   <div
-                    className="absolute left-5 top-0 w-0.5 bg-gray-200"
+                    className="absolute left-5 top-0 w-0.5 bg-gray-200 transition-all duration-300"
                     style={{
                       height:
                         sortedApprovers.filter(
                           (a) => a.approver_status !== "Replaced"
                         ).length > 0
-                          ? "calc(100% - 2.5rem)" // stops before "Ended"
+                          ? "calc(100% - 2.5rem)"
                           : "0",
                     }}
                   ></div>
@@ -389,7 +407,7 @@ function Approval({
                       <div className="absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full bg-green-100 border-4 border-white">
                         <Check className="w-5 h-5 text-green-600" />
                       </div>
-                      <div className="min-h-20">
+                      <div className="min-h-[80px]">
                         <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                           <div className="flex justify-between items-start">
                             <div>
@@ -414,7 +432,7 @@ function Approval({
                         const isApproved = approver.response === "Approved";
                         const isRejected = approver.response === "Reject";
                         const isReturned = approver.response === "Returned";
-                        const isCurrent = approver.is_current && !isReturned; // returned takes precedence
+                        const isCurrent = approver.is_current && !isReturned;
 
                         const displayStatus = isReturned
                           ? "Returned"
@@ -431,7 +449,7 @@ function Approval({
                           >
                             {/* Step indicator */}
                             <div
-                              className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white ${
+                              className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white transition-all duration-300 ${
                                 isApproved
                                   ? "bg-green-500"
                                   : isCurrent
@@ -468,16 +486,10 @@ function Approval({
                               )}
                             </div>
 
-                            {/* Step content */}
-                            <div
-                              className={`min-h-20 transition-all duration-200 ${
-                                expandedApproverId === approver.approver_id
-                                  ? "mb-4"
-                                  : "mb-0"
-                              }`}
-                            >
+                            {/* Step content - Added consistent min-height and width constraints */}
+                            <div className="min-h-[80px] transition-all duration-300 ease-in-out">
                               <div
-                                className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 w-full ${
                                   expandedApproverId === approver.approver_id
                                     ? isApproved
                                       ? "bg-green-50 border-green-100"
@@ -507,22 +519,18 @@ function Approval({
                                 }
                               >
                                 <div className="flex justify-between items-center">
-                                  <div className="flex-1 min-w-0 mr-4 ">
-                                    {/* Approver name + email + role all in one line */}
+                                  <div className="flex-1 min-w-0 mr-4">
+                                    {/* Approver info - Added proper text truncation */}
                                     <div className="mb-2 flex items-start flex-wrap gap-2">
-                                      <div>
-                                        <h3 className="font-medium text-gray-900 text-sm">
+                                      <div className="min-w-0 flex-1">
+                                        <h3 className="font-medium text-gray-900 text-sm truncate">
                                           {approver.approver_name}
                                         </h3>
-
-                                        {/* Email */}
-                                        <p className="text-xs text-gray-500">
+                                        <p className="text-xs text-gray-500 truncate">
                                           {approver.approver_email}
                                         </p>
                                       </div>
-
-                                      {/* Role chip */}
-                                      <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                                      <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
                                         {approver.approver_role || "Approver"}
                                       </span>
                                     </div>
@@ -545,7 +553,7 @@ function Approval({
                                         }`}
                                       >
                                         <span
-                                          className={`text-sm font-medium ${getStatusTextColor(
+                                          className={`text-sm font-medium whitespace-nowrap ${getStatusTextColor(
                                             displayStatus === "Completed" &&
                                               approver.response === "Reject"
                                               ? "Reject"
@@ -566,7 +574,7 @@ function Approval({
 
                                   <div className="flex items-center flex-shrink-0">
                                     <div className="px-2 py-1 rounded-lg mr-2">
-                                      <span className="text-sm font-medium text-gray-700">
+                                      <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
                                         Step {approver.approver_order}
                                       </span>
                                     </div>
@@ -811,20 +819,20 @@ function Approval({
                               )}
 
                               {expandedApproverId === approver.approver_id && (
-                                <div className="mt-3 space-y-3 pl-4">
+                                <div className="mt-3 space-y-3 pl-4 animate-in slide-in-from-top-2 duration-300">
                                   {/* Response details only */}
                                   {approver.response !== "Pending" && (
                                     <div className="bg-white p-4 rounded-lg border border-gray-200">
                                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                                         Approval Details
                                       </h4>
-                                      <div className="grid grid-cols-2 gap-4 items-center">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {approver.response_time && (
                                           <div>
                                             <p className="text-xs text-gray-500">
                                               Responded
                                             </p>
-                                            <p className="font-medium text-gray-700">
+                                            <p className="font-medium text-gray-700 text-sm">
                                               {formatDate(
                                                 approver.response_time
                                               )}
@@ -832,11 +840,11 @@ function Approval({
                                           </div>
                                         )}
                                         {approver.comment && (
-                                          <div className="mt-3">
+                                          <div className="sm:col-span-2">
                                             <p className="text-xs text-gray-500">
                                               Comment
                                             </p>
-                                            <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded">
+                                            <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded break-words">
                                               {approver.comment}
                                             </p>
                                           </div>
@@ -879,10 +887,10 @@ function Approval({
                         );
                       })}
 
-                    {/* Ended */}
-                    <div className="relative pl-10 ">
+                    {/* Ended - Added consistent min-height */}
+                    <div className="relative pl-10">
                       <div
-                        className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white ${
+                        className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white transition-all duration-300 ${
                           sortedApprovers
                             .filter((a) => a.approver_status !== "Replaced")
                             .every((a) => a.approver_status === "Completed")
@@ -892,7 +900,7 @@ function Approval({
                       >
                         <span className="text-white font-medium">E</span>
                       </div>
-                      <div className="min-h-20">
+                      <div className="min-h-[80px]">
                         <div
                           className={`p-4 rounded-lg border ${
                             sortedApprovers.every(
@@ -919,11 +927,11 @@ function Approval({
             </div>
           </div>
 
-          <div className="lg:col-span-1 space-y-2">
-            <div className="overflow-hidden  bg-white">
+          <div className="lg:col-span-1 space-y-2 min-w-0">
+            <div className="overflow-hidden bg-white">
               <div className="border border-gray-300 rounded-xl overflow-hidden">
                 <h2 className="text-sm font-semibold text-gray-600 flex items-center mb-4 bg-gray-100 p-4">
-                  <Info className="w-5 h-5 text-gray-600 mr-2" />
+                  <Info className="w-5 h-5 text-gray-600 mr-2 flex-shrink-0" />
                   Request Details
                 </h2>
 
@@ -933,7 +941,7 @@ function Approval({
                     <p className="text-sm font-medium text-gray-500">
                       Due Date
                     </p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 text-right truncate max-w-32">
                       {formatDate(workflow?.due_date)}
                     </p>
                   </div>
@@ -943,7 +951,7 @@ function Approval({
                     <p className="text-sm font-medium text-gray-500">
                       Semester
                     </p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 text-right truncate max-w-32">
                       {workflow?.semester}
                     </p>
                   </div>
@@ -953,7 +961,7 @@ function Approval({
                     <p className="text-sm font-medium text-gray-500">
                       School Year
                     </p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 text-right truncate max-w-32">
                       {workflow?.school_year}
                     </p>
                   </div>
@@ -963,7 +971,7 @@ function Approval({
                     <p className="text-sm font-medium text-gray-500">
                       Request Type
                     </p>
-                    <p className="text-sm font-medium text-gray-900 max-w-[150px]">
+                    <p className="text-sm font-medium text-gray-900 text-right break-words max-w-32">
                       {workflow?.approval_req_type}
                     </p>
                   </div>
@@ -972,18 +980,18 @@ function Approval({
                     <div className="text-sm font-medium text-gray-500 p-4 space-y-2">
                       <div>
                         Description
-                        <div className="bg-gray-100  rounded-md p-2 text-[14px]">
+                        <div className="bg-gray-100 rounded-md p-2 text-[14px] break-words">
                           {workflow?.rq_description}
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-100 rounded-md p-4 overflow-hidden">
-                        <div className="flex items-center flex-1 min-w-0">
+                      <div className="flex flex-col gap-4 bg-gray-100 rounded-md p-4 overflow-hidden">
+                        <div className="flex items-center min-w-0">
                           <div className="bg-blue-100 p-3 rounded-lg flex-shrink-0">
                             <FileText className="w-6 h-6 text-blue-600" />
                           </div>
-                          <div className="ml-3 overflow-hidden">
-                            <p className="font-medium text-gray-900 truncate max-w-full sm:max-w-xs">
+                          <div className="ml-3 min-w-0 flex-1">
+                            <p className="font-medium text-gray-900 truncate">
                               {workflow?.doc_name}
                             </p>
                             <p className="text-sm text-gray-500">
@@ -993,7 +1001,7 @@ function Approval({
                         </div>
                         <button
                           onClick={handleDownload}
-                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center transition duration-200 w-full sm:w-auto"
+                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition duration-200 w-full"
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Download
@@ -1008,21 +1016,23 @@ function Approval({
             <div className="border border-gray-300 bg-white p-4 rounded-xl">
               <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
 
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 {workflow?.logs?.map((log: WorkflowLog) => (
                   <div
                     key={log.log_id}
                     className="flex items-start gap-3 border-b border-gray-200 pb-3 last:border-0"
                   >
-                    {/* Avatar Circle (First letter of actor) */}
-                    <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold">
+                    {/* Avatar Circle */}
+                    <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
                       {log.actor_name.charAt(0)}
                     </div>
 
                     {/* Log Details */}
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm">
-                        <span className="font-medium">{log.actor_name}</span>{" "}
+                        <span className="font-medium truncate">
+                          {log.actor_name}
+                        </span>{" "}
                         <span className="text-gray-600">
                           ({log.actor_type})
                         </span>{" "}
@@ -1030,8 +1040,8 @@ function Approval({
 
                       {/* Comments if available */}
                       {log.comments && (
-                        <p className="text-sm text-gray-500 italic">
-                          “{log.comments}”
+                        <p className="text-sm text-gray-500 italic break-words">
+                          "{log.comments}"
                         </p>
                       )}
 

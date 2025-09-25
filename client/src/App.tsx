@@ -49,6 +49,24 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/workflow-approval/:workflow_id"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "STI Registrar",
+                  "MB HR",
+                  "MB Financial",
+                  "MB Foundation",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                ]}
+              >
+                <Approval />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/workflow-approval/request"
             element={
@@ -133,32 +151,6 @@ function App() {
                 allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
               >
                 <DetailedOverview />
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/approval/:admin_id/:workflow_id"
-            element={
-              <PrivateRoute
-                allowedRoles={[
-                  "STI Registrar",
-                  "MB HR",
-                  "MB Financial",
-                  "MB Foundation",
-                  "MBS HEAD",
-                  "SYSTEM_ADMIN",
-                ]}
-              >
-                <Approval
-                  setDetailedWorkflow={function (): void {
-                    throw new Error("Function not implemented.");
-                  }}
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                  fetchWorkflow={function (_requester_id: number): void {
-                    throw new Error("Function not implemented.");
-                  }}
-                />
               </PrivateRoute>
             }
           />
