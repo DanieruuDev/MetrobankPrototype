@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import {
@@ -569,6 +567,9 @@ function Approval() {
                                             ? approver.response
                                             : displayStatus}
                                         </span>
+                                      </div>
+                                      <div className="text-[14px] ml-2">
+                                        Due Date: {approver.approver_due_date}
                                       </div>
                                     </div>
                                   </div>
