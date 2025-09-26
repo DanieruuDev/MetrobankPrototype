@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import { Check } from "lucide-react";
 import ConfirmationDialog from "../shared/ConfirmationDialog";
@@ -8,6 +9,8 @@ interface Notification {
   actor_name: string;
   message: string;
   details?: string | null;
+  related_id?: number | null;
+  action_payload?: any;
   created_at: string;
   is_read: boolean;
   action_required?: boolean;
@@ -26,6 +29,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
   markAsRead,
   markAllAsRead,
 }) => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
@@ -179,6 +183,21 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
             </span>
 
             <div className="flex justify-end gap-3 mt-5">
+              {/* Navigate to approval details if related_id exists */}
+              {selectedNotification.related_id && (
+                <button
+                  className="px-4 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+                  onClick={() => {
+                    const workflowId = selectedNotification.related_id;
+                    closeDetailModal();
+                    navigate(`/workflow-approval/${workflowId}`, {
+                      state: { from: "notification" },
+                    });
+                  }}
+                >
+                  View
+                </button>
+              )}
               {selectedNotification.action_required &&
                 selectedNotification.action_type && (
                   <>

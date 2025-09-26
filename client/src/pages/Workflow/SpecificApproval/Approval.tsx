@@ -24,7 +24,7 @@ import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { AuthContext } from "../../../context/AuthContext";
 import ChangeApproverModal from "../../../components/approval/my-approval/ChangeApproverModal";
 import { toast } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/shared/Navbar";
 import { useSidebar } from "../../../context/SidebarContext";
 import Sidebar from "../../../components/shared/Sidebar";
@@ -34,6 +34,7 @@ function Approval() {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const navigate = useNavigate();
+  const location = useLocation();
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
   >();
@@ -101,7 +102,12 @@ function Approval() {
   }, [detailedWorkflow]);
 
   const handleBack = () => {
-    navigate(-1);
+    const from = (location && (location as any).state && (location as any).state.from) || undefined;
+    if (from === "notification") {
+      navigate("/workflow-approval");
+    } else {
+      navigate(-1);
+    }
   };
 
   const openModal = (approver: Approver) => {
