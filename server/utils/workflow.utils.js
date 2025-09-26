@@ -104,7 +104,14 @@ const insertApprovers = async (
         `INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *`,
         [approvalRes.rows[0].approver_id]
       );
-
+      try {
+        await sendApproverAddedEmail(approver.email, workflowDetails);
+      } catch (err) {
+        console.error(
+          `❌ Failed to send email to approver ${approver.email}:`,
+          err.message
+        );
+      }
       return {
         approvers: approvalRes.rows[0],
         approval_response: responseRes.rows[0],

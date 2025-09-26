@@ -1,194 +1,204 @@
-// Ensure you have installed the resend SDK: npm install resend
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
 
-// Initialize Resend with your API key (make sure to load from env variables)
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Debug logs
+console.log("DEBUG: GMAIL_USER =", process.env.GMAIL_USER);
+console.log(
+  "DEBUG: GMAIL_PASS =",
+  process.env.GMAIL_PASS ? "Loaded" : "Missing"
+);
 
-// Replace with your verified sender email in Resend
-const SENDER_EMAIL = "onboarding@resend.dev"; // <-- Change this for production!
+// Configure transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
 
-// Send email when added as an approver
-const sendApproverAddedEmail = async (approverEmail, workflowDetails) => {
+// Generic sendEmail function to be used by all other functions
+async function sendEmail(to, subject, html) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: `Metrobank STRONG Workflow Approvals <${SENDER_EMAIL}>`,
-      // For testing, temporarily sending to a test address
-      to: "delivered@resend.dev", // Change to approverEmail in production
-      subject: `You have been added as an approver for "${workflowDetails.request_title}"`,
-      text: `Dear Approver,
-
-This is a test email sent to delivered@resend.dev.
-
-You have been added as an approver for the following workflow:
-
-Request Title: ${workflowDetails.request_title}
-Requester: ${workflowDetails.requester_name}
-Due Date: ${workflowDetails.due_date}
-Description: ${workflowDetails.rq_description || "N/A"}
-
-Please log in to the application to view the details and take action when it's your turn.
-`,
-      html: `
-        <p>Dear Approver,</p>
-        <p>This is a test email sent to delivered@resend.dev.</p>
-        <p>You have been added as an approver for the following workflow:</p>
-        <ul>
-          <li><strong>Request Title:</strong> ${workflowDetails.request_title}</li>
-          <li><strong>Requester:</strong> ${workflowDetails.requester_name}</li>
-          <li><strong>Due Date:</strong> ${workflowDetails.due_date}</li>
-          <li><strong>Description:</strong> ${workflowDetails.rq_description || "N/A"}</li>
-        </ul>
-        <p>Please log in to the application to view the details and take action when it's your turn.</p>
-      `,
-    });
-
-    if (error) {
-      console.error("Error sending Approver Added Email:", error);
-    } else {
-      console.log("Approver Added Email sent:", data);
-    }
+    const mailOptions = {
+      from: `"STRONG Notifier" <${process.env.GMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    };
+    let info = await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent:", info.messageId);
+    return info;
   } catch (error) {
-    console.error("Unexpected error sending Approver Added Email:", error);
+    console.error("❌ Error sending email:", error);
+    throw error;
   }
-};
+}
 
-// Send email when it's approver's turn
-const sendItsYourTurnEmail = async (approverEmail, workflowDetails) => {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Metrobank STRONG Workflow Approvals <${SENDER_EMAIL}>`,
-      to: "delivered@resend.dev", // Change to approverEmail in production
-      subject: `Action Required: Your turn to approve "${workflowDetails.request_title}"`,
-      text: `Dear Approver,
+// -----------------------------------------------------------
+// 1. You have been added as an approver (but not active yet)
+// -----------------------------------------------------------
+async function sendApproverAddedEmail(to, workflowDetails) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `You have been added as an approver for "${workflowDetails.rq_title}"`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #004d40;">You've been added to a workflow!</h2>
+      <p>This is to inform you that you have been added as an approver for the following request:</p>
+      <div style="background-color: #f0f0f0; padding: 15px; border-radius: 8px;">
+        <h3 style="color: #00695c;">${workflowDetails.rq_title}</h3>
+        <p><strong>Requester:</strong> ${workflowDetails.requester_name}</p>
+        <p><strong>Description:</strong> ${workflowDetails.rq_description}</p>
+        <p>Your approval is not required yet. We will notify you when it's your turn to act.</p>
+      </div>
+      <p style="margin-top: 20px;">Thank you,</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
-This is a test email sent to delivered@resend.dev.
+// -----------------------------------------------------------
+// 2. It is now your turn to act as an approver
+// -----------------------------------------------------------
+async function sendItsYourTurnEmail(to, workflowDetails) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `Action Required: Your approval is needed for "${workflowDetails.rq_title}"`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #e65100;">It's your turn to act!</h2>
+      <p>This is to inform you that your approval is now required for the following workflow:</p>
+      <div style="background-color: #f9fbe7; padding: 15px; border-radius: 8px; border-left: 5px solid #ffab00;">
+        <h3 style="color: #e65100;">${workflowDetails.rq_title}</h3>
+        <p><strong>Requester:</strong> ${workflowDetails.requester_name}</p>
+        <p><strong>Due Date:</strong> ${workflowDetails.due_date}</p>
+        <p>Please log in to the system to review the request and take action.</p>
+      </div>
+      <p style="margin-top: 20px;">Thank you,</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
-It is now your turn to review and take action on the following workflow:
+// -----------------------------------------------------------
+// 3. Deadline is close (for approver and requester)
+// -----------------------------------------------------------
+async function sendDeadlineReminder(to, workflowDetails, userRole) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `Reminder: Deadline is approaching for "${workflowDetails.rq_title}"`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #bf360c;">Deadline Reminder</h2>
+      <p>This is a reminder that the deadline for the following workflow is approaching:</p>
+      <div style="background-color: #fce4ec; padding: 15px; border-radius: 8px; border-left: 5px solid #d84315;">
+        <h3 style="color: #bf360c;">${workflowDetails.rq_title}</h3>
+        <p><strong>Requester:</strong> ${workflowDetails.requester_name}</p>
+        <p><strong>Due Date:</strong> ${workflowDetails.due_date}</p>
+        ${userRole === "approver" ? "<p>Please complete your review before the due date to avoid delays.</p>" : ""}
+        ${userRole === "requester" ? "<p>Please follow up with the approver to ensure the request is completed on time.</p>" : ""}
+      </div>
+      <p style="margin-top: 20px;">Thank you,</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
-Request Title: ${workflowDetails.request_title}
-Requester: ${workflowDetails.requester_name}
-Due Date: ${workflowDetails.due_date}
-Description: ${workflowDetails.rq_description || "N/A"}
+// -----------------------------------------------------------
+// 4. Workflow has been rejected
+// -----------------------------------------------------------
+async function sendWorkflowRejectedEmail(to, workflowDetails, rejectComment) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `Workflow Rejected: "${workflowDetails.rq_title}"`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #b71c1c;">Your workflow has been rejected.</h2>
+      <p>We regret to inform you that your request has been rejected.</p>
+      <div style="background-color: #ffebee; padding: 15px; border-radius: 8px; border-left: 5px solid #c62828;">
+        <h3 style="color: #b71c1c;">${workflowDetails.rq_title}</h3>
+        <p><strong>Rejected by:</strong> ${workflowDetails.last_approver_name}</p>
+        <p><strong>Reason:</strong> ${rejectComment}</p>
+      </div>
+      <p style="margin-top: 20px;">Please check the system for more details.</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
-Please log in to the application to view the details and approve or reject the request.
-`,
-      html: `
-        <p>Dear Approver,</p>
-        <p>This is a test email sent to delivered@resend.dev.</p>
-        <p>It is now your turn to review and take action on the following workflow:</p>
-        <ul>
-          <li><strong>Request Title:</strong> ${workflowDetails.request_title}</li>
-          <li><strong>Requester:</strong> ${workflowDetails.requester_name}</li>
-          <li><strong>Due Date:</strong> ${workflowDetails.due_date}</li>
-          <li><strong>Description:</strong> ${workflowDetails.rq_description || "N/A"}</li>
-        </ul>
-        <p>Please log in to the application to view the details and approve or reject the request.</p>
-      `,
-    });
+// -----------------------------------------------------------
+// 5. Workflow has been completed
+// -----------------------------------------------------------
+async function sendWorkflowCompletedEmail(to, workflowDetails) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `Workflow Completed: "${workflowDetails.rq_title}"`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #2e7d32;">Your workflow has been completed!</h2>
+      <p>Congratulations! Your request has been successfully approved by all required approvers.</p>
+      <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 5px solid #388e3c;">
+        <h3 style="color: #2e7d32;">${workflowDetails.rq_title}</h3>
+        <p><strong>Requester:</strong> ${workflowDetails.requester_name}</p>
+        <p><strong>Status:</strong> Completed</p>
+      </div>
+      <p style="margin-top: 20px;">You can now view the final document in the system.</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
-    if (error) {
-      console.error("Error sending Its Your Turn Email:", error);
-    } else {
-      console.log("Its Your Turn Email sent:", data);
-    }
-  } catch (error) {
-    console.error("Unexpected error sending Its Your Turn Email:", error);
-  }
-};
+// -----------------------------------------------------------
+// 6. Workflow has moved forward
+// -----------------------------------------------------------
+async function sendWorkflowMovedForward(to, workflowDetails) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `Workflow Update: "${workflowDetails.rq_title}" has moved forward`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #1a237e;">Workflow Update</h2>
+      <p>This is to inform you that your request has been approved by an approver and has moved to the next step.</p>
+      <div style="background-color: #e8eaf6; padding: 15px; border-radius: 8px; border-left: 5px solid #3949ab;">
+        <h3 style="color: #1a237e;">${workflowDetails.rq_title}</h3>
+        <p><strong>Current Status:</strong> Pending next approval</p>
+        <p><strong>Next Approver:</strong> ${workflowDetails.next_approver_name}</p>
+      </div>
+      <p style="margin-top: 20px;">You can check the progress on your dashboard.</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
-// Send email when workflow is completed
-const sendWorkflowCompletedEmail = async (requesterEmail, workflowDetails) => {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Metrobank STRONG Workflow Approvals <${SENDER_EMAIL}>`,
-      to: "delivered@resend.dev", // Change to requesterEmail in production
-      subject: `Workflow Completed: "${workflowDetails.request_title}"`,
-      text: `Dear ${workflowDetails.requester_name},
-
-This is a test email sent to delivered@resend.dev.
-
-Your workflow request "${workflowDetails.request_title}" has been fully completed and approved.
-
-Request Title: ${workflowDetails.request_title}
-Due Date: ${workflowDetails.due_date}
-Description: ${workflowDetails.rq_description || "N/A"}
-
-You can view the final status and details by logging into the application.
-`,
-      html: `
-        <p>Dear ${workflowDetails.requester_name},</p>
-        <p>This is a test email sent to delivered@resend.dev.</p>
-        <p>Your workflow request "<strong>${workflowDetails.request_title}</strong>" has been fully completed and approved.</p>
-        <ul>
-          <li><strong>Request Title:</strong> ${workflowDetails.request_title}</li>
-          <li><strong>Due Date:</strong> ${workflowDetails.due_date}</li>
-          <li><strong>Description:</strong> ${workflowDetails.rq_description || "N/A"}</li>
-        </ul>
-        <p>You can view the final status and details by logging into the application.</p>
-      `,
-    });
-
-    if (error) {
-      console.error("Error sending Workflow Completed Email:", error);
-    } else {
-      console.log("Workflow Completed Email sent:", data);
-    }
-  } catch (error) {
-    console.error("Unexpected error sending Workflow Completed Email:", error);
-  }
-};
-
-// Send email when workflow is rejected
-const sendWorkflowRejectedEmail = async (
-  requesterEmail,
-  workflowDetails,
-  rejectingApproverComment
-) => {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Metrobank STRONG Workflow Approvals <${SENDER_EMAIL}>`,
-      to: "delivered@resend.dev", // Change to requesterEmail in production
-      subject: `Workflow Rejected: "${workflowDetails.request_title}"`,
-      text: `Dear ${workflowDetails.requester_name},
-
-This is a test email sent to delivered@resend.dev.
-
-Your workflow request "${workflowDetails.request_title}" has been rejected.
-
-Request Title: ${workflowDetails.request_title}
-Due Date: ${workflowDetails.due_date}
-Description: ${workflowDetails.rq_description || "N/A"}
-Rejection Comment: ${rejectingApproverComment || "No comment provided."}
-
-You can view the status and details by logging into the application.
-`,
-      html: `
-        <p>Dear ${workflowDetails.requester_name},</p>
-        <p>This is a test email sent to delivered@resend.dev.</p>
-        <p>Your workflow request "<strong>${workflowDetails.request_title}</strong>" has been rejected.</p>
-        <ul>
-          <li><strong>Request Title:</strong> ${workflowDetails.request_title}</li>
-          <li><strong>Due Date:</strong> ${workflowDetails.due_date}</li>
-          <li><strong>Description:</strong> ${workflowDetails.rq_description || "N/A"}</li>
-        </ul>
-        <p><strong>Rejection Comment:</strong> ${rejectingApproverComment || "No comment provided."}</p>
-        <p>You can view the status and details by logging into the application.</p>
-      `,
-    });
-
-    if (error) {
-      console.error("Error sending Workflow Rejected Email:", error);
-    } else {
-      console.log("Workflow Rejected Email sent:", data);
-    }
-  } catch (error) {
-    console.error("Unexpected error sending Workflow Rejected Email:", error);
-  }
-};
+// -----------------------------------------------------------
+// 7. You have been replaced as an approver
+// -----------------------------------------------------------
+async function sendApproverReplacedEmail(to, workflowDetails) {
+  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
+  const subject = `Workflow Update: You have been replaced as an approver for "${workflowDetails.rq_title}"`;
+  const htmlTemplate = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #6a1b9a;">Approver Update</h2>
+      <p>This is to inform you that you have been replaced as an approver for the following workflow. Your approval is no longer required.</p>
+      <div style="background-color: #f3e5f5; padding: 15px; border-radius: 8px; border-left: 5px solid #8e24aa;">
+        <h3 style="color: #6a1b9a;">${workflowDetails.rq_title}</h3>
+        <p><strong>Requester:</strong> ${workflowDetails.requester_name}</p>
+      </div>
+      <p style="margin-top: 20px;">Thank you for your time.</p>
+      <p>The STRONG System Team</p>
+    </div>
+  `;
+  await sendEmail(to, subject, htmlTemplate);
+}
 
 module.exports = {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
-  sendWorkflowCompletedEmail,
+  sendDeadlineReminder,
   sendWorkflowRejectedEmail,
+  sendWorkflowCompletedEmail,
+  sendWorkflowMovedForward,
+  sendApproverReplacedEmail,
 };
