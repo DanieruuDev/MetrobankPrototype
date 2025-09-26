@@ -279,10 +279,12 @@ const createApproval = async (req, res) => {
       sy_code,
       semester_code,
       approvers,
+      rq_type_id,
     } = req.body;
 
     if (
       !rq_title ||
+      !rq_type_id ||
       !requester_id ||
       !file ||
       !description ||
@@ -340,6 +342,7 @@ const createApproval = async (req, res) => {
       semester_code,
       description,
       rq_title,
+      rq_type_id,
     });
 
     // Fetch requester info
@@ -963,6 +966,32 @@ const archiveApproval = async (req, res) => {
   }
 };
 
+const getDataToEdit = async (req, res) => {
+  const { workflow_id } = req.params;
+  console.log(workflow_id);
+  if (!workflow_id) {
+    return res.status(404).json({ message: "Workflow ID is missing." });
+  }
+  try {
+    const result = await pool.query(
+      "SELECT * FROM vw_workflow_edit_data WHERE workflow_id = $1",
+      [workflow_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "No approval found" });
+    }
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: `Error occurred while getting workflow data with id ${workflow_id}`,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   uploadFile,
   changeApprover,
@@ -979,4 +1008,5 @@ module.exports = {
   getApprovals,
   handleRequesterResponse,
   archiveApproval,
+  getDataToEdit,
 };

@@ -37,10 +37,11 @@ const insertWorkflow = async (client, details) => {
     semester_code,
     description,
     rq_title,
+    rq_type_id,
   } = details;
 
   const res = await client.query(
-    "INSERT INTO workflow(document_id, approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+    "INSERT INTO workflow(document_id, approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title, rq_type_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
     [
       docId,
       approval_req_type,
@@ -50,6 +51,7 @@ const insertWorkflow = async (client, details) => {
       semester_code,
       description,
       rq_title,
+      rq_type_id,
     ]
   );
 

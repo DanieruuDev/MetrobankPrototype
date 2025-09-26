@@ -30,6 +30,7 @@ interface DataTableProps {
     description?: string;
     showCreateButton?: boolean;
   };
+  editApproval: (workflow_id: number | null) => void;
 }
 
 const getStatusIcon = (status: string) => {
@@ -132,6 +133,7 @@ export default function DataTable({
   titleIcon,
   titleColor,
   emptyStateConfig,
+  editApproval,
 }: DataTableProps) {
   const itemsPerPage = 10;
   const [page, setPage] = useState(1);
@@ -261,6 +263,7 @@ export default function DataTable({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            editApproval(workflow.workflow_id);
                             onEdit(workflow.workflow_id);
                           }}
                           className="text-blue-600 cursor-pointer hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors duration-150"

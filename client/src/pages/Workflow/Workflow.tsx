@@ -16,7 +16,7 @@ import {
   XCircle,
   RotateCcw,
 } from "lucide-react";
-
+import EditApproval from "../../components/approval/my-approval/EditApproval";
 import CreateApproval from "../../components/approval/my-approval/CreateApproval";
 
 import { AuthContext } from "../../context/AuthContext";
@@ -39,6 +39,7 @@ function Workflow() {
   const [loading, setLoading] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
+  const [editModalID, setEditModalID] = useState<number | null>(null);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -209,6 +210,14 @@ function Workflow() {
 
   const counts = getCounts();
 
+  const editApproval = (workflow_id: number | null) => {
+    if (workflow_id) {
+      setEditModalID(workflow_id);
+    } else {
+      setEditModalID(null);
+    }
+  };
+
   return (
     <div
       className={`${
@@ -272,7 +281,13 @@ function Workflow() {
             fetchWorkflows={fetchWorkflows}
           />
         )}
-
+        {editModalID && (
+          <EditApproval
+            editApproval={editApproval}
+            fetchWorkflows={fetchWorkflows}
+            workflowId={editModalID}
+          />
+        )}
         <div className="mt-4 space-y-6">
           {Object.entries(getGroupedWorkflows()).map(
             ([groupName, workflows]) => {
@@ -290,6 +305,7 @@ function Workflow() {
                   onArchived={openArchivedConfirm}
                   titleIcon={icon}
                   titleColor={color}
+                  editApproval={editApproval}
                 />
               );
             }

@@ -1,5 +1,3 @@
-"use client";
-
 import { Calendar } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
@@ -76,10 +74,11 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
     multiple: false,
   });
 
-  const handleRequestTypeChange = (value: string) => {
+  const handleRequestTypeChange = (value: string, id: string) => {
     setFormData((prev) => ({
       ...prev,
       approval_req_type: value,
+      rq_type_id: id,
     }));
   };
 
@@ -231,9 +230,24 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
         >
           <input {...getInputProps()} />
           {formData.file ? (
-            <p className="text-sm text-center text-gray-700">
-              File: {formData.file.name}
-            </p>
+            "doc_id" in formData.file ? ( // ✅ existing DB file
+              <p className="text-sm text-center text-gray-700">
+                Existing File:{" "}
+                <a
+                  href={formData.file.doc_path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline"
+                >
+                  {formData.file.doc_name}
+                </a>
+              </p>
+            ) : (
+              // ✅ new uploaded file
+              <p className="text-sm text-center text-gray-700">
+                File: {formData.file.name}
+              </p>
+            )
           ) : (
             <p className="text-sm text-center text-gray-500">
               Drag & Drop your file here, or click to select

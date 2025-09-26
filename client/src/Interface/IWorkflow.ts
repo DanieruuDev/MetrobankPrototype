@@ -173,15 +173,22 @@ export interface WorkflowApprovalList {
   completed_at: string;
 }
 
+export interface ExistingFile {
+  doc_id: number;
+  doc_name: string;
+  doc_path: string;
+}
+
 export interface WorkflowFormData {
   rq_title: string;
   requester_id: string;
   description: string;
-  file: File | null;
+  file: File | ExistingFile | null;
   approvers: WFApprover[]; //edit later
   due_date: string;
   sy_code: string;
   semester_code: string;
+  rq_type_id: string;
   approval_req_type: string;
 }
 export interface WFApprover {

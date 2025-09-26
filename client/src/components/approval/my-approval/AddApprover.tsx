@@ -16,7 +16,7 @@ interface AddApproverProps {
   formData: WorkflowFormData;
   setFormData: React.Dispatch<React.SetStateAction<WorkflowFormData>>;
   onValidateApprovers?: (status: ApproverValidationStatus) => void;
-  showValidation: boolean; // Only keep what's needed
+  showValidation: boolean;
 }
 
 interface ApproverInput {
