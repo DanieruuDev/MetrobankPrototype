@@ -13,6 +13,7 @@ import {
 import type React from "react";
 import { useState } from "react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
+import Loading from "../../shared/Loading";
 import PaginationControl from "../../shared/PaginationControl";
 import { useNavigate } from "react-router-dom";
 import { WorkflowDisplaySchema } from "../../../Interface/IWorkflow";
@@ -155,10 +156,7 @@ export default function DataTable({
   if (loading) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="p-8 text-center text-gray-500">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          Loading...
-        </div>
+        <Loading />
       </div>
     );
   }

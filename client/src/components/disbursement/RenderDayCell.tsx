@@ -9,6 +9,7 @@ import UpdateEvent from "./UpdateEvent";
 import { AuthContext } from "../../context/AuthContext";
 import ConfirmDialog from "../approval/ConfirmDialog";
 import { toast } from "react-toastify";
+import Loading from "../shared/Loading";
 
 interface DayCellProps {
   day: Date;
@@ -327,7 +328,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
             )}
 
             <div className="text-[20px] font-medium text-[#565656]">
-              {loading ? "Loading..." : activeSchedule.sched_title}
+              {loading ? <Loading /> : activeSchedule.sched_title}
             </div>
 
             {error && <div className="text-red-500 text-sm mt-2">{error}</div>}

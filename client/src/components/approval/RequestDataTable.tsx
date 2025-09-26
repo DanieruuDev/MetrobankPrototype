@@ -11,6 +11,7 @@ import React, { useState } from "react";
 import { formatDate } from "../../utils/DateConvertionFormat";
 import PaginationControl from "../../components/shared/PaginationControl";
 import { WorkflowApprovalList } from "../../Interface/IWorkflow";
+import Loading from "../shared/Loading";
 export interface RequestSchema {
   approver_id: number;
   request_title: string;
@@ -141,10 +142,7 @@ export default function RequestDataTable({
   if (loading) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="p-8 text-center text-gray-500">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          Loading...
-        </div>
+        <Loading />
       </div>
     );
   }
