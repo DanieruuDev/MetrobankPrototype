@@ -3,7 +3,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   isOpen: boolean;
-  confirmLabel?: "Archive" | "Delete"; // 👈 restricts to Archive or Delete
+  confirmLabel?: "Archive" | "Delete";
+  loading: boolean;
 }
 
 const ConfirmDialog = ({
@@ -11,7 +12,8 @@ const ConfirmDialog = ({
   onConfirm,
   onCancel,
   isOpen,
-  confirmLabel = "Archive", // default to Archive
+  confirmLabel = "Archive",
+  loading = false,
 }: ConfirmDialogProps) => {
   if (!isOpen) return null;
 
@@ -27,15 +29,20 @@ const ConfirmDialog = ({
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+            disabled={loading}
+            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2 rounded text-white ${confirmButtonStyles}`}
+            disabled={loading}
+            className={`px-4 py-2 rounded text-white ${confirmButtonStyles} disabled:opacity-50 flex items-center justify-center gap-2`}
           >
-            {confirmLabel}
+            {loading && (
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+            )}
+            {loading ? "Processing..." : confirmLabel}
           </button>
         </div>
       </div>

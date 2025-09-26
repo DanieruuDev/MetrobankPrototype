@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import type {
-  Approver,
+import {
   DetailedWorkflow,
+  Approver,
   WorkflowLog,
   RequesterResponse,
   ReturnFeedback,
-} from "../Workflow";
+} from "../../../Interface/IWorkflow";
+
 import {
   Download,
   FileText,
@@ -23,7 +24,7 @@ import {
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { AuthContext } from "../../../context/AuthContext";
-import ChangeApproverModal from "../../../components/approval/ChangeApproverModal";
+import ChangeApproverModal from "../../../components/approval/my-approval/ChangeApproverModal";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/shared/Navbar";

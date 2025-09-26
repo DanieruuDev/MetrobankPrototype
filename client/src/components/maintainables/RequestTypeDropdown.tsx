@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+"use client";
+
+import type React from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 
 interface RequestType {
@@ -7,13 +10,13 @@ interface RequestType {
 }
 
 interface RequestTypeDropdownProps {
-  value: string[]; // selected request type IDs
-  onChange: (selected: string[]) => void;
+  formData: string;
+  handleInputChange: (value: string) => void;
 }
 
 const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
-  value,
-  onChange,
+  formData,
+  handleInputChange,
 }) => {
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
   const [open, setOpen] = useState(false);
@@ -47,73 +50,37 @@ const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Toggle selection
-  const toggleSelect = (id: string) => {
-    const newSelected = value.includes(id)
-      ? value.filter((s) => s !== id)
-      : [...value, id];
-    onChange(newSelected);
-  };
-
-  // ✅ Select All
-  const toggleSelectAll = () => {
-    if (value.length === requestTypes.length) {
-      onChange([]);
-    } else {
-      onChange(requestTypes.map((r) => r.rq_type_id));
-    }
-  };
+  const selectedRequestType = requestTypes.find(
+    (type) => type.rq_title === formData
+  );
 
   return (
     <div ref={dropdownRef} className="relative w-full">
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Request Types
+        Request Type
       </label>
 
-      {/* Dropdown Trigger */}
       <div
         className="p-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center"
         onClick={() => setOpen(!open)}
       >
-        <span>
-          {value.length > 0
-            ? `${value.length} selected`
-            : "Select Request Types"}
-        </span>
+        <span>{selectedRequestType?.rq_title || "Select Request Type"}</span>
         <span className="ml-2">&#9662;</span>
       </div>
 
-      {/* Dropdown Menu */}
       {open && (
-        <div className="absolute w-full border border-gray-300 rounded-md max-h-48 overflow-y-auto bg-white z-50 mt-1 shadow-lg p-2 space-y-1">
-          {/* Select All */}
-          <label className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded">
-            <input
-              type="checkbox"
-              checked={value.length === requestTypes.length}
-              onChange={toggleSelectAll}
-            />
-            <span className="font-semibold">Select All</span>
-            <span className="ml-auto text-xs text-gray-500">
-              {value.length}/{requestTypes.length}
-            </span>
-          </label>
-
-          <hr className="my-1" />
-
-          {/* List */}
+        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-100 mt-1 shadow-lg">
           {requestTypes.map((type) => (
-            <label
+            <div
               key={type.rq_type_id}
-              className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100 rounded"
+              className="p-2 hover:bg-gray-200 cursor-pointer"
+              onClick={() => {
+                handleInputChange(type.rq_title);
+                setOpen(false);
+              }}
             >
-              <input
-                type="checkbox"
-                checked={value.includes(type.rq_type_id)}
-                onChange={() => toggleSelect(type.rq_type_id)}
-              />
-              <span>{type.rq_title}</span>
-            </label>
+              {type.rq_title}
+            </div>
           ))}
         </div>
       )}
