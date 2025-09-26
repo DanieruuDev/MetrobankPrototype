@@ -1,12 +1,12 @@
 import { X } from "lucide-react";
 import { useContext, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { AuthContext } from "../../context/AuthContext";
-import Loading from "../../components/shared/Loading"; // Adjust path as needed
+import { AuthContext } from "../../../context/AuthContext";
+import Loading from "../../shared/Loading"; // Adjust path as needed
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import WorkflowDetails from "./WorkflowDetails";
-import { WorkflowFormData } from "../../Interface/IWorkflow";
+import { WorkflowFormData } from "../../../Interface/IWorkflow";
 import AddApprover from "./AddApprover";
 import WorkflowSummary from "./WorkflowSummary";
 import axios from "axios";
@@ -46,7 +46,6 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     semester_code: "",
     sy_code: "",
     approval_req_type: "",
-    request_type_ids: [],
   });
 
   const steps = [

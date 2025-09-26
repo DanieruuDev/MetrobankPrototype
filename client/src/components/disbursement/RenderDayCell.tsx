@@ -57,7 +57,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   const [loadingEdittable, setLoadingEdittable] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-
+  const [deleting, setDeleting] = useState(false);
   const isToday = isSameDay(day, new Date());
   const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
   const dayKey = format(day, "yyyy-MM-dd");
@@ -86,6 +86,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     e: React.MouseEvent<HTMLDivElement>,
     schedule: DisbursementSchedule
   ) => {
+    setLoading(true);
     e.stopPropagation();
     if (activeSchedule?.sched_id === schedule.sched_id) return;
 
@@ -114,10 +115,12 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     setModalPosition({ top, left });
     setError(null);
     setActiveSchedule(schedule);
+    setLoading(false);
   };
 
   const deleteSchedule = async (sched_id: number, requester: number) => {
     console.log(sched_id, requester);
+    setDeleting(true);
     try {
       const response = await axios.delete(
         `http://localhost:5000/api/disbursement/schedule/${sched_id}/${requester}`
@@ -135,6 +138,8 @@ const RenderDayCell: React.FC<DayCellProps> = ({
         toast.error("An unexpected error occurred.");
       }
       console.error("Delete Schedule Error:", error);
+    } finally {
+      setDeleting(true);
     }
   };
   const closeModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
@@ -243,6 +248,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
               setPendingDeleteId(null);
             }}
             confirmLabel="Delete"
+            loading={deleting}
           />
 
           <div className="p-4 pb-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Check } from "lucide-react";
-import { Approver } from "../../pages/Workflow/Workflow";
+import { Approver } from "../../../Interface/IWorkflow";
 
 interface ChangeApproverModalProps {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;

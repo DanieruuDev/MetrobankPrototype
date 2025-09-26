@@ -76,7 +76,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
               key={branch.campus_id}
               className="p-2 hover:bg-gray-200 cursor-pointer"
               onClick={() => {
-                handleInputChange(branch.campus_name); // ✅ Pass NAME instead of ID
+                handleInputChange(branch.campus_name);
                 setOpen(false);
               }}
             >

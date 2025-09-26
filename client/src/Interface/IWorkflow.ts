@@ -183,11 +183,103 @@ export interface WorkflowFormData {
   sy_code: string;
   semester_code: string;
   approval_req_type: string;
-  request_type_ids: string[];
 }
 export interface WFApprover {
   email: string;
   role: string;
   order: number;
   date: string;
+}
+
+export interface WorkflowDisplaySchema {
+  workflow_id: number;
+  request_title: string;
+  approval_req_type: string;
+  due_date: string;
+  status: string;
+  doc_name: string;
+  school_details: string;
+  current_approver: string;
+}
+
+export interface DetailedWorkflow {
+  workflow_id: number;
+  requester_id: number;
+  requester_email: string;
+  request_title: string;
+  approval_req_type: string;
+  rq_description: string | null;
+  school_year: string;
+  semester: string;
+  scholar_level: string; // ⚠️ double-check: this isn’t in the SQL yet
+  due_date: string;
+  status: "Not Started" | "In Progress" | "Completed" | "Missed" | "Failed"; // include all enum options from DB
+  doc_id: number | null;
+  doc_name: string | null;
+  doc_type: string | null;
+  doc_path: string | null;
+  doc_size: number | null;
+  doc_uploaded_at: string | null;
+  approvers: Approver[];
+  logs: WorkflowLog[];
+}
+
+export interface Approver {
+  approver_id: number;
+  approver_name: string;
+  approver_role: string;
+  approver_email: string;
+  approver_status:
+    | "Pending"
+    | "Completed"
+    | "Missed"
+    | "Replaced"
+    | "Canceled"
+    | "Returned"; // full set from wf_approver
+  approver_due_date: string;
+  approver_assigned_at: string;
+  approver_order: number;
+  response_id: number | null;
+  response: "Pending" | "Approved" | "Reject" | "Returned" | null; // full set from approver_response
+  comment: string | null;
+  response_time: string | null;
+  response_updated_at: string | null;
+  is_current: boolean;
+  return_feedback: ReturnFeedback[]; // ✅ NEW
+}
+
+export interface ReturnFeedback {
+  return_id: number;
+  reason: string;
+  requester_take_action: boolean;
+  created_by: number;
+  created_by_name: string;
+  created_by_email: string;
+  created_at: string;
+  requester_responses: RequesterResponse[]; // ✅ nested requester responses
+}
+
+export interface RequesterResponse {
+  req_response_id: number;
+  message: string | null;
+  file_name: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  responded_at: string;
+  requester_id: number;
+  requester_name: string;
+  requester_email: string;
+}
+
+export interface WorkflowLog {
+  log_id: number;
+  actor_id: number;
+  actor_type: "Approver" | "Requester" | "System";
+  actor_name: string;
+  actor_email: string | null;
+  action: string;
+  comments: string | null;
+  old_status: string | null;
+  new_status: string | null;
+  change_at: string;
 }

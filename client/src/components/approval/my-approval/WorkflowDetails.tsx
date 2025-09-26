@@ -1,8 +1,12 @@
+"use client";
+
 import { Calendar } from "lucide-react";
-import React, { useRef, useState } from "react";
+import type React from "react";
+import { useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "react-toastify";
-import { WorkflowFormData } from "../../Interface/IWorkflow";
+import type { WorkflowFormData } from "../../../Interface/IWorkflow";
+import RequestTypeDropdown from "../../maintainables/RequestTypeDropdown";
 
 interface WorkflowDetailsProps {
   formData: WorkflowFormData;
@@ -72,6 +76,13 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
     multiple: false,
   });
 
+  const handleRequestTypeChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      approval_req_type: value,
+    }));
+  };
+
   console.log(formData.semester_code, formData.sy_code);
 
   return (
@@ -103,30 +114,11 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label
-              htmlFor="req_type_id"
-              className="block mb-1 text-sm font-medium text-gray-700"
-            >
-              Approval Request Description
-            </label>
-            <input
-              type="text"
-              name="approval_req_type"
-              id="approval_req_type"
-              maxLength={255}
-              placeholder="Enter approval request description..."
-              required
-              className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
-              value={formData.approval_req_type}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  approval_req_type: e.target.value,
-                }))
-              }
-            />
-          </div>
+          <RequestTypeDropdown
+            formData={formData.approval_req_type}
+            handleInputChange={handleRequestTypeChange}
+          />
+
           <div
             className="relative flex-1"
             onClick={() => dateInputRef.current?.showPicker()}

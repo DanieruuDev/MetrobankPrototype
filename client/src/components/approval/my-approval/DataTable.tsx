@@ -12,20 +12,10 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
-import { formatDate } from "../../utils/DateConvertionFormat";
-import PaginationControl from "../../components/shared/PaginationControl";
+import { formatDate } from "../../../utils/DateConvertionFormat";
+import PaginationControl from "../../shared/PaginationControl";
 import { useNavigate } from "react-router-dom";
-
-export interface WorkflowDisplaySchema {
-  workflow_id: number;
-  request_title: string;
-  approval_req_type: string;
-  due_date: string;
-  status: string;
-  doc_name: string;
-  school_details: string;
-  current_approver: string;
-}
+import { WorkflowDisplaySchema } from "../../../Interface/IWorkflow";
 
 interface DataTableProps {
   title: string;
@@ -155,9 +145,11 @@ export default function DataTable({
   const onEdit = (workflow_id: number) => {
     console.log(workflow_id);
   };
+  console.log(workflows);
 
   const emptyState = getEmptyStateConfig(title, emptyStateConfig);
 
+  console.log("Data table", paginatedData);
   if (loading) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
