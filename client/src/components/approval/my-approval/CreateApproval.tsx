@@ -45,6 +45,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     due_date: "",
     semester_code: "",
     sy_code: "",
+    rq_type_id: "",
     approval_req_type: "",
   });
 
@@ -137,22 +138,17 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     setError(null);
     setLoading(true);
 
-    console.log("Complete Form Data:", {
-      ...formData,
-      approvers: formData.approvers,
-      file: formData.file ? formData.file.name : "No file",
-    });
-
     const sendData = new FormData();
     sendData.append("rq_title", formData.rq_title);
     sendData.append("requester_id", formData.requester_id);
     sendData.append("approval_req_type", formData.approval_req_type);
+    sendData.append("rq_type_id", formData.rq_type_id);
     sendData.append("description", formData.description);
     sendData.append("due_date", formData.due_date);
     sendData.append("sy_code", formData.sy_code);
     sendData.append("semester_code", formData.semester_code);
 
-    if (formData.file) {
+    if (formData.file instanceof File) {
       sendData.append("file", formData.file);
     }
 

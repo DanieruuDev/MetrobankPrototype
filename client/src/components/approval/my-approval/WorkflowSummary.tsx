@@ -195,20 +195,28 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">
-                  {formData.file.name}
+                  {"doc_id" in formData.file
+                    ? formData.file.doc_name // ✅ existing DB file
+                    : formData.file.name}{" "}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {(formData.file.size / 1024).toFixed(1)} KB
+                  {"size" in formData.file
+                    ? `${(formData.file.size / 1024).toFixed(1)} KB` // ✅ uploaded file size
+                    : "Existing File"}{" "}
                 </div>
               </div>
-              <a
-                href={URL.createObjectURL(formData.file)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 transition-colors"
-              >
-                View
-              </a>
+
+              {/* Only show "View" button if it's a new uploaded file */}
+              {"size" in formData.file && (
+                <a
+                  href={URL.createObjectURL(formData.file)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 transition-colors"
+                >
+                  View
+                </a>
+              )}
             </div>
           </div>
         )}

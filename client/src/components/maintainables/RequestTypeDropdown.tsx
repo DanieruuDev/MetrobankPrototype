@@ -11,7 +11,7 @@ interface RequestType {
 
 interface RequestTypeDropdownProps {
   formData: string;
-  handleInputChange: (value: string) => void;
+  handleInputChange: (value: string, id: string) => void;
 }
 
 const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
@@ -75,7 +75,7 @@ const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
               key={type.rq_type_id}
               className="p-2 hover:bg-gray-200 cursor-pointer"
               onClick={() => {
-                handleInputChange(type.rq_title);
+                handleInputChange(type.rq_title, type.rq_type_id);
                 setOpen(false);
               }}
             >

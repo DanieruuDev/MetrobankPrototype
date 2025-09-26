@@ -17,6 +17,7 @@ const {
   getApprovals,
   handleRequesterResponse,
   archiveApproval,
+  getDataToEdit,
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 
@@ -38,6 +39,7 @@ workflowRouter.post("/upload", upload.single("file"), uploadFile);
 workflowRouter.get("/get-workflows/:user_id", getApprovals);
 
 workflowRouter.get("/get-workflow/:user_id/:workflow_id", getApproval);
+workflowRouter.get("/get-edit-workflow/:workflow_id", getDataToEdit);
 
 workflowRouter.post("/create-workflow", upload.single("file"), createApproval);
 workflowRouter.delete(

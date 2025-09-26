@@ -1,3 +1,8 @@
+# Ignore environment files
 .env
+
+# Ignore logs
 *.log
+
+# macOS junk
 .DS_Store

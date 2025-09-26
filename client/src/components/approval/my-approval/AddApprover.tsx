@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { WorkflowFormData } from "../../../Interface/IWorkflow";
 import { Plus, X, GripVertical } from "lucide-react";
 
@@ -16,7 +16,7 @@ interface AddApproverProps {
   formData: WorkflowFormData;
   setFormData: React.Dispatch<React.SetStateAction<WorkflowFormData>>;
   onValidateApprovers?: (status: ApproverValidationStatus) => void;
-  showValidation: boolean; // Only keep what's needed
+  showValidation: boolean;
 }
 
 interface ApproverInput {
@@ -41,12 +41,47 @@ const isValidFutureOrToday = (isoDate: string | undefined): boolean => {
   return input.getTime() >= today.getTime();
 };
 
+const isWithinRange = (
+  isoDate: string | undefined,
+  minIso: string | undefined,
+  maxIso?: string | undefined
+): boolean => {
+  if (!isoDate || !minIso) return false;
+  const value = new Date(isoDate + "T00:00:00").getTime();
+  const min = new Date(minIso + "T00:00:00").getTime();
+  if (isNaN(value) || isNaN(min)) return false;
+  if (maxIso) {
+    const max = new Date(maxIso + "T00:00:00").getTime();
+    if (isNaN(max)) return false;
+    return value >= min && value <= max;
+  }
+  return value >= min;
+};
+
+const maxIsoDate = (a?: string, b?: string): string | undefined => {
+  if (a && b) {
+    return new Date(a + "T00:00:00").getTime() >=
+      new Date(b + "T00:00:00").getTime()
+      ? a
+      : b;
+  }
+  return a || b;
+};
+
 function AddApprover({
   formData,
   setFormData,
   onValidateApprovers,
   showValidation,
 }: AddApproverProps) {
+  const isInteractiveElement = (target: EventTarget | null): boolean => {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    return !!el.closest(
+      'input, textarea, select, button, [contenteditable="true"], .no-drag'
+    );
+  };
+  const mouseDownOnInteractiveRef = useRef(false);
   const [approvers, setApprovers] = useState<ApproverInput[]>(() => {
     if (formData.approvers && formData.approvers.length > 0) {
       return formData.approvers.map((a, index) => ({
@@ -128,7 +163,7 @@ function AddApprover({
         isValidEmail(approver.email.trim()) &&
         isValidFutureOrToday(approver.due_date)
     );
-  }, [approvers]);
+  }, [approvers, formData.due_date]);
 
   const hasDuplicates = useCallback((): boolean => {
     const emails = approvers
@@ -154,10 +189,24 @@ function AddApprover({
   }, [approvers]);
 
   const hasInvalidDueDates = useCallback((): boolean => {
-    return approvers.some(
-      (approver) =>
-        approver.due_date && !isValidFutureOrToday(approver.due_date)
-    );
+    // Validate each approver date is within its allowed window
+    const workflowDueIso = formData.due_date || undefined;
+    const todayIso = new Date(Date.now()).toISOString().slice(0, 10);
+
+    return approvers.some((_, idx) => {
+      const current = approvers[idx];
+      const prevChosenMax = approvers
+        .slice(0, idx)
+        .map((a) => a.due_date)
+        .filter(Boolean)
+        .reduce<string | undefined>(
+          (acc, cur) => maxIsoDate(acc, cur as string),
+          undefined
+        );
+
+      const minIso = maxIsoDate(todayIso, prevChosenMax);
+      return !isWithinRange(current.due_date, minIso, workflowDueIso);
+    });
   }, [approvers]);
 
   const formatApproversForBackend = useCallback(() => {
@@ -270,7 +319,24 @@ function AddApprover({
             const trimmedEmail = approver.email.trim();
             const hasValidEmail = trimmedEmail && isValidEmail(trimmedEmail);
             const hasValidRole = trimmedRole !== "";
-            const hasValidDueDate = isValidFutureOrToday(approver.due_date);
+            // Compute dynamic min/max window
+            const workflowDueIso = formData.due_date || "";
+            const todayIso = new Date(Date.now()).toISOString().slice(0, 10);
+            const prevChosenMax = approvers
+              .slice(0, index)
+              .map((a) => a.due_date)
+              .filter(Boolean)
+              .reduce<string | undefined>(
+                (acc, cur) => maxIsoDate(acc, cur as string),
+                undefined
+              );
+            const minIso = maxIsoDate(todayIso, prevChosenMax) || todayIso;
+            const maxIso = workflowDueIso || undefined;
+            const hasValidDueDate = isWithinRange(
+              approver.due_date,
+              minIso,
+              maxIso
+            );
             const isDuplicate =
               trimmedEmail &&
               approvers.filter((a) => a.email.trim() === trimmedEmail).length >
@@ -290,11 +356,25 @@ function AddApprover({
               <div
                 key={approver.id}
                 draggable
-                onDragStart={(e) => handleDragStart(e, index)}
+                onDragStart={(e) => {
+                  if (mouseDownOnInteractiveRef.current) {
+                    e.preventDefault();
+                    return;
+                  }
+                  handleDragStart(e, index);
+                }}
+                onDragEnd={handleDragEnd}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`p-4 rounded-lg mt-3 space-y-4 border border-white shadow-md bg-white cursor-move transition-all duration-200 ${
+                onMouseDown={(e) => {
+                  mouseDownOnInteractiveRef.current = isInteractiveElement(
+                    e.target
+                  );
+                }}
+                onMouseUp={() => {
+                  mouseDownOnInteractiveRef.current = false;
+                }}
+                className={`p-4 rounded-lg mt-3 space-y-4 border border-white shadow-md bg-white transition-all duration-200 ${
                   draggedIndex === index
                     ? "opacity-50 scale-95"
                     : "hover:shadow-lg"
@@ -302,10 +382,17 @@ function AddApprover({
               >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <GripVertical
+                    <div
                       className="text-gray-400 cursor-move"
-                      size={20}
-                    />
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragEnd={handleDragEnd}
+                      role="button"
+                      aria-label="Drag approver"
+                      tabIndex={0}
+                    >
+                      <GripVertical size={20} />
+                    </div>
                     <h2
                       className={`font-semibold ${
                         isValid
@@ -417,7 +504,8 @@ function AddApprover({
                       onChange={(e) =>
                         updateApprover(approver.id, "due_date", e.target.value)
                       }
-                      min={new Date().toISOString().slice(0, 10)}
+                      min={minIso}
+                      max={maxIso}
                       className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                         hasValidDueDate
                           ? "border-green-300 bg-green-50"
@@ -435,7 +523,7 @@ function AddApprover({
                       approver.due_date &&
                       !hasValidDueDate && (
                         <p className="text-[#991B1B] text-[12px] mt-1">
-                          Due date cannot be in the past
+                          Due date must be between {minIso} and {maxIso}
                         </p>
                       )}
                   </div>
