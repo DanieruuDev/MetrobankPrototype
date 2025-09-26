@@ -20,6 +20,14 @@ type DisbursementType =
   | "Academic Incentives"
   | "";
 
+interface ApprovedWorkflow {
+  id: number;
+  title: string;
+  semester_code: number;
+  sy_code: number;
+  disbursement_type_id: number;
+}
+
 interface FormData {
   title: string;
   schedule_due: Date | null;
@@ -50,6 +58,11 @@ function EventModal({
   });
   const [branch, setBranch] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [approvedWorkflows, setApprovedWorkflows] = useState<
+    ApprovedWorkflow[]
+  >([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | "">("");
+  const [eligibleCount, setEligibleCount] = useState<number | null>(null);
 
   const handleBranchChange = (branch: string) => {
     setBranch(branch);
@@ -81,12 +94,83 @@ function EventModal({
     }
   }, [selectedDate]);
 
+  useEffect(() => {
+    const fetchApproved = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5000/api/approvals/ready-for-scheduling"
+        );
+        setApprovedWorkflows(res.data || []);
+      } catch (err) {
+        console.error("Failed to load approved workflows:", err);
+      }
+    };
+    fetchApproved();
+  }, []);
+
+  useEffect(() => {
+    const checkEligible = async () => {
+      try {
+        setEligibleCount(null);
+        const selected = approvedWorkflows.find(
+          (w) => w.id === selectedWorkflowId
+        );
+        if (!selected || !formData.branch) return;
+        const res = await axios.get(
+          `http://localhost:5000/api/disbursement/eligible-count`,
+          {
+            params: {
+              sy_code: selected.sy_code,
+              semester_code: selected.semester_code,
+              branch: formData.branch,
+              disbursement_type_id: selected.disbursement_type_id,
+            },
+          }
+        );
+        setEligibleCount(Number(res.data?.count ?? 0));
+      } catch (err) {
+        console.error("eligible-count failed", err);
+        setEligibleCount(0);
+      }
+    };
+    checkEligible();
+  }, [approvedWorkflows, selectedWorkflowId, formData.branch]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     console.log("sent?");
     setLoading(true);
     try {
       console.log("click pass");
+      if (!selectedWorkflowId) {
+        alert("Please select an approved disbursement.");
+        return;
+      }
+      if (!formData.title) {
+        alert("Please enter a title.");
+        return;
+      }
+      if (!formData.branch) {
+        alert("Please select a branch.");
+        return;
+      }
+      const selected = approvedWorkflows.find(
+        (w) => w.id === selectedWorkflowId
+      );
+      if (!selected) {
+        alert("Selected approved disbursement not found.");
+        return;
+      }
+      const effectiveStartingDate =
+        formData.starting_date || formData.schedule_due;
+      if (!effectiveStartingDate) {
+        alert("Please select a starting and due date.");
+        return;
+      }
+      if (!formData.description) {
+        alert("Please enter a description.");
+        return;
+      }
       const response = await axios.post(
         "http://localhost:5000/api/disbursement/schedule",
         {
@@ -95,14 +179,12 @@ function EventModal({
           schedule_due: formData.schedule_due
             ? formatDateForInput(new Date(formData.schedule_due))
             : null,
-          starting_date: formData.starting_date
-            ? formatDateForInput(new Date(formData.starting_date))
-            : null,
+          starting_date: formatDateForInput(new Date(effectiveStartingDate)),
           sched_title: formData.title,
           branch_code: formData.branch,
-          semester_code: Number(formData.semester),
-          sy_code: Number(formData.schoolYear),
-          disbursement_type_id: Number(formData.disbursementType),
+          semester_code: Number(selected.semester_code),
+          sy_code: Number(selected.sy_code),
+          disbursement_type_id: Number(selected.disbursement_type_id),
           description: formData.description,
         }
       );
@@ -115,16 +197,19 @@ function EventModal({
       setFormData({
         title: "",
         schedule_due: null,
-        semester: "",
         branch: "",
+        semester: "",
         schoolYear: "",
         disbursementType: "",
         description: "",
         starting_date: null,
       });
-    } catch (error) {
+      setSelectedWorkflowId("");
+    } catch (error: any) {
       console.error("Error creating disbursement schedule:", error);
-      alert("Failed");
+      const message =
+        error?.response?.data?.message || error?.message || "Failed";
+      alert(message);
       console.log("click fail");
     } finally {
       setLoading(false);
@@ -154,6 +239,38 @@ function EventModal({
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-5">
+            <div>
+              <label
+                htmlFor="approved_workflow"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Select Approved Disbursement
+              </label>
+              <select
+                id="approved_workflow"
+                name="approved_workflow"
+                value={selectedWorkflowId}
+                onChange={(e) => {
+                  const value = e.target.value ? Number(e.target.value) : "";
+                  setSelectedWorkflowId(value as number | "");
+                  const wf = approvedWorkflows.find(
+                    (w) => w.id === Number(e.target.value)
+                  );
+                  if (wf && !formData.title) {
+                    setFormData((prev) => ({ ...prev, title: wf.title }));
+                  }
+                }}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                required
+              >
+                <option value="">Select approved disbursement</option>
+                {approvedWorkflows.map((wf) => (
+                  <option key={wf.id} value={wf.id}>
+                    {wf.title}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label
                 htmlFor="title"
@@ -218,80 +335,21 @@ function EventModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="semester"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Semester
-                </label>
-                <select
-                  id="semester"
-                  name="semester"
-                  value={formData.semester}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="1">1st Semester</option>
-                  <option value="2">2nd Semester</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="schoolYear"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  School Year
-                </label>
-                <select
-                  id="schoolYear"
-                  name="schoolYear"
-                  value={formData.schoolYear}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="20242025">2024-2025</option>
-                  <option value="20252026">2025-2026</option>
-                </select>
-              </div>
-            </div>
+            {/* Removed Semester and School Year fields (auto-derived from approval) */}
 
             <div className="grid grid-cols-2 gap-3">
               <BranchDropdown
                 formData={branch}
                 handleInputChange={handleBranchChange}
               />
-
-              <div className="flex-1">
-                <label
-                  htmlFor="disbursementType"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Disbursement Type
-                </label>
-                <select
-                  id="disbursementType"
-                  name="disbursementType"
-                  value={formData.disbursementType}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                >
-                  <option value="">Select Type</option>
-                  <option value="1">Scholarship Fee</option>
-                  <option value="2">Allowance Fee</option>
-                  <option value="3">Thesis Fee</option>
-                  <option value="4">Internship Allowance</option>
-                  <option value="5">Academic Incentives</option>
-                </select>
-              </div>
+              {/* Removed Disbursement Type field (auto-derived from approval) */}
             </div>
+
+            {selectedWorkflowId && formData.branch && (
+              <div className="text-sm text-gray-600">
+                Eligible recipients: {eligibleCount ?? "…"}
+              </div>
+            )}
 
             <div>
               <label
@@ -323,7 +381,12 @@ function EventModal({
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
-              disabled={loading}
+              disabled={
+                loading ||
+                (selectedWorkflowId
+                  ? eligibleCount !== null && eligibleCount <= 0
+                  : false)
+              }
             >
               {loading ? "Loading" : "Create"}
             </button>

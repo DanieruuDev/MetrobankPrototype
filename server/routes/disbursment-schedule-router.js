@@ -7,6 +7,7 @@ const {
   fetchWeeklyDisbursementSchedules,
   deleteDisbursementSchedule,
   getEligibleScholarCount,
+  getEligibleScholarCountSimple,
   updateDisbursementSchedule,
 } = require("../controllers/disbursement-schedule-controller.js");
 
@@ -35,5 +36,8 @@ disbursementRouter.get(
   "/scholar/:yr_lvl_code/:sy_code/:semester_code",
   getEligibleScholarCount
 );
+
+// Simple pre-check (no year-level)
+disbursementRouter.get("/eligible-count", getEligibleScholarCountSimple);
 
 module.exports = disbursementRouter;

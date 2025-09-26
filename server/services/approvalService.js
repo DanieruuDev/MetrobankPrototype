@@ -23,12 +23,17 @@ const fetchUnscheduledWorkflows = async () => {
         INNER JOIN 
             wf_request_type_maintenance rt 
             ON w.rq_type_id = rt.rq_type_id 
-        LEFT JOIN
-            disbursement_schedule ds 
-            ON w.workflow_id = ds.workflow_id 
         WHERE
-            w.status = 'Completed' 
-            AND ds.workflow_id IS NULL; 
+            w.status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM event_schedule es
+              JOIN disbursement_schedule ds ON ds.sched_id = es.sched_id
+              WHERE es.sy_code = w.sy_code
+                AND es.semester_code = w.semester_code
+                AND ds.disbursement_type_id = rt.disbursement_type_id
+                AND es.schedule_status = 'Completed'
+            );
     `;
   try {
     // Execute the query using your database connection
@@ -36,7 +41,7 @@ const fetchUnscheduledWorkflows = async () => {
 
     // Return the rows, mapped to the structure the frontend expects
     return result.rows.map((row) => ({
-      id: row.workflow_id,
+      id: row.id,
       title: row.title,
       semester_code: row.semester_code,
       sy_code: row.sy_code,

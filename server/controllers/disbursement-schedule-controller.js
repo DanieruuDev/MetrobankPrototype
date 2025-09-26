@@ -418,6 +418,41 @@ const updateDisbursementSchedule = async (req, res) => {
   }
 };
 
+// Simple eligible-count without year level (aligns with create logic)
+const getEligibleScholarCountSimple = async (req, res) => {
+  try {
+    const { sy_code, semester_code, branch, disbursement_type_id } = req.query;
+
+    if (!sy_code || !semester_code || !branch || !disbursement_type_id) {
+      return res.status(400).json({ message: "Missing required parameters." });
+    }
+
+    const query = `
+      SELECT COUNT(dd.disb_detail_id) AS count
+      FROM renewal_scholar rs
+      JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
+      JOIN disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
+      JOIN disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
+      WHERE rs.school_year = $1
+        AND rs.semester = $2
+        AND mc.campus_name = $3
+        AND dd.disbursement_type_id = $4
+    `;
+
+    const { rows } = await pool.query(query, [
+      sy_code,
+      semester_code,
+      branch,
+      disbursement_type_id,
+    ]);
+    const count = rows?.[0]?.count ? Number(rows[0].count) : 0;
+    return res.status(200).json({ count });
+  } catch (error) {
+    console.error("Error fetching simple eligible count:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   createDisbursementSchedule,
   fetchDisbursementSchedules,
@@ -427,4 +462,5 @@ module.exports = {
   deleteDisbursementSchedule,
   getEligibleScholarCount,
   updateDisbursementSchedule,
+  getEligibleScholarCountSimple,
 };

@@ -496,7 +496,61 @@ const fetchApproverApproval = async (req, res) => {
       return res.status(404).json({ message: "Approver not found" });
     }
 
-    res.json(rows[0]);
+    // Get return conversation data
+    const returnConversationQuery = `
+      SELECT 
+        rf.return_id,
+        rf.reason,
+        rf.created_by,
+        rf.created_at,
+        rf.requester_take_action,
+        u.first_name || ' ' || u.last_name as created_by_name,
+        u.email as created_by_email
+      FROM return_feedback rf
+      LEFT JOIN "user" u ON rf.created_by = u.user_id
+      WHERE rf.approver_id = $1
+      ORDER BY rf.created_at DESC
+    `;
+
+    const returnConversationResult = await pool.query(returnConversationQuery, [
+      approver_id,
+    ]);
+
+    // Get requester responses for each return
+    const returnConversation = await Promise.all(
+      returnConversationResult.rows.map(async (returnItem) => {
+        const requesterResponsesQuery = `
+          SELECT 
+            rr.req_response_id,
+            rr.message,
+            rr.file_name,
+            rr.file_type,
+            rr.file_size,
+            rr.responded_at,
+            u.first_name || ' ' || u.last_name as requester_name
+          FROM requester_response rr
+          LEFT JOIN "user" u ON rr.requester_id = u.user_id
+          WHERE rr.response_id = $1
+          ORDER BY rr.responded_at ASC
+        `;
+
+        const requesterResponses = await pool.query(requesterResponsesQuery, [
+          returnItem.response_id,
+        ]);
+
+        return {
+          ...returnItem,
+          requester_responses: requesterResponses.rows,
+        };
+      })
+    );
+
+    const result = {
+      ...rows[0],
+      return_conversation: returnConversation,
+    };
+
+    res.json(result);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -585,13 +639,14 @@ const approveApproval = async (req, res) => {
           approver_id
         );
 
+        // Update only the response; do not overwrite approver comments with return reasons
         await client.query(
           `
       UPDATE approver_response
-      SET response = $1, comment = $2, updated_at = NOW()
-      WHERE approver_id = $3
+      SET response = $1, updated_at = NOW()
+      WHERE approver_id = $2
       `,
-          ["Returned", comment, approver_id]
+          ["Returned", approver_id]
         );
 
         console.log("Before update of wf_approver and workflow");

@@ -1,9 +1,3 @@
-// Ensure you have installed the resend SDK: npm install resend
-const { Resend } = require("resend");
-
-// Initialize Resend with your API key (make sure to load from env variables)
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 // Replace with your verified sender email in Resend
 const SENDER_EMAIL = "onboarding@resend.dev"; // <-- Change this for production!
 
