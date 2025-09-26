@@ -117,16 +117,23 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   };
 
   const statusBadge = (status: string) => {
-    let colorClass = "text-black";
+    // Align the look of Not Started with validation cells: small, muted, no bg
+    if (status === "Not Started") {
+      return (
+        <span className="text-gray-800 text-xs font-bold py-2 inline-block">
+          Not Started
+        </span>
+      );
+    }
 
+    let colorClass = "text-black";
     if (status === "Passed")
-      colorClass = "bg-green-500 text-white font-medium text-[12px]";
+      colorClass = " text-green-600  font-medium text-[12px]";
     else if (status === "Failed")
-      colorClass = "bg-red-500 text-white font-medium text-[12px]";
+      colorClass = "text-500 font-medium text-[12px]";
     else if (status === "Delisted")
-      colorClass = "bg-red-600  text-white font-medium text-[12px]";
-    else if (status === "Not Started")
-      colorClass = "bg-gray-500 text-white font-medium text-[12px]"; //
+      colorClass = " text-red-700 font-medium text-[12px]";
+
     return (
       <span className={`${colorClass} px-2 rounded-md py-1`}>{status}</span>
     );
@@ -802,7 +809,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                           return (
                             <td
                               key={key}
-                              className={`px-5 py-3 border border-gray-300 group-hover:bg-gray-100 ${
+                              className={`px-5 py-3 text-center border border-gray-300 group-hover:bg-gray-100 ${
                                 key === "scholar_name"
                                   ? "sticky left-[-1px] z-10 shadow-md bg-white max-w-[300px] whitespace-nowrap overflow-hidden "
                                   : key === "scholarship_status"
@@ -850,47 +857,53 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                   className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none"
                                 />
                               ) : isEdit && isValidationField ? (
-                                //Switch mode
-                                <div className="flex items-center gap-2">
-                                  {/* Switch */}
-                                  <div
-                                    className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
-                                      value === "Passed"
-                                        ? "bg-green-500"
-                                        : value === "Failed"
-                                        ? "bg-red-500"
-                                        : "bg-gray-500"
-                                    }`}
-                                    onClick={() =>
-                                      handleValidationChange(
-                                        renewal.renewal_id,
-                                        key as keyof RenewalDetails,
-                                        value === "Passed" ? "Failed" : "Passed"
-                                      )
-                                    }
-                                  >
-                                    <div
-                                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                                        value === "Passed"
-                                          ? "translate-x-5"
-                                          : "translate-x-0"
-                                      }`}
-                                    ></div>
-                                  </div>
-
-                                  {/* Label */}
-                                  <span
-                                    className={`text-sm font-medium ${
-                                      value === "Passed"
-                                        ? "text-green-600"
-                                        : value === "Failed"
-                                        ? "text-red-600"
-                                        : "text-gray-500"
-                                    }`}
-                                  >
-                                    {value}
-                                  </span>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const current = (
+                                      (value as string) || "Not Started"
+                                    ).trim();
+                                    const next =
+                                      current === "Not Started"
+                                        ? "Passed"
+                                        : current === "Passed"
+                                        ? "Failed"
+                                        : "Not Started";
+                                    handleValidationChange(
+                                      renewal.renewal_id,
+                                      key as keyof RenewalDetails,
+                                      next
+                                    );
+                                  }}
+                                  className={`w-full h-full flex items-center justify-center font-semibold select-none cursor-pointer hover:ring-1 hover:ring-gray-300 rounded ${
+                                    (
+                                      (value as string) || "Not Started"
+                                    ).trim() === "Passed"
+                                      ? "text-green-600 text-2xl"
+                                      : (
+                                          (value as string) || "Not Started"
+                                        ).trim() === "Failed"
+                                      ? "text-red-600 text-xl "
+                                      : "text-gray-400 text-xs py-2"
+                                  }`}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                  }}
+                                  title={(
+                                    (value as string) || "Not Started"
+                                  ).trim()}
+                                >
+                                  {(
+                                    (value as string) || "Not Started"
+                                  ).trim() === "Passed"
+                                    ? "\u2713"
+                                    : (
+                                        (value as string) || "Not Started"
+                                      ).trim() === "Failed"
+                                    ? "X"
+                                    : "Not Started"}
+                                </button>
                               ) : key === "scholarship_status" ? (
                                 statusBadge(value as string)
                               ) : (
