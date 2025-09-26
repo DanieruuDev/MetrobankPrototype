@@ -17,11 +17,10 @@ const fetchUnscheduledWorkflows = async () => {
             w.rq_title AS title,
             w.semester_code,
             w.sy_code,
-            -- FIX: We now select the ID from the maintenance table (rt)
             rt.disbursement_type_id 
         FROM
             workflow w
-        INNER JOIN
+        INNER JOIN 
             wf_request_type_maintenance rt 
             ON w.rq_type_id = rt.rq_type_id 
         LEFT JOIN
@@ -31,7 +30,6 @@ const fetchUnscheduledWorkflows = async () => {
             w.status = 'Completed' 
             AND ds.workflow_id IS NULL; 
     `;
-
   try {
     // Execute the query using your database connection
     const result = await db.query(query);
