@@ -4,31 +4,36 @@ import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import BranchDropdown from "../maintainables/BranchDropdown";
 import { toast } from "react-toastify";
+
 interface EventModalProps {
   onClose: (isEventOpen: boolean) => void;
   fetchSchedules: () => void;
   selectedDate: Date | null;
 }
 
-type SemesterType = "1st" | "2nd" | "";
-type SchoolYearType = "2024-2025" | "2025-2026" | "";
-type DisbursementType =
-  | "Scholarship Fee"
-  | "Allowance Fee"
-  | "Thesis Fee"
-  | "Internship Fee"
-  | "Academic Incentives"
-  | "";
+// ---------------------------------------------
+// NEW INTERFACE: Data fetched from the workflow API
+// ---------------------------------------------
+interface ApprovedWorkflow {
+  id: number; // This is the workflow_id
+  title: string;
+  semester_code: number;
+  sy_code: number;
+  disbursement_type_id: number;
+}
 
+// ---------------------------------------------
+// UPDATED INTERFACE: Form Data
+// Removed: semester, schoolYear, disbursementType
+// Added: workflow_id
+// ---------------------------------------------
 interface FormData {
   title: string;
   schedule_due: Date | null;
   starting_date: Date | null;
-  semester: SemesterType;
   branch: string;
-  schoolYear: SchoolYearType;
-  disbursementType: DisbursementType;
   description: string;
+  workflow_id: number | null; // The ID of the selected workflow
 }
 
 function EventModal({
@@ -38,16 +43,22 @@ function EventModal({
 }: EventModalProps) {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
+
+  // NEW STATE for holding the list of approved, unscheduled workflows
+  const [approvedWorkflows, setApprovedWorkflows] = useState<
+    ApprovedWorkflow[]
+  >([]);
+
+  // Initialize workflow_id to null
   const [formData, setFormData] = useState<FormData>({
     title: "",
     schedule_due: selectedDate,
-    semester: "",
     branch: "",
-    schoolYear: "",
-    disbursementType: "",
     description: "",
     starting_date: null,
+    workflow_id: null, // New field
   });
+
   const [branch, setBranch] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +68,35 @@ function EventModal({
   };
   const todayDate = new Date().toISOString().split("T")[0];
 
+  // ---------------------------------------------
+  // UPDATED useEffect: Fetch workflows on mount
+  // ---------------------------------------------
+  useEffect(() => {
+    const fetchWorkflows = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/api/approvals/ready-for-scheduling"
+        );
+        setApprovedWorkflows(response.data);
+      } catch (error) {
+        console.error("Error fetching approved workflows:", error);
+        toast.error("Failed to load approved workflows for scheduling.");
+      }
+    };
+
+    fetchWorkflows();
+
+    if (selectedDate) {
+      setFormData((prev) => ({
+        ...prev,
+        schedule_due: selectedDate,
+      }));
+    }
+  }, [selectedDate]);
+
+  // ---------------------------------------------
+  // UPDATED handleInputChange: Auto-set Title when workflow is selected
+  // ---------------------------------------------
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
@@ -69,24 +109,41 @@ function EventModal({
           ? new Date(value)
           : value,
     }));
-  };
-  console.log(formData.branch);
 
-  useEffect(() => {
-    if (selectedDate) {
-      setFormData((prev) => ({
-        ...prev,
-        schedule_due: selectedDate,
-      }));
+    // NEW LOGIC: When workflow_id is selected, find the object and set the title/ID
+    if (name === "workflow_id" && value) {
+      const selectedWorkflow = approvedWorkflows.find(
+        (w) => w.id.toString() === value
+      );
+      if (selectedWorkflow) {
+        setFormData((prev) => ({
+          ...prev,
+          title: selectedWorkflow.title, // Set title automatically
+          workflow_id: Number(value),
+        }));
+      }
     }
-  }, [selectedDate]);
+  };
 
+  // ---------------------------------------------
+  // UPDATED handleSubmit: Use workflow metadata
+  // ---------------------------------------------
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    console.log("sent?");
     setLoading(true);
+
+    const selectedWorkflow = approvedWorkflows.find(
+      (w) => w.id === formData.workflow_id
+    );
+
+    // Stop submission if no workflow is selected or found
+    if (!selectedWorkflow) {
+      toast.error("Please select an approved disbursement workflow.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log("click pass");
       const response = await axios.post(
         "http://localhost:5000/api/disbursement/schedule",
         {
@@ -100,9 +157,14 @@ function EventModal({
             : null,
           sched_title: formData.title,
           branch_code: formData.branch,
-          semester_code: Number(formData.semester),
-          sy_code: Number(formData.schoolYear),
-          disbursement_type_id: Number(formData.disbursementType),
+
+          // --- DYNAMIC VALUES FROM SELECTED WORKFLOW ---
+          semester_code: selectedWorkflow.semester_code,
+          sy_code: selectedWorkflow.sy_code,
+          disbursement_type_id: selectedWorkflow.disbursement_type_id,
+          workflow_id: formData.workflow_id, // Link schedule back to the workflow
+          // --------------------------------------------
+
           description: formData.description,
         }
       );
@@ -112,20 +174,18 @@ function EventModal({
       fetchSchedules();
 
       onClose(false);
+      // Reset form data for the next use
       setFormData({
         title: "",
         schedule_due: null,
-        semester: "",
         branch: "",
-        schoolYear: "",
-        disbursementType: "",
         description: "",
         starting_date: null,
+        workflow_id: null,
       });
     } catch (error) {
       console.error("Error creating disbursement schedule:", error);
-      alert("Failed");
-      console.log("click fail");
+      toast.error("Failed to create disbursement schedule.");
     } finally {
       setLoading(false);
     }
@@ -154,12 +214,14 @@ function EventModal({
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-5">
+            {/* Title field is now read-only or removed as it's set by workflow selection. 
+                I'm keeping it but making it read-only for clarity. */}
             <div>
               <label
                 htmlFor="title"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Title
+                Title (Set by Approved Workflow)
               </label>
               <input
                 id="title"
@@ -167,16 +229,16 @@ function EventModal({
                 name="title"
                 maxLength={25}
                 value={formData.title}
-                onChange={handleInputChange}
-                placeholder="Enter a title"
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                readOnly // Title is now automatically set
+                placeholder="Select an Approved Workflow below..."
+                className="w-full p-2 border border-gray-300 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-not-allowed"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label
-                  htmlFor="date"
+                  htmlFor="starting_date"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Starting Date
@@ -197,7 +259,7 @@ function EventModal({
               </div>
               <div>
                 <label
-                  htmlFor="date"
+                  htmlFor="schedule_due"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Due Date
@@ -218,79 +280,53 @@ function EventModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* ------------------------------------------------------------- */}
+            {/* NEW SECTION: Approved Disbursement Workflow Select (Replaces Semester/SY) */}
+            {/* ------------------------------------------------------------- */}
+            <div className="grid grid-cols-1 gap-3">
               <div>
                 <label
-                  htmlFor="semester"
+                  htmlFor="workflow_id"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Semester
+                  Approved Disbursement Workflow
                 </label>
                 <select
-                  id="semester"
-                  name="semester"
-                  value={formData.semester}
+                  id="workflow_id"
+                  name="workflow_id"
+                  value={formData.workflow_id || ""}
                   onChange={handleInputChange}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   required
                 >
-                  <option value="">Select</option>
-                  <option value="1">1st Semester</option>
-                  <option value="2">2nd Semester</option>
+                  <option value="" disabled>
+                    Select Approved Workflow
+                  </option>
+                  {approvedWorkflows.map((workflow) => (
+                    <option key={workflow.id} value={workflow.id}>
+                      {workflow.title} (SY: {workflow.sy_code} - Sem:{" "}
+                      {workflow.semester_code})
+                    </option>
+                  ))}
                 </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="schoolYear"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  School Year
-                </label>
-                <select
-                  id="schoolYear"
-                  name="schoolYear"
-                  value={formData.schoolYear}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="20242025">2024-2025</option>
-                  <option value="20252026">2025-2026</option>
-                </select>
+                {approvedWorkflows.length === 0 && !loading && (
+                  <p className="text-sm text-red-500 mt-1">
+                    No approved disbursements are ready for scheduling.
+                  </p>
+                )}
               </div>
             </div>
 
+            {/* ------------------------------------------------------------- */}
+            {/* UPDATED SECTION: Branch Dropdown (Disbursement Type is removed) */}
+            {/* ------------------------------------------------------------- */}
             <div className="grid grid-cols-2 gap-3">
               <BranchDropdown
                 formData={branch}
                 handleInputChange={handleBranchChange}
               />
-
-              <div className="flex-1">
-                <label
-                  htmlFor="disbursementType"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Disbursement Type
-                </label>
-                <select
-                  id="disbursementType"
-                  name="disbursementType"
-                  value={formData.disbursementType}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  required
-                >
-                  <option value="">Select Type</option>
-                  <option value="1">Scholarship Fee</option>
-                  <option value="2">Allowance Fee</option>
-                  <option value="3">Thesis Fee</option>
-                  <option value="4">Internship Allowance</option>
-                  <option value="5">Academic Incentives</option>
-                </select>
-              </div>
+              {/* Empty div to preserve the 2-column layout */}
+              <div className="flex-1"></div>
             </div>
 
             <div>

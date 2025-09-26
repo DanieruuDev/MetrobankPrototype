@@ -1,3 +1,5 @@
+// server/index.js
+
 const express = require("express");
 const userAdminRouter = require("./routes/admin-user-router.js");
 const path = require("path");
@@ -10,6 +12,7 @@ const maintenance = require("./routes/maintenance-router.js");
 const renewalRouter = require("./routes/renewal-router.js");
 const workflowRouter = require("./routes/workflow-router.js");
 const notificationRouter = require("./routes/notification-router.js");
+const approvalRouter = require("./routes/approval-routes.js");
 require("./utils/scheduler.js");
 require("dotenv").config();
 
@@ -35,6 +38,7 @@ app.use("/api/renewal", renewalRouter);
 app.use("/api/workflow", workflowRouter);
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/api/notification", notificationRouter);
+app.use("/api/approvals", approvalRouter);
 
 app.use("/", async (req, res) => {
   res.send("Hello World");
