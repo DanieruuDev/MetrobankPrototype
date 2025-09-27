@@ -1,9 +1,14 @@
 const { createNotification } = require("../services/notificationService");
 const {
+  readXlsx,
+  UploadFileToDisbursement,
+} = require("../services/ExcelFileReader");
+const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
   sendWorkflowCompletedEmail,
 } = require("../utils/emailing");
+
 const checkWorkflowExists = async (
   client,
   approval_req_type,
@@ -406,6 +411,20 @@ const handleApprovedCase = async (
         workflowCompleted = true;
       }
     }
+
+    if (workflowCompleted) {
+      const docResult = await client.query(
+        `SELECT d.doc_name, d.path FROM wf_document d
+             JOIN workflow w ON w.document_id = d.doc_id
+             WHERE w.workflow_id = $1`,
+        [workflow_id]
+      );
+      if (docResult.rows.length > 0) {
+        const { doc_name } = docResult.rows[0];
+
+        await UploadFileToDisbursement(doc_name);
+      }
+    }
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -422,15 +441,15 @@ const handleApprovedCase = async (
   // ========== Side effects (run after commit so emails/notifs don't rollback DB) ==========
   // If we moved to next approver -> send email & notifications (non-fatal if fail)
   if (nextApproverFound) {
-    try {
-      await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
-    } catch (err) {
-      console.error("sendItsYourTurnEmail failed:", {
-        nextUserId,
-        nextApproverEmail,
-        err,
-      });
-    }
+    // try {
+    //   await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+    // } catch (err) {
+    //   console.error("sendItsYourTurnEmail failed:", {
+    //     nextUserId,
+    //     nextApproverEmail,
+    //     err,
+    //   });
+    // }
 
     try {
       await createNotification({
@@ -473,15 +492,15 @@ const handleApprovedCase = async (
   // If workflow completed -> notify requester and email
   if (workflowCompleted) {
     try {
-      await createNotification({
-        type: "WORKFLOW_COMPLETED",
-        title: "Workflow is Completed",
-        message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
-        relatedId: workflow_id,
-        actorId: null,
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: requester_id } }],
-      });
+      // await createNotification({
+      //   type: "WORKFLOW_COMPLETED",
+      //   title: "Workflow is Completed",
+      //   message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
+      //   relatedId: workflow_id,
+      //   actorId: null,
+      //   actionRequired: false,
+      //   recipients: [{ approvers: { user_id: requester_id } }],
+      // });
     } catch (err) {
       console.error("createNotification (completed) failed:", {
         workflow_id,
@@ -490,18 +509,18 @@ const handleApprovedCase = async (
       });
     }
 
-    try {
-      await sendWorkflowCompletedEmail(
-        workflowDetailsForEmail.requesterEmail,
-        workflowDetailsForEmail
-      );
-    } catch (err) {
-      console.error("sendWorkflowCompletedEmail failed:", {
-        workflow_id,
-        requester_id,
-        err,
-      });
-    }
+    // try {
+    //   await sendWorkflowCompletedEmail(
+    //     workflowDetailsForEmail.requesterEmail,
+    //     workflowDetailsForEmail
+    //   );
+    // } catch (err) {
+    //   console.error("sendWorkflowCompletedEmail failed:", {
+    //     workflow_id,
+    //     requester_id,
+    //     err,
+    //   });
+    // }
   }
 
   // success
