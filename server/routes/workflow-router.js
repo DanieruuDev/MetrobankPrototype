@@ -3,7 +3,7 @@ const multer = require("multer");
 const {
   uploadFile,
   createApproval,
-
+  EditApprovalByID,
   getApproval,
   deleteApproval,
   changeApprover,
@@ -42,6 +42,11 @@ workflowRouter.get("/get-workflow/:user_id/:workflow_id", getApproval);
 workflowRouter.get("/get-edit-workflow/:workflow_id", getDataToEdit);
 
 workflowRouter.post("/create-workflow", upload.single("file"), createApproval);
+workflowRouter.put(
+  "/edit-workflow/:workflow_id",
+  upload.single("file"),
+  EditApprovalByID
+);
 workflowRouter.delete(
   "/delete-workflow/:requester_id/:workflow_id",
   deleteApproval

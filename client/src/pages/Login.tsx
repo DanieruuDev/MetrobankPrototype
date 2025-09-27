@@ -80,7 +80,7 @@ const LoginPage: React.FC = () => {
         </div>
 
         <h2 className="text-center text-2xl font-extrabold text-[#024FA8] mb-6">
-          Metrobank S.T.R.O.N.G.
+          Metrobank STRONG
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
