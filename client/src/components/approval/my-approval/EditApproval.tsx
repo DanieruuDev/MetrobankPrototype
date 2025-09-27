@@ -82,6 +82,9 @@ function EditApproval({
       },
     });
   const [showValidation, setShowValidation] = useState(false);
+  const [originalData, setOriginalData] = useState<WorkflowFormData | null>(
+    null
+  );
 
   const [formData, setFormData] = useState<WorkflowFormData>({
     rq_title: "",
@@ -108,8 +111,7 @@ function EditApproval({
           `http://localhost:5000/api/workflow/get-edit-workflow/${workflowId}`
         );
         const workflowData = response.data[0];
-        console.log(workflowData.request_type);
-        setFormData({
+        const mappedData: WorkflowFormData = {
           rq_title: workflowData.rq_title || "",
           requester_id: String(userId),
           description: workflowData.description || "",
@@ -134,7 +136,9 @@ function EditApproval({
           sy_code: workflowData.sy_code || "",
           approval_req_type: workflowData.request_type || "",
           rq_type_id: workflowData.rq_type_id || "",
-        });
+        };
+        setFormData(mappedData);
+        setOriginalData(mappedData);
       } catch (error) {
         console.error("Error fetching workflow data:", error);
         toast.error("Failed to load workflow data");
@@ -247,64 +251,91 @@ function EditApproval({
     setLoading(true);
 
     const sendData = new FormData();
-    sendData.append("rq_title", formData.rq_title);
-    sendData.append("requester_id", formData.requester_id);
-    sendData.append("approval_req_type", formData.approval_req_type);
-    sendData.append("description", formData.description);
-    sendData.append("due_date", formData.due_date);
-    sendData.append("sy_code", formData.sy_code);
-    sendData.append("semester_code", formData.semester_code);
 
-    // Only append file if a new one was selected
-    if (formData.file instanceof File) {
-      sendData.append("file", formData.file);
+    // Always send requester_id so backend can validate
+    sendData.append("requester_id", String(formData.requester_id));
+
+    (Object.keys(formData) as (keyof WorkflowFormData)[]).forEach((key) => {
+      if (!originalData) return;
+
+      const currentValue = formData[key];
+      const originalValue = originalData[key];
+
+      // Skip requester_id because we already sent it
+      if (key === "requester_id") return;
+
+      // --- skip nulls ---
+      if (currentValue == null) return;
+
+      // --- handle file ---
+      if (key === "file") {
+        if (currentValue instanceof File) {
+          sendData.append("file", currentValue);
+        }
+        return;
+      }
+
+      // --- handle approvers ---
+      if (key === "approvers") {
+        if (Array.isArray(currentValue) && Array.isArray(originalValue)) {
+          // Deep compare approvers without order reassignment
+          const approversChanged =
+            JSON.stringify(
+              originalValue.map((a: WFApprover) => ({
+                email: a.email,
+                role: a.role,
+                date: a.date,
+              }))
+            ) !==
+            JSON.stringify(
+              currentValue.map((a: WFApprover) => ({
+                email: a.email,
+                role: a.role,
+                date: a.date,
+              }))
+            );
+
+          if (approversChanged) {
+            // Assign order only when sending
+            sendData.append(
+              "approvers",
+              JSON.stringify(
+                currentValue.map((approver, index) => ({
+                  ...approver,
+                  order: index + 1,
+                }))
+              )
+            );
+          }
+        }
+        return;
+      }
+
+      // --- handle primitive fields ---
+      if (currentValue !== originalValue) {
+        sendData.append(key, String(currentValue));
+      }
+    });
+
+    if ([...sendData.keys()].length === 0) {
+      toast.info("No changes to update");
+      setLoading(false);
+      return;
     }
 
-    sendData.append(
-      "approvers",
-      JSON.stringify(
-        formData.approvers.map((approver, index) => ({
-          ...approver,
-          order: index + 1,
-        }))
-      )
-    );
-
     try {
-      const res = await axios.put(
-        `http://localhost:5000/api/workflow/update-workflow/${workflowId}`,
+      await axios.put(
+        `http://localhost:5000/api/workflow/edit-workflow/${workflowId}`,
         sendData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
 
       fetchWorkflows(1);
       editApproval(null);
       toast.success("Workflow updated successfully!");
-      console.log("Response:", res.data);
     } catch (error) {
-      console.error("Error details:", error);
-
-      if (axios.isAxiosError(error)) {
-        console.error("Response data:", error.response?.data);
-        console.error("Response status:", error.response?.status);
-
-        if (error.response?.data?.errors) {
-          const errors = error.response.data.errors;
-          Object.keys(errors).forEach((key) => {
-            toast.error(`${key}: ${errors[key]}`);
-          });
-        } else {
-          toast.error(
-            error.response?.data?.message || "Failed to update workflow"
-          );
-        }
-      } else {
-        toast.error("An unexpected error occurred");
-      }
+      toast.error("Failed to update workflow");
+      console.error(error);
     } finally {
       setLoading(false);
     }

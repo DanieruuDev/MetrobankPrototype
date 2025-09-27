@@ -2,12 +2,7 @@ const pool = require("../database/dbConnect.js");
 const fs = require("fs");
 const path = require("path");
 const { uploadFile, getDownloadStream } = require("../utils/b2.js");
-const {
-  sendApproverAddedEmail,
-  sendItsYourTurnEmail,
-  sendWorkflowCompletedEmail,
-  sendWorkflowRejectedEmail,
-} = require("../utils/emailing"); // Ensure this path is correct
+const { sendItsYourTurnEmail } = require("../utils/emailing"); // Ensure this path is correct
 const {
   checkWorkflowExists,
   insertDocument,
@@ -452,6 +447,199 @@ const createApproval = async (req, res) => {
     await client.query("ROLLBACK");
     deleteFile();
     res.status(500).json({ message: error.message || "File upload failed" });
+  } finally {
+    client.release();
+  }
+};
+
+//Note: Add notification for this and the wokrflow log
+const EditApprovalByID = async (req, res) => {
+  const file = req.file; // only if new file uploaded
+  const {
+    rq_title,
+    requester_id,
+    approval_req_type,
+    description,
+    due_date,
+    sy_code,
+    semester_code,
+    approvers,
+    rq_type_id,
+  } = req.body;
+
+  const workflow_id = req.params.workflow_id;
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    console.log(workflow_id);
+    console.log(parseInt(workflow_id));
+    // --- Validate requester ownership ---
+    const { rows: workflowRows } = await client.query(
+      "SELECT requester_id FROM workflow WHERE workflow_id = $1",
+      [parseInt(workflow_id)]
+    );
+
+    if (workflowRows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    const currentRequesterId = workflowRows[0].requester_id;
+    if (Number(requester_id) !== currentRequesterId) {
+      console.log(requester_id, currentRequesterId);
+      await client.query("ROLLBACK");
+      return res
+        .status(403)
+        .json({ error: "You are not allowed to update this workflow" });
+    }
+
+    // --- Prepare dynamic fields for workflow update ---
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (rq_title) {
+      fields.push(`rq_title = $${idx++}`);
+      values.push(rq_title);
+    }
+    if (approval_req_type) {
+      fields.push(`approval_req_type = $${idx++}`);
+      values.push(approval_req_type);
+    }
+    if (description) {
+      fields.push(`description = $${idx++}`);
+      values.push(description);
+    }
+    if (due_date) {
+      fields.push(`due_date = $${idx++}`);
+      values.push(due_date);
+    }
+    if (sy_code) {
+      fields.push(`sy_code = $${idx++}`);
+      values.push(sy_code);
+    }
+    if (semester_code) {
+      fields.push(`semester_code = $${idx++}`);
+      values.push(semester_code);
+    }
+    if (rq_type_id) {
+      fields.push(`rq_type_id = $${idx++}`);
+      values.push(rq_type_id);
+    }
+
+    // --- Handle file upload properly ---
+    if (file) {
+      // Insert into wf_document first
+      const { rows: docRows } = await client.query(
+        `INSERT INTO wf_document (doc_name, doc_type, path, size)
+         VALUES ($1, $2, $3, $4) RETURNING doc_id`,
+        [file.originalname, file.mimetype, file.path, file.size]
+      );
+      const newDocId = docRows[0].doc_id;
+
+      fields.push(`document_id = $${idx++}`);
+      values.push(newDocId);
+    }
+
+    // --- Update workflow table if there are changes ---
+    if (fields.length > 0) {
+      values.push(workflow_id);
+      const updateQuery = `
+        UPDATE workflow
+        SET ${fields.join(", ")}
+        WHERE workflow_id = $${idx}
+      `;
+      await client.query(updateQuery, values);
+    }
+
+    // --- Handle approvers separately ---
+    if (approvers) {
+      const parsedApprovers = JSON.parse(approvers);
+      if (parsedApprovers.length > 0) {
+        // 1. Fetch existing approvers
+        const { rows: existingRows } = await client.query(
+          "SELECT * FROM wf_approver WHERE workflow_id = $1",
+          [workflow_id]
+        );
+
+        for (const a of parsedApprovers) {
+          // Find user_id from email
+          const userRes = await client.query(
+            "SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1",
+            [a.email]
+          );
+          if (userRes.rows.length === 0) {
+            throw new Error(`User with email ${a.email} not found`);
+          }
+          const user_id = userRes.rows[0].admin_id;
+
+          // Check if approver exists
+          const existing = existingRows.find((r) => r.user_id === user_id);
+
+          if (existing) {
+            // Update only if any field changed
+            const updates = [];
+            const values = [];
+            let idx = 1;
+
+            if (existing.role !== a.role) {
+              updates.push(`role = $${idx++}`);
+              values.push(a.role);
+            }
+            if (existing.approver_order !== a.order) {
+              updates.push(`approver_order = $${idx++}`);
+              values.push(a.order);
+            }
+            if (existing.due_date?.toISOString().split("T")[0] !== a.date) {
+              updates.push(`due_date = $${idx++}`);
+              values.push(a.date);
+            }
+
+            if (updates.length > 0) {
+              values.push(existing.approver_id); // WHERE id
+              const updateQuery = `UPDATE wf_approver SET ${updates.join(
+                ", "
+              )} WHERE approver_id = $${idx}`;
+              await client.query(updateQuery, values);
+            }
+          } else {
+            // Insert new approver
+            await client.query(
+              `INSERT INTO wf_approver (workflow_id, user_id, user_email, role, approver_order, due_date)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+              [workflow_id, user_id, a.email, a.role, a.order, a.date]
+            );
+          }
+        }
+
+        // Optional: Mark removed approvers as canceled
+        const incomingUserIds = parsedApprovers
+          .map((a) => {
+            const user = existingRows.find((r) => r.user_email === a.email);
+            return user ? user.user_id : null;
+          })
+          .filter((id) => id !== null);
+
+        const removed = existingRows.filter(
+          (r) => !incomingUserIds.includes(r.user_id)
+        );
+
+        for (const r of removed) {
+          await client.query(
+            `UPDATE wf_approver SET status = 'Canceled' WHERE approver_id = $1`,
+            [r.approver_id]
+          );
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Workflow updated successfully" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to update workflow" });
   } finally {
     client.release();
   }
@@ -1064,4 +1252,5 @@ module.exports = {
   handleRequesterResponse,
   archiveApproval,
   getDataToEdit,
+  EditApprovalByID,
 };
