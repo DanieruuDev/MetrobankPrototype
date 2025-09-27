@@ -130,7 +130,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     if (status === "Passed")
       colorClass = " text-green-600  font-medium text-[12px]";
     else if (status === "Failed")
-      colorClass = "text-500 font-medium text-[12px]";
+      colorClass = "text-red-500 font-medium text-[12px]";
     else if (status === "Delisted")
       colorClass = " text-red-700 font-medium text-[12px]";
 
