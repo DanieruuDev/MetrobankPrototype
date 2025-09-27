@@ -174,10 +174,10 @@ function transformRowForDB(row) {
   };
 }
 
-const UploadFileToDisbursement = async (fileName) => {
+const UploadFileToDisbursement = async (fileName, doc_id) => {
   try {
     const data = await readXlsx(fileName);
-
+    console.log(doc_id);
     const allowed = ["Semestral Allowance"];
     const filtered = filterDataByHeaders(data, allowed);
 
@@ -188,7 +188,7 @@ const UploadFileToDisbursement = async (fileName) => {
     for (const row of prepared) {
       try {
         await pool.query(
-          `SELECT insert_disbursement_detail($1, $2, $3, $4, $5, $6)`,
+          `SELECT insert_disbursement_detail($1, $2, $3, $4, $5, $6,  $7)`,
           [
             row.student_id,
             row.yr_lvl,
@@ -196,6 +196,7 @@ const UploadFileToDisbursement = async (fileName) => {
             row.school_year,
             row.request_type,
             row.request_amount,
+            doc_id,
           ]
         );
         console.log(

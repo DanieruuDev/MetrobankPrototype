@@ -414,15 +414,15 @@ const handleApprovedCase = async (
 
     if (workflowCompleted) {
       const docResult = await client.query(
-        `SELECT d.doc_name, d.path FROM wf_document d
+        `SELECT d.doc_name, d.path, d.doc_id FROM wf_document d
              JOIN workflow w ON w.document_id = d.doc_id
              WHERE w.workflow_id = $1`,
         [workflow_id]
       );
       if (docResult.rows.length > 0) {
-        const { doc_name } = docResult.rows[0];
+        const { doc_name, doc_id } = docResult.rows[0];
 
-        await UploadFileToDisbursement(doc_name);
+        await UploadFileToDisbursement(doc_name, doc_id);
       }
     }
     await client.query("COMMIT");
