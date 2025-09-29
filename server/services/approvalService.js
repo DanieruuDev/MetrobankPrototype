@@ -25,6 +25,7 @@ const fetchUnscheduledWorkflows = async () => {
             ON w.rq_type_id = rt.rq_type_id 
         WHERE
             w.status = 'Completed'
+            AND w.is_archived = false
             AND NOT EXISTS (
               SELECT 1
               FROM event_schedule es

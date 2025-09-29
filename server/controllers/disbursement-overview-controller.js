@@ -8,6 +8,18 @@ const getScholarDisbursementSummary = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
+    console.log("Fetching disbursement summary with params:", {
+      page,
+      limit,
+      offset,
+    });
+
+    // First, let's test if the view exists and is accessible
+    const testQuery = await pool.query(
+      "SELECT 1 FROM vw_disbursement_overview LIMIT 1"
+    );
+    console.log("View test successful");
+
     // Query to fetch paginated data
     const dataQuery = await pool.query(
       `
@@ -19,19 +31,23 @@ const getScholarDisbursementSummary = async (req, res) => {
         student_school_year, 
         student_branch, 
         total_received
-      FROM vw_student_disbursement_summary
+      FROM vw_disbursement_overview
       ORDER BY student_name
       LIMIT $1 OFFSET $2
       `,
       [limit, offset]
     );
 
+    console.log("Data query successful, rows:", dataQuery.rows.length);
+
     // Query total count of records (no LIMIT/OFFSET here)
     const countQuery = await pool.query(
-      `SELECT COUNT(*) FROM vw_student_disbursement_summary`
+      `SELECT COUNT(*) FROM vw_disbursement_overview`
     );
     const totalCount = parseInt(countQuery.rows[0].count);
     const totalPages = Math.ceil(totalCount / limit);
+
+    console.log("Count query successful, total count:", totalCount);
 
     // Return paginated results and pagination info
     res.status(200).json({
@@ -44,7 +60,8 @@ const getScholarDisbursementSummary = async (req, res) => {
   } catch (error) {
     console.error(
       "Error fetching scholar disbursement summary:",
-      error.message
+      error.message,
+      error.stack
     );
     res.status(500).json({
       success: false,
@@ -126,9 +143,84 @@ const getSemesterScholarDisbursement = async (req, res) => {
   }
 };
 
+const getCompletedDisbursementTotals = async (req, res) => {
+  const { sy_code } = req.params;
+
+  try {
+    if (!sy_code) {
+      return res
+        .status(400)
+        .json({ message: "School year code (sy_code) is required." });
+    }
+
+    const query = `
+      SELECT 
+        dt.disbursement_label AS category,
+        COUNT(DISTINCT m.student_id) AS total_students,
+        SUM(dd.disbursement_amount) AS total_amount
+      FROM disbursement_detail dd
+      JOIN disbursement_tracking dtr ON dd.disbursement_id = dtr.disbursement_id
+      JOIN renewal_scholar rs ON dtr.renewal_id = rs.renewal_id
+      JOIN masterlist m ON rs.student_id = m.student_id
+      JOIN disbursement_type dt ON dd.disbursement_type_id = dt.disbursement_type_id
+      WHERE dd.disbursement_status = 'Completed'
+        AND m.scholarship_status = 'Active'
+      GROUP BY dt.disbursement_label
+      ORDER BY total_amount DESC
+    `;
+
+    const result = await pool.query(query);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: `No completed disbursement data found.`,
+      });
+    }
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching completed disbursement totals:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+const getTotalDisbursedAmount = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        COUNT(DISTINCT m.student_id) AS total_students,
+        COALESCE(SUM(dd.disbursement_amount), 0) AS total_disbursed
+      FROM masterlist m
+      LEFT JOIN renewal_scholar rs ON rs.student_id = m.student_id
+      LEFT JOIN disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
+      LEFT JOIN disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
+      WHERE m.scholarship_status = 'Active'
+        AND dd.disbursement_status = 'Completed'
+    `;
+
+    const result = await pool.query(query);
+    const { total_students, total_disbursed } = result.rows[0];
+
+    res.status(200).json({
+      success: true,
+      totalStudents: parseInt(total_students),
+      totalDisbursed: parseFloat(total_disbursed),
+    });
+  } catch (error) {
+    console.error("Error fetching total disbursed amount:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getScholarDisbursementSummary,
   getDisbursementHistoryByStudentId,
   getDisbursementTotalPerSy,
   getSemesterScholarDisbursement,
+  getCompletedDisbursementTotals,
+  getTotalDisbursedAmount,
 };

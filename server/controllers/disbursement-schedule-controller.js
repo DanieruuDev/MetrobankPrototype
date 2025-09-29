@@ -206,6 +206,36 @@ const fetchDisbursementSchedules = async (req, res) => {
   }
 };
 
+const fetchDisbursementSchedulesByRange = async (req, res) => {
+  const client = await pool.connect();
+  const { start, end } = req.query;
+
+  if (!start || !end) {
+    return res.status(400).json({ error: "Start and end dates are required" });
+  }
+
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        SELECT 
+          *
+        FROM vw_disb_calendar_sched WHERE schedule_due BETWEEN $1 AND $2;
+      `,
+      [start, end]
+    );
+    console.log("Range query result:", result.rows);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching disbursement schedules by range:", error);
+    res.status(500).json({ message: "Error fetching disbursement schedules" });
+    await client.query("ROLLBACK");
+  } finally {
+    client.release();
+  }
+};
+
 const getTwoWeeksDisbursementSchedules = async (req, res) => {
   try {
     const today = new Date();
@@ -456,6 +486,7 @@ const getEligibleScholarCountSimple = async (req, res) => {
 module.exports = {
   createDisbursementSchedule,
   fetchDisbursementSchedules,
+  fetchDisbursementSchedulesByRange,
   getTwoWeeksDisbursementSchedules,
   fetchDetailSchedule,
   fetchWeeklyDisbursementSchedules,
