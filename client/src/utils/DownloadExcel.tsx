@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 export const downloadExcel = (
   fileName: string,
   headers: string[],
-  data: (string | number | null)[][] = []
+  data: (string | number | boolean | null)[][] = []
 ) => {
   const worksheetData = [headers, ...data];
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);

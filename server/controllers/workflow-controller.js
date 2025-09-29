@@ -693,38 +693,38 @@ const fetchApproverApproval = async (req, res) => {
 //When approving the approval
 //added notification
 const approveApproval = async (req, res) => {
-  const { approver_id, response, comment, response_id } = req.body;
+  const {
+    approver_id,
+    response,
+    comment,
+    response_id,
+    workflow_id,
+    approver_order,
+    requester_id,
+    user_id,
+  } = req.body;
 
-  if (!approver_id || !response) {
-    return res
-      .status(400)
-      .json({ message: "Approver ID and response are required" });
+  const requiredFields = {
+    approver_id,
+    response,
+    response_id,
+    workflow_id,
+    approver_order,
+    requester_id,
+    user_id,
+  };
+
+  for (const [key, value] of Object.entries(requiredFields)) {
+    if (value === undefined || value === null || value === "") {
+      return res
+        .status(400)
+        .json({ message: `${key} is required and cannot be empty` });
+    }
   }
-
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-
-    const currentApproverDataQuery = await client.query(
-      `SELECT wa.workflow_id, wa.approver_order, w.requester_id, wa.user_id
-   FROM wf_approver wa
-   JOIN workflow w ON wa.workflow_id = w.workflow_id
-   WHERE wa.approver_id = $1`,
-      [approver_id]
-    );
-
-    const currentApproverData = currentApproverDataQuery.rows[0];
-
-    if (!currentApproverData) {
-      await client.query("ROLLBACK");
-      return res
-        .status(404)
-        .json({ message: "Current approver data not found." });
-    }
-
-    const { workflow_id, approver_order, requester_id, user_id } =
-      currentApproverData;
 
     const requesterAndWorkflowDetails = await getRequesterAndWorkflowDetails(
       client,
@@ -732,7 +732,6 @@ const approveApproval = async (req, res) => {
       requester_id
     );
 
-    console.log("Parameter", response, comment, approver_id);
     const workflowDetailsForEmail =
       requesterAndWorkflowDetails.workflowDetailsForEmail;
     console.log(workflowDetailsForEmail);
@@ -744,10 +743,10 @@ const approveApproval = async (req, res) => {
         user_id,
         comment,
         workflowDetailsForEmail,
-        requester_id
+        requester_id,
+        approver_id
       );
       await updateApproverAndResponse(client, approver_id, response, comment);
-      console.log("Approved");
     } else if (response === "Reject") {
       await handleRejectCase(
         client,
@@ -759,7 +758,6 @@ const approveApproval = async (req, res) => {
       );
       await updateApproverAndResponse(client, approver_id, response, comment);
     } else if (response === "Return") {
-      console.log("");
       try {
         await client.query("BEGIN");
 

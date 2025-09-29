@@ -271,7 +271,8 @@ const handleApprovedCase = async (
   user_id,
   comment,
   workflowDetailsForEmail,
-  requester_id
+  requester_id,
+  approver_id
 ) => {
   let nextApproverFound = false;
   let nextApproverEmail = null;
@@ -281,47 +282,17 @@ const handleApprovedCase = async (
   try {
     await client.query("BEGIN");
 
-    let curRes = await client.query(
-      `
-      SELECT approver_id, approver_order, status, is_current, user_id
-      FROM wf_approver
-      WHERE workflow_id = $1 AND user_id = $2 AND is_current = true
-      FOR UPDATE
-      `,
-      [workflow_id, user_id]
-    );
-
-    if (curRes.rows.length === 0) {
-      curRes = await client.query(
-        `
-        SELECT approver_id, approver_order, status, is_current, user_id
-        FROM wf_approver
-        WHERE workflow_id = $1 AND approver_order = $2
-        FOR UPDATE
-        `,
-        [workflow_id, currentApproverOrder]
-      );
-    }
-
-    if (curRes.rows.length === 0) {
-      throw new Error(
-        `Could not locate current approver row for workflow_id=${workflow_id}, user_id=${user_id}, order=${currentApproverOrder}`
-      );
-    }
-
-    const currentApproverId = curRes.rows[0].approver_id;
-
     const updCur = await client.query(
       `
       UPDATE wf_approver
       SET status = 'Completed', is_current = false
       WHERE approver_id = $1
       `,
-      [currentApproverId]
+      [approver_id]
     );
     if (updCur.rowCount !== 1) {
       throw new Error(
-        `Failed to update current approver (approver_id=${currentApproverId}) to Completed. rowCount=${updCur.rowCount}`
+        `Failed to update current approver (approver_id=${approver_id}) to Completed. rowCount=${updCur.rowCount}`
       );
     }
     await insertWorkflowLog(
@@ -349,7 +320,6 @@ const handleApprovedCase = async (
     );
 
     if (nextRes.rows.length > 0) {
-      // Next approver exists — activate them
       const nextRow = nextRes.rows[0];
       const nextApproverId = nextRow.approver_id;
       nextUserId = nextRow.user_id;
@@ -412,19 +382,6 @@ const handleApprovedCase = async (
       }
     }
 
-    if (workflowCompleted) {
-      const docResult = await client.query(
-        `SELECT d.doc_name, d.path, d.doc_id FROM wf_document d
-             JOIN workflow w ON w.document_id = d.doc_id
-             WHERE w.workflow_id = $1`,
-        [workflow_id]
-      );
-      if (docResult.rows.length > 0) {
-        const { doc_name, doc_id } = docResult.rows[0];
-
-        await UploadFileToDisbursement(doc_name, doc_id);
-      }
-    }
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");

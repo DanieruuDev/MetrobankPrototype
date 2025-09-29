@@ -34,6 +34,7 @@ export interface SpecificRequestProps {
     comment: string | null,
     approver_status: "Completed" | "Missed" | "Replaced"
   ) => Promise<void>;
+  getRequestApprovalList: () => Promise<void>;
 }
 
 function SpecificRequest({
@@ -41,6 +42,7 @@ function SpecificRequest({
   specificRequest,
   goBack,
   getSpecificRequestApproval,
+  getRequestApprovalList,
 }: SpecificRequestProps) {
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -80,12 +82,17 @@ function SpecificRequest({
           response: status,
           comment,
           response_id: specificRequest?.response_id,
+          workflow_id: specificRequest?.workflow_id,
+          approver_order: specificRequest?.approver_order,
+          requester_id: specificRequest?.requester_id,
+          user_id: specificRequest?.user_id,
         }
       );
       alert(res.data.message);
       setIsModalOpen(false);
       setComment("");
       getSpecificRequestApproval();
+      getRequestApprovalList();
     } catch (error) {
       console.log(error);
       alert("Something went wrong. Please try again.");

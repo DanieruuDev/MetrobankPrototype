@@ -50,9 +50,9 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     [key: number]: boolean;
   }>({});
 
-  const [approvers, setApprovers] = useState<{ id: number; email: string }[]>([
-    { id: Date.now(), email: "" },
-  ]);
+  const [approvers, setApprovers] = useState<
+    { id: number; email: string; role: string }[]
+  >([{ id: Date.now(), email: "", role: "" }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const todayDate = new Date().toISOString().split("T")[0];
@@ -105,7 +105,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   });
 
   const addApprover = () => {
-    setApprovers([...approvers, { id: Date.now(), email: "" }]);
+    setApprovers([...approvers, { id: Date.now(), email: "", role: "" }]);
   };
 
   const removeApprover = (id: number) => {

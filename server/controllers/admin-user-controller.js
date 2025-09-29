@@ -118,14 +118,41 @@ const fetchUserInfo = async (req, res) => {
   }
 
   try {
-    const queryText = `SELECT * FROM administration_adminaccounts WHERE admin_id = $1`; // note: admin_id is your PK
+    const queryText = `
+      SELECT 
+        a.admin_id,
+        a.admin_email,
+        a.admin_job,
+        a.admin_name,
+        a.role_id,
+        r.role_name,
+        b.branch_id,
+        b.branch_name
+      FROM administration_adminaccounts a
+      JOIN roles r ON a.role_id = r.role_id
+      LEFT JOIN administration_brancheads b ON a.admin_id = b.admin_id
+      WHERE a.admin_id = $1
+    `;
     const { rows } = await pool.query(queryText, [user_id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    return res.status(200).json(rows[0]);
+    // Structure the response
+    const user = {
+      admin_id: rows[0].admin_id,
+      admin_email: rows[0].admin_email,
+      admin_job: rows[0].admin_job,
+      admin_name: rows[0].admin_name,
+      role_id: rows[0].role_id,
+      role_name: rows[0].role_name,
+      branch: rows[0].branch_id
+        ? { branch_id: rows[0].branch_id, branch_name: rows[0].branch_name }
+        : null,
+    };
+
+    return res.status(200).json(user);
   } catch (error) {
     console.error("Error fetching user info:", error);
     return res.status(500).json({ message: "Internal server error." });

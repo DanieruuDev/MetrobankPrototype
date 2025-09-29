@@ -184,6 +184,7 @@ function Request() {
           goBack={() => setApproverId(undefined)}
           getSpecificRequestApproval={getSpecificRequestApproval}
           updateApproverResponse={updateApproverResponse}
+          getRequestApprovalList={getRequestApprovalList}
         />
       ) : (
         <div className="mx-auto p-6">
