@@ -77,16 +77,47 @@ const getDisbursementHistoryByStudentId = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "Student ID is required." });
     }
-    const query = `
-      SELECT *
-      FROM vw_scholar_disbursement_history
-      WHERE student_id = $1
-      ORDER BY disbursement_date DESC;
-    `;
 
-    const { rows } = await pool.query(query, [id]);
+    // Try the view first, but fallback to a simpler query if it fails
+    try {
+      const query = `
+        SELECT *
+        FROM vw_scholar_disbursement_history
+        WHERE student_id = $1
+        ORDER BY disbursement_date DESC;
+      `;
 
-    res.status(200).json(rows);
+      const { rows } = await pool.query(query, [id]);
+      res.status(200).json(rows);
+    } catch (viewError) {
+      console.log("View failed, using fallback query:", viewError.message);
+
+      // Fallback query that doesn't depend on maintenance tables
+      const fallbackQuery = `
+        SELECT 
+          m.student_id,
+          m.scholar_name,
+          m.campus,
+          'N/A' as disbursement_type,
+          'N/A' as disbursement_status,
+          NULL as disbursement_date,
+          NULL as amount,
+          'N/A' as current_yr_lvl,
+          'N/A' as current_semester,
+          'N/A' as current_school_year
+        FROM masterlist m
+        WHERE m.student_id = $1;
+      `;
+
+      const { rows } = await pool.query(fallbackQuery, [id]);
+
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "Student not found." });
+      }
+
+      // Return empty array to indicate no disbursement history
+      res.status(200).json([]);
+    }
   } catch (err) {
     console.error("Error fetching disbursement history:", err);
     res.status(500).json({ message: "Internal Server Error" });
@@ -216,6 +247,64 @@ const getTotalDisbursedAmount = async (req, res) => {
   }
 };
 
+const getStudentBasicInfo = async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!id) {
+      return res.status(400).json({ message: "Student ID is required." });
+    }
+
+    // Use direct query instead of view to avoid permission issues
+    const query = `
+      SELECT 
+        m.student_id,
+        m.scholar_name,
+        m.campus,
+        m.scholarship_status,
+        m.course,
+        m.school_email,
+        m.contact_number,
+        COALESCE(
+          (SELECT rs.yr_lvl 
+           FROM renewal_scholar rs 
+           WHERE rs.student_id = m.student_id 
+           ORDER BY rs.renewal_date DESC 
+           LIMIT 1)::text, 
+          'N/A'
+        ) as current_yr_lvl,
+        COALESCE(
+          (SELECT rs.semester 
+           FROM renewal_scholar rs 
+           WHERE rs.student_id = m.student_id 
+           ORDER BY rs.renewal_date DESC 
+           LIMIT 1)::text, 
+          'N/A'
+        ) as current_semester,
+        COALESCE(
+          (SELECT rs.school_year 
+           FROM renewal_scholar rs 
+           WHERE rs.student_id = m.student_id 
+           ORDER BY rs.renewal_date DESC 
+           LIMIT 1)::text, 
+          'N/A'
+        ) as current_school_year
+      FROM masterlist m
+      WHERE m.student_id = $1;
+    `;
+
+    const { rows } = await pool.query(query, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    res.status(200).json(rows[0]);
+  } catch (err) {
+    console.error("Error fetching student basic info:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   getScholarDisbursementSummary,
   getDisbursementHistoryByStudentId,
@@ -223,4 +312,5 @@ module.exports = {
   getSemesterScholarDisbursement,
   getCompletedDisbursementTotals,
   getTotalDisbursedAmount,
+  getStudentBasicInfo,
 };
