@@ -16,7 +16,7 @@ export interface RenewalDetails {
   no_failing_grd_validation: "Not Started" | "Passed" | "Failed";
   no_other_scholar_validation: "Not Started" | "Passed" | "Failed";
   goodmoral_validation: "Not Started" | "Passed" | "Failed";
-  no_police_record_validation: "Not Started" | "Passed" | "Failed";
+  no_criminal_charges_validation: "Not Started" | "Passed" | "Failed";
   full_load_validation: "Not Started" | "Passed" | "Failed";
   withdrawal_change_course_validation: "Not Started" | "Passed" | "Failed";
   enrollment_validation: "Not Started" | "Passed" | "Failed";
@@ -25,9 +25,16 @@ export interface RenewalDetails {
   year_level: string;
   semester: string;
   school_year: string;
-
+  is_validated: boolean | null; // Updated to support null values
   delisted_date?: string | null;
   delisting_root_cause?: string | null;
+
+  initialized_by: number;
+  validator_id: number;
+  user_id: number;
+  role_id: number;
+
+  completed_at: string;
 }
 export interface RenewalDetailsClone extends RenewalDetails {
   isEdited: boolean;
@@ -48,10 +55,11 @@ export interface RenewalRow {
   no_failing_grd_validation: "Not Started" | "Passed" | "Failed";
   no_other_scholar_validation: "Not Started" | "Passed" | "Failed";
   goodmoral_validation: "Not Started" | "Passed" | "Failed";
-  no_police_record_validation: "Not Started" | "Passed" | "Failed";
+  no_criminal_charges_validation: "Not Started" | "Passed" | "Failed";
   full_load_validation: "Not Started" | "Passed" | "Failed";
   withdrawal_change_course_validation: "Not Started" | "Passed" | "Failed";
   enrollment_validation: "Not Started" | "Passed" | "Failed";
+  is_validated: boolean | null; // Updated to support null values
   year_level: string;
   semester: string;
   school_year: string;
@@ -73,11 +81,11 @@ export const tableHead = {
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_police_record_validation: "No Police Record",
-  full_load_validation: "No Full Load",
-  withdrawal_change_course_validation: "Withdrawal/Change of Course",
+  no_criminal_charges_validation: "No Criminal Charges",
+  full_load_validation: "With Full Load",
+  withdrawal_change_course_validation: "Withdrawal/Change of Program",
   enrollment_validation: "Enrollment Validation",
-
+  is_validated: "Is Validated",
   // year_level: "Year Level",
   // semester: "Semester",
   // school_year: "School Year",
@@ -92,33 +100,30 @@ export const renewalTableHead = {
   campus: "Campus",
   batch: "Batch",
   renewal_date: "Renewal Date",
-  // renewal_year_level_basis: "Renewal Year Level Basis",
-  // renewal_semester_basis: "Renewal Semester Basis",
-  // renewal_school_year_basis: "Renewal School Year Basis",
+  renewal_year_level_basis: "Renewal Year Level",
   gpa: "GPA",
   gpa_validation_stat: "GPA Validation",
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_police_record_validation: "No Police Record",
-  full_load_validation: "No Full Load",
-  withdrawal_change_course_validation: "Withdrawal/Change of Course",
+  no_criminal_charges_validation: "No Criminal Charges",
+  full_load_validation: "Full Load",
+  withdrawal_change_course_validation: "Withdrawal/Change of Program",
   enrollment_validation: "Enrollment Validation",
-
-  // year_level: "Year Level",
-  // semester: "Semester",
-  // school_year: "School Year",
+  is_validated: "Is Validated",
+  year_level: "Year Level ",
   delisted_date: "Delisted Date",
   delisting_root_cause: "Delisting Root Cause",
 };
+
 export const validation = {
   gpa_validation_stat: "GPA Validation",
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_police_record_validation: "No Police Record",
-  full_load_validation: "No Full Load",
-  withdrawal_change_course_validation: "Withdrawal/Change of Course",
+  no_criminal_charges_validation: "No Criminal Charges",
+  full_load_validation: "Full Load",
+  withdrawal_change_course_validation: "Withdrawal/Change of Program",
   enrollment_validation: "Enrollment Validation",
   scholarship_status: "Scholarship Status",
 };
@@ -126,6 +131,7 @@ export const validation = {
 export const validationInput = {
   gpa: "GPA",
   delisting_root_cause: "Delisting Root Cause",
+  is_validated: "Is Validated",
 };
 
 export interface ScholarshipSummary {
@@ -148,7 +154,7 @@ export interface ScholarshipSummary {
   full_load_validation: string | null;
   enrollment_validation: string | null;
   no_other_scholar_validation: string | null;
-  no_police_record_validation: string | null;
+  no_criminal_charges_validation: string | null;
   withdrawal_change_course_validation: string | null;
   validation_scholarship_status: string | null;
 
@@ -171,7 +177,7 @@ export interface ScholarRenewalResponse extends ScholarshipSummary {
     | "full_load_validation"
     | "enrollment_validation"
     | "no_other_scholar_validation"
-    | "no_police_record_validation"
+    | "no_criminal_charges_validation"
     | "withdrawal_change_course_validation"
     | "validation_scholarship_status"
   >[];

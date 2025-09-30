@@ -9,19 +9,27 @@ interface JwtPayload {
   role_name: string;
 }
 
+interface Branch {
+  branch_id: number;
+  branch_name: string;
+}
+
 interface User {
   user_id: number;
   email: string;
   role_id: number;
   role_name: string;
+  branch: Branch | null; // Added branch field
 }
+
 interface Info {
   admin_id: number;
-  email: string;
+  admin_email: string; // Changed to match backend field name
   role_id: number;
   role_name: string;
   admin_name: string;
   admin_job: string;
+  branch: Branch | null; // Added branch field
 }
 
 interface AuthContextType {
@@ -50,6 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [info, setInfo] = useState<Info | null>(null);
 
   const fetchUserInfo = async (authToken: string | null) => {
+    if (!authToken) return null;
     try {
       const response = await axios.get(
         "http://localhost:5000/api/auth/user-info",
@@ -77,12 +86,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email: decoded.email,
             role_id: decoded.role_id,
             role_name: decoded.role_name,
+            branch: null, // Branch info not available in JWT, fetched separately
           });
           setToken(savedToken);
 
           const freshUser = await fetchUserInfo(savedToken);
           if (freshUser) {
-            setInfo(freshUser);
+            setInfo({
+              admin_id: freshUser.admin_id,
+              admin_email: freshUser.admin_email,
+              role_id: freshUser.role_id,
+              role_name: freshUser.role_name,
+              admin_name: freshUser.admin_name,
+              admin_job: freshUser.admin_job,
+              branch: freshUser.branch, // Include branch from backend response
+            });
           }
         } catch (error) {
           console.error("Invalid token:", error);
@@ -106,17 +124,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: decoded.email,
         role_id: decoded.role_id,
         role_name: decoded.role_name,
+        branch: null, // Branch info not included in JWT, fetched separately
       });
-      console.log(decoded.user_id);
       setToken(authToken);
       localStorage.setItem("token", authToken);
 
       const freshUser = await fetchUserInfo(authToken);
       if (freshUser) {
-        setInfo(freshUser);
+        setInfo({
+          admin_id: freshUser.admin_id,
+          admin_email: freshUser.admin_email,
+          role_id: freshUser.role_id,
+          role_name: freshUser.role_name,
+          admin_name: freshUser.admin_name,
+          admin_job: freshUser.admin_job,
+          branch: freshUser.branch, // Include branch from backend response
+        });
       }
     } catch (error) {
       console.error("Invalid token during login:", error);
+      setUser(null);
+      setToken(null);
+      setInfo(null);
+      localStorage.removeItem("token");
     }
   };
 

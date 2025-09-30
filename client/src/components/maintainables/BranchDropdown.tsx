@@ -7,13 +7,15 @@ interface Branch {
 }
 
 interface BranchDropdownProps {
-  formData: string; // store branch name now
-  handleInputChange: (value: string) => void; // Accept branch NAME instead of ID
+  formData: string; // Stores branch name (campus_name)
+  handleInputChange: (value: string) => void; // Accepts branch name
+  disabled?: boolean; // Added disabled prop
 }
 
 const BranchDropdown: React.FC<BranchDropdownProps> = ({
   formData,
   handleInputChange,
+  disabled,
 }) => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [open, setOpen] = useState(false);
@@ -34,7 +36,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
     fetchBranches();
   }, []);
 
-  // ✅ Close dropdown when clicking outside
+  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -60,17 +62,17 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
       <label className="block text-sm font-medium text-gray-700 mb-1">
         Branch
       </label>
-
       <div
-        className="p-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center"
-        onClick={() => setOpen(!open)}
+        className={`p-2 border border-gray-300 rounded-md flex justify-between items-center ${
+          disabled ? "bg-gray-100 cursor-not-allowed" : "cursor-pointer"
+        }`}
+        onClick={() => !disabled && setOpen(!open)}
       >
         <span>{selectedBranch?.campus_name || "Select Branch"}</span>
-        <span className="ml-2">&#9662;</span>
+        {!disabled && <span className="ml-2">&#9662;</span>}
       </div>
-
-      {open && (
-        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-100 mt-1 shadow-lg">
+      {open && !disabled && (
+        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-50 mt-1 shadow-lg">
           {branches.map((branch) => (
             <div
               key={branch.campus_id}

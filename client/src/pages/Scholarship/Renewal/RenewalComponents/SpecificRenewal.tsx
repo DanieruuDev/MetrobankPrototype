@@ -19,7 +19,10 @@ const statuses = [
   { key: "full_load_validation", label: "Full Load Status" },
   { key: "enrollment_validation", label: "Enrollment Validation Status" },
   { key: "no_other_scholar_validation", label: "No Other Scholarship Status" },
-  { key: "no_police_record_validation", label: "No Police Record Status" },
+  {
+    key: "no_criminal_charges_validation",
+    label: "No Criminal Charges Status",
+  },
   {
     key: "withdrawal_change_course_validation",
     label: "Withdrawal/Change of Course",
@@ -41,7 +44,6 @@ function SpecificRenewal({
   }>({});
 
   const getRenewal = async (student_id: number, renewal_id: number) => {
-    console.log("Fetching data for:", student_id, renewal_id);
     try {
       const response = await axios.get<ScholarRenewalResponse>(
         `http://localhost:5000/api/renewal/get-renewal/${student_id}/${renewal_id}`
@@ -76,8 +78,8 @@ function SpecificRenewal({
           renewalDetails.enrollment_validation || "Not Started",
         no_other_scholar_validation:
           renewalDetails.no_other_scholar_validation || "Not Started",
-        no_police_record_validation:
-          renewalDetails.no_police_record_validation || "Not Started",
+        no_criminal_charges_validation:
+          renewalDetails.no_criminal_charges_validation || "Not Started",
         withdrawal_change_course_validation:
           renewalDetails.withdrawal_change_course_validation || "Not Started",
       });
@@ -123,7 +125,6 @@ function SpecificRenewal({
       return;
     }
     setIsSubmitting(true);
-    // Create a new object with updated validation statuses
 
     const updatedRenewalDetails = {
       ...renewalDetails,
@@ -145,16 +146,15 @@ function SpecificRenewal({
       no_other_scholar_validation:
         selectedStatus["no_other_scholar_validation"] ||
         renewalDetails.no_other_scholar_validation,
-      no_police_record_validation:
-        selectedStatus["no_police_record_validation"] ||
-        renewalDetails.no_police_record_validation,
+      no_criminal_charges_validation:
+        selectedStatus["no_criminal_charges_validation"] ||
+        renewalDetails.no_criminal_charges_validation,
       withdrawal_change_course_validation:
         selectedStatus["withdrawal_change_course_validation"] ||
         renewalDetails.withdrawal_change_course_validation,
       validation_scholarship_status: updatedValidationStatus,
     };
 
-    console.log("Updated:", renewalDetails);
     try {
       const response = await axios.put(
         "http://localhost:5000/api/renewal/update-renewal",
@@ -185,8 +185,6 @@ function SpecificRenewal({
 
   if (loading) return <Loading />;
   if (!renewalDetails) return <p>No data found.</p>;
-
-  console.log(selectedStatus, renewalDetails);
   return (
     <div className="mt-[15px]">
       {student_id === null || renewal_id === null ? (
