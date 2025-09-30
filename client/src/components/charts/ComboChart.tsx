@@ -63,17 +63,29 @@ export const ComboChart = () => {
   // Ensure comboChartData is not empty before calling .slice()
   const displayedData = comboChartData.length ? comboChartData.slice(-6) : [];
 
+  // Add safety checks for empty data
   const maxScholars =
-    Math.ceil(Math.max(...displayedData.map((d) => d.total_scholars)) / 20) *
-    20;
+    displayedData.length > 0
+      ? Math.ceil(
+          Math.max(...displayedData.map((d) => Number(d.total_scholars) || 0)) /
+            20
+        ) * 20
+      : 100;
   const maxDisbursement =
-    Math.ceil(
-      Math.max(...displayedData.map((d) => d.total_disbursement)) / 1000
-    ) * 1000;
+    displayedData.length > 0
+      ? Math.ceil(
+          Math.max(
+            ...displayedData.map((d) => Number(d.total_disbursement) || 0)
+          ) / 1000
+        ) * 1000
+      : 100000;
   displayedData.map((item) => console.log(item.total_scholars));
   const chartData = {
     labels: displayedData.map((item) => {
-      const sem = item.semester.replace("Semester", "").trim(); // optional cleanup
+      const sem =
+        typeof item.semester === "string"
+          ? item.semester.replace("Semester", "").trim()
+          : String(item.semester || ""); // Handle non-string values
       return `${item.school_year} - ${sem}`;
     }),
 
