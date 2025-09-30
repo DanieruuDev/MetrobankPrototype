@@ -721,76 +721,7 @@ LEFT JOIN
 WHERE
     m.scholarship_status = 'ACTIVE';
 
--- New view for disbursement overview showing total amounts received by students
-CREATE OR REPLACE VIEW vw_disbursement_overview AS
-SELECT
-    m.scholar_name AS student_name,
-    m.student_id,
-    rs.yr_lvl AS student_year_lvl,
-    rs.semester AS student_semester,
-    rs.school_year AS student_school_year,
-    COALESCE(rs.campus_code, m.campus) AS student_branch,
-    COALESCE(SUM(dd.disbursement_amount), 0) AS total_received
-FROM
-    masterlist m
-LEFT JOIN
-    renewal_scholar rs ON rs.student_id = m.student_id
-LEFT JOIN
-    disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
-LEFT JOIN
-    disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
-WHERE
-    m.scholarship_status = 'Active'
-    AND dd.disbursement_status = 'Completed'
-GROUP BY
-    m.scholar_name,
-    m.student_id,
-    rs.yr_lvl,
-    rs.semester,
-    rs.school_year,
-    COALESCE(rs.campus_code, m.campus);
 
-
-
--- View for disbursement totals per school year
-CREATE OR REPLACE VIEW vw_disbursement_totals_per_sy AS
-SELECT 
-    ds.sy_code,
-    sy.school_year,
-    COUNT(DISTINCT m.student_id) AS total_students,
-    SUM(dd.disbursement_amount) AS total_amount,
-    COUNT(dd.disb_detail_id) AS total_disbursements
-FROM disbursement_detail dd
-JOIN disbursement_tracking dt ON dd.disbursement_id = dt.disbursement_id
-JOIN renewal_scholar rs ON dt.renewal_id = rs.renewal_id
-JOIN masterlist m ON rs.student_id = m.student_id
-JOIN disbursement_schedule ds ON dd.disb_sched_id = ds.disb_sched_id
-JOIN sy_maintenance sy ON ds.sy_code = sy.sy_code
-WHERE dd.disbursement_status = 'Completed'
-  AND m.scholarship_status = 'Active'
-GROUP BY ds.sy_code, sy.school_year
-ORDER BY ds.sy_code DESC;
-
--- View for semester disbursement scholars
-CREATE OR REPLACE VIEW vw_semester_disbursement_scholars AS
-SELECT 
-    ds.semester_code,
-    sm.semester,
-    ds.sy_code,
-    sy.school_year,
-    COUNT(DISTINCT m.student_id) AS total_students,
-    SUM(dd.disbursement_amount) AS total_amount
-FROM disbursement_detail dd
-JOIN disbursement_tracking dt ON dd.disbursement_id = dt.disbursement_id
-JOIN renewal_scholar rs ON dt.renewal_id = rs.renewal_id
-JOIN masterlist m ON rs.student_id = m.student_id
-JOIN disbursement_schedule ds ON dd.disb_sched_id = ds.disb_sched_id
-JOIN semester_maintenance sm ON ds.semester_code = sm.semester_code
-JOIN sy_maintenance sy ON ds.sy_code = sy.sy_code
-WHERE dd.disbursement_status = 'Completed'
-  AND m.scholarship_status = 'Active'
-GROUP BY ds.semester_code, sm.semester, ds.sy_code, sy.school_year
-ORDER BY ds.sy_code DESC, ds.semester_code DESC;
 
 CREATE OR REPLACE VIEW vw_scholar_disbursement_history AS
 WITH ranked_sched AS (

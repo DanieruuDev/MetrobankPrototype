@@ -206,36 +206,6 @@ const fetchDisbursementSchedules = async (req, res) => {
   }
 };
 
-const fetchDisbursementSchedulesByRange = async (req, res) => {
-  const client = await pool.connect();
-  const { start, end } = req.query;
-
-  if (!start || !end) {
-    return res.status(400).json({ error: "Start and end dates are required" });
-  }
-
-  try {
-    await client.query("BEGIN");
-
-    const result = await client.query(
-      `
-        SELECT 
-          *
-        FROM vw_disb_calendar_sched WHERE schedule_due BETWEEN $1 AND $2;
-      `,
-      [start, end]
-    );
-    console.log("Range query result:", result.rows);
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error("Error fetching disbursement schedules by range:", error);
-    res.status(500).json({ message: "Error fetching disbursement schedules" });
-    await client.query("ROLLBACK");
-  } finally {
-    client.release();
-  }
-};
-
 const getTwoWeeksDisbursementSchedules = async (req, res) => {
   try {
     const today = new Date();
@@ -448,50 +418,13 @@ const updateDisbursementSchedule = async (req, res) => {
   }
 };
 
-// Simple eligible-count without year level (aligns with create logic)
-const getEligibleScholarCountSimple = async (req, res) => {
-  try {
-    const { sy_code, semester_code, branch, disbursement_type_id } = req.query;
-
-    if (!sy_code || !semester_code || !branch || !disbursement_type_id) {
-      return res.status(400).json({ message: "Missing required parameters." });
-    }
-
-    const query = `
-      SELECT COUNT(dd.disb_detail_id) AS count
-      FROM renewal_scholar rs
-      JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
-      JOIN disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
-      JOIN disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
-      WHERE rs.school_year = $1
-        AND rs.semester = $2
-        AND mc.campus_name = $3
-        AND dd.disbursement_type_id = $4
-    `;
-
-    const { rows } = await pool.query(query, [
-      sy_code,
-      semester_code,
-      branch,
-      disbursement_type_id,
-    ]);
-    const count = rows?.[0]?.count ? Number(rows[0].count) : 0;
-    return res.status(200).json({ count });
-  } catch (error) {
-    console.error("Error fetching simple eligible count:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 module.exports = {
   createDisbursementSchedule,
   fetchDisbursementSchedules,
-  fetchDisbursementSchedulesByRange,
   getTwoWeeksDisbursementSchedules,
   fetchDetailSchedule,
   fetchWeeklyDisbursementSchedules,
   deleteDisbursementSchedule,
   getEligibleScholarCount,
   updateDisbursementSchedule,
-  getEligibleScholarCountSimple,
 };

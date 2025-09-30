@@ -153,10 +153,7 @@ function SpecificRequest({
         {/* Approval buttons at the top */}
         {specificRequest.current_approver === specificRequest.approver_name &&
           (specificRequest.approver_response === "Pending" ||
-            (specificRequest.approver_response === "Returned" &&
-              specificRequest.return_conversation?.some(
-                (conv) => conv.created_by === userId
-              ))) && (
+            specificRequest.approver_response === "Returned") && (
             <div className="flex gap-3">
               <button
                 onClick={() => {
