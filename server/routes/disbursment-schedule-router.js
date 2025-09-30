@@ -2,13 +2,11 @@ const express = require("express");
 const {
   createDisbursementSchedule,
   fetchDisbursementSchedules,
-  fetchDisbursementSchedulesByRange,
   getTwoWeeksDisbursementSchedules,
   fetchDetailSchedule,
   fetchWeeklyDisbursementSchedules,
   deleteDisbursementSchedule,
   getEligibleScholarCount,
-  getEligibleScholarCountSimple,
   updateDisbursementSchedule,
 } = require("../controllers/disbursement-schedule-controller.js");
 
@@ -20,7 +18,6 @@ disbursementRouter.post("/schedule", createDisbursementSchedule);
 // More specific GET routes first
 disbursementRouter.get("/schedule/detailed/:sched_id", fetchDetailSchedule);
 disbursementRouter.get("/schedule/weeks", getTwoWeeksDisbursementSchedules);
-disbursementRouter.get("/schedule/range", fetchDisbursementSchedulesByRange);
 
 // Then routes with params, from more specific to less specific
 disbursementRouter.get("/schedule/:year/:month", fetchDisbursementSchedules);
@@ -38,8 +35,5 @@ disbursementRouter.get(
   "/scholar/:yr_lvl_code/:sy_code/:semester_code",
   getEligibleScholarCount
 );
-
-// Simple pre-check (no year-level)
-disbursementRouter.get("/eligible-count", getEligibleScholarCountSimple);
 
 module.exports = disbursementRouter;

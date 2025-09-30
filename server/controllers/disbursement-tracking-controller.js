@@ -48,6 +48,7 @@ const markCompleteSchedule = async (req, res) => {
 
     try {
       await client.query("BEGIN");
+      2;
 
       // 1. Update event_schedule
       const updateEventQuery = `
@@ -63,62 +64,14 @@ const markCompleteSchedule = async (req, res) => {
         return res.status(404).json({ message: "Event schedule not found." });
       }
 
-      // 2. Get disbursement details that will be updated
-      const getDisbursementDetailsQuery = `
-        SELECT dd.disb_detail_id, dd.disbursement_id, dd.disbursement_amount, 
-               rs.student_id, rs.renewal_id
-        FROM disbursement_detail dd
-        JOIN disbursement_schedule ds ON ds.disb_detail_id = dd.disb_detail_id
-        JOIN disbursement_tracking dt ON dt.disbursement_id = dd.disbursement_id
-        JOIN renewal_scholar rs ON rs.renewal_id = dt.renewal_id
-        WHERE ds.sched_id = $1
-      `;
-      const disbursementDetails = await client.query(
-        getDisbursementDetailsQuery,
-        [sched_id]
-      );
-
-      // 3. Create disbursement_tracking records for each student if they don't exist
-      const trackingRecords = [];
-      for (const detail of disbursementDetails.rows) {
-        // Check if disbursement_tracking already exists for this renewal_id
-        const existingTracking = await client.query(
-          `SELECT disbursement_id FROM disbursement_tracking WHERE renewal_id = $1`,
-          [detail.renewal_id]
-        );
-
-        let disbursementId = detail.disbursement_id;
-
-        if (existingTracking.rowCount === 0) {
-          // Create new disbursement_tracking record
-          const createTrackingQuery = `
-            INSERT INTO disbursement_tracking (renewal_id)
-            VALUES ($1)
-            RETURNING disbursement_id
-          `;
-          const trackingResult = await client.query(createTrackingQuery, [
-            detail.renewal_id,
-          ]);
-          disbursementId = trackingResult.rows[0].disbursement_id;
-          trackingRecords.push(disbursementId);
-        }
-
-        // Update disbursement_detail to link to the correct disbursement_id
-        await client.query(
-          `UPDATE disbursement_detail SET disbursement_id = $1 WHERE disb_detail_id = $2`,
-          [disbursementId, detail.disb_detail_id]
-        );
-      }
-
-      // 4. Update disbursement_detail status
       const updateDetailQuery = `
-        UPDATE disbursement_detail
-        SET disbursement_status = 'Completed', completed_at = NOW()
-        WHERE disb_detail_id IN (
-          SELECT disb_detail_id FROM disbursement_schedule WHERE sched_id = $1
-        )
-        RETURNING disb_detail_id, disbursement_status, completed_at;
-      `;
+  UPDATE disbursement_detail
+  SET disbursement_status = 'Completed', completed_at = NOW()
+  WHERE disb_detail_id IN (
+    SELECT disb_detail_id FROM disbursement_schedule WHERE sched_id = $1
+  )
+  RETURNING disb_detail_id, disbursement_status, completed_at;
+`;
       const detailResult = await client.query(updateDetailQuery, [sched_id]);
 
       await client.query("COMMIT");
@@ -127,7 +80,6 @@ const markCompleteSchedule = async (req, res) => {
         message: "Schedule and related disbursements marked as completed.",
         updated_event: eventResult.rows[0],
         updated_details: detailResult.rows,
-        created_tracking_records: trackingRecords.length,
       });
     } catch (err) {
       await client.query("ROLLBACK");
