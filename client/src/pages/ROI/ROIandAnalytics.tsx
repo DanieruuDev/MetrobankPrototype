@@ -155,14 +155,6 @@ const ROIandAnalytics: React.FC = () => {
       } transition-all duration-300`}
     >
       <Navbar pageName="Scholarship Analytics" />
-      <div className="pt-2 px-6 max-w-[1900px] mx-auto">
-        <p className="text-gray-600 mb-6">
-          This page provides a comprehensive overview of the scholarship
-          program's financial impact. It tracks the total investment and
-          calculates the hiring cost savings per scholar by comparing the value
-          they return to the estimated cost of hiring from external sources.
-        </p>
-      </div>
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
