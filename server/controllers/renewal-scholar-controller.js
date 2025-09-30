@@ -936,6 +936,77 @@ const getExcelRenewalReport = async (req, res) => {
   }
 };
 
+const getInitialRenewalInfo = async (req, res) => {
+  const { school_year, semester } = req.query;
+  console.log(school_year, semester);
+
+  if (!school_year || !semester) {
+    return res
+      .status(400)
+      .json({ message: "Missing School Year and Semester Field" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT 
+         COUNT(*) AS count,
+         rs.renewal_school_year_basis,
+         sy.school_year AS renewal_school_year_basis_text,
+         rs.renewal_sem_basis,
+         sem.semester AS renewal_sem_basis_text,
+         rs.school_year,
+         sy2.school_year AS school_year_text,
+         rs.semester,
+         sem2.semester AS semester_text
+       FROM renewal_scholar rs
+       LEFT JOIN maintenance_sy sy 
+         ON rs.renewal_school_year_basis = sy.sy_code
+       LEFT JOIN maintenance_semester sem 
+         ON rs.renewal_sem_basis = sem.semester_code
+       LEFT JOIN maintenance_sy sy2
+         ON rs.school_year = sy2.sy_code
+       LEFT JOIN maintenance_semester sem2
+         ON rs.semester = sem2.semester_code
+       WHERE rs.school_year = $1 
+         AND rs.semester = $2 
+         AND rs.is_initial = false
+       GROUP BY 
+         rs.renewal_school_year_basis, sy.school_year,
+         rs.renewal_sem_basis, sem.semester,
+         rs.school_year, sy2.school_year,
+         rs.semester, sem2.semester
+       LIMIT 1`, // ensures only one row
+      [school_year, semester]
+    );
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      return res.status(200).json({
+        message: "Count fetch successfully",
+        data: {
+          count: Number(row.count),
+          renewal_school_year_basis: row.renewal_school_year_basis,
+          renewal_school_year_basis_text: row.renewal_school_year_basis_text,
+          renewal_sem_basis: row.renewal_sem_basis,
+          renewal_sem_basis_text: row.renewal_sem_basis_text,
+          school_year: row.school_year,
+          school_year_text: row.school_year_text,
+          semester: row.semester,
+          semester_text: row.semester_text,
+        },
+      });
+    } else {
+      return res.status(200).json({
+        message: "No records found",
+        data: null,
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 //Delete scholar renewal
 
 module.exports = {
@@ -946,4 +1017,5 @@ module.exports = {
   getExcelRenewalReport,
   filteredScholarRenewal,
   updateScholarRenewalV2,
+  getInitialRenewalInfo,
 };

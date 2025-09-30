@@ -15,8 +15,7 @@ import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterD
 import {
   type RenewalRow,
   renewalTableHead,
-} from "../../../../Interface/IRenewal";
-import {
+  InitialRenewalInfo,
   type RenewalDetailsClone,
   type RenewalDetails,
   validation,
@@ -65,7 +64,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [showCriteria, setShowCriteria] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string>("");
-
+  const [initialRenewalInfo, setInitialRenewalInfo] =
+    useState<InitialRenewalInfo | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<
     "All" | "Not Started" | "Passed" | "Delisted"
   >("All");
@@ -91,10 +91,49 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     }
   };
 
+  const getInitialRenewalInfo = async (sySemester: string) => {
+    const [sy, semPart] = sySemester.split("_");
+    const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
+    const school_year = sy.replace("-", "");
+    if (!school_year || !semester) {
+      console.error("Missing school_year or semester:", {
+        school_year,
+        semester,
+      });
+      return;
+    }
+
+    try {
+      console.log("Before count");
+      const response = await axios.get(
+        `http://localhost:5000/api/renewal/count-renewal`,
+        {
+          params: {
+            school_year,
+            semester: semPart,
+          },
+          timeout: 5000,
+        }
+      );
+      if (response.status !== 200) {
+        throw new Error(`Unexpected response status: ${response.status}`);
+      }
+      console.log("Renewal count response:", response.data.data);
+      setInitialRenewalInfo(response.data.data);
+      console.log("After count");
+    } catch (error) {
+      console.error("Error fetching renewal count:", error);
+      toast.error("Failed to fetch renewal count");
+    }
+  };
+
   const getRenewalData = async (sySemester: string) => {
     const [sy, semPart] = sySemester.split("_");
     const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
-    if (!sy || !semester) return;
+    if (!sy || !semester) {
+      console.error("Invalid sySemester format:", sySemester);
+      return;
+    }
     console.log("get renewal", sySemester, userId, role_id);
     try {
       setIsLoading(true);
@@ -107,6 +146,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             user_id: userId,
             role_id,
           },
+          timeout: 5000,
         }
       );
 
@@ -124,6 +164,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       setPage(1);
     } catch (error) {
       console.error("Error fetching renewal data:", error);
+      toast.error("Failed to fetch renewal data");
     } finally {
       setIsLoading(false);
     }
@@ -222,10 +263,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Update failed:", error.response?.data || error.message);
+        toast.error(
+          error.response?.data?.message || "Failed to update changes"
+        );
       } else {
         console.error("Unexpected error:", error);
+        toast.error("Unexpected error occurred");
       }
-      alert(error);
     } finally {
       setIsLoading(false);
     }
@@ -291,7 +335,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     renewal: RenewalDetailsClone,
     currentValue: boolean | null
   ) => {
-    // Get validation fields excluding scholarship_status, gpa_validation_stat, and is_validated
     const validationFields = Object.keys(validation).filter(
       (k) =>
         k !== "scholarship_status" &&
@@ -299,7 +342,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         k !== "is_validated"
     );
 
-    // Check if any validation field is still "Not Started"
     const hasNotStarted = validationFields.some(
       (field) => renewal[field as keyof RenewalDetails] === "Not Started"
     );
@@ -514,6 +556,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   useEffect(() => {
     if (sySemester) {
       getRenewalData(sySemester);
+      getInitialRenewalInfo(sySemester);
     }
   }, [sySemester]);
 
@@ -622,9 +665,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
         {/* Information Grid */}
         <div
-          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${
-            showCriteria ? "mt-4" : ""
-          }`}
+          className={`grid grid-cols-1 sm:grid-cols-2 ${
+            role_id === 7 ? "lg:grid-cols-5" : "lg:grid-cols-4"
+          } gap-4 ${showCriteria ? "mt-4" : ""}`}
         >
           <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
             <span className="block text-sm font-medium text-gray-500">
@@ -640,23 +683,34 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               </span>
             )}
           </div>
+          {role_id === 7 && (
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <span className="block text-sm font-medium text-gray-500">
+                Pending Registrar/D.O. Validation
+              </span>
+              <span className="text-base font-semibold text-gray-800">
+                {tempRenewalData.length} of {initialRenewalInfo?.count}
+              </span>
+              <span className="block text-xs text-gray-500 mt-1">
+                Students awaiting validation by Registrar and Discipline Officer
+              </span>
+            </div>
+          )}
           <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
             <span className="block text-sm font-medium text-gray-500">
               Renewal Date
             </span>
-            <span className="text-base font-semibold text-gray-800">
-              Soon to add
-            </span>
+            <span className="text-base font-semibold text-gray-800">None</span>
           </div>
+
           <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
             <span className="block text-sm font-medium text-gray-500">
               Renewal Basis
             </span>
             <span className="text-base font-semibold text-gray-800">
-              {renewalData[0]?.renewal_school_year_basis &&
-              renewalData[0]?.renewal_semester_basis
-                ? `${renewalData[0].renewal_school_year_basis} ${renewalData[0].renewal_semester_basis}`
-                : "None"}
+              {initialRenewalInfo?.renewal_school_year_basis_text ||
+                "Not Started"}{" "}
+              {initialRenewalInfo?.renewal_sem_basis_text || ""}
             </span>
           </div>
           <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
@@ -664,9 +718,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               Renewal For
             </span>
             <span className="text-base font-semibold text-gray-800">
-              {renewalData[0]?.school_year && renewalData[0]?.semester
-                ? `${renewalData[0].school_year} ${renewalData[0].semester}`
-                : sySemester || "None"}
+              {initialRenewalInfo?.school_year_text || "None"}{" "}
+              {initialRenewalInfo?.semester_text || "None"}
             </span>
           </div>
         </div>
@@ -1164,7 +1217,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             </div>
           ) : (
             <div className="mt-6 text-center text-gray-500 italic">
-              No renewal yet
+              {initialRenewalInfo?.count === 0 ||
+              initialRenewalInfo?.count === undefined
+                ? "Renewal for this SY and Semester is not initialize yet"
+                : role_id === 7
+                ? `Here will show list of validated scholars for renewal by D.O and Registrar  ${renewalData.length}/${initialRenewalInfo?.count}`
+                : ""}
             </div>
           )
         ) : (

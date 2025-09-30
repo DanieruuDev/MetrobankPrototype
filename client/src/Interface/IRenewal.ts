@@ -182,3 +182,15 @@ export interface ScholarRenewalResponse extends ScholarshipSummary {
     | "validation_scholarship_status"
   >[];
 }
+
+export interface InitialRenewalInfo {
+  count: number;
+  renewal_school_year_basis: number;
+  renewal_school_year_basis_text: string;
+  renewal_sem_basis: number;
+  renewal_sem_basis_text: string;
+  school_year: number;
+  school_year_text: string;
+  semester: number;
+  semester_text: string;
+}
