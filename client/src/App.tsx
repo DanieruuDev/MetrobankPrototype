@@ -88,22 +88,7 @@ function App() {
             }
           />
 
-          <Route
-            path="/renewal-scholarship"
-            element={
-              <PrivateRoute
-                allowedRoles={[
-                  "MB HR",
-                  "MBS HEAD",
-                  "SYSTEM_ADMIN",
-                  "STI Registrar",
-                  "Discipline Office",
-                ]}
-              >
-                <Renewal />
-              </PrivateRoute>
-            }
-          />
+          <Route path="/renewal-scholarship" element={<Renewal />} />
 
           <Route
             path="/schedule"

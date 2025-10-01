@@ -1,7 +1,7 @@
 const { getDownloadStream } = require("../utils/b2.js");
 const path = require("path");
 const XLSX = require("xlsx");
-const pool = require("../database/dbConnect");
+const { pool } = require("../database/dbConnect.js");
 
 // mapping aliases → clean field name
 // expected fields and their possible aliases
@@ -92,7 +92,6 @@ function normalizeRow(row) {
     Object.keys(row).map((k) => [normalizeKey(k), k])
   );
 
-  // map general fields
   for (const [field, aliases] of Object.entries(HEADER_MAP)) {
     const matchAlias = aliases.find(
       (alias) => keyMap[normalizeKey(alias)] !== undefined
@@ -102,7 +101,6 @@ function normalizeRow(row) {
       : null;
   }
 
-  // detect request type column
   const reqHeader = REQUEST_HEADERS.find(
     (h) => keyMap[normalizeKey(h)] !== undefined
   );
@@ -114,7 +112,6 @@ function normalizeRow(row) {
     normalized.request_amount = null;
   }
 
-  // special handling: Year Level (AY.. Term)
   const yearLevelHeader = Object.keys(row).find((h) =>
     /year\s*level.*\(ay\d{2}-\d{2}/i.test(h.replace(/\r?\n/g, " "))
   );
@@ -126,7 +123,6 @@ function normalizeRow(row) {
     normalized.school_year = parsed.school_year;
   }
 
-  // validate required fields
   for (const key of REQUIRED_KEYS) {
     if (!normalized[key]) {
       throw new Error(
@@ -143,21 +139,17 @@ function normalizeRow(row) {
 
 function filterDataByHeaders(workbook) {
   const firstSheetName = Object.keys(workbook)[0];
-  const rows = workbook[firstSheetName];
+  const rows = workbook[firstSheetName] || [];
   return rows.map(normalizeRow);
 }
-function transformRowForDB(row) {
-  // Convert "3rd year" -> 3
-  const yrLvl = parseInt(row.year_level, 10);
 
-  // Convert "1st Semester" -> 1
+function transformRowForDB(row) {
+  const yrLvl = parseInt(row.year_level, 10);
   let semesterNum = null;
   if (row.semester) {
     const semMatch = row.semester.match(/(\d+)/);
     semesterNum = semMatch ? parseInt(semMatch[1], 10) : null;
   }
-
-  // Convert "2024-2025" -> 20242025
   let schoolYearInt = null;
   if (row.school_year) {
     const match = row.school_year.match(/^(\d{4})-(\d{4})$/);
@@ -168,59 +160,80 @@ function transformRowForDB(row) {
     student_id: row.student_id,
     yr_lvl: yrLvl,
     semester: semesterNum,
-    school_year: schoolYearInt, // now in 20242025 format
+    school_year: schoolYearInt,
     request_type: row.request_type,
     request_amount: row.request_amount,
   };
 }
 
 const UploadFileToDisbursement = async (fileName, doc_id) => {
+  const client = await pool.connect();
   try {
+    console.log(`Processing file ${fileName} with doc_id ${doc_id}`);
     const data = await readXlsx(fileName);
-    console.log(doc_id);
-    const allowed = ["Semestral Allowance"];
-    const filtered = filterDataByHeaders(data, allowed);
 
-    // Normalize to DB types
-    const prepared = filtered.map(transformRowForDB);
+    const filtered = filterDataByHeaders(data);
 
-    // Loop and call the stored function
-    for (const row of prepared) {
-      try {
-        await pool.query(
-          `SELECT insert_disbursement_detail($1, $2, $3, $4, $5, $6,  $7)`,
-          [
-            row.student_id,
-            row.yr_lvl,
-            row.semester,
-            row.school_year,
-            row.request_type,
-            row.request_amount,
-            doc_id,
-          ]
-        );
-        console.log(
-          `Inserted for student ${
-            (row.student_id,
-            row.yr_lvl,
-            row.semester,
-            row.school_year,
-            row.request_type,
-            row.request_amount)
-          }`
-        );
-      } catch (err) {
-        console.error(
-          `Failed to insert for student ${row.student_id}:`,
-          err.message
-        );
-      }
+    if (filtered.length === 0) {
+      console.log(`No valid rows found in ${fileName}`);
+      return;
     }
 
-    console.log("Upload and DB insert completed!");
+    const prepared = filtered
+      .map(transformRowForDB)
+      .filter(
+        (row) =>
+          row.student_id &&
+          row.yr_lvl &&
+          row.semester &&
+          row.school_year &&
+          row.request_amount !== null
+      );
+
+    if (prepared.length === 0) {
+      console.log(`No valid data after transformation for ${fileName}`);
+      return;
+    }
+
+    await client.query("BEGIN");
+    const errors = [];
+    await Promise.all(
+      prepared.map(async (row) => {
+        try {
+          await client.query(
+            `SELECT insert_disbursement_detail($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              row.student_id,
+              row.yr_lvl,
+              row.semester,
+              row.school_year,
+              row.request_type,
+              row.request_amount,
+              doc_id,
+            ]
+          );
+        } catch (err) {
+          errors.push({ student_id: row.student_id, error: err.message });
+        }
+      })
+    );
+
+    await client.query("COMMIT");
+    if (errors.length > 0) {
+      console.warn(
+        `Failed to insert ${errors.length} out of ${prepared.length} rows for ${fileName}:`,
+        errors
+      );
+    } else {
+      console.log(
+        `Successfully inserted ${prepared.length} rows for ${fileName}`
+      );
+    }
   } catch (err) {
-    console.error("Error:", err.message);
+    await client.query("ROLLBACK");
+    console.error(`Error processing ${fileName}:`, err.message);
+  } finally {
+    client.release();
   }
 };
-
 module.exports = { readXlsx, filterDataByHeaders, UploadFileToDisbursement };

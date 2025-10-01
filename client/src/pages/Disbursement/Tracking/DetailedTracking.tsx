@@ -41,6 +41,8 @@ interface ITrackingDetailed {
   sched_title: string;
   event_type: number;
   schedule_status: string;
+  workflow_id: number;
+
   schedule_due: string;
   event_start_date: string;
   event_description: string;
@@ -95,10 +97,14 @@ function DetailedTracking() {
   }, [sched_id]);
 
   const handleComplete = async () => {
+    if (!trackingDetailed) return;
     try {
       setIsCompleting(true);
       await axios.put(
-        `http://localhost:5000/api/disbursement/tracking/complete/${sched_id}`
+        `http://localhost:5000/api/disbursement/tracking/complete/${sched_id}`,
+        {
+          workflow_id: trackingDetailed[0].workflow_id,
+        }
       );
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/tracking/${sched_id}`
