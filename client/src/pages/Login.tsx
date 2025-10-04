@@ -46,13 +46,10 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        {
-          email,
-          password,
-        }
-      );
+      const response = await axios.post(`${VITE_BACKEND_URL}/api/auth/login`, {
+        email,
+        password,
+      });
 
       const { token } = response.data;
 
