@@ -1,13 +1,10 @@
 import Sidebar from "../../../components/shared/Sidebar";
 import Navbar from "../../../components/shared/Navbar";
 import { useState } from "react";
+import RenewalListV2 from "./RenewalComponents/RenewalListV2";
 
-const RenewalListV2 = React.lazy(
-  () => import("./RenewalComponents/RenewalListV2")
-);
 import SpecificRenewal from "./RenewalComponents/SpecificRenewal";
 import { useSidebar } from "../../../context/SidebarContext";
-import React from "react";
 
 export interface SpecificRenewalDetail {
   student_id: number;
