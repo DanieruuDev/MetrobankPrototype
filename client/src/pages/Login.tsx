@@ -46,7 +46,7 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${VITE_BACKEND_URL}/api/auth/login`, {
+      const response = await axios.post(`${VITE_BACKEND_URL}api/auth/login`, {
         email,
         password,
       });
