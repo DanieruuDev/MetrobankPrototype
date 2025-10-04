@@ -35,6 +35,7 @@ function Schedule() {
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const { collapsed } = useSidebar();
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const onClose = (isClosed: boolean) => {
     setIsModalOpen(isClosed);
     setSelectedDate(null);
@@ -107,7 +108,7 @@ function Schedule() {
 
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/range?start=${startDate}&end=${endDate}`
+        `${VITE_BACKEND_URL}api/disbursement/schedule/range?start=${startDate}&end=${endDate}`
       );
       setSchedules(
         response.data.map((schedule: DisbursementSchedule) => ({

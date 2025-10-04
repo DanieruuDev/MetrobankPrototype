@@ -48,7 +48,7 @@ function SpecificRequest({
   const [comment, setComment] = useState("");
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   console.log("approver status", specificRequest);
   const handleDownload = () => {
     if (!specificRequest?.doc_name) {
@@ -58,7 +58,7 @@ function SpecificRequest({
 
     const filePath = encodeURIComponent(specificRequest?.doc_name); // encode special chars
     const link = document.createElement("a");
-    link.href = `http://localhost:5000/api/workflow/download/${filePath}`;
+    link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
     link.setAttribute("download", specificRequest?.doc_name); // filename for browser
     document.body.appendChild(link);
     link.click();
@@ -74,7 +74,7 @@ function SpecificRequest({
     setLoading(true);
     try {
       const res = await axios.put(
-        "http://localhost:5000/api/workflow/approve-approval",
+        `${VITE_BACKEND_URL}api/workflow/approve-approval`,
         {
           approver_id,
           response: status,

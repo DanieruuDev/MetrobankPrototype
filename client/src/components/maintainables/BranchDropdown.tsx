@@ -20,12 +20,12 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const fetchBranches = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:5000/api/maintenance/branch"
+          `${VITE_BACKEND_URL}api/maintenance/branch`
         );
         setBranches(response.data.data);
       } catch (error) {

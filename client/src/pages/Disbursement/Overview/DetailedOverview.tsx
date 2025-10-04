@@ -58,7 +58,7 @@ const DetailedOverview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTermIndex, setSelectedTermIndex] = useState<number>(0);
   const { collapsed } = useSidebar();
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   // Make sure this is the ONLY formatCurrency function in your file
   const formatCurrency = (amount: number): string => {
     return (
@@ -112,7 +112,7 @@ const DetailedOverview: React.FC = () => {
   const fetchStudentBasicInfo = async (): Promise<void> => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/overview/student-info/${id}`
+        `${VITE_BACKEND_URL}api/disbursement/overview/student-info/${id}`
       );
 
       if (response.status === 200) {
@@ -134,7 +134,7 @@ const DetailedOverview: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/overview/history/${id}`
+        `${VITE_BACKEND_URL}api/disbursement/overview/history/${id}`
       );
 
       if (response.status === 200) {

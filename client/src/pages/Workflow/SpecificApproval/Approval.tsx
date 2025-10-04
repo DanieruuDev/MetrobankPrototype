@@ -43,6 +43,7 @@ function Approval() {
   const [selectedApprover, setSelectedApprover] = useState<Approver | null>(
     null
   );
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const { collapsed } = useSidebar();
   const [newApprover, setNewApprover] = useState("");
   const [reason, setReason] = useState("");
@@ -60,7 +61,7 @@ function Approval() {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-workflow/${requester_id}/${workflow_id}`
+        `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`
       );
       console.log(response.data);
       setDetailedWorkflow(response.data);
@@ -179,7 +180,7 @@ function Approval() {
 
     const filePath = encodeURIComponent(workflow.doc_name); // encode special chars
     const link = document.createElement("a");
-    link.href = `http://localhost:5000/api/workflow/download/${filePath}`;
+    link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
     link.setAttribute("download", workflow.doc_name); // filename for browser
     document.body.appendChild(link);
     link.click();
@@ -198,7 +199,7 @@ function Approval() {
 
     try {
       await axios.post(
-        "http://localhost:5000/api/workflow/requester-response",
+        `${VITE_BACKEND_URL}api/workflow/requester-response`,
         {
           return_id,
           comment: returnedResponseComment,

@@ -63,6 +63,7 @@ function EventModal({
     useState<ApprovedWorkflow | null>(null);
   const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [eligibleCount, setEligibleCount] = useState<number | null>(null);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const handleBranchChange = (branch: string) => {
     setBranch(branch);
@@ -98,7 +99,7 @@ function EventModal({
     const fetchApproved = async () => {
       try {
         const res = await axios.get(
-          "http://localhost:5000/api/approvals/ready-for-scheduling"
+          `${VITE_BACKEND_URL}api/approvals/ready-for-scheduling`
         );
         setApprovedWorkflows(res.data || []);
       } catch (err) {
@@ -114,7 +115,7 @@ function EventModal({
         setEligibleCount(null);
         if (!selectedWorkflow || !formData.branch) return;
         const res = await axios.get(
-          `http://localhost:5000/api/disbursement/eligible-count`,
+          `${VITE_BACKEND_URL}api/disbursement/eligible-count`,
           {
             params: {
               sy_code: selectedWorkflow.sy_code,
@@ -162,7 +163,7 @@ function EventModal({
         return;
       }
       const response = await axios.post(
-        "http://localhost:5000/api/disbursement/schedule",
+        `${VITE_BACKEND_URL}api/disbursement/schedule`,
         {
           event_type: 1,
           requester: userId,

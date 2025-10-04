@@ -36,7 +36,7 @@ function SpecificRenewal({
 }: SpecificRenewalProps) {
   const [renewalDetails, setRenewalDetails] =
     useState<ScholarRenewalResponse | null>(null);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [loading, setLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<{
@@ -46,7 +46,7 @@ function SpecificRenewal({
   const getRenewal = async (student_id: number, renewal_id: number) => {
     try {
       const response = await axios.get<ScholarRenewalResponse>(
-        `http://localhost:5000/api/renewal/get-renewal/${student_id}/${renewal_id}`
+        `${VITE_BACKEND_URL}api/renewal/get-renewal/${student_id}/${renewal_id}`
       );
       setRenewalDetails(response.data);
     } catch (error) {
@@ -157,7 +157,7 @@ function SpecificRenewal({
 
     try {
       const response = await axios.put(
-        "http://localhost:5000/api/renewal/update-renewal",
+        `${VITE_BACKEND_URL}api/renewal/update-renewal`,
         updatedRenewalDetails
       );
 

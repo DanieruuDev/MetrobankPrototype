@@ -42,6 +42,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const schoolYearOptions = ["2023-2024", "2024-2025", "2025-2026"];
   const yearLevelOptions: string[] = [
     "1st Year",
@@ -84,7 +85,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/renewal/generate-renewal",
+        `${VITE_BACKEND_URL}api/renewal/generate-renewal`,
         {
           school_year: schoolYear,
           year_level: Number(yearLevel.substring(0, 1)),

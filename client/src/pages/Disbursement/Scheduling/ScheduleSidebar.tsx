@@ -32,7 +32,7 @@ const ScheduleSidebar = ({
   const [twoWeekSched, setTwoWeekSched] = useState<
     DisbursementScheduleSummary[] | null
   >([]);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   // const fetchSidebarSchedules = async (date: Date) => {
   //   setLoading(true);
   //   setError(null);
@@ -41,7 +41,7 @@ const ScheduleSidebar = ({
 
   //   try {
   //     const response = await axios.get(
-  //       `http://localhost:5000/api/disbursement/schedule/${year}/${month}`
+  //       `${VITE_BACKEND_URL}api/disbursement/schedule/${year}/${month}`
   //     );
 
   //     setSidebarSchedule(
@@ -64,7 +64,7 @@ const ScheduleSidebar = ({
 
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/weeks`
+        `${VITE_BACKEND_URL}api/disbursement/schedule/weeks`
       );
       setTwoWeekSched(response.data);
     } catch (err) {

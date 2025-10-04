@@ -43,6 +43,7 @@ const DisbursementOverview = () => {
   const [allStudents, setAllStudents] = useState<StudentDisbursement[] | null>(
     []
   );
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [page, setPage] = useState<number>(1);
   const [totalPage, setTotalPage] = useState<number>(1);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
@@ -110,7 +111,7 @@ const DisbursementOverview = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/overview/scholar-list?page=${page}&limit=10`
+        `${VITE_BACKEND_URL}api/disbursement/overview/scholar-list?page=${page}&limit=10`
       );
       const { data, totalPages, currentPage } = response.data;
       setTotalPage(totalPages);
@@ -119,13 +120,13 @@ const DisbursementOverview = () => {
 
       // Fetch all students for search functionality
       const allStudentsResponse = await axios.get(
-        `http://localhost:5000/api/disbursement/overview/scholar-list?page=1&limit=10000`
+        `${VITE_BACKEND_URL}api/disbursement/overview/scholar-list?page=1&limit=10000`
       );
       setAllStudents(allStudentsResponse.data.data);
 
       // Fetch total disbursed amount from backend
       const totalDisbursedResponse = await axios.get(
-        `http://localhost:5000/api/disbursement/overview/total-disbursed`
+        `${VITE_BACKEND_URL}api/disbursement/overview/total-disbursed`
       );
       console.log("Total disbursed API response:", totalDisbursedResponse.data);
       const { totalStudents, totalDisbursed } = totalDisbursedResponse.data;
@@ -145,7 +146,7 @@ const DisbursementOverview = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/maintenance/school-year"
+        `${VITE_BACKEND_URL}api/maintenance/school-year`
       );
       setSchoolYears(response.data);
     } catch (error) {
@@ -158,7 +159,7 @@ const DisbursementOverview = () => {
   const fetchYrLvl = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/maintenance/year-level"
+        `${VITE_BACKEND_URL}api/maintenance/year-level`
       );
       setYears(response.data);
     } catch (error) {

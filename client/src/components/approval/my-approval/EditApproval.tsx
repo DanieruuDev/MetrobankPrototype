@@ -85,6 +85,7 @@ function EditApproval({
   const [originalData, setOriginalData] = useState<WorkflowFormData | null>(
     null
   );
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const [formData, setFormData] = useState<WorkflowFormData>({
     rq_title: "",
@@ -108,7 +109,7 @@ function EditApproval({
       setFetchingData(true);
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/workflow/get-edit-workflow/${workflowId}`
+          `${VITE_BACKEND_URL}api/workflow/get-edit-workflow/${workflowId}`
         );
         const workflowData = response.data[0];
         const mappedData: WorkflowFormData = {
@@ -325,7 +326,7 @@ function EditApproval({
 
     try {
       await axios.put(
-        `http://localhost:5000/api/workflow/edit-workflow/${workflowId}`,
+        `${VITE_BACKEND_URL}api/workflow/edit-workflow/${workflowId}`,
         sendData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );

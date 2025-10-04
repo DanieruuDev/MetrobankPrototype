@@ -34,11 +34,12 @@ export interface ComboData {
 
 export const ComboChart = () => {
   const [comboChartData, setComboChartData] = useState<ComboData[]>([]);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const fetchComboChartData = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/disbursement/overview/semester-scholars"
+        `${VITE_BACKEND_URL}api/disbursement/overview/semester-scholars`
       );
       if (response.data.success) {
         setComboChartData(response.data.data);

@@ -56,12 +56,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [info, setInfo] = useState<Info | null>(null);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const fetchUserInfo = async (authToken: string | null) => {
     if (!authToken) return null;
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/auth/user-info",
+        `${VITE_BACKEND_URL}api/auth/user-info`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,

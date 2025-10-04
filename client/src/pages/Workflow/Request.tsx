@@ -98,7 +98,7 @@ function Request() {
     Returned: (req) => req.approver.approver_status === "Returned",
     Replaced: (req) => req.approver.approver_status === "Replaced",
   };
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   // ✅ badge counts
   const counts = requestStatuses.reduce((acc, status) => {
     const filterFn = statusGroups[status.label];
@@ -111,7 +111,7 @@ function Request() {
     comment: string | null
   ) => {
     try {
-      await axios.put(`http://localhost:5000/api/workflow/approve-approval`, {
+      await axios.put(`${VITE_BACKEND_URL}api/workflow/approve-approval`, {
         approver_id: approverId,
         response,
         comment,
@@ -132,7 +132,7 @@ function Request() {
     try {
       setIsRequestLoading(true);
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-request/${userId}`
+        `${VITE_BACKEND_URL}api/workflow/get-request/${userId}`
       );
       setRequestList(response.data);
     } catch (error) {
@@ -146,7 +146,7 @@ function Request() {
     if (!approverId) return;
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-specific-request/${approverId}`
+        `${VITE_BACKEND_URL}api/workflow/get-specific-request/${approverId}`
       );
       setSpecificRequest(response.data);
     } catch (error) {

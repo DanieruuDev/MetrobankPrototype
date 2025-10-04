@@ -24,7 +24,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const [approversValid, setApproversValid] = useState(false);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [showValidation, setShowValidation] = useState(false);
 
   const isApproverValid = (): boolean => {
@@ -164,7 +164,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/workflow/create-workflow",
+        `${VITE_BACKEND_URL}api/workflow/create-workflow`,
         sendData,
         {
           headers: {

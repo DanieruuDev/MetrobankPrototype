@@ -49,7 +49,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [suggestionLoading, setSuggestionLoading] = useState<{
     [key: number]: boolean;
   }>({});
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [approvers, setApprovers] = useState<
     { id: number; email: string; role: string }[]
   >([{ id: Date.now(), email: "", role: "" }]);
@@ -68,7 +68,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
 
       try {
         const res = await axios.get<string[]>(
-          `http://localhost:5000/api/workflow/search-approvers/${value}`
+          `${VITE_BACKEND_URL}api/workflow/search-approvers/${value}`
         );
         setSuggestions((prev) => ({ ...prev, [id]: res.data }));
       } catch (err) {
@@ -148,7 +148,7 @@ function CreateApproval2({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     console.log(sendData);
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/workflow/create-workflow",
+        `${VITE_BACKEND_URL}api/workflow/create-workflow`,
         sendData,
         {
           headers: { "Content-Type": "multipart/form-data" },

@@ -69,7 +69,7 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
     try {
       console.log("Fetching data for school year:", sy_code);
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/overview/completed-totals/${sy_code}`
+        `${VITE_BACKEND_URL}api/disbursement/overview/completed-totals/${sy_code}`
       );
       if (!response) throw new Error("Failed to fetch disbursement data.");
       console.log("API response:", response.data);

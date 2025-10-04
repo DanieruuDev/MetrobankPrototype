@@ -55,7 +55,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingEdittable, setLoadingEdittable] = useState(false);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const isToday = isSameDay(day, new Date());
@@ -123,7 +123,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
     setDeleting(true);
     try {
       const response = await axios.delete(
-        `http://localhost:5000/api/disbursement/schedule/${sched_id}/${requester}`
+        `${VITE_BACKEND_URL}api/disbursement/schedule/${sched_id}/${requester}`
       );
 
       toast.success(response.data.message || "Schedule deleted.");
@@ -153,7 +153,7 @@ const RenderDayCell: React.FC<DayCellProps> = ({
 
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/detailed/${sched_id}`
+        `${VITE_BACKEND_URL}api/disbursement/schedule/detailed/${sched_id}`
       );
       setEdittableData(res.data);
     } catch (error) {

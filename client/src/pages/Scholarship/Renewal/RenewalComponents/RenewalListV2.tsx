@@ -48,6 +48,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
     []
   );
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
   );
@@ -106,7 +107,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     try {
       console.log("Before count");
       const response = await axios.get(
-        `http://localhost:5000/api/renewal/count-renewal`,
+        `${VITE_BACKEND_URL}api/renewal/count-renewal`,
         {
           params: {
             school_year,
@@ -138,7 +139,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     try {
       setIsLoading(true);
       const response = await axios.get(
-        `http://localhost:5000/api/renewal/fetch-renewals`,
+        `${VITE_BACKEND_URL}api/renewal/fetch-renewals`,
         {
           params: {
             school_year: sy,
@@ -250,7 +251,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       setIsLoading(true);
       if (updateRows.length > 0) {
         const res = await axios.put(
-          "http://localhost:5000/api/renewal/update-renewalV2",
+          `${VITE_BACKEND_URL}api/renewal/update-renewalV2`,
           updateRows
         );
         console.log(res);

@@ -30,12 +30,13 @@ const ScheduleTracking = () => {
   const { collapsed } = useSidebar();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const getTrackingSummary = async (sy_code: string, semester_code: string) => {
     //adjust to make a pagination
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/tracking/${sy_code}/${semester_code}`
+        `${VITE_BACKEND_URL}api/disbursement/tracking/${sy_code}/${semester_code}`
       );
       setTrackingSummary(response.data);
     } catch (error) {

@@ -42,7 +42,7 @@ function Workflow() {
   const [editModalID, setEditModalID] = useState<number | null>(null);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const [activeStatus, setActiveStatus] = useState("All");
@@ -135,7 +135,7 @@ function Workflow() {
     setArchiving(true);
     try {
       await axios.put(
-        `http://localhost:5000/api/workflow/archive-workflow/${requester_id}/${workflow_id}`
+        `${VITE_BACKEND_URL}api/workflow/archive-workflow/${requester_id}/${workflow_id}`
       );
 
       toast.success("Approval workflow archived successfully!");
@@ -156,7 +156,7 @@ function Workflow() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-workflows/${userId}`
+        `${VITE_BACKEND_URL}api/workflow/get-workflows/${userId}`
       );
 
       const { data } = response.data;

@@ -67,7 +67,7 @@ function RenewalTable({
   }, [renewalData]);
 
   console.log(tempRenewalData);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const handleGpaChange = (student_id: number, value: string) => {
     let numericValue = parseFloat(value);
     if (numericValue < 0) numericValue = 0;
@@ -186,7 +186,7 @@ function RenewalTable({
       };
 
       const response = await axios.put(
-        "http://localhost:5000/api/renewal/update-renewal",
+        `${VITE_BACKEND_URL}api/renewal/update-renewal`,
         requestData
       );
 
