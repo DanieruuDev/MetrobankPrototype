@@ -99,7 +99,18 @@ function SpecificRequest({
     } finally {
       setLoading(false);
     }
-  }, [approver_id, status, comment, getSpecificRequestApproval]);
+  }, [
+    status,
+    comment,
+    approver_id,
+    specificRequest?.response_id,
+    specificRequest?.workflow_id,
+    specificRequest?.approver_order,
+    specificRequest?.requester_id,
+    specificRequest?.user_id,
+    getSpecificRequestApproval,
+    getRequestApprovalList,
+  ]);
 
   console.log(specificRequest);
   if (!specificRequest) {
@@ -155,7 +166,7 @@ function SpecificRequest({
           (specificRequest.approver_response === "Pending" ||
             (specificRequest.approver_response === "Returned" &&
               specificRequest.return_conversation?.some(
-                (conv) => conv.created_by === userId
+                (conv) => Number(conv.created_by) === userId
               ))) && (
             <div className="flex gap-3">
               <button

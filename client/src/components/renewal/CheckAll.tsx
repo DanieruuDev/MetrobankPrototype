@@ -1,5 +1,5 @@
 import { CheckCheck, Clock3, ChevronDown } from "lucide-react";
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface CheckAllDropdownProps {
   label: string;

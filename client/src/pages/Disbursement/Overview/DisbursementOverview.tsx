@@ -112,7 +112,7 @@ const DisbursementOverview = () => {
       const response = await axios.get(
         `http://localhost:5000/api/disbursement/overview/scholar-list?page=${page}&limit=10`
       );
-      const { data, totalPages, currentPage, totalCount } = response.data;
+      const { data, totalPages, currentPage } = response.data;
       setTotalPage(totalPages);
       setPage(currentPage);
       setStudentList(data);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { RenewalRow } from "../../Interface/IRenewal";
 import * as XLSX from "xlsx";
@@ -35,7 +35,7 @@ function UploadFileRenewalModal({
     no_failing_grd_validation: r.no_failing_grd_validation,
     no_other_scholar_validation: r.no_other_scholar_validation,
     goodmoral_validation: r.goodmoral_validation,
-    no_police_record_validation: r.no_police_record_validation,
+    no_criminal_charges_validation: r.no_criminal_charges_validation,
     full_load_validation: r.full_load_validation,
     withdrawal_change_course_validation: r.withdrawal_change_course_validation,
     enrollment_validation: r.enrollment_validation,
@@ -44,6 +44,7 @@ function UploadFileRenewalModal({
     school_year: r.school_year,
     delisted_date: r.delisted_date ?? null,
     delisting_root_cause: r.delisting_root_cause ?? null,
+    is_validated: r.is_validated,
   }));
 
   const onDrop = (acceptedFiles: File[]) => {
