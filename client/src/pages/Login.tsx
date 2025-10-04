@@ -50,11 +50,14 @@ const LoginPage: React.FC = () => {
         email,
         password,
       });
-
+      console.log("API response:", response.data); // Log the response
       const { token } = response.data;
 
-      auth?.login(token);
+      if (!token || typeof token !== "string") {
+        throw new Error("Invalid or missing token in API response");
+      }
 
+      auth?.login(token);
       toast.success("Login successful!");
       navigate("/workflow-approval");
     } catch (error) {
