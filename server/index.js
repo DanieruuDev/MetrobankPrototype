@@ -4,7 +4,6 @@ const express = require("express");
 const userAdminRouter = require("./routes/admin-user-router.js");
 const path = require("path");
 const disbursementRouter = require("./routes/disbursment-schedule-router.js");
-const app = express();
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const disbursementOverview = require("./routes/disbursement-overview-router.js");
@@ -16,6 +15,9 @@ const notificationRouter = require("./routes/notification-router.js");
 const approvalRouter = require("./routes/approval-routes.js");
 require("./utils/scheduler.js");
 require("dotenv").config();
+
+const app = express();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -27,8 +29,7 @@ app.use(
   })
 );
 
-const PORT = process.env.PORT || 5000;
-
+// Routers
 app.use("/api/auth", userAdminRouter);
 app.use("/api/disbursement", disbursementRouter);
 app.use("/api/disbursement/overview", disbursementOverview);
@@ -36,14 +37,17 @@ app.use("/api/disbursement/tracking", disbursementTracking);
 app.use("/api/maintenance", maintenance);
 app.use("/api/renewal", renewalRouter);
 app.use("/api/workflow", workflowRouter);
-app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/api/notification", notificationRouter);
 app.use("/api/approvals", approvalRouter);
 
-app.use("/", async (req, res) => {
-  res.send("Hello World");
+// Static
+app.use("/public", express.static(path.join(__dirname, "public")));
+
+// Default route
+app.use("/", (req, res) => {
+  res.send("Hello World from Vercel Serverless!");
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on ${PORT}`);
-});
+// ❌ Remove app.listen()
+// ✅ Export app for Vercel
+module.exports = app;
