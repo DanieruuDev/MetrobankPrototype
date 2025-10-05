@@ -1,7 +1,11 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
 const path = require("path");
-const { uploadFile, getDownloadStream } = require("../utils/b2.js");
+const {
+  uploadFile,
+  getDownloadStream,
+  uploadBuffer,
+} = require("../utils/b2.js");
 const { sendItsYourTurnEmail } = require("../utils/emailing"); // Ensure this path is correct
 const {
   checkWorkflowExists,
@@ -314,7 +318,7 @@ const createApproval = async (req, res) => {
       return res.status(400).json({ message: "Workflow already exists" });
     }
 
-    const b2Result = await uploadFile(
+    const b2Result = await uploadBuffer(
       file.path,
       `${Date.now()}_${file.originalname}`, // unique name
       process.env.B2_BUCKET_ID

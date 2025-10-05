@@ -21,7 +21,7 @@ const {
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 
-const upload = multer({ dest: "uploads/" }); // temporary storage
+const upload = multer({ dest: multer.memoryStorage() }); // temporary storage
 
 const workflowRouter = express.Router();
 
