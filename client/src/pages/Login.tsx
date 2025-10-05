@@ -22,7 +22,7 @@ const LoginPage: React.FC = () => {
     return null;
   }
   const { setToken, token } = auth;
-  const VITE_BACKEND_URL = "http://localhost:5000/";
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const validate = (): boolean => {
     const newErrors: LoginErrors = {};
