@@ -21,7 +21,7 @@ const LoginPage: React.FC = () => {
     console.error("AuthContext is undefined");
     return null;
   }
-  const { setToken } = auth;
+  const { setToken, token } = auth;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const validate = (): boolean => {
@@ -76,6 +76,14 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  if (token) {
+    navigate(-1);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] text-white text-xl font-semibold">
+        Redirecting...
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] px-4">
       <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8">
