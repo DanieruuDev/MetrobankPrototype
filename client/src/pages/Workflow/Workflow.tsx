@@ -1,6 +1,6 @@
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -19,12 +19,12 @@ import {
 import EditApproval from "../../components/approval/my-approval/EditApproval";
 import CreateApproval from "../../components/approval/my-approval/CreateApproval";
 
-import { AuthContext } from "../../context/AuthContext";
 import { useSidebar } from "../../context/SidebarContext";
 import ConfirmDialog from "../../components/approval/ConfirmDialog";
 import { NavLink } from "react-router-dom";
 import WorkflowStatusBar from "../../components/approval/my-approval/WorkflowStatusBar";
 import MyApprovalControl from "../../components/approval/my-approval/MyApprovalControls";
+import { useAuth } from "../../context/AuthContext";
 
 function Workflow() {
   const [workflowDisplay, setWorkflowDisplay] = useState<
@@ -43,8 +43,9 @@ function Workflow() {
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const auth = useContext(AuthContext);
-  const userId = auth?.user?.user_id;
+
+  const auth = useAuth();
+
   const [activeStatus, setActiveStatus] = useState("All");
 
   const statusGroups: Record<string, string[]> = {
@@ -156,7 +157,12 @@ function Workflow() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${VITE_BACKEND_URL}api/workflow/get-workflows/${userId}`
+        `${VITE_BACKEND_URL}api/workflow/get-workflows/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       const { data } = response.data;
@@ -217,6 +223,10 @@ function Workflow() {
       setEditModalID(null);
     }
   };
+  if (!auth) return;
+  const userId = auth?.user?.user_id;
+  const { token } = auth;
+  console.log(token);
 
   return (
     <div

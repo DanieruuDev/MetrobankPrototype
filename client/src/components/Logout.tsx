@@ -5,9 +5,8 @@ const useLogout = () => {
   const navigate = useNavigate();
 
   const logout = () => {
-    localStorage.removeItem("token"); // remove token from storage
     toast.success("Logged out successfully");
-    navigate("/login"); // redirect to login page
+    navigate("/"); // redirect to login page
   };
 
   return logout;

@@ -1,6 +1,5 @@
-import React, { useContext } from "react";
 import { Navigate } from "react-router-dom";
-import { AuthContext } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -11,28 +10,39 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({
   children,
   allowedRoles,
 }) => {
-  const auth = useContext(AuthContext);
+  const auth = useAuth();
 
   if (!auth) {
-    // Auth context not ready yet
+    console.error("AuthContext is undefined");
     return <div>Loading...</div>;
   }
 
-  if (auth.isAuthenticated === false) {
-    return <Navigate to="/login" replace />;
+  const { loading, isAuthenticated, user } = auth;
+
+  if (loading) {
+    console.log("Auth is still loading");
+    return <div>Loading...</div>;
   }
 
-  if (
-    allowedRoles &&
-    auth.user &&
-    !allowedRoles.some((role) => {
-      const normalizedRole = role ? role.trim().toLowerCase() : "";
-      const normalizedUserRole = auth.user?.role_name
-        ? auth.user.role_name.trim().toLowerCase()
-        : "";
-      return normalizedRole === normalizedUserRole;
-    })
-  ) {
+  if (!isAuthenticated) {
+    console.log("User is not authenticated, redirecting to /");
+    return <Navigate to="/" replace />;
+  }
+
+  if (!auth?.token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (allowedRoles && user && !allowedRoles.includes(user.role_name)) {
+    console.log(
+      "Role check failed, redirecting to /unauthorized",
+      user,
+      !allowedRoles.includes(user.role_name),
+      {
+        allowedRoles,
+        userRole: user.role_name,
+      }
+    );
+
     return <Navigate to="/unauthorized" replace />;
   }
 

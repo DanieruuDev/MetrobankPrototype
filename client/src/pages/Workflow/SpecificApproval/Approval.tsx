@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   DetailedWorkflow,
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
-import { AuthContext } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import ChangeApproverModal from "../../../components/approval/my-approval/ChangeApproverModal";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
@@ -31,8 +31,9 @@ import Sidebar from "../../../components/shared/Sidebar";
 
 function Approval() {
   const { workflow_id } = useParams();
-  const auth = useContext(AuthContext);
+  const auth = useAuth();
   const userId = auth?.user?.user_id;
+  const token = auth;
   const navigate = useNavigate();
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
@@ -61,7 +62,12 @@ function Approval() {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`
+        `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       console.log(response.data);
       setDetailedWorkflow(response.data);
