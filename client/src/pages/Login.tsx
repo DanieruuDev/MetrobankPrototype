@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios, { AxiosError } from "axios";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 
@@ -24,6 +24,9 @@ const LoginPage: React.FC = () => {
   const { setToken, token } = auth;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
+  if (token) {
+    <Navigate to={"/workflow-approval"} />;
+  }
   const validate = (): boolean => {
     const newErrors: LoginErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -76,14 +79,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  if (token) {
-    navigate(-1);
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] text-white text-xl font-semibold">
-        Redirecting...
-      </div>
-    );
-  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] px-4">
       <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8">
