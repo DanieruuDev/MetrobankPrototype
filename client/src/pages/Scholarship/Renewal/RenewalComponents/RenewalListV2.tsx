@@ -549,7 +549,99 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       });
     });
   };
+  const getFilteredHeaders = (
+    role_id: number | undefined,
+    tableHead: { [key: string]: string },
+    availableKeys: string[],
+    initialRenewalInfo: InitialRenewalInfo | null
+  ) => {
+    // Base headers common to all roles
+    const baseHeaders = [
+      "scholar_name",
+      "student_id",
+      "renewal_year_level_basis",
+      "renewal_semester_basis",
+      "renewal_school_year_basis",
+      "batch",
+      "campus",
+      "course",
+      "semester",
+      "school_year",
+      "year_level",
+      "scholarship_status",
 
+      "is_validated",
+    ];
+
+    // Role-based validation fields
+    const roleValidationFields: { [key: number]: string[] } = {
+      3: [
+        "gpa",
+        "gpa_validation_stat",
+        "no_failing_grd_validation",
+        "no_other_scholar_validation",
+        "full_load_validation",
+        "withdrawal_change_course_validation",
+        "enrollment_validation",
+      ],
+      9: ["goodmoral_validation", "no_criminal_charges_validation"],
+      7: ["All"],
+    };
+
+    const allowedHeaders = [...baseHeaders];
+
+    if (role_id && role_id in roleValidationFields) {
+      const validationFields = roleValidationFields[role_id];
+      if (validationFields[0] === "All") {
+        allowedHeaders.push(
+          ...Object.keys(tableHead).filter(
+            (key) =>
+              !baseHeaders.includes(key) &&
+              key !== "delisting_root_cause" &&
+              availableKeys.includes(key)
+          )
+        );
+
+        if (availableKeys.includes("delisting_root_cause")) {
+          allowedHeaders.push("delisting_root_cause");
+        }
+      } else {
+        allowedHeaders.push(
+          ...validationFields.filter((key) => availableKeys.includes(key))
+        );
+      }
+    }
+
+    const customHeaders = allowedHeaders
+      .filter((key) => key in tableHead && availableKeys.includes(key))
+      .map((key) => {
+        if (initialRenewalInfo) {
+          const renewalSy =
+            initialRenewalInfo.renewal_school_year_basis_text || "Not Set";
+          const renewalSemester =
+            initialRenewalInfo.renewal_sem_basis_text || "Not Set";
+          const sy = initialRenewalInfo.school_year_text || "Not Set";
+          const semester = initialRenewalInfo.semester_text || "Not Set";
+          if (key === "renewal_year_level_basis") {
+            return {
+              key,
+              label: `Renewal Year Level Basis (SY ${renewalSy} ${renewalSemester})`,
+            };
+          } else if (key === "year_level") {
+            return {
+              key,
+              label: `Year Level (SY ${sy} ${semester})`,
+            };
+          }
+        }
+        return {
+          key,
+          label: tableHead[key],
+        };
+      });
+
+    return customHeaders;
+  };
   useEffect(() => {
     filterData(searchQuery, selectedStatus);
   }, [selectedStatus]);
@@ -881,10 +973,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                       <button
                         className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
                         onClick={() => {
-                          const headers = Object.keys(renewalTableHead);
+                          const filteredHeaders = getFilteredHeaders(
+                            role_id,
+                            renewalTableHead,
+                            availableKeys,
+                            initialRenewalInfo
+                          );
+                          const headers = filteredHeaders.map((h) => h.label); // Use labels for Excel headers
                           const data = renewalData.map((r) =>
-                            Object.keys(renewalTableHead).map(
-                              (key) => r[key as keyof RenewalDetails] ?? null
+                            filteredHeaders.map(
+                              (h) => r[h.key as keyof RenewalDetails] ?? null
                             )
                           );
                           downloadExcel(
