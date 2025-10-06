@@ -252,9 +252,8 @@ const getRequesterAndWorkflowDetails = async (
   if (!query.rows.length) return null;
 
   return {
-    requesterEmail: query.rows[0].admin_email,
-    requesterName: query.rows[0].admin_name,
     workflowDetailsForEmail: {
+      requesterEmail: query.rows[0].admin_email,
       request_title: query.rows[0].rq_title,
       requester_name: query.rows[0].admin_name,
       due_date: query.rows[0].due_date,
@@ -466,18 +465,19 @@ const handleApprovedCase = async (
       });
     }
 
-    // try {
-    //   await sendWorkflowCompletedEmail(
-    //     workflowDetailsForEmail.requesterEmail,
-    //     workflowDetailsForEmail
-    //   );
-    // } catch (err) {
-    //   console.error("sendWorkflowCompletedEmail failed:", {
-    //     workflow_id,
-    //     requester_id,
-    //     err,
-    //   });
-    // }
+    try {
+      console.log("email", workflowDetailsForEmail.requesterEmail);
+      await sendWorkflowCompletedEmail(
+        workflowDetailsForEmail.requesterEmail,
+        workflowDetailsForEmail
+      );
+    } catch (err) {
+      console.error("sendWorkflowCompletedEmail failed:", {
+        workflow_id,
+        requester_id,
+        err,
+      });
+    }
   }
 
   // success

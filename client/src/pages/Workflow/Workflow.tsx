@@ -1,6 +1,6 @@
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -87,11 +87,10 @@ function Workflow() {
     };
 
   // return { groupName: workflows[] }
-  const getGroupedWorkflows = () => {
+  const getGroupedWorkflows = useMemo(() => {
     const groups: Record<string, WorkflowDisplaySchema[]> = {};
     const statuses = statusGroups[activeStatus] || [];
 
-    // All shows everything in one table
     if (activeStatus === "All") {
       groups["All Requests"] = workflowDisplay.filter(
         (workflow) =>
@@ -108,7 +107,6 @@ function Workflow() {
       return groups;
     }
 
-    // For Active / Needs Attention / Completed → multiple tables
     statuses.forEach((status) => {
       groups[status] = workflowDisplay.filter(
         (workflow) =>
@@ -126,31 +124,31 @@ function Workflow() {
     });
 
     return groups;
-  };
+  }, [workflowDisplay, activeStatus, searchQuery]);
 
-  const archivedWorkflow = async (
-    requester_id: number,
-    workflow_id: number
-  ) => {
-    console.log(requester_id, workflow_id);
-    setArchiving(true);
-    try {
-      await axios.put(
-        `${VITE_BACKEND_URL}api/workflow/archive-workflow/${requester_id}/${workflow_id}`
-      );
+  const archivedWorkflow = useCallback(
+    async (requester_id: number, workflow_id: number) => {
+      console.log(requester_id, workflow_id);
+      setArchiving(true);
+      try {
+        await axios.put(
+          `${VITE_BACKEND_URL}api/workflow/archive-workflow/${requester_id}/${workflow_id}`
+        );
 
-      toast.success("Approval workflow archived successfully!");
+        toast.success("Approval workflow archived successfully!");
 
-      setWorkflowDisplay((prevItems) =>
-        prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
-      );
-    } catch (error) {
-      toast.error("Failed to delete approval workflow.");
-      console.log(error);
-    } finally {
-      setArchiving(false);
-    }
-  };
+        setWorkflowDisplay((prevItems) =>
+          prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
+        );
+      } catch (error) {
+        toast.error("Failed to delete approval workflow.");
+        console.log(error);
+      } finally {
+        setArchiving(false);
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
 
   const fetchWorkflows = async () => {
     if (userId === undefined) return;
@@ -198,7 +196,7 @@ function Workflow() {
     }
   };
 
-  const getCounts = () => {
+  const counts = useMemo(() => {
     const counts: Record<string, number> = {};
 
     Object.keys(statusGroups).forEach((group) => {
@@ -212,9 +210,7 @@ function Workflow() {
     });
 
     return counts;
-  };
-
-  const counts = getCounts();
+  }, [workflowDisplay]);
 
   const editApproval = (workflow_id: number | null) => {
     if (workflow_id) {
@@ -299,27 +295,25 @@ function Workflow() {
           />
         )}
         <div className="mt-4 space-y-6">
-          {Object.entries(getGroupedWorkflows()).map(
-            ([groupName, workflows]) => {
-              const { icon, color } = groupStyles[groupName] || {
-                icon: <ClipboardList className="text-gray-500" size={16} />,
-                color: "gray",
-              };
+          {Object.entries(getGroupedWorkflows).map(([groupName, workflows]) => {
+            const { icon, color } = groupStyles[groupName] || {
+              icon: <ClipboardList className="text-gray-500" size={16} />,
+              color: "gray",
+            };
 
-              return (
-                <DataTable
-                  key={groupName}
-                  title={groupName}
-                  workflows={workflows}
-                  loading={loading}
-                  onArchived={openArchivedConfirm}
-                  titleIcon={icon}
-                  titleColor={color}
-                  editApproval={editApproval}
-                />
-              );
-            }
-          )}
+            return (
+              <DataTable
+                key={groupName}
+                title={groupName}
+                workflows={workflows}
+                loading={loading}
+                onArchived={openArchivedConfirm}
+                titleIcon={icon}
+                titleColor={color}
+                editApproval={editApproval}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

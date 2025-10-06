@@ -107,12 +107,14 @@ const loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    console.log("Setting refreshToken:", refreshToken);
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+    console.log("Cookie set successfully");
     return res.status(200).json({ email: user.admin_email, accessToken });
   } catch (error) {
     console.error("Login error:", error);
@@ -124,7 +126,7 @@ const loginUser = async (req, res) => {
 
 const refreshToken = async (req, res) => {
   const token = req.cookies.refreshToken;
-
+  console.log("Refresh", token);
   if (!token) {
     return res.status(401).json({ message: "No refresh token provided" });
   }
@@ -171,8 +173,7 @@ const logout = async (req, res) => {
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: true,
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: "none",
     });
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {

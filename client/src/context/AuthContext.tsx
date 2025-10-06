@@ -4,6 +4,7 @@ import React, {
   useEffect,
   ReactNode,
   useContext,
+  useCallback,
 } from "react";
 import { jwtDecode } from "jwt-decode";
 import axios, { AxiosError } from "axios";
@@ -66,65 +67,84 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   axios.defaults.withCredentials = true;
 
-  const fetchUserInfo = async (accessToken: string) => {
+  const fetchUserInfo = useCallback(
+    async (accessToken: string) => {
+      try {
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/auth/user-info`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+        setInfo(response.data);
+      } catch (error) {
+        console.error("Failed to fetch user info:", error);
+        return null;
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
+
+  const logout = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/auth/user-info`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
+      await axios.post(
+        `${VITE_BACKEND_URL}api/auth/logout`,
+        {},
+        { withCredentials: true }
       );
-      setInfo(response.data);
     } catch (error) {
-      console.error("Failed to fetch user info:", error);
-      return null;
+      console.error("Logout error:", error);
     }
-  };
-
-  const refreshAccessToken = async () => {
-    try {
-      const res = await axios.get(`${VITE_BACKEND_URL}api/auth/refresh-token`, {
-        withCredentials: true,
-      });
-
-      const newAccessToken = res.data.newAccessToken;
-      console.log("Refreshed access token:", newAccessToken);
-
-      if (newAccessToken) {
-        setToken(newAccessToken);
-        const decoded = jwtDecode<JwtPayload>(newAccessToken);
-        console.log("New token", decoded);
-        setUser({
-          user_id: decoded.user_id,
-          email: decoded.email,
-          role_id: decoded.role_id,
-          role_name: decoded.role_name,
-          branch: null,
-        });
-        await fetchUserInfo(newAccessToken);
-      } else {
-        throw new Error("No access token returned");
-      }
-    } catch (error) {
-      console.error("Failed to refresh token:", error);
-      const axiosError = error as AxiosError;
-      if (axiosError.response?.status === 401) {
-        await logout(); // Clear auth state on 401
-      }
-      setToken(null);
-      setUser(null);
-      setInfo(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setUser(null);
+    setToken(null);
+    setInfo(null);
+  }, [VITE_BACKEND_URL]);
 
   useEffect(() => {
-    // Run refresh on mount
+    const refreshAccessToken = async () => {
+      try {
+        const res = await axios.get(
+          `${VITE_BACKEND_URL}api/auth/refresh-token`,
+          {
+            withCredentials: true,
+          }
+        );
+
+        const newAccessToken = res.data.newAccessToken;
+        console.log("Refreshed access token:", newAccessToken);
+
+        if (newAccessToken) {
+          setToken(newAccessToken);
+          const decoded = jwtDecode<JwtPayload>(newAccessToken);
+          console.log("New token", decoded);
+          setUser({
+            user_id: decoded.user_id,
+            email: decoded.email,
+            role_id: decoded.role_id,
+            role_name: decoded.role_name,
+            branch: null,
+          });
+          await fetchUserInfo(newAccessToken);
+        } else {
+          throw new Error("No access token returned");
+        }
+      } catch (error) {
+        console.error("Failed to refresh token:", error);
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 401) {
+          await logout(); // Clear auth state on 401
+        }
+        setToken(null);
+        setUser(null);
+        setInfo(null);
+      } finally {
+        setLoading(false);
+      }
+    };
     refreshAccessToken();
-  }, []);
+  }, [VITE_BACKEND_URL, fetchUserInfo, logout]);
 
   const setTokenAndUser = (newToken: string) => {
     setToken(newToken);
@@ -143,21 +163,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(null);
       setUser(null);
     }
-  };
-
-  const logout = async () => {
-    try {
-      await axios.post(
-        `${VITE_BACKEND_URL}api/auth/logout`,
-        {},
-        { withCredentials: true }
-      );
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-    setUser(null);
-    setToken(null);
-    setInfo(null);
   };
 
   // Only render children when loading is complete
