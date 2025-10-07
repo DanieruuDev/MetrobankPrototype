@@ -67,49 +67,52 @@ const RetentionProjectionCard: React.FC<RetentionProjectionProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 border-t-4 border-blue-500 h-full flex flex-col justify-between">
+    <div className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-4 sm:p-6 border border-white/20 h-full flex flex-col justify-between">
       <div>
         {/* ⚠️ CHANGE: Updated Title */}
-        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-          <TrendingUpIcon className="w-6 h-6 mr-2 text-blue-600" />
-          Employee Service Impact & Profit Projection
+        <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4 flex items-center">
+          <TrendingUpIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" />
+          <span className="hidden xs:inline">
+            Employee Service Impact & Profit Projection
+          </span>
+          <span className="xs:hidden">Service Impact & Profit</span>
         </h3>
-        <p className="text-lg font-semibold text-gray-700 mb-6">
+        <p className="text-sm sm:text-lg font-semibold text-gray-700 mb-4 sm:mb-6 leading-relaxed">
           {conclusionText}
         </p>
 
-        <h4 className="text-md font-semibold text-gray-600 mb-2 border-b pb-1">
+        <h4 className="text-sm sm:text-md font-semibold text-gray-600 mb-2 border-b pb-1">
           Financial Status Based on Service Period:
         </h4>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {/* Key Threshold 1: Initial Profit */}
-          <div className="flex items-start">
+          <div className="flex flex-col xs:flex-row xs:items-start">
             {/* ⚠️ CHANGE: Updated Label */}
-            <span className="text-sm font-medium w-32 text-gray-500">
+            <span className="text-xs sm:text-sm font-medium xs:w-32 text-gray-500 mb-1 xs:mb-0">
               Service until {predictiveStatements[0].time}:
             </span>
             <span
-              className={`text-md font-bold ${predictiveStatements[0].color} ml-4`}
+              className={`text-sm sm:text-md font-bold ${predictiveStatements[0].color} xs:ml-4`}
             >
               {predictiveStatements[0].status}
             </span>
           </div>
 
           {/* Key Threshold 2: Long-Term Profit */}
-          <div className="flex items-start">
+          <div className="flex flex-col xs:flex-row xs:items-start">
             {/* ⚠️ CHANGE: Updated Label */}
-            <span className="text-sm font-medium w-32 text-gray-500">
+            <span className="text-xs sm:text-sm font-medium xs:w-32 text-gray-500 mb-1 xs:mb-0">
               Service until {predictiveStatements[1].time}:
             </span>
             <span
-              className={`text-md font-bold ${predictiveStatements[1].color} ml-4`}
+              className={`text-sm sm:text-md font-bold ${predictiveStatements[1].color} xs:ml-4`}
             >
               {predictiveStatements[1].status}
             </span>
           </div>
         </div>
       </div>
-      <p className="text-xs text-gray-400 mt-4 pt-2 border-t">
+      <p className="text-xs text-gray-400 mt-3 sm:mt-4 pt-2 border-t">
         *Projections are based on the current EHC and Monthly Value per Scholar
         inputs.
       </p>
@@ -270,134 +273,131 @@ const ROIandAnalytics: React.FC = () => {
 
   return (
     <div
-      className={`${
+      className={`min-h-screen bg-white ${
         collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
-      } transition-all duration-300`}
+      } transition-all duration-300 overflow-x-hidden`}
     >
-      <Navbar pageName="Scholarship Analytics" />{" "}
-      <div className="pt-2 px-6 max-w-[1900px] mx-auto">
-        {" "}
-        <p className="text-gray-600 mb-6">
-          This page provides a comprehensive overview of the scholarship
-          program's financial impact. It tracks the total investment and
-          calculates the hiring cost savings per scholar by comparing the value
-          they return to the estimated cost of hiring from external sources.{" "}
-        </p>
-        {/* INPUTS SECTION - Now a 2-column grid */}{" "}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {" "}
-          <div className="flex flex-col">
-            {" "}
-            <label
-              htmlFor="ehc-input"
-              className="text-sm font-medium text-blue-700 mb-1"
-            >
-              Estimated External Hiring Cost (EHC) per Employee Hire{" "}
-            </label>{" "}
-            <input
-              id="ehc-input"
-              type="number"
-              value={estimatedEHCCost}
-              onChange={handleInputChange(setEstimatedEHCCost)}
-              placeholder="e.g., 550000"
-              className="p-2 border border-blue-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              min="1"
-            />{" "}
-            <p className="text-xs text-gray-500 mt-1">
-              This value is treated as an initial gain/cost avoidance per
-              successful hire.{" "}
-            </p>{" "}
-          </div>{" "}
-          <div className="flex flex-col">
-            {" "}
-            <label
-              htmlFor="return-input"
-              className="text-sm font-medium text-blue-700 mb-1"
-            >
-              Average monthly value per scholar (Gains from Investment +
-              Post-Absorption){" "}
-            </label>{" "}
-            <input
-              id="return-input"
-              type="number"
-              value={avgMonthlyValuePerScholarInput}
-              onChange={handleInputChange(setAvgMonthlyValuePerScholarInput)}
-              placeholder="e.g., 60000"
-              className="p-2 border border-blue-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              min="1"
-            />{" "}
-            <p className="text-xs text-gray-500 mt-1">
-              This value drives the Total ROI (Annualized) and Break-Even
-              Length.{" "}
-            </p>{" "}
-          </div>{" "}
-        </div>{" "}
-      </div>
-      <Sidebar />{" "}
+      <Navbar pageName="Scholarship Analytics" />
+      <Sidebar />
+
       <div className="flex-1 flex flex-col">
-        {" "}
-        <div className="pt-2 p-6 flex-1 overflow-auto">
-          {" "}
+        <div className="pt-2 sm:px-4 lg:px-6 flex-1 overflow-auto">
           <div className="max-w-[1900px] mx-auto">
-            {/* TOP METRICS ROW - Reduced to 6 cards */}{" "}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-              {" "}
+            {/* INPUTS SECTION - Responsive with glass morphism */}
+            <div className="bg-white/70 backdrop-blur-md border border-white/30 rounded-xl shadow-lg p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mx-1 sm:mx-0">
+              <div className="flex flex-col">
+                <label
+                  htmlFor="ehc-input"
+                  className="text-xs sm:text-sm font-medium text-blue-700 mb-1 sm:mb-2"
+                >
+                  <span className="hidden sm:inline">
+                    Estimated External Hiring Cost (EHC) per Employee Hire
+                  </span>
+                  <span className="sm:hidden">EHC per Employee Hire</span>
+                </label>
+                <input
+                  id="ehc-input"
+                  type="number"
+                  value={estimatedEHCCost}
+                  onChange={handleInputChange(setEstimatedEHCCost)}
+                  placeholder="e.g., 550000"
+                  className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"
+                  min="1"
+                />
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  Initial gain/cost avoidance per successful hire.
+                </p>
+              </div>
+              <div className="flex flex-col">
+                <label
+                  htmlFor="return-input"
+                  className="text-xs sm:text-sm font-medium text-blue-700 mb-1 sm:mb-2"
+                >
+                  <span className="hidden sm:inline">
+                    Average monthly value per scholar (Gains from Investment +
+                    Post-Absorption)
+                  </span>
+                  <span className="sm:hidden">Monthly Value per Scholar</span>
+                </label>
+                <input
+                  id="return-input"
+                  type="number"
+                  value={avgMonthlyValuePerScholarInput}
+                  onChange={handleInputChange(
+                    setAvgMonthlyValuePerScholarInput
+                  )}
+                  placeholder="e.g., 60000"
+                  className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"
+                  min="1"
+                />
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  Drives Total ROI and Break-Even Length.
+                </p>
+              </div>
+            </div>
+
+            {/* TOP METRICS ROW - Responsive grid */}
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 mx-1 sm:mx-0">
               <MetricCard
-                title="Total Investment (Annualized)"
+                title="Total Investment"
                 value={formatCurrencyShort(totalInvestment)}
                 icon={<DollarSignIcon />}
                 change={0}
-              />{" "}
+              />
               <MetricCard
-                title="Scholarship Program ROI (Annualized)"
+                title="Program ROI"
                 value={`${overallROI.toFixed(1)}%`}
                 icon={<PieChartIcon />}
-              />{" "}
+              />
               <MetricCard
-                title="Total Annual Profit/Savings"
+                title="Annual Profit/Savings"
                 value={formatCurrencyShort(totalSavingsOrProfit)}
                 icon={<DollarSignIcon />}
-              />{" "}
+              />
               <MetricCard
-                title="Total Initial Savings (EHC Avoidance)"
+                title="Initial Savings (EHC)"
                 value={formatCurrencyShort(totalCostAvoidanceEHC)}
                 icon={<DollarSignIcon />}
-              />{" "}
+              />
               <MetricCard
-                title="Average Break-Even Length"
+                title="Break-Even Length"
                 value={`${avgBreakEven.toFixed(1)} Months`}
                 icon={<TrendingUpIcon />}
-              />{" "}
+              />
               <MetricCard
                 title="Avg Investment per Scholar"
                 value={formatCurrencyAverage(avgInvestmentPerScholar)}
                 icon={<DollarSignIcon />}
                 change={0}
-              />{" "}
+              />
             </div>
-            {/* Main Charts Row */}{" "}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {" "}
-              <div className="bg-white rounded-lg shadow-sm p-4 lg:col-span-2 h-full">
-                {" "}
-                <h3 className="text-lg text-center font-semibold mb-4">
-                  Cumulative Net Value Over Time (Break-Even Analysis){" "}
-                </h3>{" "}
-                <div className="h-[350px]">
-                  <LineGraph data={roiTimeSeries} />{" "}
-                </div>{" "}
-              </div>{" "}
+
+            {/* Main Charts Row - Responsive layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mx-1 mb-3 sm:mx-0">
+              {/* Line Graph Chart */}
+              <div className="bg-white/70 backdrop-blur-md border border-white/30 rounded-xl shadow-lg p-3 sm:p-4 lg:col-span-2 h-full">
+                <h3 className="text-sm sm:text-lg text-center font-semibold mb-3 sm:mb-4 text-gray-800">
+                  <span className="hidden sm:inline">
+                    Cumulative Net Value Over Time (Break-Even Analysis)
+                  </span>
+                  <span className="sm:hidden">Break-Even Analysis</span>
+                </h3>
+                <div className="h-[200px] xs:h-[250px] sm:h-[300px] lg:h-[350px]">
+                  <LineGraph data={roiTimeSeries} />
+                </div>
+              </div>
+
+              {/* Retention Projection Card */}
               <div className="lg:col-span-2">
-                {/* REPLACEMENT FOR DONUT CHART */}{" "}
                 <RetentionProjectionCard
                   avgBreakEven={avgBreakEven}
                   TrendingUpIcon={TrendingUpIcon}
-                />{" "}
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
-        </div>{" "}
-      </div>{" "}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

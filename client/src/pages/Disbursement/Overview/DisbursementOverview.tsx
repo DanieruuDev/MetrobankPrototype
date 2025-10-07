@@ -205,7 +205,7 @@ const DisbursementOverview = () => {
   }, [searchTerm, filters.schoolYear, filters.branch, filters.year]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen ">
       <Sidebar />
 
       <div
