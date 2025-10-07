@@ -710,7 +710,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         {/* Modern Renewal Information Section */}
         <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-slate-200">
           {/* Modern Header Section */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+          <div className="flex justify-between items-center mb-6 gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg
@@ -731,9 +731,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 <h1 className="text-lg sm:text-xl font-bold text-slate-800">
                   Renewal Information
                 </h1>
-                <p className="text-sm text-slate-600">
-                  Manage scholarship renewal process and validation
-                </p>
               </div>
             </div>
 

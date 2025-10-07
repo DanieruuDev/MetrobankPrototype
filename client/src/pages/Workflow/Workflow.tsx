@@ -239,7 +239,7 @@ function Workflow() {
         <div className="px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
           {/* Navigation Tabs */}
           <div className="mb-4 sm:mb-6">
-            <div className="flex items-center gap-1 sm:gap-2 p-1 bg-gray-100 rounded-full w-full sm:w-fit overflow-x-auto">
+            <div className="flex items-center gap-1 sm:gap-2 p-1 bg-gray-100 rounded-full w-fit overflow-x-auto">
               <NavLink
                 to={"/workflow-approval"}
                 className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all cursor-pointer bg-[#024FA8] text-white shadow-md whitespace-nowrap`}
