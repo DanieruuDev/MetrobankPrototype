@@ -148,6 +148,7 @@ function Request() {
       const response = await axios.get(
         `${VITE_BACKEND_URL}api/workflow/get-specific-request/${approverId}`
       );
+      console.log("Fetch detailed approvals", response.data);
       setSpecificRequest(response.data);
     } catch (error) {
       console.log(error);

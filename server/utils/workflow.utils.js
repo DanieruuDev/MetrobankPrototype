@@ -584,17 +584,17 @@ const handleReturnedCase = async (
       workflow_id,
       created_by,
       "Approver",
-      "Returned",
+      "Rejected",
       "Pending",
-      "Returned",
+      "Rejected",
       comment
     );
 
     // 3. Notification
     await createNotification({
-      type: "WORKFLOW_RETURNED",
-      title: "Workflow Returned",
-      message: `Your workflow has been returned. Reason: ${comment}`,
+      type: "WORKFLOW_REJECTED",
+      title: "Workflow Rejected",
+      message: `Your workflow has been rejected. Reason: ${comment}, see workflow for more info`,
       relatedId: workflow_id,
       actorId: created_by,
       actionRequired: true,
