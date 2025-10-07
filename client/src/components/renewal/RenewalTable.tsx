@@ -230,77 +230,83 @@ function RenewalTable({
   };
 
   return (
-    <div>
+    <div className="w-full overflow-hidden bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
       <form>
-        <table>
-          <thead className="bg-[#EFEFEF] h-[58px]">
-            <tr className="text-[#565656] text-[14px] font-regular text-left">
-              {isEdit && <th className="sticky left-0 bg-[#EFEFEF]"></th>}
-              {Object.entries(tableHead).map(([key, value]) => (
-                <th
-                  key={key}
-                  className={`min-w-[170px] first:rounded-l-[10px] last:rounded-r-[10px] px-6 ${
-                    isEdit
-                      ? key === "scholar_name"
-                        ? "sticky left-[92px] bg-[#EFEFEF]"
-                        : ""
-                      : key === "scholar_name"
-                      ? "sticky left-0 bg-[#EFEFEF]"
-                      : ""
-                  }`}
-                >
-                  {value}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tempRenewalData.map((renewal, index) => (
-              <tr
-                key={index}
-                className="border-b border-b-[#D9D9D9] text-[#676767] text-[14px] group hover:bg-[#f4f4f4] cursor-pointer"
-                onClick={() =>
-                  isEdit
-                    ? undefined
-                    : handleRowClick(renewal.student_id, renewal.renewal_id)
-                }
-              >
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50/80 backdrop-blur-sm">
+              <tr className="text-slate-700 text-xs sm:text-sm font-medium text-left">
                 {isEdit && (
-                  <td className="px-6 py-2 sticky left-0 bg-white">
-                    <button
-                      type="button"
-                      disabled={
-                        !isEdit ||
-                        !hasValidationChanges(renewal.student_id) ||
-                        hasNotStartedValidation(renewal.student_id)
-                      }
-                      className={`p-2 rounded-sm text-white cursor-pointer ${
-                        !isEdit ||
-                        !hasValidationChanges(renewal.student_id) ||
-                        hasNotStartedValidation(renewal.student_id)
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-green-500 hover:bg-green-600"
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-
-                        saveChange(renewal.student_id);
-                      }}
-                    >
-                      Save
-                    </button>
-                  </td>
+                  <th
+                    className="px-2 sm:px-3 lg:px-5 py-2 sm:py-3 text-center border border-gray-300"
+                    key="blank"
+                  ></th>
                 )}
-                {Object.keys(tableHead).map((key) => (
-                  <td
+                {Object.entries(tableHead).map(([key, value]) => (
+                  <th
                     key={key}
-                    className={`px-6 py-3 truncate max-w-[170px] ${
-                      key === "scholar_name"
-                        ? isEdit
-                          ? "sticky left-[92px] bg-white group-hover:bg-[#f4f4f4]"
-                          : "sticky left-0 bg-white group-hover:bg-[#f4f4f4]"
+                    className={`px-2 sm:px-3 lg:px-5 py-2 sm:py-3 text-center border border-gray-300 ${
+                      key === "scholar_name" && isEdit
+                        ? "sticky left-[60px] sm:left-[80px] lg:left-[92px] bg-slate-50/80 backdrop-blur-sm z-10 shadow-md"
+                        : key === "scholar_name"
+                        ? "sticky left-0 bg-slate-50/80 backdrop-blur-sm z-10 shadow-md"
                         : ""
-                    } 
+                    }`}
+                  >
+                    <div className="truncate" title={value}>
+                      {value}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-slate-200 text-[12px] sm:text-[14px]">
+              {tempRenewalData.map((renewal, index) => (
+                <tr
+                  key={index}
+                  className="cursor-pointer group border border-gray-300"
+                  onClick={() =>
+                    isEdit
+                      ? undefined
+                      : handleRowClick(renewal.student_id, renewal.renewal_id)
+                  }
+                >
+                  {isEdit && (
+                    <td className="px-4 group-hover:bg-gray-100" key="blank">
+                      <button
+                        type="button"
+                        disabled={
+                          !isEdit ||
+                          !hasValidationChanges(renewal.student_id) ||
+                          hasNotStartedValidation(renewal.student_id)
+                        }
+                        className={`p-1 sm:p-2 rounded-lg text-white cursor-pointer text-xs sm:text-sm transition-all duration-200 ${
+                          !isEdit ||
+                          !hasValidationChanges(renewal.student_id) ||
+                          hasNotStartedValidation(renewal.student_id)
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          saveChange(renewal.student_id);
+                        }}
+                      >
+                        Save
+                      </button>
+                    </td>
+                  )}
+                  {Object.keys(tableHead).map((key) => (
+                    <td
+                      key={key}
+                      className={`px-2 sm:px-3 lg:px-5 py-2 sm:py-3 border border-gray-300 group-hover:bg-gray-100 ${
+                        key === "scholar_name"
+                          ? isEdit
+                            ? "sticky left-[60px] sm:left-[80px] lg:left-[92px] bg-white group-hover:bg-gray-100 z-10 shadow-md"
+                            : "sticky left-0 bg-white group-hover:bg-gray-100 z-10 shadow-md"
+                          : ""
+                      } 
     ${
       key in validation
         ? renewal[key as keyof RenewalDetails] === "Failed" ||
@@ -308,84 +314,92 @@ function RenewalTable({
           ? "text-red-500 font-semibold"
           : renewal[key as keyof RenewalDetails] === "Passed"
           ? "text-green-600 font-semibold"
-          : "text-gray-500"
+          : "text-slate-500"
         : ""
     }`}
-                  >
-                    {isEdit ? (
-                      key in validation &&
-                      key !== "gpa_validation_stat" &&
-                      key !== "scholarship_status" ? (
-                        <select
-                          value={
-                            renewal[key as keyof RenewalDetails]?.toString() ||
-                            ""
-                          }
-                          onChange={(e) => {
-                            setTempRenewalData((prev) =>
-                              prev.map((student) =>
-                                student.student_id === renewal.student_id
-                                  ? { ...student, [key]: e.target.value }
-                                  : student
+                    >
+                      {isEdit ? (
+                        key in validation &&
+                        key !== "gpa_validation_stat" &&
+                        key !== "scholarship_status" ? (
+                          <select
+                            value={
+                              renewal[
+                                key as keyof RenewalDetails
+                              ]?.toString() || ""
+                            }
+                            onChange={(e) => {
+                              setTempRenewalData((prev) =>
+                                prev.map((student) =>
+                                  student.student_id === renewal.student_id
+                                    ? { ...student, [key]: e.target.value }
+                                    : student
+                                )
+                              );
+                              updateDelistingInfo(renewal.student_id);
+                            }}
+                            className="border border-gray-300 rounded-sm p-1 text-xs sm:text-sm w-full"
+                          >
+                            <option value="Not Started">Not Started</option>
+                            <option value="Passed">Passed</option>
+                            <option value="Failed">Failed</option>
+                          </select>
+                        ) : key === "gpa" ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="4.0"
+                            pattern="^[0-4](\.\d{1,2})?$"
+                            value={renewal.gpa?.toString() || ""}
+                            onChange={(e) =>
+                              handleGpaChange(
+                                renewal.student_id,
+                                e.target.value
                               )
-                            );
-                            updateDelistingInfo(renewal.student_id);
-                          }}
-                          className="border rounded p-1"
-                        >
-                          <option value="Not Started">Not Started</option>
-                          <option value="Passed">Passed</option>
-                          <option value="Failed">Failed</option>
-                        </select>
-                      ) : key === "gpa" ? (
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="4.0"
-                          pattern="^[0-4](\.\d{1,2})?$"
-                          value={renewal.gpa?.toString() || ""}
-                          onChange={(e) =>
-                            handleGpaChange(renewal.student_id, e.target.value)
-                          }
-                          className="border rounded p-1 w-16 text-center"
-                        />
-                      ) : key === "delisting_root_cause" &&
-                        renewal.scholarship_status === "Delisted" ? (
-                        <textarea
-                          value={
-                            renewal[key as keyof RenewalDetails]?.toString() ||
-                            ""
-                          }
-                          onChange={(e) =>
-                            setTempRenewalData((prev) =>
-                              prev
-                                ? prev.map((student) =>
-                                    student.student_id === renewal.student_id
-                                      ? {
-                                          ...student,
-                                          delisting_root_cause: e.target.value,
-                                        }
-                                      : student
-                                  )
-                                : []
-                            )
-                          }
-                          className="border border-gray-300 rounded-lg p-2 w-full text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
-                          rows={1}
-                        />
+                            }
+                            className="border border-gray-300 rounded-sm p-1 w-12 sm:w-16 text-center text-xs sm:text-sm"
+                          />
+                        ) : key === "delisting_root_cause" &&
+                          renewal.scholarship_status === "Delisted" ? (
+                          <textarea
+                            value={
+                              renewal[
+                                key as keyof RenewalDetails
+                              ]?.toString() || ""
+                            }
+                            onChange={(e) =>
+                              setTempRenewalData((prev) =>
+                                prev
+                                  ? prev.map((student) =>
+                                      student.student_id === renewal.student_id
+                                        ? {
+                                            ...student,
+                                            delisting_root_cause:
+                                              e.target.value,
+                                          }
+                                        : student
+                                    )
+                                  : []
+                              )
+                            }
+                            className="border border-gray-300 rounded-sm p-1 sm:p-2 w-full text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-xs sm:text-sm"
+                            rows={1}
+                          />
+                        ) : (
+                          renewal[key as keyof RenewalDetails]?.toString() ||
+                          "-"
+                        )
                       ) : (
                         renewal[key as keyof RenewalDetails]?.toString() || "-"
-                      )
-                    ) : (
-                      renewal[key as keyof RenewalDetails]?.toString() || "-"
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </form>
     </div>
   );

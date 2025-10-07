@@ -189,11 +189,11 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   return (
     <div
       key={day.toString()}
-      className={`min-h-[100px] border flex flex-col items-start justify-start cursor-pointer transition-all text-[15px]
+      className={`min-h-[120px] sm:min-h-[100px] border-r border-b border-gray-200 sm:border flex flex-col items-start justify-start cursor-pointer transition-all text-[15px]
         ${
           isSelected && !isToday
-            ? "border-2 border-blue-500"
-            : "border-gray-300"
+            ? "sm:border-2 sm:border-blue-500"
+            : "sm:border-gray-300"
         }
         ${
           !isSameMonth(day, currentDate)
@@ -204,18 +204,20 @@ const RenderDayCell: React.FC<DayCellProps> = ({
       onClick={() => handleDateSelect(day)}
     >
       <div
-        className={`text-sm font-medium flex items-center justify-center mx-2 mt-2 ${
-          isToday ? "bg-blue-500 text-white w-6 h-6 rounded-xl" : ""
+        className={`text-base sm:text-sm font-medium flex items-center justify-center mx-2 mt-2 sm:mt-1 ${
+          isToday
+            ? "bg-blue-500 text-white w-7 h-7 sm:w-6 sm:h-6 rounded-xl"
+            : ""
         }`}
       >
         {format(day, "d")}
       </div>
 
-      <div className="mt-1 overflow-hidden w-full">
+      <div className="mt-2 sm:mt-1 overflow-hidden w-full px-1 sm:px-0">
         {daySchedules.map((schedule) => (
           <div
             key={schedule.sched_id}
-            className="text-xs py-1 px-2 mb-1 rounded-xl text-white text-[10px] font-medium truncate relative cursor-pointer hover:opacity-90"
+            className="text-xs sm:text-[10px] py-1.5 sm:py-1 px-2 mb-1.5 sm:mb-1 rounded-xl text-white font-medium truncate relative cursor-pointer hover:opacity-90"
             style={{
               backgroundColor: getBadgeColor(schedule.disbursement_label),
             }}

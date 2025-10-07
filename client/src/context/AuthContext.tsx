@@ -1,4 +1,10 @@
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 
@@ -57,23 +63,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [info, setInfo] = useState<Info | null>(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const fetchUserInfo = async (authToken: string | null) => {
-    if (!authToken) return null;
-    try {
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/auth/user-info`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Failed to fetch user info:", error);
-      return null;
-    }
-  };
+
+  const fetchUserInfo = useCallback(
+    async (authToken: string | null) => {
+      if (!authToken) return null;
+      try {
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/auth/user-info`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
+        );
+        return response.data;
+      } catch (error) {
+        console.error("Failed to fetch user info:", error);
+        return null;
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
 
   useEffect(() => {
     const loadUser = async () => {
@@ -114,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     loadUser();
-  }, []);
+  }, [fetchUserInfo]);
 
   const login = async (authToken: string) => {
     try {
@@ -176,4 +186,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
+};
+
+// Custom hook to use the auth context
+export const useAuth = (): AuthContextType => {
+  const context = React.useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };

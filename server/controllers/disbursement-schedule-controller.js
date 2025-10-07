@@ -314,13 +314,15 @@ const fetchDetailSchedule = async (req, res) => {
 const fetchWeeklyDisbursementSchedules = async (req, res) => {
   try {
     const baseDate = req.params.week ? new Date(req.params.week) : new Date();
+    const userId = req.query.user_id; // Get user_id from query parameters
 
     const start = new Date(baseDate);
     const end = new Date(baseDate);
 
+    // For agenda view, fetch a broader range (4 weeks) to show upcoming events
     const dayOfWeek = start.getDay();
-    start.setDate(start.getDate() - dayOfWeek);
-    end.setDate(start.getDate() + 6);
+    start.setDate(start.getDate() - dayOfWeek); // Start of current week
+    end.setDate(start.getDate() + 27); // 4 weeks ahead (28 days)
 
     const formatDate = (date) => {
       const year = date.getFullYear();
@@ -329,17 +331,24 @@ const fetchWeeklyDisbursementSchedules = async (req, res) => {
       return `${year}-${month}-${day}`;
     };
 
-    const query = `
+    // Build query with optional user filter
+    let query = `
       SELECT * 
       FROM vw_disb_calendar_sched
       WHERE schedule_due BETWEEN $1 AND $2
-      ORDER BY schedule_due ASC
     `;
 
-    const result = await pool.query(query, [
-      formatDate(start),
-      formatDate(end),
-    ]);
+    const queryParams = [formatDate(start), formatDate(end)];
+
+    // Add user filter if user_id is provided
+    if (userId) {
+      query += ` AND admin_id = $3`;
+      queryParams.push(userId);
+    }
+
+    query += ` ORDER BY schedule_due ASC`;
+
+    const result = await pool.query(query, queryParams);
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching weekly schedules:", error);

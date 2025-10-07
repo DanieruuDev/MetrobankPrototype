@@ -73,8 +73,8 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-md p-4 shadow-lg">
+    <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-md p-3 sm:p-4 shadow-lg max-h-[90vh] overflow-y-auto">
         {/* Header with title and close button */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium text-gray-700">Filter</h2>
@@ -99,10 +99,10 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
               setCampusDropdownOpen(false);
             }}
           >
-            <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
-              Year Level Renewal
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-gray-600 text-xs sm:text-sm w-1/2">
+              School Year Renewal
             </div>
-            <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-xs sm:text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {schoolYear || (
                   <span className="text-gray-400">Enter School Year Basis</span>
@@ -130,7 +130,7 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
               {schoolYearOptions.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setSchoolYear(option);
                     setSchoolYearDropdownOpen(false);
@@ -185,7 +185,7 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
               {yearLevelOptions.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setYearLevel(option);
                     setYearLevelDropdownOpen(false);
@@ -240,7 +240,7 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
               {semesterOptions.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setSemester(option);
                     setSemesterDropdownOpen(false);
@@ -293,7 +293,7 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
               {campusOption.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setCampus(option);
                     setCampusDropdownOpen(false);
@@ -309,7 +309,7 @@ const ScholarshipFilterModal: React.FC<FilterModalProps> = ({
         {/* Generate Report Button */}
         <div className="flex justify-center">
           <button
-            className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors"
+            className="w-full py-2 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-xs sm:text-sm font-medium transition-colors"
             onClick={() => {
               console.log("Complete");
               filterRenewalData(

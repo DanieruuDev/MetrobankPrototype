@@ -3,7 +3,7 @@ const pool = require("../database/dbConnect.js");
 const getSchoolYear = async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM maintenance_sy ORDER BY school_year DESC"
+      "SELECT sy_code as school_year FROM maintenance_sy ORDER BY sy_code DESC"
     );
     res.json(result.rows);
   } catch (err) {
@@ -15,7 +15,7 @@ const getSchoolYear = async (req, res) => {
 const getYearLevel = async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM maintenance_yr_lvl ORDER BY yr_lvl"
+      "SELECT yr_lvl_code as yr_lvl FROM maintenance_yr_lvl ORDER BY yr_lvl_code"
     );
     res.json(result.rows);
   } catch (err) {

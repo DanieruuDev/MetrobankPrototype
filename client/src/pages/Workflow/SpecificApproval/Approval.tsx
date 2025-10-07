@@ -14,7 +14,6 @@ import {
   X,
   Check,
   ArrowLeft,
-  User,
   Info,
   ChevronUp,
   ChevronDown,
@@ -28,6 +27,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/shared/Navbar";
 import { useSidebar } from "../../../context/SidebarContext";
 import Sidebar from "../../../components/shared/Sidebar";
+import Loading from "../../../components/shared/Loading";
 
 function Approval() {
   const { workflow_id } = useParams();
@@ -226,9 +226,15 @@ function Approval() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[88vh]">
-        <div className="animate-pulse text-lg text-gray-600">
-          Loading workflow details...
+      <div
+        className={`${
+          collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
+        } transition-all duration-300 min-h-screen`}
+      >
+        <Navbar pageName="Approvals" />
+        <Sidebar />
+        <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
+          <Loading />
         </div>
       </div>
     );
@@ -236,8 +242,20 @@ function Approval() {
 
   if (!workflow) {
     return (
-      <div className="flex items-center justify-center min-h-[88vh]">
-        <div className="text-red-500 text-lg">No workflow data available.</div>
+      <div
+        className={`${
+          collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
+        } transition-all duration-300 min-h-screen`}
+      >
+        <Navbar pageName="Approvals" />
+        <Sidebar />
+        <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-red-500 text-lg">
+              No workflow data available.
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -265,82 +283,32 @@ function Approval() {
   return (
     <div
       className={`${
-        collapsed ? "pl-20" : "pl-[250px]"
-      } transition-all duration-300 bg-gray-50 min-h-screen`}
+        collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
+      } transition-all duration-300  min-h-screen`}
     >
       <Navbar pageName="Approvals" />
 
       <Sidebar />
-      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 xl:px-8">
         {/* Header Card */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-          <div className="p-6 md:p-8">
-            <div className="flex flex-col space-y-4">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={handleBack}
-                  className="flex items-center text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                >
-                  <ArrowLeft className="w-5 h-5 mr-2" />
-                  <span className="font-medium">Back to workflows</span>
-                </button>
-
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      workflow?.status === "Completed"
-                        ? "bg-green-100 text-green-800"
-                        : workflow?.status === "Pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : workflow?.status === "In Progress"
-                        ? "bg-blue-100 text-blue-800"
-                        : workflow?.status === "Failed"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {workflow?.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
-                    {workflow?.request_title}
-                    <span className="text-blue-600 ml-2">
-                      #{workflow?.workflow_id}
-                    </span>
-                  </h1>
-                </div>
-
-                <div className="mt-4 md:mt-0 flex-shrink-0">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-blue-50 p-2 rounded-lg">
-                      <User className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Requester</p>
-                      <p className="font-medium text-gray-800 truncate max-w-48">
-                        {workflow?.requester_email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="mb-4 mt-4 sm:mb-6">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 px-1  py-2 text-xs sm:text-sm font-medium"
+          >
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform duration-200" />
+          </button>
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-300 overflow-hidden">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-6">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-lg overflow-hidden">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center mb-4 sm:mb-6">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0"
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mr-2 flex-shrink-0"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
@@ -350,11 +318,12 @@ function Approval() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  Approval Progress
+
+                  <span className="xs:hidden">Progress</span>
                 </h2>
 
                 {/* Progress Bar - Fixed width constraints to prevent layout shift */}
-                <div className="mb-8 ml-10">
+                <div className="mb-6 sm:mb-8 ml-6 sm:ml-10">
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
                       <div className="min-w-0">
@@ -365,13 +334,13 @@ function Approval() {
                         ) : (
                           <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200 whitespace-nowrap">
                             {Math.round(calculateCompletionPercentage())}%
-                            Complete
+                            <span className="hidden xs:inline"> Complete</span>
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 w-full">
+                    <div className="overflow-hidden h-1.5 sm:h-2 mb-3 sm:mb-4 text-xs flex rounded bg-gray-200 w-full">
                       <div
                         style={{
                           width:
@@ -401,20 +370,20 @@ function Approval() {
                     }}
                   ></div>
 
-                  <div className="space-y-8">
+                  <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                     {/* Started */}
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full bg-green-100 border-4 border-white">
-                        <Check className="w-5 h-5 text-green-600" />
+                    <div className="relative pl-6 sm:pl-8 lg:pl-10">
+                      <div className="absolute left-0 top-0 flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-green-500/80 backdrop-blur-sm border-2 sm:border-4 border-white/50 shadow-lg">
+                        <Check className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-600" />
                       </div>
-                      <div className="min-h-[80px]">
-                        <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                      <div className="min-h-[50px] sm:min-h-[60px] lg:min-h-[80px]">
+                        <div className="bg-green-500/10 backdrop-blur-sm p-2 sm:p-3 lg:p-4 rounded-lg border border-green-400/30">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="font-medium text-gray-900">
+                              <h3 className="text-xs sm:text-sm lg:text-base font-medium text-gray-900">
                                 Started
                               </h3>
-                              <p className="text-sm text-gray-500 mt-1">
+                              <p className="text-xs text-gray-500 mt-1">
                                 {formatDate(workflow?.created_at)}
                               </p>
                             </div>
@@ -445,31 +414,31 @@ function Approval() {
                         return (
                           <div
                             key={approver.approver_id}
-                            className="relative pl-10"
+                            className="relative pl-6 sm:pl-8 lg:pl-10"
                           >
                             {/* Step indicator */}
                             <div
-                              className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white transition-all duration-300 ${
+                              className={`absolute left-0 top-0 flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full border-2 sm:border-4 border-white/50 backdrop-blur-sm shadow-lg transition-all duration-300 ${
                                 isApproved
-                                  ? "bg-green-500"
+                                  ? "bg-green-500/80"
                                   : isCurrent
-                                  ? "bg-blue-500 animate-pulse"
+                                  ? "bg-blue-500/80 animate-pulse"
                                   : isPending
-                                  ? "bg-yellow-400"
+                                  ? "bg-yellow-400/80"
                                   : isRejected
-                                  ? "bg-red-500"
+                                  ? "bg-red-500/80"
                                   : isReturned
-                                  ? "bg-orange-500"
-                                  : "bg-gray-400"
+                                  ? "bg-orange-500/80"
+                                  : "bg-gray-400/80"
                               }`}
                             >
                               {isApproved ? (
-                                <Check className="w-5 h-5 text-white" />
+                                <Check className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white" />
                               ) : isRejected ? (
-                                <X className="w-5 h-5 text-white" />
+                                <X className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white" />
                               ) : isReturned ? (
                                 <svg
-                                  className="w-5 h-5 text-white"
+                                  className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white"
                                   fill="currentColor"
                                   viewBox="0 0 20 20"
                                 >
@@ -480,57 +449,57 @@ function Approval() {
                                   />
                                 </svg>
                               ) : (
-                                <span className="text-white font-medium">
+                                <span className="text-white font-medium text-xs sm:text-sm lg:text-base">
                                   {approver.approver_order}
                                 </span>
                               )}
                             </div>
 
                             {/* Step content - Added consistent min-height and width constraints */}
-                            <div className="min-h-[80px] transition-all duration-300 ease-in-out">
+                            <div className="min-h-[50px] sm:min-h-[60px] lg:min-h-[80px] transition-all duration-300 ease-in-out">
                               <div
-                                className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 w-full ${
+                                className={`p-2 sm:p-3 lg:p-4 rounded-lg border cursor-pointer transition-all duration-300 w-full backdrop-blur-sm ${
                                   expandedApproverId === approver.approver_id
                                     ? isApproved
-                                      ? "bg-green-50 border-green-100"
+                                      ? "bg-green-500/10 border-green-400/30"
                                       : isCurrent
-                                      ? "bg-blue-50 border-blue-100"
+                                      ? "bg-blue-500/10 border-blue-400/30"
                                       : isPending
-                                      ? "bg-yellow-50 border-yellow-100"
+                                      ? "bg-yellow-500/10 border-yellow-400/30"
                                       : isRejected
-                                      ? "bg-red-50 border-red-100"
+                                      ? "bg-red-500/10 border-red-400/30"
                                       : isReturned
-                                      ? "bg-orange-50 border-orange-200"
-                                      : "bg-gray-50 border-gray-100"
+                                      ? "bg-orange-500/10 border-orange-400/30"
+                                      : "bg-gray-500/10 border-gray-400/30"
                                     : isApproved
-                                    ? "bg-green-50 border-green-100"
+                                    ? "bg-green-500/10 border-green-400/30"
                                     : isCurrent
-                                    ? "bg-blue-50 border-blue-100"
+                                    ? "bg-blue-500/10 border-blue-400/30"
                                     : isPending
-                                    ? "bg-yellow-50 border-yellow-100"
+                                    ? "bg-yellow-500/10 border-yellow-400/30"
                                     : isRejected
-                                    ? "bg-red-50 border-red-100"
+                                    ? "bg-red-500/10 border-red-400/30"
                                     : isReturned
-                                    ? "bg-orange-50 border-orange-200"
-                                    : "bg-gray-50 border-gray-100"
+                                    ? "bg-orange-500/10 border-orange-400/30"
+                                    : "bg-gray-500/10 border-gray-400/30"
                                 }`}
                                 onClick={() =>
                                   toggleStepExpansion(approver.approver_id)
                                 }
                               >
-                                <div className="flex justify-between items-center">
-                                  <div className="flex-1 min-w-0 mr-4">
+                                <div className="flex flex-col xs:flex-row xs:justify-between xs:items-center gap-2">
+                                  <div className="flex-1 min-w-0 mr-2 sm:mr-4">
                                     {/* Approver info - Added proper text truncation */}
-                                    <div className="mb-2 flex items-start flex-wrap gap-2">
+                                    <div className="mb-1 sm:mb-2 flex items-start flex-wrap gap-1 sm:gap-2">
                                       <div className="min-w-0 flex-1">
-                                        <h3 className="font-medium text-gray-900 text-sm truncate">
+                                        <h3 className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                                           {approver.approver_name}
                                         </h3>
                                         <p className="text-xs text-gray-500 truncate">
                                           {approver.approver_email}
                                         </p>
                                       </div>
-                                      <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                                      <span className="bg-gray-100 text-gray-700 text-xs px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
                                         {approver.approver_role || "Approver"}
                                       </span>
                                     </div>
@@ -538,7 +507,7 @@ function Approval() {
                                     {/* Status chip */}
                                     <div className="flex items-center">
                                       <div
-                                        className={`flex items-center px-2 py-0.5 rounded-full ${
+                                        className={`flex items-center px-1.5 sm:px-2 py-0.5 rounded-full ${
                                           isApproved
                                             ? "bg-green-100"
                                             : isCurrent
@@ -553,7 +522,7 @@ function Approval() {
                                         }`}
                                       >
                                         <span
-                                          className={`text-sm font-medium whitespace-nowrap ${getStatusTextColor(
+                                          className={`text-xs sm:text-sm font-medium whitespace-nowrap ${getStatusTextColor(
                                             displayStatus === "Completed" &&
                                               approver.response === "Reject"
                                               ? "Reject"
@@ -569,23 +538,26 @@ function Approval() {
                                             : displayStatus}
                                         </span>
                                       </div>
-                                      <div className="text-[14px] ml-2">
-                                        Due Date: {approver.approver_due_date}
+                                      <div className="text-xs sm:text-sm ml-1 sm:ml-2">
+                                        <span className="hidden xs:inline">
+                                          Due Date:{" "}
+                                        </span>
+                                        {approver.approver_due_date}
                                       </div>
                                     </div>
                                   </div>
 
                                   <div className="flex items-center flex-shrink-0">
-                                    <div className="px-2 py-1 rounded-lg mr-2">
-                                      <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                    <div className="px-1.5 sm:px-2 py-0.5 rounded-lg mr-1 sm:mr-2">
+                                      <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
                                         Step {approver.approver_order}
                                       </span>
                                     </div>
                                     {expandedApproverId ===
                                     approver.approver_id ? (
-                                      <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                      <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
                                     ) : (
-                                      <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
                                     )}
                                   </div>
                                 </div>
@@ -594,7 +566,7 @@ function Approval() {
                               {(isReturned ||
                                 approver.return_feedback.length > 0) && (
                                 <div
-                                  className={`bg-orange-50 p-4 rounded-lg border border-orange-200 mt-2 transition-all duration-200 ${
+                                  className={`bg-orange-500/10 backdrop-blur-sm p-4 rounded-lg border border-orange-400/30 mt-2 transition-all duration-200 ${
                                     expandedApproverId ===
                                       approver.approver_id ||
                                     approver.approver_status === "Returned"
@@ -649,7 +621,7 @@ function Approval() {
                                             {formatDate(feedback.created_at)}
                                           </p>
                                         </div>
-                                        <p className="text-sm text-orange-800 bg-orange-50 p-3 rounded">
+                                        <p className="text-sm text-orange-800 bg-orange-500/10 backdrop-blur-sm p-3 rounded border border-orange-400/20">
                                           {feedback.reason}
                                         </p>
 
@@ -702,7 +674,7 @@ function Approval() {
                                                 Your Response
                                               </label>
                                               <textarea
-                                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                                className="w-full border border-white/30 bg-white/10 backdrop-blur-sm rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-400/50"
                                                 placeholder="Explain how you've addressed the concerns..."
                                                 rows={3}
                                                 value={returnedResponseComment}
@@ -719,7 +691,7 @@ function Approval() {
                                               <label className="block text-xs font-medium text-gray-700 mb-1">
                                                 Supporting Document (Optional)
                                               </label>
-                                              <div className="border-2 border-dashed border-gray-300 rounded p-3 text-center hover:border-orange-400 transition-colors">
+                                              <div className="border-2 border-dashed border-white/30 bg-white/5 backdrop-blur-sm rounded p-3 text-center hover:border-orange-400/50 transition-colors">
                                                 <input
                                                   type="file"
                                                   id={`file-${feedback.return_id}`}
@@ -780,7 +752,7 @@ function Approval() {
                                             </div>
 
                                             <button
-                                              className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium transition-colors duration-200 flex items-center justify-center"
+                                              className="w-full px-4 py-2 bg-orange-600/80 backdrop-blur-sm hover:bg-orange-700/80 text-white rounded text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-orange-500/30 shadow-lg hover:shadow-xl"
                                               disabled={isResponseLoading}
                                               onClick={(e) => {
                                                 e.stopPropagation();
@@ -825,7 +797,7 @@ function Approval() {
                                 <div className="mt-3 space-y-3 pl-4 animate-in slide-in-from-top-2 duration-300">
                                   {/* Response details only */}
                                   {approver.response !== "Pending" && (
-                                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                    <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/30">
                                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                                         Approval Details
                                       </h4>
@@ -862,7 +834,7 @@ function Approval() {
                                     approver.response !== "Returned" &&
                                     approver.approver_status !== "Canceled" && (
                                       <button
-                                        className="w-full px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-100"
+                                        className="w-full px-4 py-2 bg-red-500/10 backdrop-blur-sm hover:bg-red-500/20 text-red-600 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-400/30 shadow-lg hover:shadow-xl"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openModal(approver);
@@ -890,34 +862,38 @@ function Approval() {
                         );
                       })}
 
-                    {/* Ended - Added consistent min-height */}
-                    <div className="relative pl-10">
+                    {/* Ended - Consistent sizing with Started */}
+                    <div className="relative pl-6 sm:pl-8 lg:pl-10">
                       <div
-                        className={`absolute left-0 top-0 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white transition-all duration-300 ${
+                        className={`absolute left-0 top-0 flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full border-2 sm:border-4 border-white/50 backdrop-blur-sm shadow-lg transition-all duration-300 ${
                           sortedApprovers
                             .filter((a) => a.approver_status !== "Replaced")
                             .every((a) => a.approver_status === "Completed")
-                            ? "bg-green-500"
-                            : "bg-gray-400"
+                            ? "bg-green-500/80"
+                            : "bg-gray-400/80"
                         }`}
                       >
-                        <span className="text-white font-medium">E</span>
+                        <span className="text-white font-medium text-xs sm:text-sm lg:text-base">
+                          E
+                        </span>
                       </div>
-                      <div className="min-h-[80px]">
+                      <div className="min-h-[50px] sm:min-h-[60px] lg:min-h-[80px]">
                         <div
-                          className={`p-4 rounded-lg border ${
+                          className={`p-2 sm:p-3 lg:p-4 rounded-lg border backdrop-blur-sm ${
                             sortedApprovers.every(
                               (a) => a.approver_status === "Completed"
                             )
-                              ? "bg-green-50 border-green-100"
-                              : "bg-gray-50 border-gray-100"
+                              ? "bg-green-500/10 border-green-400/30"
+                              : "bg-gray-500/10 border-gray-400/30"
                           }`}
                         >
-                          <h3 className="font-medium text-gray-900">Ended</h3>
+                          <h3 className="text-xs sm:text-sm lg:text-base font-medium text-gray-900">
+                            Ended
+                          </h3>
                           {sortedApprovers.every(
                             (a) => a.approver_status === "Completed"
                           ) && (
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 mt-1">
                               Completed on {formatDate(workflow?.updated_at)}
                             </p>
                           )}
@@ -931,108 +907,165 @@ function Approval() {
           </div>
 
           <div className="lg:col-span-1 space-y-2 min-w-0">
-            <div className="overflow-hidden bg-white">
-              <div className="border border-gray-300 rounded-xl overflow-hidden">
-                <h2 className="text-sm font-semibold text-gray-600 flex items-center mb-4 bg-gray-100 p-4">
-                  <Info className="w-5 h-5 text-gray-600 mr-2 flex-shrink-0" />
-                  Request Details
-                </h2>
+            <div className="">
+              <div className="overflow-hidden">
+                {/* Header */}
+                <div className="bg-blue-500/10 backdrop-blur-sm px-6 py-4 border-b rounded-t-2xl border-white/30">
+                  <h2 className="text-base font-semibold text-gray-800 flex items-center">
+                    <Info className="w-5 h-5 text-blue-600 mr-3" />
+                    Details
+                  </h2>
+                </div>
 
-                <div className="divide-y divide-gray-200">
-                  {/* Due Date */}
-                  <div className="flex justify-between p-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Due Date
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 text-right truncate max-w-32">
-                      {formatDate(workflow?.due_date)}
-                    </p>
-                  </div>
-
-                  {/* Semester */}
-                  <div className="flex justify-between p-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Semester
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 text-right truncate max-w-32">
-                      {workflow?.semester}
-                    </p>
-                  </div>
-
-                  {/* School Year */}
-                  <div className="flex justify-between p-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      School Year
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 text-right truncate max-w-32">
-                      {workflow?.school_year}
-                    </p>
-                  </div>
-
-                  {/* Request Type */}
-                  <div className="flex justify-between p-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      Request Type
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 text-right break-words max-w-32">
-                      {workflow?.approval_req_type}
-                    </p>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-medium text-gray-500 p-4 space-y-2">
-                      <div>
-                        Description
-                        <div className="bg-gray-100 rounded-md p-2 text-[14px] break-words">
-                          {workflow?.rq_description}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-4 bg-gray-100 rounded-md p-4 overflow-hidden">
-                        <div className="flex items-center min-w-0">
-                          <div className="bg-blue-100 p-3 rounded-lg flex-shrink-0">
-                            <FileText className="w-6 h-6 text-blue-600" />
-                          </div>
-                          <div className="ml-3 min-w-0 flex-1">
-                            <p className="font-medium text-gray-900 truncate">
-                              {workflow?.doc_name}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatFileSize(workflow?.doc_size)}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={handleDownload}
-                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center justify-center transition duration-200 w-full"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </button>
+                {/* Request Title */}
+                <div className="px-6 py-4 bg-blue-200/10 backdrop-blur-sm border-b border-white/30">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        Workflow Title
+                      </p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {workflow?.request_title}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        Status
+                      </p>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          workflow?.status === "Completed"
+                            ? "bg-green-100 text-green-800"
+                            : workflow?.status === "Pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : workflow?.status === "In Progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : workflow?.status === "Failed"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {workflow?.status}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        Requester
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-gray-900 truncate">
+                          {workflow?.requester_email}
+                        </p>
                       </div>
                     </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        Workflow ID
+                      </p>
+                      <p className="text-sm text-gray-900 truncate">
+                        {workflow?.workflow_id}
+                      </p>
+                    </div>
                   </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-2  divide-y md:divide-y-0 md:divide-x divide-white/30 bg-blue-200/10 border-t-4 border-white">
+                  {/* Column 1 */}
+                  <div className="p-6 space-y-4">
+                    {/* Empty column - can be used for additional info if needed */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        Due Date
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {formatDate(workflow?.due_date)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-2 uppercase">
+                        Request Type
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {workflow?.approval_req_type}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Column 2 */}
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-2 uppercase">
+                        Semester
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {workflow?.semester}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-2 uppercase">
+                        School Year
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {workflow?.school_year}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="px-6 py-4 bg-blue-200/10 backdrop-blur-sm border-t-3 border-white">
+                  <p className="text-xs font-medium uppercase text-gray-500 mb-2">
+                    Description
+                  </p>
+                  <p className="text-sm">{workflow?.rq_description}</p>
+                </div>
+
+                {/* Attachments */}
+                <div className="px-6 py-4 border-t-3 bg-blue-200/10 border-white">
+                  <p className="text-xs uppercase  font-medium text-gray-500 mb-3">
+                    Attachments
+                  </p>
+                  <div className="flex items-center gap-3 mb-3">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <p className="text-sm text-gray-900">
+                        {workflow?.doc_name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(workflow?.doc_size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleDownload}
+                    className="bg-blue-600/80 backdrop-blur-sm hover:bg-blue-700/80 text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center gap-2 transition duration-200 border border-blue-500/30 shadow-lg hover:shadow-xl"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download File
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="border border-gray-300 bg-white p-4 rounded-xl">
-              <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <div className="bg-blue-200/10 backdrop-blur-md  shadow-lg p-3 sm:p-4 rounded-xl">
+              <p className="ml-1 uppercase text-xs mb-2 text-gray-500 font-medium">
+                Activity
+              </p>
+              <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-80 overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 {workflow?.logs?.map((log: WorkflowLog) => (
                   <div
                     key={log.log_id}
-                    className="flex items-start gap-3 border-b border-gray-200 pb-3 last:border-0"
+                    className="flex items-start gap-2 sm:gap-3 border-b border-white/20 pb-2 sm:pb-3 last:border-0"
                   >
                     {/* Avatar Circle */}
-                    <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-500/80 backdrop-blur-sm flex items-center justify-center text-white font-semibold flex-shrink-0 text-xs sm:text-sm border border-purple-400/30 shadow-lg">
                       {log.actor_name.charAt(0)}
                     </div>
 
                     {/* Log Details */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm">
+                      <p className="text-xs sm:text-sm">
                         <span className="font-medium truncate">
                           {log.actor_name}
                         </span>{" "}
@@ -1043,7 +1076,7 @@ function Approval() {
 
                       {/* Comments if available */}
                       {log.comments && (
-                        <p className="text-sm text-gray-500 italic break-words">
+                        <p className="text-xs sm:text-sm text-gray-500 italic break-words">
                           "{log.comments}"
                         </p>
                       )}

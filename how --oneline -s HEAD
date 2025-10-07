@@ -1,0 +1,52 @@
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{0}: reset: moving to origin/COAeventautomation
+[33m226a068[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{1}: reset: moving to origin/main
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{2}: checkout: moving from COAeventautomation to COAeventautomation
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{3}: checkout: moving from COAeventautomation to COAeventautomation
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{4}: checkout: moving from main to COAeventautomation
+[33m226a068[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{5}: pull origin main: Fast-forward
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{6}: checkout: moving from feature/disbursement-view to main
+[33m2ff1e5e[m[33m ([m[1;32mfeature/disbursement-view[m[33m)[m HEAD@{7}: reset: moving to 2ff1e5e
+[33m3bf4f04[m HEAD@{8}: reset: moving to 3bf4f04
+[33m4f31baf[m HEAD@{9}: pull origin main: Fast-forward
+[33m6903eaa[m[33m ([m[1;31morigin/feature/disbursement-view[m[33m)[m HEAD@{10}: checkout: moving from analyticsinput to feature/disbursement-view
+[33m5db4a8b[m[33m ([m[1;31morigin/analyticsinput[m[33m, [m[1;32manalyticsinput[m[33m)[m HEAD@{11}: checkout: moving from feature/disbursement-view to analyticsinput
+[33m6903eaa[m[33m ([m[1;31morigin/feature/disbursement-view[m[33m)[m HEAD@{12}: commit (merge): Merge branch 'main' of github.com:DanieruuDev/MetrobankPrototype into feature/disbursement-view
+[33mb222d31[m HEAD@{13}: commit: oks na to
+[33mbb0fd92[m[33m ([m[1;31morigin/feature/disbursement-overview-amount[m[33m, [m[1;32mfeature/disbursement-overview-amount[m[33m)[m HEAD@{14}: checkout: moving from feature/disbursement-overview-amount to feature/disbursement-view
+[33mbb0fd92[m[33m ([m[1;31morigin/feature/disbursement-overview-amount[m[33m, [m[1;32mfeature/disbursement-overview-amount[m[33m)[m HEAD@{15}: commit: okay na to lot legit
+[33m0fc3875[m HEAD@{16}: commit: oks na ya gana na
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{17}: checkout: moving from main to feature/disbursement-overview-amount
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{18}: checkout: moving from feature/disbursement-overview-amount to main
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{19}: checkout: moving from main to feature/disbursement-overview-amount
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{20}: checkout: moving from COAeventautomation to main
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{21}: checkout: moving from main to COAeventautomation
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{22}: checkout: moving from COAeventautomation to main
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{23}: checkout: moving from feature/disbursement-overview-amount to COAeventautomation
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{24}: checkout: moving from COAeventautomation to feature/disbursement-overview-amount
+[33m196bd3e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCOAeventautomation[m[33m, [m[1;31morigin/COAeventautomation[m[33m)[m HEAD@{25}: commit (merge): Merge branch 'main' of github.com:DanieruuDev/MetrobankPrototype into COAeventautomation
+[33ma5bdfa3[m HEAD@{26}: checkout: moving from main to COAeventautomation
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{27}: checkout: moving from renewal-switch-click to main
+[33md222dd8[m[33m ([m[1;31morigin/renewal-switch-click[m[33m, [m[1;32mrenewal-switch-click[m[33m)[m HEAD@{28}: checkout: moving from feature/approvals-date-logic1 to renewal-switch-click
+[33mabc89c1[m[33m ([m[1;31morigin/feature/approvals-date-logic1[m[33m, [m[1;32mfeature/approvals-date-logic1[m[33m)[m HEAD@{29}: checkout: moving from feature/disbursement-amount to feature/approvals-date-logic1
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{30}: reset: moving to HEAD
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{31}: checkout: moving from main to feature/disbursement-amount
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{32}: checkout: moving from feature/disbursement-amount to main
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{33}: checkout: moving from main to feature/disbursement-amount
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{34}: checkout: moving from renewal-switch-click to main
+[33md222dd8[m[33m ([m[1;31morigin/renewal-switch-click[m[33m, [m[1;32mrenewal-switch-click[m[33m)[m HEAD@{35}: checkout: moving from main to renewal-switch-click
+[33m88925ee[m[33m ([m[1;32mfeature/disbursement-amount[m[33m)[m HEAD@{36}: pull origin main: Fast-forward
+[33mb6df9d4[m[33m ([m[1;31morigin/approval-date-logic[m[33m)[m HEAD@{37}: checkout: moving from renewal-switch-click to main
+[33md222dd8[m[33m ([m[1;31morigin/renewal-switch-click[m[33m, [m[1;32mrenewal-switch-click[m[33m)[m HEAD@{38}: commit: oks na to ulit lot
+[33mbab9a45[m HEAD@{39}: commit: okay na lot
+[33mabc89c1[m[33m ([m[1;31morigin/feature/approvals-date-logic1[m[33m, [m[1;32mfeature/approvals-date-logic1[m[33m)[m HEAD@{40}: checkout: moving from feature/approvals-date-logic1 to renewal-switch-click
+[33mabc89c1[m[33m ([m[1;31morigin/feature/approvals-date-logic1[m[33m, [m[1;32mfeature/approvals-date-logic1[m[33m)[m HEAD@{41}: checkout: moving from feature/approvals-date-logic1 to feature/approvals-date-logic1
+[33mabc89c1[m[33m ([m[1;31morigin/feature/approvals-date-logic1[m[33m, [m[1;32mfeature/approvals-date-logic1[m[33m)[m HEAD@{42}: commit: fix logic date
+[33mb6df9d4[m[33m ([m[1;31morigin/approval-date-logic[m[33m)[m HEAD@{43}: checkout: moving from main to feature/approvals-date-logic1
+[33mb6df9d4[m[33m ([m[1;31morigin/approval-date-logic[m[33m)[m HEAD@{44}: reset: moving to HEAD
+[33mb6df9d4[m[33m ([m[1;31morigin/approval-date-logic[m[33m)[m HEAD@{45}: checkout: moving from Approver-fix-fix to main
+[33m6db282d[m[33m ([m[1;31morigin/Approver-fix-fix[m[33m, [m[1;32mApprover-fix-fix[m[33m)[m HEAD@{46}: checkout: moving from main to Approver-fix-fix
+[33mb6df9d4[m[33m ([m[1;31morigin/approval-date-logic[m[33m)[m HEAD@{47}: pull origin main: Fast-forward
+[33m6f3dc43[m HEAD@{48}: checkout: moving from schedule-today to main
+[33me422db0[m[33m ([m[1;31morigin/schedule-today[m[33m, [m[1;31morigin/roi-fix-fix[m[33m, [m[1;31morigin/ROI-fix-ulit[m[33m, [m[1;32mschedule-today[m[33m, [m[1;32mroi-fix-fix[m[33m, [m[1;32mROI-fix-ulit[m[33m)[m HEAD@{49}: checkout: moving from Approver-fix-fix to schedule-today
+[33m6db282d[m[33m ([m[1;31morigin/Approver-fix-fix[m[33m, [m[1;32mApprover-fix-fix[m[33m)[m HEAD@{50}: commit: okay na lot
+[33me422db0[m[33m ([m[1;31morigin/schedule-today[m[33m, [m[1;31morigin/roi-fix-fix[m[33m, [m[1;31morigin/ROI-fix-ulit[m[33m, [m[1;32mschedule-today[m[33m, [m[1;32mroi-fix-fix[m[33m, [m[1;32mROI-fix-ulit[m[33m)[m HEAD@{51}: checkout: moving fr

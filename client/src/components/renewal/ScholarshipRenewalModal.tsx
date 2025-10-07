@@ -143,8 +143,8 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-[rgba(0,0,0,0.7)] flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md relative">
+    <div className="fixed inset-0 bg-[rgba(0,0,0,0.7)] flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md relative max-h-[90vh] overflow-y-auto">
         {/* Header with close button */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium text-gray-700">
@@ -175,10 +175,10 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               setYearLevelDropdownOpen(false);
             }}
           >
-            <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-gray-600 text-xs sm:text-sm w-1/2">
               School Year Renewal
             </div>
-            <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-xs sm:text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {schoolYear || (
                   <span className="text-gray-400">Enter School Year</span>
@@ -206,7 +206,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               {schoolYearOptions.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setSchoolYear(option);
                     setSchoolYearDropdownOpen(false);
@@ -229,10 +229,10 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               setSemesterDropdownOpen(false);
             }}
           >
-            <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-gray-600 text-xs sm:text-sm w-1/2">
               Year Level Renewal
             </div>
-            <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-xs sm:text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {yearLevel || (
                   <span className="text-gray-400">Enter Year Level</span>
@@ -260,7 +260,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               {yearLevelOptions.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setYearLevel(option);
                     setYearLevelDropdownOpen(false);
@@ -283,10 +283,10 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               setSchoolYearDropdownOpen(false);
             }}
           >
-            <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-gray-600 text-xs sm:text-sm w-1/2">
               Semester Renewal
             </div>
-            <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
+            <div className="py-2 sm:py-3 px-2 sm:px-4 bg-gray-100 text-xs sm:text-sm flex-grow flex justify-between items-center">
               <div className="text-gray-700">
                 {semester || (
                   <span className="text-gray-400">Enter Semester</span>
@@ -314,7 +314,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               {semesterOptions.map((option) => (
                 <div
                   key={option}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  className="px-2 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer text-xs sm:text-sm"
                   onClick={() => {
                     setSemester(option);
                     setSemesterDropdownOpen(false);
@@ -334,7 +334,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             disabled={loading}
             className={`${
               loading ? "bg-blue-400" : "bg-blue-500 hover:bg-blue-600"
-            } text-white py-2 px-6 rounded-md text-sm font-medium transition-colors flex items-center`}
+            } text-white py-2 px-4 sm:px-6 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center`}
           >
             {loading ? (
               <>

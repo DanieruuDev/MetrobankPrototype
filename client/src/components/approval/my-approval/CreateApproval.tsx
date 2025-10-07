@@ -216,9 +216,9 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         pauseOnHover
       />
 
-      <div className="fixed border inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 ">
+      <div className="fixed border inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 p-2 sm:p-4">
         <div
-          className={`relative bg-white rounded-lg p-5 shadow-lg max-w-xl w-full max-h-[95vh] overflow-y-auto`}
+          className={`relative bg-white rounded-lg p-3 sm:p-5 shadow-lg max-w-xl w-full max-h-[95vh] overflow-y-auto`}
         >
           {/* Show loading spinner inside modal */}
           {loading && (
@@ -240,15 +240,18 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
           </div>
 
           <div className="mt-2 max-w-[500px] mx-auto">
-            <div className="flex justify-between items-center text-[14px]">
+            <div className="flex justify-between items-center text-xs sm:text-sm">
               {steps.map((step, index) => (
-                <div key={step.number} className="flex items-center gap-2">
+                <div
+                  key={step.number}
+                  className="flex items-center gap-1 sm:gap-2"
+                >
                   <div
                     className={`${
                       step.number <= stepNum ? "bg-[#2563EB]" : "bg-[#E5E7EB]"
-                    } rounded-[25px] w-[25px] h-[25px] flex items-center justify-center  ${
+                    } rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center ${
                       step.number <= stepNum ? "text-white" : "text-[#6B6B6B]"
-                    } `}
+                    } text-xs sm:text-sm`}
                   >
                     {step.number}
                   </div>
@@ -257,57 +260,71 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                       step.number <= stepNum
                         ? "text-[#2563EB]"
                         : "text-[#6B6B6B]"
-                    }`}
+                    } text-xs sm:text-sm`}
                   >
-                    {step.label}
+                    <span className="hidden xs:inline">{step.label}</span>
+                    <span className="xs:hidden">
+                      {step.number === 1
+                        ? "Details"
+                        : step.number === 2
+                        ? "Approvers"
+                        : "Review"}
+                    </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <ChevronRight size={25} className="ml-2 text-[#a1a1a1]" />
+                    <ChevronRight
+                      size={16}
+                      className="ml-1 sm:ml-2 text-[#a1a1a1]"
+                    />
                   )}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="mt-7">{PageShow()}</div>
+          <div className="mt-4 sm:mt-7">{PageShow()}</div>
           {
             // WOKRFLOW INFO
             // APPROVER
             // REVIEW
           }
 
-          <div className="flex justify-end gap-2 mt-5">
+          <div className="flex flex-col xs:flex-row xs:justify-end gap-2 xs:gap-2 mt-4 sm:mt-5">
             {stepNum > 1 ? (
               <button
-                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer"
+                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer hover:bg-[#D1D5DB] transition-colors text-xs sm:text-sm"
                 onClick={clickBackButton}
               >
-                Back
+                <span className="hidden xs:inline">Back</span>
+                <span className="xs:hidden">Back</span>
               </button>
             ) : (
               <button
-                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer"
+                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer hover:bg-[#D1D5DB] transition-colors text-xs sm:text-sm"
                 onClick={() => setIsModal(false)}
                 disabled={loading}
               >
-                Cancel
+                <span className="hidden xs:inline">Cancel</span>
+                <span className="xs:hidden">Cancel</span>
               </button>
             )}
 
             {stepNum === 3 ? (
               <button
-                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 text-xs sm:text-sm"
                 onClick={handleSubmit}
                 disabled={loading}
               >
-                Create Workflow
+                <span className="hidden xs:inline">Create Workflow</span>
+                <span className="xs:hidden">Create</span>
               </button>
             ) : (
               <button
-                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer hover:bg-[#1D4ED8] transition-colors text-xs sm:text-sm"
                 onClick={clickNextButton}
               >
-                Next
+                <span className="hidden xs:inline">Next</span>
+                <span className="xs:hidden">Next</span>
               </button>
             )}
           </div>

@@ -31,6 +31,18 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email.trim());
 };
 
+const isValidWordCount = (text: string, maxWords: number = 30): boolean => {
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+  return words.length <= maxWords;
+};
+
+const isValidTextLength = (text: string, maxLength: number = 50): boolean => {
+  return text.trim().length <= maxLength;
+};
+
 const isValidFutureOrToday = (isoDate: string | undefined): boolean => {
   if (!isoDate) return false;
   const input = new Date(isoDate + "T00:00:00");
@@ -115,6 +127,22 @@ function AddApprover({
     field: "role" | "email" | "due_date",
     value: string
   ) => {
+    // Check word and character limits for role and email fields
+    if (field === "role" || field === "email") {
+      const trimmedValue = value.trim();
+
+      // Check character limit (50)
+      if (trimmedValue.length > 50) {
+        return; // Stop input if character limit exceeded
+      }
+
+      // Check word limit (30)
+      const words = trimmedValue.split(/\s+/).filter((word) => word.length > 0);
+      if (words.length > 30) {
+        return; // Stop input if word limit exceeded
+      }
+    }
+
     setApprovers(
       approvers.map((approver) =>
         approver.id === id
@@ -161,6 +189,10 @@ function AddApprover({
         approver.role.trim() !== "" &&
         approver.email.trim() !== "" &&
         isValidEmail(approver.email.trim()) &&
+        isValidWordCount(approver.role.trim()) &&
+        isValidWordCount(approver.email.trim()) &&
+        isValidTextLength(approver.role.trim()) &&
+        isValidTextLength(approver.email.trim()) &&
         isValidFutureOrToday(approver.due_date)
     );
   }, [approvers, formData.due_date]);
@@ -319,6 +351,10 @@ function AddApprover({
             const trimmedEmail = approver.email.trim();
             const hasValidEmail = trimmedEmail && isValidEmail(trimmedEmail);
             const hasValidRole = trimmedRole !== "";
+            const hasValidWordCount =
+              isValidWordCount(trimmedRole) && isValidWordCount(trimmedEmail);
+            const hasValidTextLength =
+              isValidTextLength(trimmedRole) && isValidTextLength(trimmedEmail);
             // Compute dynamic min/max window
             const workflowDueIso = formData.due_date || "";
             const todayIso = new Date(Date.now()).toISOString().slice(0, 10);
@@ -342,13 +378,24 @@ function AddApprover({
               approvers.filter((a) => a.email.trim() === trimmedEmail).length >
                 1;
             const isValid =
-              hasValidRole && hasValidEmail && hasValidDueDate && !isDuplicate;
+              hasValidRole &&
+              hasValidEmail &&
+              hasValidDueDate &&
+              !isDuplicate &&
+              hasValidWordCount &&
+              hasValidTextLength;
 
             // Determine ring color based on validation state
             let ringClass = "ring-1 ring-white";
             if (isValid) {
               ringClass = "ring-1 ring-green-200";
-            } else if (showValidation && (!hasValidRole || !hasValidEmail)) {
+            } else if (
+              showValidation &&
+              (!hasValidRole ||
+                !hasValidEmail ||
+                !hasValidWordCount ||
+                !hasValidTextLength)
+            ) {
               ringClass = "ring-2 ring-red-300";
             }
 
@@ -397,7 +444,11 @@ function AddApprover({
                       className={`font-semibold ${
                         isValid
                           ? "text-[#166534]"
-                          : showValidation && (!hasValidRole || !hasValidEmail)
+                          : showValidation &&
+                            (!hasValidRole ||
+                              !hasValidEmail ||
+                              !hasValidWordCount ||
+                              !hasValidTextLength)
                           ? "text-red-600"
                           : "text-[#1E4296]"
                       }`}
@@ -410,7 +461,11 @@ function AddApprover({
                       className={`w-7 h-7 text-white rounded-[25px] justify-center flex items-center ${
                         isValid
                           ? "bg-[#22C55E]"
-                          : showValidation && (!hasValidRole || !hasValidEmail)
+                          : showValidation &&
+                            (!hasValidRole ||
+                              !hasValidEmail ||
+                              !hasValidWordCount ||
+                              !hasValidTextLength)
                           ? "bg-red-500"
                           : "bg-[#1E4296]"
                       }`}
@@ -440,10 +495,16 @@ function AddApprover({
                       onChange={(e) =>
                         updateApprover(approver.id, "role", e.target.value)
                       }
+                      maxLength={50}
                       className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        hasValidRole
+                        hasValidRole &&
+                        isValidWordCount(trimmedRole) &&
+                        isValidTextLength(trimmedRole)
                           ? "border-green-300 bg-green-50"
-                          : showValidation && !hasValidRole
+                          : showValidation &&
+                            (!hasValidRole ||
+                              !isValidWordCount(trimmedRole) ||
+                              !isValidTextLength(trimmedRole))
                           ? "border-red-300 bg-red-50"
                           : "border-gray-300"
                       }`}
@@ -454,6 +515,21 @@ function AddApprover({
                         Please enter an approver role
                       </p>
                     )}
+                    {showValidation &&
+                      hasValidRole &&
+                      !isValidWordCount(trimmedRole) && (
+                        <p className="text-[#991B1B] text-[12px] mt-1">
+                          Role must be 30 words or less
+                        </p>
+                      )}
+                    {showValidation &&
+                      hasValidRole &&
+                      isValidWordCount(trimmedRole) &&
+                      !isValidTextLength(trimmedRole) && (
+                        <p className="text-[#991B1B] text-[12px] mt-1">
+                          Role must be 50 characters or less
+                        </p>
+                      )}
                   </div>
 
                   <div>
@@ -466,10 +542,18 @@ function AddApprover({
                       onChange={(e) =>
                         updateApprover(approver.id, "email", e.target.value)
                       }
+                      maxLength={50}
                       className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        hasValidEmail && !isDuplicate
+                        hasValidEmail &&
+                        !isDuplicate &&
+                        isValidWordCount(trimmedEmail) &&
+                        isValidTextLength(trimmedEmail)
                           ? "border-green-300 bg-green-50"
-                          : showValidation && (!hasValidEmail || isDuplicate)
+                          : showValidation &&
+                            (!hasValidEmail ||
+                              isDuplicate ||
+                              !isValidWordCount(trimmedEmail) ||
+                              !isValidTextLength(trimmedEmail))
                           ? "border-red-300 bg-red-50"
                           : "border-gray-300"
                       }`}
@@ -492,6 +576,23 @@ function AddApprover({
                         Please enter an email address
                       </p>
                     )}
+                    {showValidation &&
+                      trimmedEmail &&
+                      isValidEmail(trimmedEmail) &&
+                      !isValidWordCount(trimmedEmail) && (
+                        <p className="text-[#991B1B] text-[12px] mt-1">
+                          Email must be 30 words or less
+                        </p>
+                      )}
+                    {showValidation &&
+                      trimmedEmail &&
+                      isValidEmail(trimmedEmail) &&
+                      isValidWordCount(trimmedEmail) &&
+                      !isValidTextLength(trimmedEmail) && (
+                        <p className="text-[#991B1B] text-[12px] mt-1">
+                          Email must be 50 characters or less
+                        </p>
+                      )}
                   </div>
 
                   <div>

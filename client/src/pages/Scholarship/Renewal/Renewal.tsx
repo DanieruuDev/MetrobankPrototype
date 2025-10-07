@@ -19,27 +19,29 @@ function Renewal() {
   };
 
   return (
-    <div
-      className={`
-        bg-[#F9FAFB] min-h-[100vh]
-        ${
-          collapsed ? "pl-20" : "pl-[240px]"
-        } transition-[padding-left] duration-300`}
-    >
-      <Navbar pageName="Scholarship Renewal" />
+    <div className=" min-h-screen relative">
       <Sidebar />
-
-      {detailedRenewal === null ? (
-        <>
-          <RenewalListV2 handleRowClick={handleRowClick} />
-        </>
-      ) : (
-        <SpecificRenewal
-          student_id={detailedRenewal.student_id}
-          renewal_id={detailedRenewal.renewal_id}
-          setDetailedRenewal={setDetailedRenewal}
-        />
-      )}
+      <div
+        className={`
+          transition-all duration-300 ease-in-out
+          ${collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[240px]"}
+        `}
+      >
+        <Navbar pageName="Scholarship Renewal" />
+        <div className="px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4 pb-8">
+          {detailedRenewal === null ? (
+            <>
+              <RenewalListV2 handleRowClick={handleRowClick} />
+            </>
+          ) : (
+            <SpecificRenewal
+              student_id={detailedRenewal.student_id}
+              renewal_id={detailedRenewal.renewal_id}
+              setDetailedRenewal={setDetailedRenewal}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

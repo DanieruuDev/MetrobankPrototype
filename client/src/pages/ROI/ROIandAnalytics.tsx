@@ -151,7 +151,7 @@ const ROIandAnalytics: React.FC = () => {
   return (
     <div
       className={`${
-        collapsed ? "pl-20" : "pl-[250px]"
+        collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
       } transition-all duration-300`}
     >
       <Navbar pageName="Scholarship Analytics" />

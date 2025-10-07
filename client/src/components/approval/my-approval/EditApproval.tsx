@@ -369,95 +369,120 @@ function EditApproval({
         pauseOnHover
       />
 
-      <div className="fixed border inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50">
-        <div className="relative bg-white rounded-lg p-5 shadow-lg max-w-xl w-full max-h-[95vh] overflow-y-auto">
+      <div className="fixed border inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.5)] z-50 p-2 sm:p-4">
+        <div className="relative bg-white rounded-lg p-3 sm:p-5 shadow-lg max-w-xl w-full max-h-[95vh] overflow-y-auto">
           {loading && (
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-3 sm:mb-4">
               <Loading />
             </div>
           )}
 
-          {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+          {error && (
+            <p className="text-red-500 text-center mt-2 text-xs sm:text-sm">
+              {error}
+            </p>
+          )}
 
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
+          <div className="flex justify-between items-center mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800">
               Edit Workflow #{workflowId}
             </h2>
             <button
-              className="text-gray-500 hover:text-gray-800 cursor-pointer"
+              className="text-gray-500 hover:text-gray-800 cursor-pointer p-1"
               onClick={() => editApproval(null)}
               disabled={loading}
             >
-              <X />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
           <div className="mt-2 max-w-[500px] mx-auto">
-            <div className="flex justify-between items-center text-[14px]">
+            <div className="flex justify-between items-center text-xs sm:text-[14px]">
               {steps.map((step, index) => (
-                <div key={step.number} className="flex items-center gap-2">
+                <div
+                  key={step.number}
+                  className="flex items-center gap-1 sm:gap-2"
+                >
                   <div
                     className={`${
                       step.number <= stepNum ? "bg-[#2563EB]" : "bg-[#E5E7EB]"
-                    } rounded-[25px] w-[25px] h-[25px] flex items-center justify-center ${
+                    } rounded-[25px] w-[20px] h-[20px] sm:w-[25px] sm:h-[25px] flex items-center justify-center text-xs sm:text-sm ${
                       step.number <= stepNum ? "text-white" : "text-[#6B6B6B]"
                     }`}
                   >
                     {step.number}
                   </div>
                   <div
-                    className={`${
+                    className={`text-xs sm:text-sm ${
                       step.number <= stepNum
                         ? "text-[#2563EB]"
                         : "text-[#6B6B6B]"
                     }`}
                   >
-                    {step.label}
+                    <span className="hidden xs:inline">{step.label}</span>
+                    <span className="xs:hidden">
+                      {step.number === 1
+                        ? "Details"
+                        : step.number === 2
+                        ? "Approvers"
+                        : "Review"}
+                    </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <ChevronRight size={25} className="ml-2 text-[#a1a1a1]" />
+                    <ChevronRight
+                      size={20}
+                      className="ml-1 sm:ml-2 text-[#a1a1a1] sm:w-6 sm:h-6"
+                    />
                   )}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="mt-7">{PageShow()}</div>
+          <div className="mt-4 sm:mt-7">{PageShow()}</div>
 
-          <div className="flex justify-end gap-2 mt-5">
+          <div className="flex flex-col xs:flex-row xs:justify-end gap-2 xs:gap-2 mt-4 sm:mt-5">
             {stepNum > 1 ? (
               <button
-                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer hover:bg-[#D1D5DB] transition-colors"
+                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer hover:bg-[#D1D5DB] transition-colors text-xs sm:text-sm"
                 onClick={clickBackButton}
                 disabled={loading}
               >
-                Back
+                <span className="hidden xs:inline">Back</span>
+                <span className="xs:hidden">Back</span>
               </button>
             ) : (
               <button
-                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer hover:bg-[#D1D5DB] transition-colors"
+                className="p-2 bg-[#E5E5E5] rounded-sm cursor-pointer hover:bg-[#D1D5DB] transition-colors text-xs sm:text-sm"
                 onClick={() => editApproval(null)}
                 disabled={loading}
               >
-                Cancel
+                <span className="hidden xs:inline">Cancel</span>
+                <span className="xs:hidden">Cancel</span>
               </button>
             )}
 
             {stepNum === 3 ? (
               <button
-                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer hover:bg-[#1D4ED8] transition-colors disabled:opacity-50"
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 text-xs sm:text-sm"
                 onClick={handleUpdate}
                 disabled={loading}
               >
-                {loading ? "Updating..." : "Update Workflow"}
+                <span className="hidden xs:inline">
+                  {loading ? "Updating..." : "Update Workflow"}
+                </span>
+                <span className="xs:hidden">
+                  {loading ? "Updating..." : "Update"}
+                </span>
               </button>
             ) : (
               <button
-                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer hover:bg-[#1D4ED8] transition-colors"
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer hover:bg-[#1D4ED8] transition-colors text-xs sm:text-sm"
                 onClick={clickNextButton}
                 disabled={loading}
               >
-                Next
+                <span className="hidden xs:inline">Next</span>
+                <span className="xs:hidden">Next</span>
               </button>
             )}
           </div>
