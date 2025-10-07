@@ -148,7 +148,7 @@ function Schedule() {
         collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[240px]"
       } transition-[padding-left] duration-300`}
     >
-      <Navbar pageName="Calendar of Activity" />
+      <Navbar pageName="Calendar of Activities" />
 
       <Sidebar />
 

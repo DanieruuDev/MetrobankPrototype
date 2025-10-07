@@ -49,7 +49,7 @@ const Sidebar = () => {
     },
     {
       to: "/schedule",
-      label: "Calendar of Activity",
+      label: "Calendar of Activities",
       Icon: Calendar,
       allowedRoles: ["mb hr", "mbs head", "system_admin"],
     },
