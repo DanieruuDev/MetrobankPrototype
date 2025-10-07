@@ -252,9 +252,8 @@ const getRequesterAndWorkflowDetails = async (
   if (!query.rows.length) return null;
 
   return {
-    requesterEmail: query.rows[0].admin_email,
-    requesterName: query.rows[0].admin_name,
     workflowDetailsForEmail: {
+      requesterEmail: query.rows[0].admin_email,
       request_title: query.rows[0].rq_title,
       requester_name: query.rows[0].admin_name,
       due_date: query.rows[0].due_date,
@@ -466,18 +465,19 @@ const handleApprovedCase = async (
       });
     }
 
-    // try {
-    //   await sendWorkflowCompletedEmail(
-    //     workflowDetailsForEmail.requesterEmail,
-    //     workflowDetailsForEmail
-    //   );
-    // } catch (err) {
-    //   console.error("sendWorkflowCompletedEmail failed:", {
-    //     workflow_id,
-    //     requester_id,
-    //     err,
-    //   });
-    // }
+    try {
+      console.log("email", workflowDetailsForEmail.requesterEmail);
+      await sendWorkflowCompletedEmail(
+        workflowDetailsForEmail.requesterEmail,
+        workflowDetailsForEmail
+      );
+    } catch (err) {
+      console.error("sendWorkflowCompletedEmail failed:", {
+        workflow_id,
+        requester_id,
+        err,
+      });
+    }
   }
 
   // success
@@ -584,17 +584,17 @@ const handleReturnedCase = async (
       workflow_id,
       created_by,
       "Approver",
-      "Returned",
+      "Rejected",
       "Pending",
-      "Returned",
+      "Rejected",
       comment
     );
 
     // 3. Notification
     await createNotification({
-      type: "WORKFLOW_RETURNED",
-      title: "Workflow Returned",
-      message: `Your workflow has been returned. Reason: ${comment}`,
+      type: "WORKFLOW_REJECTED",
+      title: "Workflow Rejected",
+      message: `Your workflow has been rejected. Reason: ${comment}, see workflow for more info`,
       relatedId: workflow_id,
       actorId: created_by,
       actionRequired: true,

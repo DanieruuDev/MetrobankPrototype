@@ -268,6 +268,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       const {
         renewal_id,
         validator_id,
+        validation_id,
         role_id,
         initialized_by,
         user_id,
@@ -286,6 +287,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       return {
         renewal_id,
         validator_id,
+        validation_id,
         role_id,
         initialized_by,
         user_id,
@@ -605,7 +607,99 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       });
     });
   };
+  const getFilteredHeaders = (
+    role_id: number | undefined,
+    tableHead: { [key: string]: string },
+    availableKeys: string[],
+    initialRenewalInfo: InitialRenewalInfo | null
+  ) => {
+    // Base headers common to all roles
+    const baseHeaders = [
+      "scholar_name",
+      "student_id",
+      "renewal_year_level_basis",
+      "renewal_semester_basis",
+      "renewal_school_year_basis",
+      "batch",
+      "campus",
+      "course",
+      "semester",
+      "school_year",
+      "year_level",
+      "scholarship_status",
 
+      "is_validated",
+    ];
+
+    // Role-based validation fields
+    const roleValidationFields: { [key: number]: string[] } = {
+      3: [
+        "gpa",
+        "gpa_validation_stat",
+        "no_failing_grd_validation",
+        "no_other_scholar_validation",
+        "full_load_validation",
+        "withdrawal_change_course_validation",
+        "enrollment_validation",
+      ],
+      9: ["goodmoral_validation", "no_criminal_charges_validation"],
+      7: ["All"],
+    };
+
+    const allowedHeaders = [...baseHeaders];
+
+    if (role_id && role_id in roleValidationFields) {
+      const validationFields = roleValidationFields[role_id];
+      if (validationFields[0] === "All") {
+        allowedHeaders.push(
+          ...Object.keys(tableHead).filter(
+            (key) =>
+              !baseHeaders.includes(key) &&
+              key !== "delisting_root_cause" &&
+              availableKeys.includes(key)
+          )
+        );
+
+        if (availableKeys.includes("delisting_root_cause")) {
+          allowedHeaders.push("delisting_root_cause");
+        }
+      } else {
+        allowedHeaders.push(
+          ...validationFields.filter((key) => availableKeys.includes(key))
+        );
+      }
+    }
+
+    const customHeaders = allowedHeaders
+      .filter((key) => key in tableHead && availableKeys.includes(key))
+      .map((key) => {
+        if (initialRenewalInfo) {
+          const renewalSy =
+            initialRenewalInfo.renewal_school_year_basis_text || "Not Set";
+          const renewalSemester =
+            initialRenewalInfo.renewal_sem_basis_text || "Not Set";
+          const sy = initialRenewalInfo.school_year_text || "Not Set";
+          const semester = initialRenewalInfo.semester_text || "Not Set";
+          if (key === "renewal_year_level_basis") {
+            return {
+              key,
+              label: `Renewal Year Level Basis (SY ${renewalSy} ${renewalSemester})`,
+            };
+          } else if (key === "year_level") {
+            return {
+              key,
+              label: `Year Level (SY ${sy} ${semester})`,
+            };
+          }
+        }
+        return {
+          key,
+          label: tableHead[key],
+        };
+      });
+
+    return customHeaders;
+  };
   useEffect(() => {
     filterData(
       searchQuery,
@@ -996,8 +1090,158 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   <span className="hidden xs:inline">Initialize Renewal</span>
                   <span className="xs:hidden">Initialize</span>
                 </button>
-              )}
+              </div>
+            )}
+          </div>
 
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-[800px]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 rounded-sm border border-[#CDCDCD] divide-x divide-[#CDCDCD] text-sm h-8 flex-1">
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "All"
+          ? "bg-gray-200 text-gray-700 font-medium"
+          : "text-gray-500 hover:bg-gray-100"
+      }
+    `}
+                  onClick={() => setSelectedStatus("All")}
+                >
+                  All
+                </div>
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "Not Started"
+          ? "bg-gray-200 text-gray-700 font-medium"
+          : "text-gray-500 hover:bg-gray-100"
+      }
+    `}
+                  onClick={() => setSelectedStatus("Not Started")}
+                >
+                  Not Started {countNotStarted}
+                </div>
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "Passed"
+          ? "bg-green-100 text-green-600 font-semibold"
+          : "text-gray-500 hover:bg-green-50"
+      }
+    `}
+                  onClick={() => setSelectedStatus("Passed")}
+                >
+                  Passed {countPassed}
+                </div>
+                <div
+                  className={`flex items-center justify-center cursor-pointer transition-colors
+      ${
+        selectedStatus === "Delisted"
+          ? "bg-red-100 text-red-600 font-semibold"
+          : "text-gray-500 hover:bg-red-50"
+      }
+    `}
+                  onClick={() => setSelectedStatus("Delisted")}
+                >
+                  Delisted {countDelisted}
+                </div>
+              </div>
+              <div className="flex items-center pl-3 pr-2 border border-gray-300 rounded-md bg-gray-50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 flex-1 h-8">
+                <Search className="w-4 h-4 text-gray-400 mr-2" />
+                <input
+                  type="text"
+                  placeholder="Search scholars..."
+                  className="w-full bg-transparent outline-none text-gray-700 placeholder-gray-400 text-sm"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
+              </div>
+            </div>
+            <div
+              className={`flex ${
+                !isEdit
+                  ? "border border-gray-300 divide-x divide-[#CDCDCD]"
+                  : "rounded-sm overflow-hidden"
+              } rounded-sm text-sm self-end md:self-auto`}
+            >
+              {isEdit ? (
+                <button
+                  onClick={() => submitSaveChanges(tempRenewalData)}
+                  disabled={!hasEdits}
+                  className={`flex items-center gap-2 px-3 h-8 transition cursor-pointer ${
+                    hasEdits
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  }`}
+                >
+                  <Save className="w-4 h-4" strokeWidth={1.5} />
+                  Save changes
+                </button>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsFileActionOpen(!isFileActionOpen)}
+                    className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
+                        isFileActionOpen ? "rotate-180" : "rotate-0"
+                      }`}
+                    />
+                    File Action
+                  </button>
+                  {isFileActionOpen && (
+                    <div className="absolute left-0 mt-1 w-40 bg-white shadow-md rounded-md border border-gray-300 z-20">
+                      <button
+                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
+                        onClick={() => setIsUploadOpen(true)}
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload File
+                      </button>
+                      <UploadFileRenewalModal
+                        isOpen={isUploadOpen}
+                        onClose={() => setIsUploadOpen(false)}
+                        renewalData={tempRenewalData}
+                        onFileChanges={handleFileChanges}
+                      />
+                      <button
+                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
+                        onClick={() => setIsGnrtRprtOpen(true)}
+                      >
+                        <FileDown className="w-4 h-4" />
+                        Generate Report
+                      </button>
+                      <button
+                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
+                        onClick={() => {
+                          const filteredHeaders = getFilteredHeaders(
+                            role_id,
+                            renewalTableHead,
+                            availableKeys,
+                            initialRenewalInfo
+                          ).filter((h) => h.key !== "gpa_validation_stat");
+                          const headers = filteredHeaders.map((h) => h.label); // Use labels for Excel headers
+                          const data = renewalData.map((r) =>
+                            filteredHeaders.map(
+                              (h) => r[h.key as keyof RenewalDetails] ?? null
+                            )
+                          );
+                          downloadExcel(
+                            `RenewalReport-${sySemester}.xlsx`,
+                            headers,
+                            data
+                          );
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                        Download
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            
               {/* Individual File Action Buttons */}
               {!isEdit && (
                 <>

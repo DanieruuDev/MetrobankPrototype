@@ -1,8 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import axios, { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 interface LoginErrors {
   email?: string;
@@ -15,10 +15,15 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
-  const auth = useContext(AuthContext);
+
+  const auth = useAuth();
+  if (!auth) {
+    console.error("AuthContext is undefined");
+    return null;
+  }
+  const { setToken, token } = auth;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  console.log(VITE_BACKEND_URL);
   const validate = (): boolean => {
     const newErrors: LoginErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,18 +51,19 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${VITE_BACKEND_URL}api/auth/login`, {
-        email,
-        password,
-      });
-      console.log("API response:", response.data); // Log the response
-      const { token } = response.data;
+      const response = await axios.post(
+        `${VITE_BACKEND_URL}api/auth/login`,
+        { email, password },
+        { withCredentials: true }
+      );
+      console.log("API response:", response.data);
+      const { accessToken } = response.data;
 
-      if (!token || typeof token !== "string") {
+      if (!accessToken || typeof accessToken !== "string") {
         throw new Error("Invalid or missing token in API response");
       }
 
-      auth?.login(token);
+      setToken(accessToken); // Updates token and user state
       toast.success("Login successful!");
       navigate("/workflow-approval");
     } catch (error) {
@@ -69,6 +75,11 @@ const LoginPage: React.FC = () => {
       setLoading(false);
     }
   };
+  if (token) {
+    console.log("Token in login", token);
+    navigate(-1);
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] px-4">
@@ -80,11 +91,9 @@ const LoginPage: React.FC = () => {
             className="w-20 h-auto object-contain"
           />
         </div>
-
         <h2 className="text-center text-2xl font-extrabold text-[#024FA8] mb-6">
           Metrobank STRONG
         </h2>
-
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label
@@ -111,7 +120,6 @@ const LoginPage: React.FC = () => {
               </p>
             )}
           </div>
-
           <div>
             <label
               htmlFor="password"
@@ -137,7 +145,6 @@ const LoginPage: React.FC = () => {
               </p>
             )}
           </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -171,7 +178,6 @@ const LoginPage: React.FC = () => {
             )}
           </button>
         </form>
-
         <p className="mt-6 text-center text-sm text-gray-600">
           © {new Date().getFullYear()} Metrobank. All rights reserved.
         </p>

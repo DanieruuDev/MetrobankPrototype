@@ -21,22 +21,13 @@ const {
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 
-const upload = multer({ dest: "uploads/" }); // temporary storage
-
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     return cb(null, "./public/images");
-//   },
-//   filename: function (req, file, cb) {
-//     return cb(null, `${Date.now()}_${file.originalname}`);
-//   },
-// });
+const upload = multer({ storage: multer.memoryStorage() });
 
 const workflowRouter = express.Router();
 
 workflowRouter.post("/upload", upload.single("file"), uploadFile);
 
-workflowRouter.get("/get-workflows/:user_id", getApprovals);
+workflowRouter.get("/get-workflows/:user_id", authenticateToken, getApprovals);
 
 workflowRouter.get("/get-workflow/:user_id/:workflow_id", getApproval);
 workflowRouter.get("/get-edit-workflow/:workflow_id", getDataToEdit);

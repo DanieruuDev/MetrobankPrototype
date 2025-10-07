@@ -30,7 +30,7 @@ const Sidebar = () => {
         "mbs head",
         "system_admin",
         "sti registrar",
-        "discipline office",
+        "sti discipline office",
       ],
     },
     {
@@ -44,7 +44,7 @@ const Sidebar = () => {
         "mb foundation",
         "mbs head",
         "system_admin",
-        "discipline office",
+        "sti discipline office",
       ],
     },
     {
