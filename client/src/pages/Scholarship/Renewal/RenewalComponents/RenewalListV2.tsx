@@ -221,6 +221,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       const {
         renewal_id,
         validator_id,
+        validation_id,
         role_id,
         initialized_by,
         user_id,
@@ -239,6 +240,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       return {
         renewal_id,
         validator_id,
+        validation_id,
         role_id,
         initialized_by,
         user_id,
@@ -978,7 +980,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                             renewalTableHead,
                             availableKeys,
                             initialRenewalInfo
-                          );
+                          ).filter((h) => h.key !== "gpa_validation_stat");
                           const headers = filteredHeaders.map((h) => h.label); // Use labels for Excel headers
                           const data = renewalData.map((r) =>
                             filteredHeaders.map(

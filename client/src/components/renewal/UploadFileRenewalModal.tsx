@@ -8,7 +8,7 @@ interface UploadFileRenewalModalProps {
   isOpen: boolean;
   onClose: () => void;
   renewalData: RenewalDetails[];
-  onFileChanges: (updatedRows: RenewalRow[]) => void; // NEW
+  onFileChanges: (updatedRows: RenewalRow[]) => void;
 }
 
 function UploadFileRenewalModal({
@@ -47,6 +47,13 @@ function UploadFileRenewalModal({
     is_validated: r.is_validated,
   }));
 
+  const computeGPAValidationStat = (
+    gpa: number | null
+  ): "Not Started" | "Passed" | "Failed" => {
+    if (gpa === null) return "Not Started";
+    return gpa >= 1.0 && gpa <= 2.0 ? "Passed" : "Failed";
+  };
+
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const selectedFile = acceptedFiles[0];
@@ -56,16 +63,75 @@ function UploadFileRenewalModal({
       reader.onload = (event) => {
         const data = event.target?.result;
         if (!data) return;
+
         const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
 
-        // Fill missing values with null
-        const parsedData: RenewalDetails[] = XLSX.utils.sheet_to_json(sheet, {
-          defval: null,
+        const parsedRaw = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+          sheet,
+          { defval: null }
+        );
+
+        const headerMap: Record<string, keyof RenewalRow> = {
+          "Student ID": "student_id",
+          "Scholar Name": "scholar_name",
+          "Scholarship Status": "scholarship_status",
+          Campus: "campus",
+          Batch: "batch",
+          "Renewal Date": "renewal_date",
+          "Renewal Year Level Basis": "renewal_year_level_basis",
+          "Renewal Semester Basis": "renewal_semester_basis",
+          "Renewal School Year Basis": "renewal_school_year_basis",
+          GPA: "gpa",
+          "GPA Validation": "gpa_validation_stat",
+          "No Failing Grades": "no_failing_grd_validation",
+          "No Other Scholarship": "no_other_scholar_validation",
+          "Good Moral": "goodmoral_validation",
+          "No Criminal Charges": "no_criminal_charges_validation",
+          "Full Load": "full_load_validation",
+          "Withdrawal/Change of Program": "withdrawal_change_course_validation",
+          "Enrollment Validation": "enrollment_validation",
+          "Is Validated": "is_validated",
+          "Renewal Year Level": "year_level",
+          "Renewal Semester": "semester",
+          "Renewal School Year": "school_year",
+          "Delisted Date": "delisted_date",
+          "Delisting Root Cause": "delisting_root_cause",
+        };
+
+        const parsedData: RenewalRow[] = parsedRaw.map((row) => {
+          const mappedRow = {} as RenewalRow;
+
+          Object.entries(row).forEach(([label, value]) => {
+            const key = headerMap[label];
+            if (key) {
+              // Handle GPA specifically to ensure proper type
+              if (key === "gpa") {
+                mappedRow[key] =
+                  value === null || value === ""
+                    ? null
+                    : typeof value === "number"
+                    ? Math.floor(Number(value) * 100) / 100 // Round to 2 decimal places
+                    : null;
+              } else {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (mappedRow as any)[key] = value ?? null;
+              }
+            }
+          });
+
+          // Compute gpa_validation_stat based on gpa
+          if ("gpa" in mappedRow) {
+            mappedRow.gpa_validation_stat = computeGPAValidationStat(
+              mappedRow.gpa
+            );
+          }
+
+          return mappedRow;
         });
 
-        console.log("Parsed Excel Data:", parsedData);
+        console.log("Mapped Excel Data:", parsedData);
         setExcelFile(parsedData);
       };
 
@@ -218,15 +284,13 @@ function UploadFileRenewalModal({
                         <th className="px-4 py-3 text-left font-semibold text-gray-800 min-w-[150px]">
                           Scholar Name
                         </th>
-                        {/* Dynamically show only columns that have changes */}
                         {changesPreview.length > 0 &&
                           Object.keys(changesPreview[0]).map((key) => {
-                            // Check if this column has any changes across all rows
                             const hasChanges = changesPreview.some((row) => {
                               const existingRow = existingData.find(
                                 (r) => r.student_id === row.student_id
                               );
-                              if (!existingRow) return true; // New row
+                              if (!existingRow) return true;
 
                               const excelValue = row[key as keyof RenewalRow];
                               const existingValue =
@@ -289,16 +353,13 @@ function UploadFileRenewalModal({
                               {row.scholar_name || "N/A"}
                             </td>
 
-                            {/* Show only changed columns */}
                             {Object.keys(row).map((key) => {
-                              // Skip if it's student_id or scholar_name (already shown)
                               if (
                                 key === "student_id" ||
                                 key === "scholar_name"
                               )
                                 return null;
 
-                              // Check if this column has changes across any row
                               const columnHasChanges = changesPreview.some(
                                 (r) => {
                                   const existingR = existingData.find(
