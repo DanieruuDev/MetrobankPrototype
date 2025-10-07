@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState, useRef, useCallback } from "react";
 import {
   FileDown,
   Pencil,
@@ -139,84 +139,90 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     }
   };
 
-  const getInitialRenewalInfo = async (sySemester: string) => {
-    const [sy, semPart] = sySemester.split("_");
-    const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
-    const school_year = sy.replace("-", "");
-    if (!school_year || !semester) {
-      console.error("Missing school_year or semester:", {
-        school_year,
-        semester,
-      });
-      return;
-    }
-
-    try {
-      console.log("Before count");
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/renewal/count-renewal`,
-        {
-          params: {
-            school_year,
-            semester: semPart,
-          },
-          timeout: 5000,
-        }
-      );
-      if (response.status !== 200) {
-        throw new Error(`Unexpected response status: ${response.status}`);
+  const getInitialRenewalInfo = useCallback(
+    async (sySemester: string) => {
+      const [sy, semPart] = sySemester.split("_");
+      const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
+      const school_year = sy.replace("-", "");
+      if (!school_year || !semester) {
+        console.error("Missing school_year or semester:", {
+          school_year,
+          semester,
+        });
+        return;
       }
-      console.log("Renewal count response:", response.data.data);
-      setInitialRenewalInfo(response.data.data);
-      console.log("After count");
-    } catch (error) {
-      console.error("Error fetching renewal count:", error);
-      toast.error("Failed to fetch renewal count");
-    }
-  };
 
-  const getRenewalData = async (sySemester: string) => {
-    const [sy, semPart] = sySemester.split("_");
-    const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
-    if (!sy || !semester) {
-      console.error("Invalid sySemester format:", sySemester);
-      return;
-    }
-    console.log("get renewal", sySemester, userId, role_id);
-    try {
-      setIsLoading(true);
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/renewal/fetch-renewals`,
-        {
-          params: {
-            school_year: sy,
-            semester,
-            user_id: userId,
-            role_id,
-          },
-          timeout: 5000,
+      try {
+        console.log("Before count");
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/renewal/count-renewal`,
+          {
+            params: {
+              school_year,
+              semester: semPart,
+            },
+            timeout: 5000,
+          }
+        );
+        if (response.status !== 200) {
+          throw new Error(`Unexpected response status: ${response.status}`);
         }
-      );
+        console.log("Renewal count response:", response.data.data);
+        setInitialRenewalInfo(response.data.data);
+        console.log("After count");
+      } catch (error) {
+        console.error("Error fetching renewal count:", error);
+        toast.error("Failed to fetch renewal count");
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
 
-      const { data } = response.data;
+  const getRenewalData = useCallback(
+    async (sySemester: string) => {
+      const [sy, semPart] = sySemester.split("_");
+      const semester = semPart === "1" ? "1st Semester" : "2nd Semester";
+      if (!sy || !semester) {
+        console.error("Invalid sySemester format:", sySemester);
+        return;
+      }
+      console.log("get renewal", sySemester, userId, role_id);
+      try {
+        setIsLoading(true);
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/renewal/fetch-renewals`,
+          {
+            params: {
+              school_year: sy,
+              semester,
+              user_id: userId,
+              role_id,
+            },
+            timeout: 5000,
+          }
+        );
 
-      const dataWithOriginal = data.map((row: RenewalDetails) => ({
-        ...row,
-        original: { ...row },
-        isEdited: false,
-      }));
+        const { data } = response.data;
 
-      setRenewalData(dataWithOriginal);
-      setTempRenewalData(dataWithOriginal);
-      setTotalPage(Math.ceil(dataWithOriginal.length / 10));
-      setPage(1);
-    } catch (error) {
-      console.error("Error fetching renewal data:", error);
-      toast.error("Failed to fetch renewal data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const dataWithOriginal = data.map((row: RenewalDetails) => ({
+          ...row,
+          original: { ...row },
+          isEdited: false,
+        }));
+
+        setRenewalData(dataWithOriginal);
+        setTempRenewalData(dataWithOriginal);
+        setTotalPage(Math.ceil(dataWithOriginal.length / 10));
+        setPage(1);
+      } catch (error) {
+        console.error("Error fetching renewal data:", error);
+        toast.error("Failed to fetch renewal data");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [VITE_BACKEND_URL, userId, role_id]
+  );
 
   const statusBadge = (status: string) => {
     if (status === "Not Started") {
@@ -544,34 +550,34 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     );
   };
 
-  const filterData = (
-    search: string,
-    status: string,
-    branch: string,
-    yearLevel: string
-  ) => {
-    let filtered = renewalData;
+  const filterData = useCallback(
+    (search: string, status: string, branch: string, yearLevel: string) => {
+      let filtered = renewalData;
 
-    if (status !== "All") {
-      filtered = filtered.filter((item) => item.scholarship_status === status);
-    }
+      if (status !== "All") {
+        filtered = filtered.filter(
+          (item) => item.scholarship_status === status
+        );
+      }
 
-    if (branch !== "All") {
-      filtered = filtered.filter((item) => item.campus === branch);
-    }
+      if (branch !== "All") {
+        filtered = filtered.filter((item) => item.campus === branch);
+      }
 
-    if (yearLevel !== "All") {
-      filtered = filtered.filter((item) => item.year_level === yearLevel);
-    }
+      if (yearLevel !== "All") {
+        filtered = filtered.filter((item) => item.year_level === yearLevel);
+      }
 
-    if (search.trim() !== "") {
-      filtered = filtered.filter((item) =>
-        item.scholar_name.toLowerCase().includes(search)
-      );
-    }
+      if (search.trim() !== "") {
+        filtered = filtered.filter((item) =>
+          item.scholar_name.toLowerCase().includes(search)
+        );
+      }
 
-    setTempRenewalData(filtered);
-  };
+      setTempRenewalData(filtered);
+    },
+    [renewalData]
+  );
 
   const handleCheckModal = (type: string) => {
     setTempRenewalData((prev) => {
@@ -607,99 +613,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       });
     });
   };
-  const getFilteredHeaders = (
-    role_id: number | undefined,
-    tableHead: { [key: string]: string },
-    availableKeys: string[],
-    initialRenewalInfo: InitialRenewalInfo | null
-  ) => {
-    // Base headers common to all roles
-    const baseHeaders = [
-      "scholar_name",
-      "student_id",
-      "renewal_year_level_basis",
-      "renewal_semester_basis",
-      "renewal_school_year_basis",
-      "batch",
-      "campus",
-      "course",
-      "semester",
-      "school_year",
-      "year_level",
-      "scholarship_status",
-
-      "is_validated",
-    ];
-
-    // Role-based validation fields
-    const roleValidationFields: { [key: number]: string[] } = {
-      3: [
-        "gpa",
-        "gpa_validation_stat",
-        "no_failing_grd_validation",
-        "no_other_scholar_validation",
-        "full_load_validation",
-        "withdrawal_change_course_validation",
-        "enrollment_validation",
-      ],
-      9: ["goodmoral_validation", "no_criminal_charges_validation"],
-      7: ["All"],
-    };
-
-    const allowedHeaders = [...baseHeaders];
-
-    if (role_id && role_id in roleValidationFields) {
-      const validationFields = roleValidationFields[role_id];
-      if (validationFields[0] === "All") {
-        allowedHeaders.push(
-          ...Object.keys(tableHead).filter(
-            (key) =>
-              !baseHeaders.includes(key) &&
-              key !== "delisting_root_cause" &&
-              availableKeys.includes(key)
-          )
-        );
-
-        if (availableKeys.includes("delisting_root_cause")) {
-          allowedHeaders.push("delisting_root_cause");
-        }
-      } else {
-        allowedHeaders.push(
-          ...validationFields.filter((key) => availableKeys.includes(key))
-        );
-      }
-    }
-
-    const customHeaders = allowedHeaders
-      .filter((key) => key in tableHead && availableKeys.includes(key))
-      .map((key) => {
-        if (initialRenewalInfo) {
-          const renewalSy =
-            initialRenewalInfo.renewal_school_year_basis_text || "Not Set";
-          const renewalSemester =
-            initialRenewalInfo.renewal_sem_basis_text || "Not Set";
-          const sy = initialRenewalInfo.school_year_text || "Not Set";
-          const semester = initialRenewalInfo.semester_text || "Not Set";
-          if (key === "renewal_year_level_basis") {
-            return {
-              key,
-              label: `Renewal Year Level Basis (SY ${renewalSy} ${renewalSemester})`,
-            };
-          } else if (key === "year_level") {
-            return {
-              key,
-              label: `Year Level (SY ${sy} ${semester})`,
-            };
-          }
-        }
-        return {
-          key,
-          label: tableHead[key],
-        };
-      });
-
-    return customHeaders;
-  };
   useEffect(() => {
     filterData(
       searchQuery,
@@ -707,14 +620,20 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       selectedBranchFilter,
       selectedYearLevelFilter
     );
-  }, [selectedStatus, selectedBranchFilter, selectedYearLevelFilter]);
+  }, [
+    selectedStatus,
+    selectedBranchFilter,
+    selectedYearLevelFilter,
+    filterData,
+    searchQuery,
+  ]);
 
   useEffect(() => {
     if (sySemester) {
       getRenewalData(sySemester);
       getInitialRenewalInfo(sySemester);
     }
-  }, [sySemester]);
+  }, [sySemester, getRenewalData, getInitialRenewalInfo]);
 
   useEffect(() => {
     if (auth?.info?.branch?.branch_name) {
@@ -790,8 +709,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       <div className="px-2 sm:px-4 py-2">
         {/* Modern Renewal Information Section */}
         <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-slate-200">
-          {/* Header with Modern Styling */}
-          <div className="flex justify-between mb-6 gap-4">
+          {/* Modern Header Section */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg
@@ -812,9 +731,14 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 <h1 className="text-lg sm:text-xl font-bold text-slate-800">
                   Renewal Information
                 </h1>
+                <p className="text-sm text-slate-600">
+                  Manage scholarship renewal process and validation
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Modern Action Buttons Row */}
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-slate-800 hover:bg-white/50 rounded-lg transition-all duration-200 text-sm font-medium backdrop-blur-sm"
                 onClick={() => setIsRenewalInfoVisible(!isRenewalInfoVisible)}
@@ -1090,158 +1014,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   <span className="hidden xs:inline">Initialize Renewal</span>
                   <span className="xs:hidden">Initialize</span>
                 </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-[800px]">
-              <div className="grid grid-cols-2 sm:grid-cols-4 rounded-sm border border-[#CDCDCD] divide-x divide-[#CDCDCD] text-sm h-8 flex-1">
-                <div
-                  className={`flex items-center justify-center cursor-pointer transition-colors
-      ${
-        selectedStatus === "All"
-          ? "bg-gray-200 text-gray-700 font-medium"
-          : "text-gray-500 hover:bg-gray-100"
-      }
-    `}
-                  onClick={() => setSelectedStatus("All")}
-                >
-                  All
-                </div>
-                <div
-                  className={`flex items-center justify-center cursor-pointer transition-colors
-      ${
-        selectedStatus === "Not Started"
-          ? "bg-gray-200 text-gray-700 font-medium"
-          : "text-gray-500 hover:bg-gray-100"
-      }
-    `}
-                  onClick={() => setSelectedStatus("Not Started")}
-                >
-                  Not Started {countNotStarted}
-                </div>
-                <div
-                  className={`flex items-center justify-center cursor-pointer transition-colors
-      ${
-        selectedStatus === "Passed"
-          ? "bg-green-100 text-green-600 font-semibold"
-          : "text-gray-500 hover:bg-green-50"
-      }
-    `}
-                  onClick={() => setSelectedStatus("Passed")}
-                >
-                  Passed {countPassed}
-                </div>
-                <div
-                  className={`flex items-center justify-center cursor-pointer transition-colors
-      ${
-        selectedStatus === "Delisted"
-          ? "bg-red-100 text-red-600 font-semibold"
-          : "text-gray-500 hover:bg-red-50"
-      }
-    `}
-                  onClick={() => setSelectedStatus("Delisted")}
-                >
-                  Delisted {countDelisted}
-                </div>
-              </div>
-              <div className="flex items-center pl-3 pr-2 border border-gray-300 rounded-md bg-gray-50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 flex-1 h-8">
-                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                <input
-                  type="text"
-                  placeholder="Search scholars..."
-                  className="w-full bg-transparent outline-none text-gray-700 placeholder-gray-400 text-sm"
-                  value={searchQuery}
-                  onChange={handleSearch}
-                />
-              </div>
-            </div>
-            <div
-              className={`flex ${
-                !isEdit
-                  ? "border border-gray-300 divide-x divide-[#CDCDCD]"
-                  : "rounded-sm overflow-hidden"
-              } rounded-sm text-sm self-end md:self-auto`}
-            >
-              {isEdit ? (
-                <button
-                  onClick={() => submitSaveChanges(tempRenewalData)}
-                  disabled={!hasEdits}
-                  className={`flex items-center gap-2 px-3 h-8 transition cursor-pointer ${
-                    hasEdits
-                      ? "bg-green-500 text-white hover:bg-green-600"
-                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                  }`}
-                >
-                  <Save className="w-4 h-4" strokeWidth={1.5} />
-                  Save changes
-                </button>
-              ) : (
-                <div className="relative">
-                  <button
-                    onClick={() => setIsFileActionOpen(!isFileActionOpen)}
-                    className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer"
-                  >
-                    <ChevronDown
-                      className={`w-4 h-4 transform transition-transform duration-300 ease-in-out ${
-                        isFileActionOpen ? "rotate-180" : "rotate-0"
-                      }`}
-                    />
-                    File Action
-                  </button>
-                  {isFileActionOpen && (
-                    <div className="absolute left-0 mt-1 w-40 bg-white shadow-md rounded-md border border-gray-300 z-20">
-                      <button
-                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
-                        onClick={() => setIsUploadOpen(true)}
-                      >
-                        <Upload className="w-4 h-4" />
-                        Upload File
-                      </button>
-                      <UploadFileRenewalModal
-                        isOpen={isUploadOpen}
-                        onClose={() => setIsUploadOpen(false)}
-                        renewalData={tempRenewalData}
-                        onFileChanges={handleFileChanges}
-                      />
-                      <button
-                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
-                        onClick={() => setIsGnrtRprtOpen(true)}
-                      >
-                        <FileDown className="w-4 h-4" />
-                        Generate Report
-                      </button>
-                      <button
-                        className="flex items-center gap-2 px-3 h-8 hover:bg-gray-50 transition cursor-pointer text-sm w-full text-left"
-                        onClick={() => {
-                          const filteredHeaders = getFilteredHeaders(
-                            role_id,
-                            renewalTableHead,
-                            availableKeys,
-                            initialRenewalInfo
-                          ).filter((h) => h.key !== "gpa_validation_stat");
-                          const headers = filteredHeaders.map((h) => h.label); // Use labels for Excel headers
-                          const data = renewalData.map((r) =>
-                            filteredHeaders.map(
-                              (h) => r[h.key as keyof RenewalDetails] ?? null
-                            )
-                          );
-                          downloadExcel(
-                            `RenewalReport-${sySemester}.xlsx`,
-                            headers,
-                            data
-                          );
-                        }}
-                      >
-                        <Download className="w-4 h-4" />
-                        Download
-                      </button>
-                    </div>
-                  )}
-                </div>
               )}
-            
+
               {/* Individual File Action Buttons */}
               {!isEdit && (
                 <>
@@ -1325,7 +1099,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           </div>
 
           {/* Modern Controls Section */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-sm">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-sm mt-4">
             <div className="flex flex-col gap-4">
               {/* Status Filter Row */}
               <div className="flex flex-col sm:flex-row gap-3">
@@ -1575,7 +1349,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                       {renewalData[0]?.school_year &&
                                       renewalData[0]?.semester ? (
                                         <>
-                                          SY {renewalData[0].school_year}&nbsp;
+                                          SY {renewalData[0].school_year}
+                                          &nbsp;
                                           {renewalData[0].semester}
                                         </>
                                       ) : (

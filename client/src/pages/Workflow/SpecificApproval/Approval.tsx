@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
   DetailedWorkflow,
@@ -58,29 +58,32 @@ function Approval() {
   const [expandedApproverId, setExpandedApproverId] = useState<number | null>(
     null
   );
-  const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log(response.data);
-      setDetailedWorkflow(response.data);
-    } catch (error) {
-      console.error("Error fetching workflow:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const fetchWorkflow = useCallback(
+    async (requester_id: number, workflow_id: number) => {
+      setIsLoading(true);
+      try {
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log(response.data);
+        setDetailedWorkflow(response.data);
+      } catch (error) {
+        console.error("Error fetching workflow:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [VITE_BACKEND_URL, token]
+  );
 
   useEffect(() => {
     fetchWorkflow(Number(userId), Number(workflow_id));
-  }, [workflow_id]);
+  }, [workflow_id, fetchWorkflow, userId]);
 
   const workflow =
     Array.isArray(detailedWorkflow) && detailedWorkflow.length > 0

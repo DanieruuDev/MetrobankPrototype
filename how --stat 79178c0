@@ -1,0 +1,50 @@
+[33mcommit 73f44036aa8d6f695a806e284e4bbe6d1fc6f0bc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaintesting[m[33m)[m
+Merge: a65b466 79178c0
+Author: Kuya Kyle <kylebandola30@gmail.com>
+Date:   Wed Oct 8 02:03:54 2025 +0800
+
+    Merge branch 'main' of github.com:DanieruuDev/MetrobankPrototype into maintesting
+
+ client/src/App.tsx                                 |  23 [32m+[m[31m-[m
+ client/src/Interface/IRenewal.ts                   |  16 [32m+[m[31m-[m
+ client/src/components/Logout.tsx                   |   3 [32m+[m[31m-[m
+ client/src/components/approval/SpecificRequest.tsx | 316 [32m+++[m[31m-----[m
+ .../components/renewal/UploadFileRenewalModal.tsx  |  83 [32m+[m[31m-[m
+ client/src/components/shared/Navbar.tsx            |   9 [32m+[m[31m-[m
+ client/src/components/shared/PrivateRoute.tsx      |  42 [32m+[m[31m-[m
+ client/src/components/shared/Sidebar.tsx           |   4 [32m+[m[31m-[m
+ client/src/context/AuthContext.tsx                 | 154 [32m++[m[31m--[m
+ client/src/pages/Login.tsx                         |  42 [32m+[m[31m-[m
+ .../Renewal/RenewalComponents/RenewalListV2.tsx    | 246 [32m+++++[m[31m-[m
+ client/src/pages/Workflow/Request.tsx              |   1 [32m+[m
+ .../pages/Workflow/SpecificApproval/Approval.tsx   | 836 [32m++++++++++[m[31m-----------[m
+ client/src/pages/Workflow/Workflow.tsx             | 152 [32m++[m[31m--[m
+ client/src/utils/DownloadExcel.tsx                 |  13 [32m+[m[31m-[m
+ server/controllers/admin-user-controller.js        |  97 [32m++[m[31m-[m
+ server/controllers/renewal-scholar-controller.js   | 106 [32m++[m[31m-[m
+ server/controllers/workflow-controller.js          | 207 [32m++[m[31m---[m
+ server/middlewares/auth.js                         |   4 [32m+[m[31m-[m
+ server/node_modules/.package-lock.json             |   2 [32m+[m
+ server/package-lock.json                           |   2 [32m+[m
+ server/routes/admin-user-router.js                 |   4 [32m+[m
+ server/routes/workflow-router.js                   |  13 [32m+[m[31m-[m
+ server/uploads/0f55052e126b21bdcec3b156bdab93ed    | Bin [31m8913[m -> [32m0[m bytes
+ server/uploads/1aa040a184cc01f0140a198208e1d4a5    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/2aa03be8b31d12d78b1081c5ffd5a422    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/3a265eddd96a3b4847f01f59a9af0920    | Bin [31m8913[m -> [32m0[m bytes
+ server/uploads/3b5df47aaf1edc2dadf5de95dbb5e796    | Bin [31m8723[m -> [32m0[m bytes
+ server/uploads/3e00051564eb338dd0cdebad00e794d1    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/47e7fcf0929dd1f0c34cc09f40954d3a    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/5a1cedb0b883dfa77bd71d2de50e1932    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/5d03a7b49382ae1718a947b2741f9ce7    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/9b518b21833dd30e0c155136ea671609    | Bin [31m8913[m -> [32m0[m bytes
+ server/uploads/b4c5859fe35a31dd607002f6a37c2e2b    | Bin [31m8913[m -> [32m0[m bytes
+ server/uploads/d2baf2818b9dda729dc4e028dcde17ad    | Bin [31m8913[m -> [32m0[m bytes
+ server/uploads/d73d6c59de2a1b918d68ccf11d24f470    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/de474519de753b17194abd9cbced6024    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/f597d126c053c8e9e06f85c69066c93b    | Bin [31m649353[m -> [32m0[m bytes
+ server/uploads/f6d4e40cae2e425eb0a4d9cb33fa4a69    | Bin [31m9020[m -> [32m0[m bytes
+ server/utils/b2.js                                 |  15 [32m+[m[31m-[m
+ server/utils/workflow.utils.js                     |  38 [32m+[m[31m-[m
+ server/vercel.json                                 |   5 [32m+[m
+ 42 files changed, 1382 insertions(+), 1051 deletions(-)

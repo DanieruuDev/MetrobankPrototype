@@ -45,15 +45,20 @@ function Workflow() {
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const auth = useAuth();
+  const userId = auth?.user?.user_id;
+  const { token } = auth;
 
   const [activeStatus, setActiveStatus] = useState("All");
 
-  const statusGroups: Record<string, string[]> = {
-    All: [],
-    Active: ["In Progress", "Not Started"],
-    "Needs Attention": ["Returned", "Missed"],
-    Completed: ["Completed", "Failed"],
-  };
+  const statusGroups: Record<string, string[]> = useMemo(
+    () => ({
+      All: [],
+      Active: ["In Progress", "Not Started"],
+      "Needs Attention": ["Returned", "Missed"],
+      Completed: ["Completed", "Failed"],
+    }),
+    []
+  );
   const groupStyles: Record<string, { color: string; icon: React.ReactNode }> =
     {
       "All Requests": {
@@ -124,7 +129,7 @@ function Workflow() {
     });
 
     return groups;
-  }, [workflowDisplay, activeStatus, searchQuery]);
+  }, [workflowDisplay, activeStatus, searchQuery, statusGroups]);
 
   const archivedWorkflow = useCallback(
     async (requester_id: number, workflow_id: number) => {
@@ -171,7 +176,7 @@ function Workflow() {
     } finally {
       setLoading(false);
     }
-  }, [userId, VITE_BACKEND_URL]);
+  }, [userId, VITE_BACKEND_URL, token]);
 
   useEffect(() => {
     fetchWorkflows();
@@ -210,7 +215,7 @@ function Workflow() {
     });
 
     return counts;
-  }, [workflowDisplay]);
+  }, [workflowDisplay, statusGroups]);
 
   const editApproval = (workflow_id: number | null) => {
     if (workflow_id) {
@@ -220,9 +225,6 @@ function Workflow() {
     }
   };
   if (!auth) return;
-  const userId = auth?.user?.user_id;
-  const { token } = auth;
-  console.log(token);
 
   return (
     <div className=" min-h-screen relative">
@@ -290,39 +292,42 @@ function Workflow() {
             loading={archiving}
           />
 
-        {isModal && (
-          <CreateApproval
-            setIsModal={setIsModal}
-            fetchWorkflows={fetchWorkflows}
-          />
-        )}
-        {editModalID && (
-          <EditApproval
-            editApproval={editApproval}
-            fetchWorkflows={fetchWorkflows}
-            workflowId={editModalID}
-          />
-        )}
-        <div className="mt-4 space-y-6">
-          {Object.entries(getGroupedWorkflows).map(([groupName, workflows]) => {
-            const { icon, color } = groupStyles[groupName] || {
-              icon: <ClipboardList className="text-gray-500" size={16} />,
-              color: "gray",
-            };
+          {isModal && (
+            <CreateApproval
+              setIsModal={setIsModal}
+              fetchWorkflows={fetchWorkflows}
+            />
+          )}
+          {editModalID && (
+            <EditApproval
+              editApproval={editApproval}
+              fetchWorkflows={fetchWorkflows}
+              workflowId={editModalID}
+            />
+          )}
+          <div className="mt-4 space-y-6">
+            {Object.entries(getGroupedWorkflows).map(
+              ([groupName, workflows]) => {
+                const { icon, color } = groupStyles[groupName] || {
+                  icon: <ClipboardList className="text-gray-500" size={16} />,
+                  color: "gray",
+                };
 
-            return (
-              <DataTable
-                key={groupName}
-                title={groupName}
-                workflows={workflows}
-                loading={loading}
-                onArchived={openArchivedConfirm}
-                titleIcon={icon}
-                titleColor={color}
-                editApproval={editApproval}
-              />
-            );
-          })}
+                return (
+                  <DataTable
+                    key={groupName}
+                    title={groupName}
+                    workflows={workflows}
+                    loading={loading}
+                    onArchived={openArchivedConfirm}
+                    titleIcon={icon}
+                    titleColor={color}
+                    editApproval={editApproval}
+                  />
+                );
+              }
+            )}
+          </div>
         </div>
       </div>
     </div>
