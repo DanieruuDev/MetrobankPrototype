@@ -126,7 +126,7 @@ const ScheduleTracking = () => {
     <div className="flex">
       <div
         className={`${
-          collapsed ? "pl-20" : "pl-[250px]"
+          collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
         } transition-[padding-left] duration-300 ease-in-out w-full`}
       >
         <Navbar pageName="Disbursement Tracking" />

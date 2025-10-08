@@ -23,7 +23,7 @@ function Renewal() {
       className={`
         bg-[#F9FAFB] min-h-[100vh]
         ${
-          collapsed ? "pl-20" : "pl-[240px]"
+          collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[240px]"
         } transition-[padding-left] duration-300`}
     >
       <Navbar pageName="Scholarship Renewal" />

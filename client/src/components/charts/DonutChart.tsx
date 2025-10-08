@@ -39,7 +39,6 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
 
   const fetchDisbursementData = async () => {
     // Use mock data for testing - comment out the API call
-    console.log("Using mock data for testing");
     setDisbursementData([
       {
         category: "Academic Excellence Award",
@@ -81,15 +80,11 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
   };
 
   const createChart = useCallback(() => {
-    console.log("Creating chart with data:", disbursementData);
-
     if (!chartRef.current) {
-      console.log("No chart ref available");
       return;
     }
 
     if (!disbursementData || disbursementData.length === 0) {
-      console.log("No disbursement data available");
       return;
     }
 
@@ -101,7 +96,6 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
 
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) {
-      console.log("Could not get canvas context");
       return;
     }
 
@@ -111,8 +105,6 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
     chartRef.current.width = rect.width * dpr;
     chartRef.current.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
-
-    console.log("Canvas size set:", rect.width, rect.height);
 
     const chartData: ChartData<"doughnut"> = {
       labels: disbursementData.map((item) => item.category),
@@ -146,7 +138,7 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
         animation: {
           animateRotate: true,
           animateScale: true,
-          duration: 1000,
+          duration: 600,
           easing: "easeInOutQuart",
         },
         interaction: {
@@ -161,10 +153,9 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
         },
         onClick: (_, activeElements) => {
           if (activeElements.length > 0) {
-            const dataIndex = activeElements[0].index;
-            const category = disbursementData?.[dataIndex]?.category;
-            console.log(`Clicked on category: ${category}`);
             // You can add custom click handling here
+            // const dataIndex = activeElements[0].index;
+            // const category = disbursementData?.[dataIndex]?.category;
           }
         },
         plugins: {
@@ -175,15 +166,15 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
             bodyColor: "#ffffff",
             borderColor: "rgba(255, 255, 255, 0.2)",
             borderWidth: 1,
-            cornerRadius: 12,
+            cornerRadius: 6,
             displayColors: true,
-            padding: 12,
+            padding: 6,
             titleFont: {
-              size: 14,
+              size: 10,
               weight: "bold",
             },
             bodyFont: {
-              size: 13,
+              size: 9,
             },
             callbacks: {
               title: (context) => {
@@ -212,9 +203,9 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
         elements: {
           arc: {
             borderWidth: 0,
-            hoverBorderWidth: 3,
+            hoverBorderWidth: 2,
             hoverBorderColor: "#ffffff",
-            hoverOffset: 5,
+            hoverOffset: 3,
           },
         },
       },
@@ -222,7 +213,6 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
 
     try {
       chartInstance.current = new Chart(ctx, chartConfig);
-      console.log("Chart created successfully:", chartInstance.current);
     } catch (error) {
       console.error("Error creating chart:", error);
     }
@@ -243,7 +233,6 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
   }, [school_year]);
 
   useEffect(() => {
-    console.log("useEffect triggered - creating chart");
     createChart();
 
     // Cleanup function
@@ -255,17 +244,13 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
     };
   }, [disbursementData, totalAmount, createChart]);
 
-  console.log("DonutChart render - school_year:", school_year);
-  console.log("DonutChart render - disbursementData:", disbursementData);
-  console.log("DonutChart render - totalAmount:", totalAmount);
-
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full min-h-[200px] sm:min-h-[250px] md:min-h-[300px]">
       {!disbursementData || disbursementData.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center text-gray-500 py-12 gap-4 h-full">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center text-gray-500 py-8 sm:py-12 gap-3 sm:gap-4 h-full">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-100 flex items-center justify-center">
             <svg
-              className="w-8 h-8 text-gray-400"
+              className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -278,17 +263,17 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
               />
             </svg>
           </div>
-          <p className="text-sm font-medium text-gray-600">
+          <p className="text-xs sm:text-sm font-medium text-gray-600">
             No disbursement data available
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-[10px] sm:text-xs text-gray-400">
             Complete some disbursements to see the distribution
           </p>
         </div>
       ) : (
-        <div className="flex flex-col xl:flex-row items-center gap-8 h-full p-4">
+        <div className="flex flex-col lg:flex-row items-center gap-3 sm:gap-4 md:gap-6 h-full p-2 sm:p-3 md:p-4">
           {/* Chart */}
-          <div className="relative flex-shrink-0 w-full max-w-[180px] aspect-square">
+          <div className="relative flex-shrink-0 w-full max-w-[140px] sm:max-w-[160px] md:max-w-[180px] lg:max-w-[200px] aspect-square">
             <canvas
               ref={chartRef}
               className="w-full h-full"
@@ -296,23 +281,25 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
                 maxWidth: "100%",
                 maxHeight: "100%",
                 aspectRatio: "1 / 1",
-                minHeight: "150px",
-                minWidth: "150px",
+                minHeight: "100px",
+                minWidth: "100px",
               }}
             />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="text-[10px] text-gray-500 font-medium">Total</div>
-              <div className="text-sm font-bold text-gray-900">
+              <div className="text-[8px] sm:text-[10px] text-gray-500 font-medium">
+                Total
+              </div>
+              <div className="text-xs sm:text-sm font-bold text-gray-900">
                 {formatCurrencyShort(totalAmount)}
               </div>
-              <div className="text-[10px] text-gray-500 mt-1">
+              <div className="text-[8px] sm:text-[10px] text-gray-500 mt-0.5 sm:mt-1">
                 {totalStudents} students
               </div>
             </div>
           </div>
 
           {/* Legend */}
-          <div className="flex-1 w-full max-w-md space-y-2 min-w-0">
+          <div className="flex-1 w-full max-w-sm sm:max-w-md space-y-1.5 sm:space-y-2 min-w-0">
             {disbursementData?.map((item, index) => {
               const percentage =
                 totalAmount > 0
@@ -325,11 +312,11 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
               return (
                 <div
                   key={item.category}
-                  className="flex items-start justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-start justify-between p-1.5 sm:p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                  <div className="flex items-start gap-1.5 sm:gap-2 min-w-0 flex-1">
                     <div
-                      className="w-3 h-3 rounded-full flex-shrink-0 mt-0.5"
+                      className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 mt-0.5"
                       style={{
                         backgroundColor:
                           [
@@ -342,19 +329,19 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
                       }}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium text-gray-900 leading-tight">
+                      <div className="text-[10px] sm:text-xs font-medium text-gray-900 leading-tight">
                         {item.category}
                       </div>
-                      <div className="text-[10px] text-gray-500 mt-0.5">
+                      <div className="text-[8px] sm:text-[10px] text-gray-500 mt-0.5">
                         {item.total_students} students
                       </div>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-2">
-                    <div className="text-xs font-semibold text-gray-900">
+                  <div className="text-right flex-shrink-0 ml-1 sm:ml-2">
+                    <div className="text-[10px] sm:text-xs font-semibold text-gray-900">
                       {formatCurrencyShort(parseFloat(item.total_amount))}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-[8px] sm:text-[10px] text-gray-500">
                       {percentage}%
                     </div>
                   </div>

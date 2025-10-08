@@ -4,14 +4,19 @@ import React, { createContext, useContext, useState, ReactNode } from "react";
 interface SidebarContextType {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  isMobileOpen: boolean;
+  setIsMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export const SidebarProvider = ({ children }: { children: ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   return (
-    <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
+    <SidebarContext.Provider
+      value={{ collapsed, setCollapsed, isMobileOpen, setIsMobileOpen }}
+    >
       {children}
     </SidebarContext.Provider>
   );

@@ -81,21 +81,23 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="bg-blue-600 px-4 py-3">
-        <h1 className="text-lg font-semibold text-white">Workflow Summary</h1>
+      <div className="bg-blue-600 px-3 sm:px-4 py-2 sm:py-3">
+        <h1 className="text-base sm:text-lg font-semibold text-white">
+          Workflow Summary
+        </h1>
         <p className="text-blue-100 text-xs mt-0.5">
           Review details before submission
         </p>
       </div>
       {/* Main Content */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Basic Information Card */}
-        <div className="bg-gray-50 p-3 border border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
-            <BookOpen size={14} className="text-blue-600" />
+        <div className="bg-gray-50 p-2 sm:p-3 border border-gray-200">
+          <h2 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3 flex items-center gap-1 sm:gap-1.5">
+            <BookOpen size={12} className="text-blue-600 sm:w-3 sm:h-3" />
             Basic Information
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
             <InfoItem
               label="Title"
               value={formData?.rq_title}
@@ -130,13 +132,13 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
         </div>
 
         {/* Approvers Section */}
-        <div className="bg-gray-50  p-3 border border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-              <User size={14} className="text-green-600" />
+        <div className="bg-gray-50 p-2 sm:p-3 border border-gray-200">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <h2 className="text-xs sm:text-sm font-semibold text-gray-800 flex items-center gap-1 sm:gap-1.5">
+              <User size={12} className="text-green-600 sm:w-3 sm:h-3" />
               Approval Process
             </h2>
-            <span className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded-full">
+            <span className="bg-green-100 text-green-800 text-xs px-1 sm:px-1.5 py-0.5 rounded-full">
               {formData.approvers.length}{" "}
               {formData.approvers.length === 1 ? "step" : "steps"}
             </span>
@@ -155,23 +157,26 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
                   key={index}
                   className="flex items-center justify-between p-2 bg-white rounded-md border border-gray-200"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 flex items-center justify-center bg-green-500 text-white rounded-md text-xs font-medium">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-green-500 text-white rounded-md text-xs font-medium flex-shrink-0">
                       {index + 1}
                     </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                         {approverInfo[index]?.admin_name || "Loading..."}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 truncate">
                         {approverInfo[index]?.admin_job || ""} {approver.email}
                       </div>
                     </div>
                   </div>
 
                   {approver.date && (
-                    <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded text-xs">
-                      <Calendar size={12} className="text-blue-600" />
+                    <div className="flex items-center gap-1 bg-blue-50 px-1 sm:px-2 py-1 rounded text-xs flex-shrink-0">
+                      <Calendar
+                        size={10}
+                        className="text-blue-600 sm:w-3 sm:h-3"
+                      />
                       <span className="text-blue-800 font-medium">
                         {formatDate(approver.date)}
                       </span>
@@ -185,17 +190,17 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
 
         {/* Attachment Section */}
         {formData.file && (
-          <div className="bg-gray-50  p-3 border border-gray-200">
-            <h2 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
-              <File size={14} className="text-orange-600" />
+          <div className="bg-gray-50 p-2 sm:p-3 border border-gray-200">
+            <h2 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1 sm:gap-1.5">
+              <File size={12} className="text-orange-600 sm:w-3 sm:h-3" />
               Attachment
             </h2>
             <div className="flex items-center gap-2 p-2 bg-white rounded-md border border-gray-200">
-              <div className="p-1 bg-orange-100 rounded">
-                <File size={16} className="text-orange-600" />
+              <div className="p-1 bg-orange-100 rounded flex-shrink-0">
+                <File size={14} className="text-orange-600 sm:w-4 sm:h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
+                <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                   {"doc_id" in formData.file
                     ? formData.file.doc_name // ✅ existing DB file
                     : formData.file.name}{" "}
@@ -213,7 +218,7 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
                   href={URL.createObjectURL(formData.file)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 transition-colors flex-shrink-0"
                 >
                   View
                 </a>

@@ -6,7 +6,7 @@ import {
   addWeeks,
   subWeeks,
 } from "date-fns";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import axios from "axios";
 import {
   ChevronLeft,
@@ -18,8 +18,10 @@ import {
   CheckCircle2,
   AlertCircle,
   BookOpen,
+  CalendarDays,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 interface DisbursementScheduleDetail {
   sched_id: number;
@@ -45,15 +47,21 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
+  const { info } = useAuth(); // Get current user info
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const { currentWeekStart, weekDays } = useMemo(() => {
+  const { allUpcomingWeeks } = useMemo(() => {
     const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
 
-    const weekDays = Array.from({ length: 7 }, (_, i) =>
-      addDays(currentWeekStart, i)
-    );
-    return { currentWeekStart, weekDays };
+    // Generate weeks from current week onwards (4 weeks total)
+    const allUpcomingWeeks = Array.from({ length: 4 }, (_, weekIndex) => {
+      const weekStart = addWeeks(currentWeekStart, weekIndex);
+      return Array.from({ length: 7 }, (_, dayIndex) =>
+        addDays(weekStart, dayIndex)
+      );
+    });
+
+    return { allUpcomingWeeks };
   }, [currentDate]);
 
   const goToPreviousWeek = () => {
@@ -68,28 +76,33 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
     setCurrentDate(new Date());
   };
 
-  const fetchWeeklySchedules = async () => {
+  const fetchWeeklySchedules = useCallback(async () => {
     setIsLoading(true);
     try {
       const formattedDate = format(
         startOfWeek(currentDate, { weekStartsOn: 1 }),
         "yyyy-MM-dd"
       );
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/disbursement/schedule/${formattedDate}`
-      );
-      console.log(response.data);
+
+      // Build URL with user_id parameter if user is logged in
+      let url = `${VITE_BACKEND_URL}api/disbursement/schedule/${formattedDate}`;
+      if (info?.admin_id) {
+        url += `?user_id=${info.admin_id}`;
+      }
+
+      const response = await axios.get(url);
+      console.log("Fetched schedules for user:", info?.admin_id, response.data);
       setSchedules(response.data);
     } catch (error) {
       console.error("Failed to fetch weekly schedules:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentDate, info?.admin_id, VITE_BACKEND_URL]);
 
   useEffect(() => {
     fetchWeeklySchedules();
-  }, [currentWeekStart]);
+  }, [fetchWeeklySchedules]);
 
   const schedulesByDate = useMemo(() => {
     return schedules.reduce((acc, schedule) => {
@@ -145,41 +158,182 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
     }
   };
 
+  // Render a single day's schedules
+  const renderDaySchedules = (day: Date) => {
+    const dateKey = format(day, "yyyy-MM-dd");
+    const daySchedules = schedulesByDate[dateKey] || [];
+    const isCurrentDay = isToday(day);
+
+    if (daySchedules.length === 0) return null;
+
+    return (
+      <div key={dateKey} className="mb-6">
+        {/* Day Header */}
+        <div
+          className={`flex items-center mb-3 ${
+            isCurrentDay ? "text-blue-600" : "text-gray-800"
+          }`}
+        >
+          <div
+            className={`flex items-center ${
+              isCurrentDay ? "bg-blue-50 px-3 py-1 rounded-full" : ""
+            }`}
+          >
+            <h3 className={`text-lg ${isCurrentDay ? "font-medium" : ""}`}>
+              {format(day, "EEE")}{" "}
+              <span className="font-semibold">{format(day, "MMM dd")}</span>
+            </h3>
+            {isCurrentDay && (
+              <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
+                Today
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Day Content */}
+        <div
+          className={`pl-4 border-l-2 ${
+            isCurrentDay ? "border-blue-400" : "border-gray-200"
+          }`}
+        >
+          <div className="space-y-3">
+            {daySchedules.map((schedule) => {
+              const statusInfo = getStatusInfo(schedule.schedule_status);
+              const due = schedule.schedule_due
+                ? format(new Date(schedule.schedule_due), "MMM dd, yyyy")
+                : "No date";
+
+              return (
+                <div
+                  key={schedule.sched_id}
+                  className="rounded-lg shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
+                  onClick={() => handleScheduleClick(schedule.sched_id)}
+                >
+                  <div className="flex">
+                    {/* Colored accent bar */}
+                    <div
+                      className="w-1.5"
+                      style={{
+                        backgroundColor: getBadgeColor(
+                          schedule.disbursement_label
+                        ),
+                      }}
+                    ></div>
+
+                    <div className="flex-1 p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-base font-semibold text-gray-800 flex-1">
+                          {schedule.sched_title}
+                        </h4>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Users size={16} className="mr-1 text-gray-400" />
+                          {schedule.student_count}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-y-2 gap-x-4 mt-2 text-sm">
+                        <div className="flex items-center">
+                          <Tag size={14} className="text-gray-400 mr-2" />
+                          <span className="text-gray-700">
+                            {schedule.disbursement_label}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center">
+                          <div
+                            className={`flex items-center px-2 py-0.5 rounded-full ${statusInfo.bgColor}`}
+                          >
+                            {statusInfo.icon}
+                            <span className={`ml-1 ${statusInfo.color}`}>
+                              {schedule.schedule_status}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center col-span-2">
+                          <Clock size={14} className="text-gray-400 mr-2" />
+                          <span className="text-gray-600">Due: {due}</span>
+                        </div>
+
+                        {/* Description */}
+                        {schedule.description && (
+                          <div className="col-span-2 text-gray-600 text-xs mt-1 line-clamp-2">
+                            <BookOpen
+                              size={14}
+                              className="inline mr-1 text-gray-400"
+                            />
+                            {schedule.description}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
+                        <span>
+                          Created by{" "}
+                          <span className="font-medium">
+                            {schedule.admin_name}
+                          </span>
+                          , {schedule.admin_job}
+                        </span>
+                        <a
+                          href={`mailto:${schedule.admin_email}`}
+                          className="text-blue-600 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {schedule.admin_email}
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                      <ChevronRightIcon size={20} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="mt-6 mb-8 px-3">
-      {/* Week Navigation Header */}
+      {/* Navigation Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {isToday(currentWeekStart) ? "This week" : "Week of"}
+        <div className="flex items-center justify-between mb-4 pb-2 ">
+          {/* Month/Year Display */}
+          <h2 className="text-2xl font-bold text-blue-500">
+            {format(currentDate, "MMMM yyyy")}
           </h2>
-          <div className="flex items-center">
-            <span className="text-sm font-medium text-gray-600 mr-4">
-              {format(currentWeekStart, "MMM d")} -{" "}
-              {format(addDays(currentWeekStart, 6), "MMM d, yyyy")}
-            </span>
-            <div className="flex space-x-2">
-              <button
-                onClick={goToPreviousWeek}
-                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
-                aria-label="Previous week"
-              >
-                <ChevronLeft size={18} className="text-gray-600" />
-              </button>
-              <button
-                onClick={goToCurrentWeek}
-                className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-              >
-                Today
-              </button>
-              <button
-                onClick={goToNextWeek}
-                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
-                aria-label="Next week"
-              >
-                <ChevronRight size={18} className="text-gray-600" />
-              </button>
-            </div>
+
+          {/* Navigation Controls */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={goToPreviousWeek}
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="Previous week"
+            >
+              <ChevronLeft size={18} className="text-gray-600" />
+            </button>
+
+            <button
+              onClick={goToCurrentWeek}
+              className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              Today
+            </button>
+
+            <button
+              onClick={goToNextWeek}
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="Next week"
+            >
+              <ChevronRight size={18} className="text-gray-600" />
+            </button>
           </div>
         </div>
 
@@ -193,178 +347,122 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
           </div>
         ) : (
           <div>
-            {weekDays.map((day) => {
-              const dateKey = format(day, "yyyy-MM-dd");
-              const daySchedules = schedulesByDate[dateKey] || [];
-              const isCurrentDay = isToday(day);
+            {(() => {
+              // Get all days with schedules across all upcoming weeks
+              const allDaysWithSchedules = allUpcomingWeeks
+                .flat()
+                .filter((day) => {
+                  const dateKey = format(day, "yyyy-MM-dd");
+                  const daySchedules = schedulesByDate[dateKey] || [];
+                  return daySchedules.length > 0;
+                });
 
-              return (
-                <div key={dateKey} className="mb-6">
-                  {/* Day Header */}
-                  <div
-                    className={`flex items-center mb-3 ${
-                      isCurrentDay ? "text-blue-600" : "text-gray-800"
-                    }`}
-                  >
-                    <div
-                      className={`flex items-center ${
-                        isCurrentDay ? "bg-blue-50 px-3 py-1 rounded-full" : ""
-                      }`}
-                    >
-                      <h3
-                        className={`text-lg ${
-                          isCurrentDay ? "font-medium" : ""
-                        }`}
-                      >
-                        {format(day, "EEE")}{" "}
-                        <span className="font-semibold">
-                          {format(day, "MMM dd")}
-                        </span>
-                      </h3>
-                      {isCurrentDay && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
-                          Today
-                        </span>
-                      )}
+              // If no days have schedules, show empty state
+              if (allDaysWithSchedules.length === 0) {
+                return (
+                  <div className="py-8 px-6 text-gray-500 bg-gray-50 rounded-lg text-center">
+                    <div className="flex flex-col items-center py-4">
+                      <div className="text-gray-400 mb-2">
+                        <CalendarDays size={48} />
+                      </div>
+                      <p className="text-lg font-medium text-gray-600 mb-1">
+                        No upcoming schedules
+                      </p>
+                      <p className="text-sm">
+                        {info?.admin_id
+                          ? "You haven't created any upcoming schedules"
+                          : "No upcoming schedules found"}
+                      </p>
                     </div>
                   </div>
+                );
+              }
 
-                  {/* Day Content */}
-                  <div
-                    className={`pl-4 border-l-2 ${
-                      isCurrentDay ? "border-blue-400" : "border-gray-200"
-                    }`}
-                  >
-                    {daySchedules.length > 0 ? (
-                      <div className="space-y-3">
-                        {daySchedules.map((schedule) => {
-                          const statusInfo = getStatusInfo(
-                            schedule.schedule_status
-                          );
-                          const due = schedule.schedule_due
-                            ? format(
-                                new Date(schedule.schedule_due),
-                                "MMM dd, yyyy"
-                              )
-                            : "No date";
+              // Group weeks by month and render with month headers
+              const weeksByMonth = allUpcomingWeeks.reduce(
+                (acc, weekDays, weekIndex) => {
+                  const weekStart = weekDays[0];
+                  const monthKey = format(weekStart, "yyyy-MM");
+                  const monthName = format(weekStart, "MMMM yyyy");
 
-                          return (
-                            <div
-                              key={schedule.sched_id}
-                              className="rounded-lg shadow-sm border border-gray-100 bg-white hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
-                              onClick={() =>
-                                handleScheduleClick(schedule.sched_id)
-                              }
-                            >
-                              <div className="flex">
-                                {/* Colored accent bar */}
-                                <div
-                                  className="w-1.5"
-                                  style={{
-                                    backgroundColor: getBadgeColor(
-                                      schedule.disbursement_label
-                                    ),
-                                  }}
-                                ></div>
+                  if (!acc[monthKey]) {
+                    acc[monthKey] = {
+                      monthName,
+                      weeks: [],
+                    };
+                  }
 
-                                <div className="flex-1 p-4">
-                                  <div className="flex justify-between items-start mb-2">
-                                    <h4 className="text-base font-semibold text-gray-800 flex-1">
-                                      {schedule.sched_title}
-                                    </h4>
-                                    <div className="flex items-center text-sm text-gray-500">
-                                      <Users
-                                        size={16}
-                                        className="mr-1 text-gray-400"
-                                      />
-                                      {schedule.student_count}
-                                    </div>
-                                  </div>
+                  const daysInWeekWithSchedules = weekDays.filter((day) => {
+                    const dateKey = format(day, "yyyy-MM-dd");
+                    const daySchedules = schedulesByDate[dateKey] || [];
+                    return daySchedules.length > 0;
+                  });
 
-                                  <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-2 text-sm">
-                                    <div className="flex items-center">
-                                      <Tag
-                                        size={14}
-                                        className="text-gray-400 mr-2"
-                                      />
-                                      <span className="text-gray-700">
-                                        {schedule.disbursement_label}
-                                      </span>
-                                    </div>
+                  // Only add weeks that have schedules
+                  if (daysInWeekWithSchedules.length > 0) {
+                    acc[monthKey].weeks.push({
+                      weekIndex,
+                      weekDays,
+                      weekStart,
+                      weekEnd: weekDays[6],
+                      daysInWeekWithSchedules,
+                    });
+                  }
 
-                                    <div className="flex items-center">
-                                      <div
-                                        className={`flex items-center px-2 py-0.5 rounded-full ${statusInfo.bgColor}`}
-                                      >
-                                        {statusInfo.icon}
-                                        <span
-                                          className={`ml-1 ${statusInfo.color}`}
-                                        >
-                                          {schedule.schedule_status}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center col-span-2">
-                                      <Clock
-                                        size={14}
-                                        className="text-gray-400 mr-2"
-                                      />
-                                      <span className="text-gray-600">
-                                        Due: {due}
-                                      </span>
-                                    </div>
-
-                                    {/* Description */}
-                                    {schedule.description && (
-                                      <div className="col-span-2 text-gray-600 text-xs mt-1 line-clamp-2">
-                                        <BookOpen
-                                          size={14}
-                                          className="inline mr-1 text-gray-400"
-                                        />
-                                        {schedule.description}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Footer */}
-                                  <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500">
-                                    <span>
-                                      Created by{" "}
-                                      <span className="font-medium">
-                                        {schedule.admin_name}
-                                      </span>
-                                      , {schedule.admin_job}
-                                    </span>
-                                    <a
-                                      href={`mailto:${schedule.admin_email}`}
-                                      className="text-blue-600 hover:underline"
-                                      onClick={(e) => e.stopPropagation()} // prevent navigating
-                                    >
-                                      {schedule.admin_email}
-                                    </a>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center pr-3 text-gray-400 hover:text-gray-600">
-                                  <ChevronRightIcon size={20} />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="py-4 px-6 text-gray-500 bg-gray-50 rounded-md text-center">
-                        <div className="flex flex-col items-center py-2">
-                          <p className="text-sm">No schedules for this day</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  return acc;
+                },
+                {} as Record<
+                  string,
+                  {
+                    monthName: string;
+                    weeks: Array<{
+                      weekIndex: number;
+                      weekDays: Date[];
+                      weekStart: Date;
+                      weekEnd: Date;
+                      daysInWeekWithSchedules: Date[];
+                    }>;
+                  }
+                >
               );
-            })}
+
+              // Render months with their weeks
+              return Object.entries(weeksByMonth).map(
+                ([monthKey, monthData]) => (
+                  <div key={monthKey} className="mb-8">
+                    {/* Month Header */}
+
+                    {/* Weeks in this month */}
+                    {monthData.weeks.map((weekData) => (
+                      <div key={`week-${weekData.weekIndex}`} className="mb-6">
+                        {/* Week Header */}
+                        <div className="mb-4 pb-2 border-b border-gray-200">
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {weekData.weekIndex === 0
+                              ? isToday(weekData.weekStart)
+                                ? "This week"
+                                : "Week of"
+                              : `Week of ${format(
+                                  weekData.weekStart,
+                                  "MMM d"
+                                )}`}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {format(weekData.weekStart, "MMM d")} -{" "}
+                            {format(weekData.weekEnd, "MMM d, yyyy")}
+                          </p>
+                        </div>
+
+                        {/* Days in this week */}
+                        {weekData.daysInWeekWithSchedules.map((day) =>
+                          renderDaySchedules(day)
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              );
+            })()}
           </div>
         )}
       </div>
