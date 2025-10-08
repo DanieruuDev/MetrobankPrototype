@@ -772,19 +772,19 @@ const updateScholarRenewalV2 = async (req, res) => {
                 role_id,
               ]
             );
-            if (auditEntries.length > 0) {
-              await client.query(
-                `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
-                 SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
-                [
-                  auditEntries.map((e) => e[0]), // validation_id
-                  auditEntries.map((e) => e[1]), // field_name
-                  auditEntries.map((e) => e[2]), // value
-                  auditEntries.map((e) => e[3]), // validated_by
-                  auditEntries.map((e) => e[4]), // role_id
-                ]
-              );
-            }
+            // if (auditEntries.length > 0) {
+            //   await client.query(
+            //     `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+            //      SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+            //     [
+            //       auditEntries.map((e) => e[0]), // validation_id
+            //       auditEntries.map((e) => e[1]), // field_name
+            //       auditEntries.map((e) => e[2]), // value
+            //       auditEntries.map((e) => e[3]), // validated_by
+            //       auditEntries.map((e) => e[4]), // role_id
+            //     ]
+            //   );
+            // }
           }
         }
       }

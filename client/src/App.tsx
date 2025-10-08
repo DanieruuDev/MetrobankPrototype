@@ -42,7 +42,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
-                  "STI Discipline Office",
+                  "Discipline Office",
                 ]}
               >
                 <Workflow />
@@ -61,7 +61,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
-                  "STI Discipline Office",
+                  "Discipline Office",
                 ]}
               >
                 <Approval />
@@ -79,7 +79,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
-                  "STI Discipline Office",
+                  "Discipline Office",
                 ]}
               >
                 <Request />
@@ -96,7 +96,7 @@ function App() {
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
                   "STI Registrar",
-                  "STI Discipline Office",
+                  "Discipline Office",
                 ]}
               >
                 <Renewal />

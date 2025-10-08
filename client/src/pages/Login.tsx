@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -15,13 +15,21 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
-
   const auth = useAuth();
-  if (!auth) {
-    console.error("AuthContext is undefined");
-    return null;
-  }
   const { setToken, token } = auth;
+  useEffect(() => {
+    if (token) {
+      const lastPage = sessionStorage.getItem("lastPage");
+
+      if (lastPage) {
+        navigate(lastPage, { replace: true });
+        sessionStorage.removeItem("lastPage");
+      } else {
+        navigate("/workflow-approval", { replace: true });
+      }
+    }
+  }, [token, navigate]);
+
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const validate = (): boolean => {
@@ -75,11 +83,6 @@ const LoginPage: React.FC = () => {
       setLoading(false);
     }
   };
-  if (token) {
-    console.log("Token in login", token);
-    navigate(-1);
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#024FA8] to-[#0376C0] px-4">
