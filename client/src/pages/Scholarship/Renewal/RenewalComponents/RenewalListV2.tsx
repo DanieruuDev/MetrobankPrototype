@@ -12,6 +12,7 @@ import {
   Eye,
   UserRoundPlus as UserRoundPen,
 } from "lucide-react";
+import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterDropdown";
 import {
   type RenewalRow,
   renewalTableHead,
@@ -61,7 +62,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<string>("");
   const [initialRenewalInfo, setInitialRenewalInfo] =
     useState<InitialRenewalInfo | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<
@@ -523,12 +523,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setPendingExitEdit(false);
   };
 
-  const handleBranchChange = (branch: string) => {
-    setSelectedBranch(branch);
-    const filterByBranch = renewalData.filter((r) => r.campus === branch);
-    setTempRenewalData(filterByBranch);
-  };
-
   const handleCancelModal = () => {
     setIsConfirmOpen(false);
     setPendingExitEdit(false);
@@ -631,12 +625,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       getInitialRenewalInfo(sySemester);
     }
   }, [sySemester, getRenewalData, getInitialRenewalInfo]);
-
-  useEffect(() => {
-    if (auth?.info?.branch?.branch_name) {
-      setSelectedBranch(auth.info.branch.branch_name);
-    }
-  }, [auth?.info?.branch]);
 
   useEffect(() => {
     const passed = renewalData.filter(
@@ -755,8 +743,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 : "max-h-0 opacity-0"
             }`}
           >
-            {/* Modern Criteria Selection */}
-
             {/* Modern Information Grid */}
             <div
               className={`grid grid-cols-1 xs:grid-cols-2 ${
@@ -788,7 +774,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </span>
                 </div>
                 <p className="text-sm font-bold text-slate-800 mb-1">
-                  {selectedBranch || "All Branches"}
+                  {selectedBranchFilter === "All"
+                    ? "All Branches"
+                    : selectedBranchFilter}
                 </p>
                 {auth?.info?.branch && (
                   <p className="text-xs text-slate-500">
@@ -1042,19 +1030,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           </div>
 
           {/* Modern Controls Section */}
-          <div className="">
-            <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-sm">
+            <div className="flex flex-col gap-4">
               {/* Status Filter Row */}
-              <div className="flex flex-col lg:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 {/* Mobile-friendly status filter */}
-                <div className="flex flex-col lg:hidden gap-2">
+                <div className="flex flex-col sm:hidden gap-2">
                   <div className="text-xs text-slate-600 font-medium">
                     Filter by Status:
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setSelectedStatus("All")}
-                      className={`px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 truncate ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
                         selectedStatus === "All"
                           ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
                           : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
@@ -1064,7 +1052,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     </button>
                     <button
                       onClick={() => setSelectedStatus("Not Started")}
-                      className={`px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 truncate ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
                         selectedStatus === "Not Started"
                           ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg"
                           : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
@@ -1074,7 +1062,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     </button>
                     <button
                       onClick={() => setSelectedStatus("Passed")}
-                      className={`px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 truncate ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
                         selectedStatus === "Passed"
                           ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
                           : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
@@ -1084,7 +1072,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     </button>
                     <button
                       onClick={() => setSelectedStatus("Delisted")}
-                      className={`px-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 truncate ${
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
                         selectedStatus === "Delisted"
                           ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg"
                           : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
@@ -1096,9 +1084,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 </div>
 
                 {/* Desktop status filter */}
-                <div className="hidden lg:flex items-center bg-white/50 backdrop-blur-sm rounded-lg border border-white/50 overflow-hidden flex-shrink-0">
+                <div className="hidden sm:flex items-center bg-white/50 backdrop-blur-sm rounded-lg border border-white/50 overflow-hidden">
                   <button
-                    className={`px-3 py-2 text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
                       selectedStatus === "All"
                         ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
                         : "text-slate-600 hover:bg-white/80 hover:shadow-md"
@@ -1109,7 +1097,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </button>
                   <div className="w-px h-6 bg-white/50"></div>
                   <button
-                    className={`px-3 py-2 text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
                       selectedStatus === "Not Started"
                         ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg"
                         : "text-slate-600 hover:bg-white/80 hover:shadow-md"
@@ -1120,7 +1108,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </button>
                   <div className="w-px h-6 bg-white/50"></div>
                   <button
-                    className={`px-3 py-2 text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
                       selectedStatus === "Passed"
                         ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
                         : "text-slate-600 hover:bg-white/80 hover:shadow-md"
@@ -1131,7 +1119,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </button>
                   <div className="w-px h-6 bg-white/50"></div>
                   <button
-                    className={`px-3 py-2 text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
                       selectedStatus === "Delisted"
                         ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg"
                         : "text-slate-600 hover:bg-white/80 hover:shadow-md"
@@ -1143,12 +1131,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 </div>
 
                 {/* Search Input */}
-                <div className="flex items-center pl-3 pr-3 bg-white/100 backdrop-blur-sm rounded-lg border border-white/50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 flex-1 min-w-0 h-10">
+                <div className="flex items-center pl-3 pr-3 bg-white/100 backdrop-blur-sm rounded-lg border border-white/50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 flex-1 h-10">
                   <Search className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" />
                   <input
                     type="text"
                     placeholder="Search scholars..."
-                    className="w-full bg-transparent outline-none text-slate-700 placeholder-slate-400 text-sm min-w-0 flex-1"
+                    className="w-full bg-transparent outline-none text-slate-700 placeholder-slate-400 text-sm min-w-0"
                     value={searchQuery}
                     onChange={handleSearch}
                   />
@@ -1156,97 +1144,68 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               </div>
 
               {/* Additional Filters Row */}
-              <div className="flex flex-col gap-6">
-                {/* Three Column Grid - School Year & Semester, Branch, Year Level */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* School Year & Semester Filter */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-slate-600 font-medium">
-                      School Year & Semester:
-                    </label>
-                    <select
-                      value={sySemester}
-                      onChange={(e) => setSySemester(e.target.value)}
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 w-full text-slate-700"
-                    >
-                      <option value="">Select School Year & Semester</option>
-                      <option value="2024-2025_1">
-                        2024-2025 1st Semester
-                      </option>
-                      <option value="2024-2025_2">
-                        2024-2025 2nd Semester
-                      </option>
-                      <option value="2025-2026_1">
-                        2025-2026 1st Semester
-                      </option>
-                      <option value="2025-2026_2">
-                        2025-2026 2nd Semester
-                      </option>
-                      <option value="2026-2027_1">
-                        2026-2027 1st Semester
-                      </option>
-                      <option value="2026-2027_2">
-                        2026-2027 2nd Semester
-                      </option>
-                    </select>
-                  </div>
-
-                  {/* Branch Filter */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-slate-600 font-medium">
-                      Branch:
-                    </label>
-                    <select
-                      value={selectedBranch}
-                      onChange={(e) => handleBranchChange(e.target.value)}
-                      disabled={!!auth?.info?.branch}
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 w-full text-slate-700 disabled:bg-gray-100 disabled:text-gray-500"
-                    >
-                      <option value="">Select Branch</option>
-                      {uniqueBranches.map((branch) => (
-                        <option key={branch} value={branch}>
-                          {branch}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Year Level Filter */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-slate-600 font-medium">
-                      Year Level:
-                    </label>
-                    <select
-                      value={selectedYearLevelFilter}
-                      onChange={(e) =>
-                        setSelectedYearLevelFilter(e.target.value)
-                      }
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 w-full text-slate-700"
-                    >
-                      <option value="All">All Year Levels</option>
-                      {uniqueYearLevels.map((yearLevel) => (
-                        <option key={yearLevel} value={yearLevel}>
-                          {yearLevel}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="flex flex-col lg:flex-row gap-3">
+                {/* School Year & Semester Filter */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+                    School Year & Semester:
+                  </label>
+                  <SYSemesterDropdown
+                    value={sySemester}
+                    onChange={(value) => setSySemester(value)}
+                  />
                 </div>
 
-                {/* Clear Filters Button Row */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      setSelectedStatus("All");
-                      setSelectedBranchFilter("All");
-                      setSelectedYearLevelFilter("All");
-                      setSearchQuery("");
-                    }}
-                    className="px-4 py-2 text-xs font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm whitespace-nowrap"
+                {/* Branch Filter */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+                    Branch:
+                  </label>
+                  <select
+                    value={selectedBranchFilter}
+                    onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
                   >
-                    Clear Filters
-                  </button>
+                    <option value="All">All Branches</option>
+                    {uniqueBranches.map((branch) => (
+                      <option key={branch} value={branch}>
+                        {branch}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                {/* Year Level Filter */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+                    Year Level:
+                  </label>
+                  <select
+                    value={selectedYearLevelFilter}
+                    onChange={(e) => setSelectedYearLevelFilter(e.target.value)}
+                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                  >
+                    <option value="All">All Year Levels</option>
+                    {uniqueYearLevels.map((yearLevel) => (
+                      <option key={yearLevel} value={yearLevel}>
+                        {yearLevel}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Clear Filters Button */}
+                <button
+                  onClick={() => {
+                    setSelectedStatus("All");
+                    setSelectedBranchFilter("All");
+                    setSelectedYearLevelFilter("All");
+                    setSearchQuery("");
+                  }}
+                  className="px-3 py-2 text-xs font-medium bg-white/100  text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
+                >
+                  Clear Filters
+                </button>
               </div>
             </div>
           </div>

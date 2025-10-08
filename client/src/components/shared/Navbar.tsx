@@ -76,7 +76,7 @@ const Navbar = ({ pageName }: NavbarProps) => {
       {/* Right side - User info and notifications */}
       <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
         {auth?.user ? (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative z-50" ref={dropdownRef}>
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
               {/* Notifications */}
               <div className="flex-shrink-0">
@@ -93,35 +93,62 @@ const Navbar = ({ pageName }: NavbarProps) => {
                 {auth.user.role_name}
               </div>
 
-              {/* User info with dropdown */}
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                {/* Username - hidden on mobile, visible on tablet and desktop */}
+              {/* User info with dropdown - clickable area */}
+              <div className="flex items-center space-x-1 sm:space-x-2 group">
+                {/* Username - display only on desktop (not clickable) */}
                 <div className="hidden sm:block text-xs sm:text-sm font-medium text-gray-700 max-w-[80px] lg:max-w-none truncate">
                   {userName}
                 </div>
 
-                {/* User avatar button - clickable on all devices */}
+                {/* User avatar - clickable on mobile only */}
                 <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
+                  onClick={() => {
+                    console.log(
+                      "Avatar clicked, current state:",
+                      isDropdownOpen
+                    );
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }}
+                  className="sm:hidden flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
                     bg-gradient-to-tr from-blue-500/90 to-indigo-600/90 backdrop-blur-sm 
                     text-white font-semibold text-xs sm:text-sm 
                     hover:from-blue-600/90 hover:to-indigo-700/90 
                     border border-white/30 shadow-lg hover:shadow-xl 
-                    transition-all duration-200 group"
+                    transition-all duration-200"
                   aria-label="User menu"
                 >
                   {initials}
                 </button>
 
-                {/* Dropdown arrow - hidden on mobile */}
-                <div className="hidden sm:block">
+                {/* User avatar - display only on desktop (not clickable) */}
+                <div
+                  className="hidden sm:flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
+                    bg-gradient-to-tr from-blue-500/90 to-indigo-600/90 backdrop-blur-sm 
+                    text-white font-semibold text-xs sm:text-sm 
+                    border border-white/30 shadow-lg 
+                    transition-all duration-200"
+                >
+                  {initials}
+                </div>
+
+                {/* Dropdown arrow - clickable on desktop only */}
+                <button
+                  onClick={() => {
+                    console.log(
+                      "Arrow clicked, current state:",
+                      isDropdownOpen
+                    );
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }}
+                  className="hidden sm:block hover:text-gray-700 transition-colors"
+                  aria-label="User menu"
+                >
                   {isDropdownOpen ? (
                     <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   ) : (
                     <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   )}
-                </div>
+                </button>
               </div>
             </div>
 
@@ -129,8 +156,8 @@ const Navbar = ({ pageName }: NavbarProps) => {
             {isDropdownOpen && (
               <div
                 className="
-                  absolute right-0 mt-2 w-40 sm:w-48 bg-white/90 backdrop-blur-xl rounded-lg 
-                  shadow-xl border border-white/30 py-1 z-50
+                  absolute right-0 mt-2 w-40 sm:w-48 bg-white/95 backdrop-blur-xl rounded-lg 
+                  shadow-xl border border-white/30 py-1 z-[9999]
                 "
               >
                 <div className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 border-b border-white/30 flex items-center bg-white/50 backdrop-blur-sm">

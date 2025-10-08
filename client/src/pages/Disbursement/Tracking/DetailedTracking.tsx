@@ -365,7 +365,7 @@ function DetailedTracking() {
   });
 
   return (
-    <div className="bg-gray-50 min-h-screen relative">
+    <div className="min-h-screen relative">
       <Sidebar />
       <div
         className={`

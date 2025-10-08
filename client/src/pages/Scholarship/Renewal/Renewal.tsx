@@ -21,7 +21,7 @@ function Renewal() {
   return (
     <div
       className={`
-        bg-[#F9FAFB] min-h-[100vh]
+         min-h-[100vh]
         ${
           collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[240px]"
         } transition-[padding-left] duration-300`}

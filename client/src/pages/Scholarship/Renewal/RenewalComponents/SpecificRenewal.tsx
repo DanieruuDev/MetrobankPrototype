@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { SpecificRenewalDetail } from "../Renewal";
 import { ArrowLeft } from "lucide-react";
 import { ScholarRenewalResponse } from "../../../../Interface/IRenewal";
@@ -43,24 +43,27 @@ function SpecificRenewal({
     [key: string]: string;
   }>({});
 
-  const getRenewal = async (student_id: number, renewal_id: number) => {
-    try {
-      const response = await axios.get<ScholarRenewalResponse>(
-        `${VITE_BACKEND_URL}api/renewal/get-renewal/${student_id}/${renewal_id}`
-      );
-      setRenewalDetails(response.data);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const getRenewal = useCallback(
+    async (student_id: number, renewal_id: number) => {
+      try {
+        const response = await axios.get<ScholarRenewalResponse>(
+          `${VITE_BACKEND_URL}api/renewal/get-renewal/${student_id}/${renewal_id}`
+        );
+        setRenewalDetails(response.data);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
 
   useEffect(() => {
     if (student_id && renewal_id) {
       getRenewal(Number(student_id), Number(renewal_id));
     }
-  }, [student_id, renewal_id]);
+  }, [student_id, renewal_id, getRenewal]);
 
   useEffect(() => {
     if (renewalDetails) {
@@ -186,93 +189,257 @@ function SpecificRenewal({
   if (loading) return <Loading />;
   if (!renewalDetails) return <p>No data found.</p>;
   return (
-    <div className="mt-[15px]">
+    <div className=" sm:p-4">
       {student_id === null || renewal_id === null ? (
-        "None"
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm p-8 text-center">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-8 h-8 text-slate-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <p className="text-slate-600 text-sm">No student selected</p>
+        </div>
       ) : (
-        <div className="mt-[10px] mx-[20px] ">
-          <div className="flex gap-6 text-[#565656] px-2 items-center">
-            <button
-              onClick={() => setDetailedRenewal(null)}
-              className="hover:text-[#145BE9] transition-colors duration-300 ease-in-out cursor-pointer"
-            >
-              <ArrowLeft className="w-7 h-7 transition-transform duration-300 hover:-translate-x-1" />
-            </button>
-            <div className="flex flex-col border-r-2 border-[#b9b9b9] pr-4 gap-2">
-              <div className="text-[#565656] tex-[20px] font-medium">
-                {renewalDetails.scholar_name}
-              </div>
-              <div className="text-[14px] font-medium">
-                {renewalDetails.student_id}
+        <div className="space-y-6">
+          {/* Modern Header Section */}
+          <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200">
+            {/* Modern Header with Glass-morphism */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setDetailedRenewal(null)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-white/50 rounded-lg transition-all duration-200 self-start border-none shadow-sm hover:shadow-md"
+                >
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
+                  <span className="text-sm font-medium">Back</span>
+                </button>
               </div>
             </div>
 
-            <div
-              className={`px-3 py-1  text-white text-[10px] rounded-[20px] stretch font-bold ${
-                renewalDetails.scholarship_status === "Active"
-                  ? "bg-green-500"
-                  : "bg-red-500"
-              }`}
-            >
-              {renewalDetails.scholarship_status}
+            <div className="ml-auto flex items-center justify-between mb-4 px-2">
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-slate-800">
+                  {renewalDetails.scholar_name}
+                </h1>
+                <p className="text-sm text-slate-600">
+                  Student ID: {renewalDetails.student_id}
+                </p>
+              </div>
+              <span
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
+                  renewalDetails.scholarship_status === "Active"
+                    ? "bg-green-100 text-green-800 border border-green-200"
+                    : "bg-red-100 text-red-800 border border-red-200"
+                }`}
+              >
+                {renewalDetails.scholarship_status}
+              </span>
             </div>
 
-            <div className="flex flex-col min-w-[170px] gap-2">
-              <span className="text-[14px] text-[#909497] font-medium">
-                Program/ Year Level
-              </span>
-              <div className="text-[14px] font-bold space-x-6">
-                <span>{renewalDetails.course}</span>
-                <span>{renewalDetails.yr_lvl}</span>
+            {/* Modern Student Details Cards */}
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    Program
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-slate-800 mb-1">
+                  {renewalDetails.course}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {renewalDetails.yr_lvl}
+                </p>
               </div>
-            </div>
-            <div className="flex flex-col  min-w-[130px] gap-2">
-              <span className="text-[14px] text-[#909497] font-medium">
-                Campus
-              </span>
-              <span className="text-[14px] font-bold">
-                {renewalDetails.campus}
-              </span>
-            </div>
-            <div className="flex flex-col min-w-[130px] gap-2">
-              <span className="text-[14px] text-[#909497] font-medium">
-                Semester
-              </span>
-              <span className="text-[14px] font-bold">
-                {renewalDetails.semester}
-              </span>
-            </div>
-            <div className="flex flex-col min-w-[130px] gap-2">
-              <span className="text-[14px] text-[#909497] font-medium">
-                School Year
-              </span>
-              <span className="text-[14px] font-bold">
-                {renewalDetails.school_year}
-              </span>
-            </div>
-            <div className="flex flex-col min-w-[130px] gap-2">
-              <span className="text-[14px] text-[#909497] font-medium">
-                Batch
-              </span>
-              <span className="text-[14px] font-bold min-w-[150px]">
-                {renewalDetails.batch}
-              </span>
+
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    Campus
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-slate-800">
+                  {renewalDetails.campus}
+                </p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-purple-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    Semester
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-slate-800">
+                  {renewalDetails.semester}
+                </p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-amber-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    School Year
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-slate-800">
+                  {renewalDetails.school_year}
+                </p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-indigo-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    Batch
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-slate-800">
+                  {renewalDetails.batch}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="mt-[40px]">
-            <h2 className="text-[#145BE9] font-medium text-[18px] text-medium mb-2">
-              Validation Status
-            </h2>
+          {/* Modern Validation Status Section */}
+          <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200">
+            {/* Modern Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800">
+                  Validation Status
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Manage scholarship renewal validation criteria
+                </p>
+              </div>
+            </div>
 
-            <div className="bg-[#F4F4F4] p-5 rounded-sm">
-              <form action="" onSubmit={submitHandler}>
-                <div className="flex justify-between  text-[16px] text-[#565656]">
-                  <div>
-                    <span className="text-[14px]">GPA: </span>
+            <form onSubmit={submitHandler}>
+              {/* Modern GPA and Scholarship Status Cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 ">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                      GPA
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mb-4">
                     <input
                       type="number"
-                      className="outline-none border border-x-0 border-t-0 border-b-blue-500 focus:ring-0 focus:border-b-blue-500 p-2 max-w-[80px]"
+                      className="border border-gray-300 rounded-lg px-3 py-2 w-20 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm"
                       placeholder="0.0"
                       value={selectedStatus["gpa"] || ""}
                       min="0"
@@ -318,51 +485,86 @@ function SpecificRenewal({
                         }
                       }}
                     />
-
                     <span
-                      className={`px-3 py-1 text-white text-[10px] rounded-[20px] ml-2 font-bold ${
+                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
                         computedGpaStatus === "Passed"
-                          ? "bg-green-500"
+                          ? "bg-green-100 text-green-800 border border-green-200"
                           : computedGpaStatus === "Failed"
-                          ? "bg-red-500"
-                          : "bg-gray-500"
+                          ? "bg-red-100 text-red-800 border border-red-200"
+                          : "bg-gray-100 text-gray-800 border border-gray-200"
                       }`}
                     >
                       {computedGpaStatus}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[16px]">Scholarship Status: </span>
-                    <span
-                      className={`border border-b-[#b8b8b8] border-x-0 border-t-0 p-2 font-bold text-[15px] ${
-                        updatedValidationStatus === "Passed"
-                          ? "text-green-500"
-                          : updatedValidationStatus === "Delisted"
-                          ? "text-red-500"
-                          : ""
-                      }`}
-                    >
-                      {updatedValidationStatus}
-                    </span>
-                  </div>
                 </div>
 
-                <div className="grid grid-cols-4  mt-7 gap-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-emerald-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                      Scholarship Status
+                    </span>
+                  </div>
+                  <span
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
+                      updatedValidationStatus === "Passed"
+                        ? "bg-green-100 text-green-800 border border-green-200"
+                        : updatedValidationStatus === "Delisted"
+                        ? "bg-red-100 text-red-800 border border-red-200"
+                        : "bg-gray-100 text-gray-800 border border-gray-200"
+                    }`}
+                  >
+                    {updatedValidationStatus}
+                  </span>
+                </div>
+              </div>
+
+              {/* Modern Validation Criteria Section */}
+              <div className=" mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4 text-purple-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                    Validation Criteria
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {statuses.map((status, index) =>
                     status.label !== "GPA" &&
                     status.label !== "GPA Validation Status" ? (
-                      <div key={index} className="space-y-3">
-                        <div
-                          className={`text-[14px] ${
-                            selectedStatus[status.key] === "Passed"
-                              ? "text-green-500"
-                              : selectedStatus[status.key] === "Failed"
-                              ? "text-red-500"
-                              : "text-[#565656]"
-                          }`}
-                        >
+                      <div key={index} className="">
+                        <label className="block text-xs font-medium text-slate-700 mb-2">
                           {status.label}
-                        </div>
+                        </label>
                         <select
                           value={selectedStatus[status.key] || "Not Started"}
                           onChange={(e) =>
@@ -371,16 +573,13 @@ function SpecificRenewal({
                               [status.key]: e.target.value,
                             }))
                           }
-                          className={`outline-none border border-[#b8b8b8] focus:ring-0 px-4 py-2 rounded-md max-w-[250px] w-full transition-all duration-200 cursor-pointer 
-  bg-transparent hover:bg-gray-100 text-[14px]
-  ${
-    selectedStatus[status.key] === "Passed"
-      ? "border-green-500"
-      : selectedStatus[status.key] === "Failed"
-      ? "border-red-500"
-      : "border-gray-500"
-  }
-`}
+                          className={`w-full border shadow-sm border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200 ${
+                            selectedStatus[status.key] === "Passed"
+                              ? "border-green-500 bg-green-50"
+                              : selectedStatus[status.key] === "Failed"
+                              ? "border-red-500 bg-red-50"
+                              : ""
+                          }`}
                         >
                           <option value="Not Started">Not Started</option>
                           <option value="Passed">Passed</option>
@@ -392,64 +591,146 @@ function SpecificRenewal({
                     )
                   )}
                 </div>
-                <div className="flex justify-end mt-4">
-                  <button
-                    disabled={
-                      isSubmitting ||
-                      isAllNotStarted() ||
-                      !hasAnyStatusChanged()
-                    }
-                    className={`${
-                      isSubmitting ||
-                      isAllNotStarted() ||
-                      !hasAnyStatusChanged()
-                        ? "opacity-50 cursor-not-allowed"
-                        : "cursor-pointer"
-                    } bg-[#3B89FD] hover:bg-blue-600 transition-all duration-200 text-white text-[14px] font-medium px-4 py-2 rounded-sm `}
+              </div>
+
+              {/* Modern Save Button */}
+              <div className="flex justify-end">
+                <button
+                  disabled={
+                    isSubmitting || isAllNotStarted() || !hasAnyStatusChanged()
+                  }
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isSubmitting || isAllNotStarted() || !hasAnyStatusChanged()
+                      ? "opacity-50 cursor-not-allowed bg-gray-300 text-gray-500"
+                      : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl"
+                  }`}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    {isSubmitting ? "Saving..." : "Save Changes"}
-                  </button>
-                </div>
-              </form>
-            </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
 
-          <h2 className="text-[#145BE9] font-medium text-[18px] text-medium mt-5">
-            Validation History
-          </h2>
-
-          <div>
-            <div className="bg-[#EFEFEF] text-[#565656] text-[14px] grid grid-cols-7 px-4 py-2 rounded-sm mt-2">
-              <div>Renewal Date</div>
-              <div>Year Level</div>
-              <div>Semester</div>
-              <div>School Year</div>
-              <div>Status</div>
-              <div>Validator</div>
-              <div>Delisted Reason</div>
-            </div>
-            <div className="mb-5">
-              {renewalDetails.renewal_history.length > 0 ? (
-                renewalDetails.renewal_history.map((history, index) => (
-                  <div
-                    className="grid grid-cols-7 px-4 py-5 text-[14px] border border-b-1 border-[#D9D9D9] border-x-0 border-t-0 text-[#565656]"
-                    key={index}
-                  >
-                    <div>{history.renewal_date_history}</div>
-                    <div>{history.renewal_year_level}</div>
-                    <div>{history.renewal_semester}</div>
-                    <div>{history.renewal_school_year}</div>
-                    <div>{history.renewal_status}</div>
-                    <div>ID</div>
-                    <div>{history.delisting_root_cause}</div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[15px] text-center text-[#9e9e9e] mt-4">
-                  No Renewal History
+          {/* Modern Validation History Section */}
+          <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200">
+            {/* Modern Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800">
+                  Validation History
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Track previous renewal attempts and outcomes
                 </p>
-              )}
+              </div>
             </div>
+
+            {renewalDetails.renewal_history.length > 0 ? (
+              <div className="space-y-4">
+                {renewalDetails.renewal_history.map((history, index) => (
+                  <div
+                    key={index}
+                    className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
+                      <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg border border-white/50">
+                        <div className="text-slate-500 font-medium text-xs mb-1">
+                          Date
+                        </div>
+                        <div className="font-semibold text-slate-800 text-sm">
+                          {history.renewal_date_history}
+                        </div>
+                      </div>
+                      <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg border border-white/50">
+                        <div className="text-slate-500 font-medium text-xs mb-1">
+                          Status
+                        </div>
+                        <div className="font-semibold text-slate-800 text-sm">
+                          {history.renewal_status}
+                        </div>
+                      </div>
+                      <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg border border-white/50">
+                        <div className="text-slate-500 font-medium text-xs mb-1">
+                          Year Level
+                        </div>
+                        <div className="font-semibold text-slate-800 text-sm">
+                          {history.renewal_year_level}
+                        </div>
+                      </div>
+                      <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg border border-white/50">
+                        <div className="text-slate-500 font-medium text-xs mb-1">
+                          Semester
+                        </div>
+                        <div className="font-semibold text-slate-800 text-sm">
+                          {history.renewal_semester}
+                        </div>
+                      </div>
+                    </div>
+                    {history.delisting_root_cause && (
+                      <div className="mt-4 pt-4 border-t border-white/50">
+                        <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg border border-white/50">
+                          <div className="text-slate-500 font-medium text-xs mb-2">
+                            Delisted Reason
+                          </div>
+                          <div className="text-xs text-slate-700">
+                            {history.delisting_root_cause}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm p-8 text-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    className="w-8 h-8 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-slate-600 text-sm">
+                  No renewal history available
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

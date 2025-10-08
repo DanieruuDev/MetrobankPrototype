@@ -349,7 +349,7 @@ const DetailedOverview: React.FC = () => {
   const currentTerm = hasDisbursements ? allTerms[selectedTermIndex] : null;
 
   return (
-    <div className="bg-gray-50 min-h-screen relative">
+    <div className="min-h-screen relative">
       <Sidebar />
       <div
         className={`
@@ -372,39 +372,42 @@ const DetailedOverview: React.FC = () => {
             </button>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-6 sm:mt-10 gap-4">
-              <div className="flex items-center">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-base sm:text-lg font-bold mr-3 sm:mr-4">
+              <div className="flex items-center min-w-0 flex-1">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-base sm:text-lg font-bold mr-3 sm:mr-4 flex-shrink-0">
                   {studentInfo.scholar_name
                     .split(" ")
                     .map((name) => name[0])
                     .join("")}
                 </div>
-                <div>
-                  <h1 className="text-lg sm:text-xl font-semibold">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-xl font-semibold truncate">
                     {studentInfo.scholar_name}
                   </h1>
-                  <div className="flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-500 mt-1 gap-1 sm:gap-0">
-                    <span>ID: {studentInfo.student_id}</span>
-                    <span className="hidden sm:inline mx-2">•</span>
-                    <span>{studentInfo.campus}</span>
-                    <span className="hidden sm:inline mx-2">•</span>
-                    <span>{studentInfo.current_yr_lvl}</span>
-                    <span className="hidden sm:inline mx-2">•</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs ${
-                        studentInfo.scholarship_status === "Active"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-700"
-                      }`}
-                    >
-                      {studentInfo.scholarship_status}
-                    </span>
+                  <div className="flex flex-col-2 gap-1 sm:flex-row sm:items-center sm:gap-0 text-xs sm:text-sm text-gray-500 mt-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span>ID: {studentInfo.student_id}</span>
+
+                      <span>{studentInfo.campus}</span>
+
+                      <span>{studentInfo.current_yr_lvl}</span>
+                    </div>
+                    <div className="flex items-center gap-1 sm:ml-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs ${
+                          studentInfo.scholarship_status === "Active"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {studentInfo.scholarship_status}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
               <button
                 onClick={generatePDF}
-                className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 border border-blue-600 hover:bg-white hover:text-blue-600 px-3 sm:px-5 py-2 rounded-2xl transition"
+                className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 border border-blue-600 hover:bg-white hover:text-blue-600 px-3 sm:px-5 py-2 rounded-2xl transition flex-shrink-0"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
