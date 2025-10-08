@@ -1,7 +1,11 @@
 const pool = require("../database/dbConnect.js");
 const fs = require("fs");
 const path = require("path");
-const { uploadFile, getDownloadStream } = require("../utils/b2.js");
+const {
+  uploadFile,
+  getDownloadStream,
+  uploadBuffer,
+} = require("../utils/b2.js");
 const { sendItsYourTurnEmail } = require("../utils/emailing"); // Ensure this path is correct
 const {
   checkWorkflowExists,
@@ -252,16 +256,6 @@ const changeApprover = async (req, res) => {
 //done with adding notification
 const createApproval = async (req, res) => {
   const file = req.file;
-  const deleteFile = () => {
-    if (file) {
-      try {
-        fs.unlinkSync(file.path);
-      } catch (err) {
-        console.error("Error deleting file:", err);
-      }
-    }
-  };
-
   const client = await pool.connect();
 
   try {
@@ -288,7 +282,6 @@ const createApproval = async (req, res) => {
       !semester_code ||
       !approvers
     ) {
-      deleteFile();
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -296,7 +289,6 @@ const createApproval = async (req, res) => {
     try {
       appr = JSON.parse(approvers);
     } catch {
-      deleteFile();
       return res.status(400).json({ message: "Invalid approvers format" });
     }
 
@@ -310,20 +302,25 @@ const createApproval = async (req, res) => {
         semester_code
       )
     ) {
-      deleteFile();
       return res.status(400).json({ message: "Workflow already exists" });
     }
 
-    const b2Result = await uploadFile(
-      file.path,
-      `${Date.now()}_${file.originalname}`, // unique name
+    // ✅ Upload the in-memory buffer directly
+    const fileName = `${Date.now()}_${file.originalname}`;
+    const b2Result = await uploadBuffer(
+      file.buffer,
+      fileName,
       process.env.B2_BUCKET_ID
     );
-    deleteFile();
 
+    if (!b2Result || !b2Result.fileName) {
+      throw new Error("Upload to B2 failed");
+    }
+
+    // ✅ Save document metadata
     const docId = await insertDocument(client, {
-      doc_name: b2Result.data.fileName,
-      path: `${process.env.B2_BUCKET_ID}/${b2Result.data.fileName}`,
+      doc_name: b2Result.fileName,
+      path: `${process.env.B2_BUCKET_ID}/${b2Result.fileName}`,
       size: file.size,
       doc_type: file.mimetype,
     });
@@ -354,38 +351,38 @@ const createApproval = async (req, res) => {
       workflow_id: workflowId,
     };
 
-    // Insert approvers (DB only, no emails yet)
+    // Insert approvers
     const approverQueries = await insertApprovers(
       client,
       appr,
       workflowId,
       workflowDetailsForEmail
     );
-    console.log(approvers);
+
     if (approverQueries.length > 0) {
-      // 1️⃣ Notify all approvers that they are part of this workflow
       await createNotification({
         type: "WORKFLOW_PARTICIPATION",
         title: "You are part of a workflow",
         message: `Added you as an approver for workflow "${rq_title}".`,
         relatedId: workflowId,
-        actorId: requester_id, // requester created the workflow
+        actorId: requester_id,
         actionRequired: false,
         recipients: [approverQueries],
       });
+
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
         [approverQueries[0].approvers.approver_id]
       );
 
       const firstApprover = approverQueries[0].approvers;
-      console.log(firstApprover.user_id);
+
       await createNotification({
         type: "WORKFLOW_APPROVER_TURN",
         title: "Approval Required",
         message: `It’s your turn to review and approve workflow "${rq_title}".`,
         relatedId: workflowId,
-        actorId: requester_id, // requester is still the actor
+        actorId: requester_id,
         actionRequired: true,
         actionType: "VISIT_PAGE",
         actionPayload: { workflowId, approverId: firstApprover.approver_id },
@@ -402,7 +399,7 @@ const createApproval = async (req, res) => {
       actionRequired: false,
       recipients: [{ approvers: { user_id: requester_id } }],
     });
-    // Save workflow log
+
     await client.query(
       "INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, comments) VALUES ($1, $2, $3, $4, $5)",
       [
@@ -416,7 +413,6 @@ const createApproval = async (req, res) => {
 
     await client.query("COMMIT");
 
-    // Respond first
     res.status(201).json({
       message: "Approval workflow created successfully!",
       workflowList: {
@@ -424,7 +420,7 @@ const createApproval = async (req, res) => {
         rq_title,
         due_date,
         status: "Pending",
-        doc_name: b2Result.data.fileName,
+        doc_name: b2Result.fileName,
         current_approver:
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
@@ -432,20 +428,9 @@ const createApproval = async (req, res) => {
         school_details: `${rq_title} - ${semester_code}`,
       },
     });
-
-    if (approverQueries.length > 0) {
-      approverQueries.forEach(({ approvers }) => {
-        sendItsYourTurnEmail(
-          approvers.user_email,
-          workflowDetailsForEmail
-        ).catch((err) => {
-          console.error("Email failed for", approvers.user_email, err);
-        });
-      });
-    }
   } catch (error) {
     await client.query("ROLLBACK");
-    deleteFile();
+    console.error("Error:", error);
     res.status(500).json({ message: error.message || "File upload failed" });
   } finally {
     client.release();
@@ -674,8 +659,8 @@ const fetchApproverApproval = async (req, res) => {
     const { approver_id } = req.params;
 
     const query = `
-        SELECT * FROM vw_approver_detailed
-        WHERE approver_id = $1;
+      SELECT * FROM vw_approver_detailed
+      WHERE approver_id = $1;
     `;
 
     const { rows } = await pool.query(query, [approver_id]);
@@ -684,66 +669,13 @@ const fetchApproverApproval = async (req, res) => {
       return res.status(404).json({ message: "Approver not found" });
     }
 
-    // Get return conversation data
-    const returnConversationQuery = `
-      SELECT 
-        rf.return_id,
-        rf.reason,
-        rf.created_by,
-        rf.created_at,
-        rf.requester_take_action,
-        u.first_name || ' ' || u.last_name as created_by_name,
-        u.email as created_by_email
-      FROM return_feedback rf
-      LEFT JOIN "user" u ON rf.created_by = u.user_id
-      WHERE rf.approver_id = $1
-      ORDER BY rf.created_at DESC
-    `;
-
-    const returnConversationResult = await pool.query(returnConversationQuery, [
-      approver_id,
-    ]);
-
-    // Get requester responses for each return
-    const returnConversation = await Promise.all(
-      returnConversationResult.rows.map(async (returnItem) => {
-        const requesterResponsesQuery = `
-          SELECT 
-            rr.req_response_id,
-            rr.message,
-            rr.file_name,
-            rr.file_type,
-            rr.file_size,
-            rr.responded_at,
-            u.first_name || ' ' || u.last_name as requester_name
-          FROM requester_response rr
-          LEFT JOIN "user" u ON rr.requester_id = u.user_id
-          WHERE rr.response_id = $1
-          ORDER BY rr.responded_at ASC
-        `;
-
-        const requesterResponses = await pool.query(requesterResponsesQuery, [
-          returnItem.response_id,
-        ]);
-
-        return {
-          ...returnItem,
-          requester_responses: requesterResponses.rows,
-        };
-      })
-    );
-
-    const result = {
-      ...rows[0],
-      return_conversation: returnConversation,
-    };
-
-    res.json(result);
+    res.status(200).json(rows[0]); // ✅ directly return what the view already provides
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching approver approval:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 //When approving the approval
 //added notification
 const approveApproval = async (req, res) => {
@@ -788,7 +720,7 @@ const approveApproval = async (req, res) => {
 
     const workflowDetailsForEmail =
       requesterAndWorkflowDetails.workflowDetailsForEmail;
-    console.log(workflowDetailsForEmail);
+
     if (response === "Approved") {
       await handleApprovedCase(
         client,
@@ -801,17 +733,19 @@ const approveApproval = async (req, res) => {
         approver_id
       );
       await updateApproverAndResponse(client, approver_id, response, comment);
-    } else if (response === "Reject") {
-      await handleRejectCase(
-        client,
-        workflow_id,
-        user_id,
-        comment,
-        workflowDetailsForEmail,
-        requester_id
-      );
-      await updateApproverAndResponse(client, approver_id, response, comment);
-    } else if (response === "Return") {
+    }
+    // else if (response === "Reject") {
+    //   await handleRejectCase(
+    //     client,
+    //     workflow_id,
+    //     user_id,
+    //     comment,
+    //     workflowDetailsForEmail,
+    //     requester_id
+    //   );
+    //   await updateApproverAndResponse(client, approver_id, response, comment);
+    // }
+    else if (response === "Reject") {
       try {
         await client.query("BEGIN");
 
@@ -832,28 +766,27 @@ const approveApproval = async (req, res) => {
       SET response = $1, updated_at = NOW()
       WHERE approver_id = $2
       `,
-          ["Returned", approver_id]
+          ["Reject", approver_id]
         );
 
-        console.log("Before update of wf_approver and workflow");
-        await client.query(
-          `
-      UPDATE wf_approver
-      SET status = 'Returned'
-      WHERE approver_id = $1
-      `,
-          [approver_id]
-        );
+        //   await client.query(
+        //     `
+        // UPDATE wf_approver
+        // SET status = 'Returned'
+        // WHERE approver_id = $1
+        // `,
+        //     [approver_id]
+        //   );
 
         await client.query(
           `
       UPDATE workflow
-      SET status = 'Returned'
+      SET status = 'Failed'
       WHERE workflow_id = $1
       `,
           [workflow_id]
         );
-        console.log("After update of wf_approver and workflow");
+
         await client.query("COMMIT");
       } catch (err) {
         await client.query("ROLLBACK");
@@ -1041,15 +974,6 @@ const handleRequesterResponse = async (req, res) => {
     req.body;
   const file = req.file;
   console.log(file);
-  const deleteFile = () => {
-    if (file) {
-      try {
-        fs.unlinkSync(file.path);
-      } catch (err) {
-        console.error("Error deleting file:", err);
-      }
-    }
-  };
 
   const client = await pool.connect();
   try {
@@ -1062,13 +986,11 @@ const handleRequesterResponse = async (req, res) => {
       const bucketId = process.env.B2_BUCKET_ID;
       const uniqueFileName = `${Date.now()}_${file.originalname}`;
 
-      await uploadFile(file.path, uniqueFileName, bucketId);
+      await uploadBuffer(file.buffer, file.originalname, bucketId);
 
       fileName = uniqueFileName;
       fileType = file.mimetype;
       fileSize = file.size;
-
-      deleteFile();
     }
     const insertRes = await client.query(
       `
@@ -1104,14 +1026,13 @@ const handleRequesterResponse = async (req, res) => {
       [workflow_id]
     );
     console.log("workflow udpate done");
-    await client.query(
-      `UPDATE wf_approver
-       SET status = 'Pending'
-       WHERE workflow_id = $1
-         AND status = 'Returned'`,
-      [workflow_id]
-    );
-    console.log(" wf_approver udpate done");
+    // await client.query(
+    //   `UPDATE wf_approver
+    //    SET status = 'Pending'
+    //    WHERE workflow_id = $1
+    //      AND status = 'Returned'`,
+    //   [workflow_id]
+    // );
     await client.query("COMMIT");
 
     res.status(201).json({

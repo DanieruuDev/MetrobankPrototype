@@ -43,6 +43,19 @@ const uploadFile = async (filePath, fileName, bucketId) => {
     throw new Error(`Backblaze B2 upload failed: ${err.message}`);
   }
 };
+async function uploadBuffer(fileBuffer, fileName, bucketId) {
+  await authorizeB2();
+  const { data: uploadData } = await b2.getUploadUrl({ bucketId });
+
+  const result = await b2.uploadFile({
+    uploadUrl: uploadData.uploadUrl,
+    uploadAuthToken: uploadData.authorizationToken,
+    fileName,
+    data: fileBuffer,
+  });
+
+  return result.data;
+}
 
 async function getDownloadStream(fileName) {
   console.log(fileName);
@@ -72,4 +85,4 @@ async function getDownloadStream(fileName) {
   }
 }
 
-module.exports = { uploadFile, getDownloadStream };
+module.exports = { uploadFile, getDownloadStream, uploadBuffer };

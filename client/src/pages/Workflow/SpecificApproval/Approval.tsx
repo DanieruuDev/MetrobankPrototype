@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
   DetailedWorkflow,
@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
-import { AuthContext } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import ChangeApproverModal from "../../../components/approval/my-approval/ChangeApproverModal";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
@@ -31,8 +31,9 @@ import Loading from "../../../components/shared/Loading";
 
 function Approval() {
   const { workflow_id } = useParams();
-  const auth = useContext(AuthContext);
+  const auth = useAuth();
   const userId = auth?.user?.user_id;
+  const token = auth?.token;
   const navigate = useNavigate();
   const [detailedWorkflow, setDetailedWorkflow] = useState<
     DetailedWorkflow | undefined
@@ -57,24 +58,32 @@ function Approval() {
   const [expandedApproverId, setExpandedApproverId] = useState<number | null>(
     null
   );
-  const fetchWorkflow = async (requester_id: number, workflow_id: number) => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`
-      );
-      console.log(response.data);
-      setDetailedWorkflow(response.data);
-    } catch (error) {
-      console.error("Error fetching workflow:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const fetchWorkflow = useCallback(
+    async (requester_id: number, workflow_id: number) => {
+      setIsLoading(true);
+      try {
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log(response.data);
+        setDetailedWorkflow(response.data);
+      } catch (error) {
+        console.error("Error fetching workflow:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [VITE_BACKEND_URL, token]
+  );
 
   useEffect(() => {
     fetchWorkflow(Number(userId), Number(workflow_id));
-  }, [workflow_id]);
+  }, [workflow_id, userId, token, fetchWorkflow]);
 
   const workflow =
     Array.isArray(detailedWorkflow) && detailedWorkflow.length > 0
@@ -150,7 +159,7 @@ function Approval() {
       case "Reject":
         return "text-red-700";
       case "Returned":
-        return "text-orange-700";
+        return "text-red-700"; // Changed from orange to red to match reject styling
       default:
         return "text-gray-600";
     }
@@ -563,18 +572,18 @@ function Approval() {
                                 </div>
                               </div>
                               {/* Return Feedback Section - Always present but conditionally visible */}
-                              {(isReturned ||
+                              {(isRejected ||
                                 approver.return_feedback.length > 0) && (
                                 <div
-                                  className={`bg-orange-500/10 backdrop-blur-sm p-4 rounded-lg border border-orange-400/30 mt-2 transition-all duration-200 ${
+                                  className={`bg-red-500/10 backdrop-blur-sm p-4 rounded-lg border border-red-400/30 mt-2 transition-all duration-200 ${
                                     expandedApproverId ===
                                       approver.approver_id ||
-                                    approver.approver_status === "Returned"
+                                    approver.response === "Reject"
                                       ? "block"
                                       : "hidden"
                                   }`}
                                 >
-                                  <h4 className="text-sm font-medium text-orange-800 mb-4 flex items-center">
+                                  <h4 className="text-sm font-medium text-red-800 mb-4 flex items-center">
                                     <svg
                                       className="w-4 h-4 mr-2"
                                       fill="currentColor"
@@ -590,9 +599,9 @@ function Approval() {
                                   </h4>
 
                                   {approver.return_feedback.length === 0 &&
-                                    isReturned && (
-                                      <div className="text-sm text-orange-700 italic">
-                                        This step was returned but no specific
+                                    isRejected && (
+                                      <div className="text-sm text-red-700 italic">
+                                        This step was rejected but no specific
                                         feedback was provided.
                                       </div>
                                     )}
@@ -606,22 +615,26 @@ function Approval() {
                                       >
                                         <div className="flex items-start justify-between mb-2">
                                           <div className="flex-1">
-                                            <p className="text-xs text-orange-600 font-medium">
+                                            <p className="text-xs text-red-600 font-medium">
                                               Returned by{" "}
                                               {feedback.created_by_name} (
                                               {feedback.created_by_email}){" "}
-                                              {feedback.requester_take_action && (
-                                                <span className="bg-orange-200 text-orange-800 px-2 py-1 rounded-full text-xs ml-2">
+                                              {feedback.requester_take_action ? (
+                                                <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs ml-2">
+                                                  Resolved
+                                                </span>
+                                              ) : (
+                                                <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-xs ml-2">
                                                   Action Required
                                                 </span>
                                               )}
                                             </p>
                                           </div>
-                                          <p className="text-xs text-orange-600">
+                                          <p className="text-xs text-red-600">
                                             {formatDate(feedback.created_at)}
                                           </p>
                                         </div>
-                                        <p className="text-sm text-orange-800 bg-orange-500/10 backdrop-blur-sm p-3 rounded border border-orange-400/20">
+                                        <p className="text-sm text-red-800 bg-red-500/10 backdrop-blur-sm p-3 rounded border border-red-400/20">
                                           {feedback.reason}
                                         </p>
 
@@ -674,7 +687,7 @@ function Approval() {
                                                 Your Response
                                               </label>
                                               <textarea
-                                                className="w-full border border-white/30 bg-white/10 backdrop-blur-sm rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-400/50"
+                                                className="w-full border border-white/30 bg-white/10 backdrop-blur-sm rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-400/50"
                                                 placeholder="Explain how you've addressed the concerns..."
                                                 rows={3}
                                                 value={returnedResponseComment}
@@ -691,7 +704,7 @@ function Approval() {
                                               <label className="block text-xs font-medium text-gray-700 mb-1">
                                                 Supporting Document (Optional)
                                               </label>
-                                              <div className="border-2 border-dashed border-white/30 bg-white/5 backdrop-blur-sm rounded p-3 text-center hover:border-orange-400/50 transition-colors">
+                                              <div className="border-2 border-dashed border-white/30 bg-white/5 backdrop-blur-sm rounded p-3 text-center hover:border-red-400/50 transition-colors">
                                                 <input
                                                   type="file"
                                                   id={`file-${feedback.return_id}`}
@@ -752,7 +765,7 @@ function Approval() {
                                             </div>
 
                                             <button
-                                              className="w-full px-4 py-2 bg-orange-600/80 backdrop-blur-sm hover:bg-orange-700/80 text-white rounded text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-orange-500/30 shadow-lg hover:shadow-xl"
+                                              className="w-full px-4 py-2 bg-red-600/80 backdrop-blur-sm hover:bg-red-700/80 text-white rounded text-sm font-medium transition-colors duration-200 flex items-center justify-center border border-red-500/30 shadow-lg hover:shadow-xl"
                                               disabled={isResponseLoading}
                                               onClick={(e) => {
                                                 e.stopPropagation();

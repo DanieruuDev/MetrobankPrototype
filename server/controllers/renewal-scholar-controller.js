@@ -587,7 +587,7 @@ const updateScholarRenewal = async (req, res) => {
 
 const updateScholarRenewalV2 = async (req, res) => {
   const updates = req.body; // expects array of { renewal_id, validator_id?, changedFields }
-  console.log("Upate here", updates);
+  console.log("Update here", updates);
   if (!Array.isArray(updates) || updates.length === 0) {
     return res
       .status(400)
@@ -598,9 +598,15 @@ const updateScholarRenewalV2 = async (req, res) => {
   try {
     await client.query("BEGIN");
     const updatedRows = new Set();
-
+    console.log(updates);
     for (const row of updates) {
-      const { renewal_id, validator_id, changedFields } = row;
+      const {
+        renewal_id,
+        validator_id,
+        changedFields,
+        validation_id,
+        user_id,
+      } = row;
 
       if (
         !renewal_id ||
@@ -608,6 +614,18 @@ const updateScholarRenewalV2 = async (req, res) => {
         Object.keys(changedFields).length === 0
       ) {
         continue;
+      }
+
+      // Retrieve role_id for auditing if validator_id is provided
+      let role_id = null;
+      if (validator_id) {
+        const { rows: validatorRows } = await client.query(
+          `SELECT role_id FROM renewal_validator WHERE validator_id = $1`,
+          [validator_id]
+        );
+        if (validatorRows.length > 0) {
+          role_id = validatorRows[0].role_id;
+        }
       }
 
       // ✅ STEP 1: Renewal validation fields
@@ -656,7 +674,33 @@ const updateScholarRenewalV2 = async (req, res) => {
         const query = `UPDATE renewal_validation SET ${setClauses} WHERE renewal_id = $${values.length + 1}`;
         const result = await client.query(query, [...values, renewal_id]);
 
-        if (result.rowCount > 0) updatedRows.add(renewal_id);
+        if (result.rowCount > 0) {
+          updatedRows.add(validation_id);
+
+          // Audit: Batch insert into field_validation for renewal_validation fields
+          const auditEntries = Object.entries(validationFields).map(
+            ([field_name, value]) => [
+              validation_id,
+              field_name,
+              value.toString(), // Convert to string to match VARCHAR(255)
+              user_id,
+              role_id,
+            ]
+          );
+          if (auditEntries.length > 0) {
+            await client.query(
+              `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+               SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+              [
+                auditEntries.map((e) => e[0]), // validation_id
+                auditEntries.map((e) => e[1]), // field_name
+                auditEntries.map((e) => e[2]), // value
+                auditEntries.map((e) => e[3]), // validated_by
+                auditEntries.map((e) => e[4]), // role_id
+              ]
+            );
+          }
+        }
       }
 
       // ✅ STEP 2: Renewal scholar (renewal_date only)
@@ -665,7 +709,31 @@ const updateScholarRenewalV2 = async (req, res) => {
           `UPDATE renewal_scholar SET renewal_date = $1 WHERE renewal_id = $2`,
           [changedFields.renewal_date, renewal_id]
         );
-        if (result.rowCount > 0) updatedRows.add(renewal_id);
+        if (result.rowCount > 0) {
+          updatedRows.add(renewal_id);
+
+          // Audit: Batch insert into field_validation for renewal_date
+          const auditEntries = [
+            [
+              renewal_id,
+              "renewal_date",
+              changedFields.renewal_date.toString(),
+              validator_id,
+              role_id,
+            ],
+          ];
+          await client.query(
+            `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+             SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+            [
+              auditEntries.map((e) => e[0]),
+              auditEntries.map((e) => e[1]),
+              auditEntries.map((e) => e[2]),
+              auditEntries.map((e) => e[3]),
+              auditEntries.map((e) => e[4]),
+            ]
+          );
+        }
       }
 
       // ✅ STEP 3: Renewal validator fields
@@ -691,7 +759,33 @@ const updateScholarRenewalV2 = async (req, res) => {
           const query = `UPDATE renewal_validator SET ${setClauses} WHERE validator_id = $${values.length + 1}`;
           const result = await client.query(query, [...values, validator_id]);
 
-          if (result.rowCount > 0) updatedRows.add(renewal_id);
+          if (result.rowCount > 0) {
+            updatedRows.add(renewal_id);
+
+            // Audit: Batch insert into field_validation for validator fields
+            const auditEntries = Object.entries(validatorFields).map(
+              ([field_name, value]) => [
+                renewal_id,
+                field_name,
+                value.toString(), // Convert to string to match VARCHAR(255)
+                validator_id,
+                role_id,
+              ]
+            );
+            if (auditEntries.length > 0) {
+              await client.query(
+                `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+                 SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+                [
+                  auditEntries.map((e) => e[0]), // validation_id
+                  auditEntries.map((e) => e[1]), // field_name
+                  auditEntries.map((e) => e[2]), // value
+                  auditEntries.map((e) => e[3]), // validated_by
+                  auditEntries.map((e) => e[4]), // role_id
+                ]
+              );
+            }
+          }
         }
       }
     }

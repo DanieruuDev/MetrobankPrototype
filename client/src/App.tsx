@@ -42,7 +42,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
-                  "Discipline Office",
+                  "STI Discipline Office",
                 ]}
               >
                 <Workflow />
@@ -61,7 +61,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
-                  "Discipline Office",
+                  "STI Discipline Office",
                 ]}
               >
                 <Approval />
@@ -79,7 +79,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
-                  "Discipline Office",
+                  "STI Discipline Office",
                 ]}
               >
                 <Request />
@@ -87,7 +87,22 @@ function App() {
             }
           />
 
-          <Route path="/renewal-scholarship" element={<Renewal />} />
+          <Route
+            path="/renewal-scholarship"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "STI Discipline Office",
+                ]}
+              >
+                <Renewal />
+              </PrivateRoute>
+            }
+          />
 
           <Route
             path="/schedule"

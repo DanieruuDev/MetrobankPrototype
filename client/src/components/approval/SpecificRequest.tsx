@@ -100,6 +100,7 @@ function SpecificRequest({
   }, [
     status,
     comment,
+    VITE_BACKEND_URL,
     approver_id,
     specificRequest?.response_id,
     specificRequest?.workflow_id,

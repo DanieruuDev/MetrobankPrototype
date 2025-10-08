@@ -1,6 +1,6 @@
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { useContext, useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -19,12 +19,50 @@ import {
 import EditApproval from "../../components/approval/my-approval/EditApproval";
 import CreateApproval from "../../components/approval/my-approval/CreateApproval";
 
-import { AuthContext } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { useSidebar } from "../../context/SidebarContext";
 import ConfirmDialog from "../../components/approval/ConfirmDialog";
 import { NavLink } from "react-router-dom";
 import WorkflowStatusBar from "../../components/approval/my-approval/WorkflowStatusBar";
 import MyApprovalControl from "../../components/approval/my-approval/MyApprovalControls";
+
+const statusGroups: Record<string, string[]> = {
+  All: [],
+  Active: ["In Progress", "Not Started"],
+  "Needs Attention": ["Returned", "Missed"],
+  Completed: ["Completed", "Failed"],
+};
+
+const groupStyles: Record<string, { color: string; icon: React.ReactNode }> = {
+  "All Requests": {
+    color: "gray",
+    icon: <ClipboardList className="text-gray-500" size={16} />,
+  },
+  "Not Started": {
+    color: "gray",
+    icon: <Clock className="text-gray-400" size={16} />,
+  },
+  "In Progress": {
+    color: "blue",
+    icon: <Disc className="text-blue-500" size={16} />,
+  },
+  Missed: {
+    color: "yellow",
+    icon: <CircleAlert className="text-yellow-500" size={16} />,
+  },
+  Returned: {
+    color: "orange",
+    icon: <RotateCcw className="text-orange-500" size={16} />,
+  },
+  Completed: {
+    color: "green",
+    icon: <CheckCircle className="text-green-500" size={16} />,
+  },
+  Failed: {
+    color: "red",
+    icon: <XCircle className="text-red-500" size={16} />,
+  },
+};
 
 function Workflow() {
   const [workflowDisplay, setWorkflowDisplay] = useState<
@@ -43,50 +81,13 @@ function Workflow() {
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const auth = useContext(AuthContext);
+  const auth = useAuth();
   const userId = auth?.user?.user_id;
+  const { token } = auth;
   const [activeStatus, setActiveStatus] = useState("All");
 
-  const statusGroups: Record<string, string[]> = {
-    All: [],
-    Active: ["In Progress", "Not Started"],
-    "Needs Attention": ["Returned", "Missed"],
-    Completed: ["Completed", "Failed"],
-  };
-  const groupStyles: Record<string, { color: string; icon: React.ReactNode }> =
-    {
-      "All Requests": {
-        color: "gray",
-        icon: <ClipboardList className="text-gray-500" size={16} />,
-      },
-      "Not Started": {
-        color: "gray",
-        icon: <Clock className="text-gray-400" size={16} />,
-      },
-      "In Progress": {
-        color: "blue",
-        icon: <Disc className="text-blue-500" size={16} />,
-      },
-      Missed: {
-        color: "yellow",
-        icon: <CircleAlert className="text-yellow-500" size={16} />,
-      },
-      Returned: {
-        color: "orange",
-        icon: <RotateCcw className="text-orange-500" size={16} />,
-      },
-      Completed: {
-        color: "green",
-        icon: <CheckCircle className="text-green-500" size={16} />,
-      },
-      Failed: {
-        color: "red",
-        icon: <XCircle className="text-red-500" size={16} />,
-      },
-    };
-
   // return { groupName: workflows[] }
-  const getGroupedWorkflows = () => {
+  const getGroupedWorkflows = useMemo(() => {
     const groups: Record<string, WorkflowDisplaySchema[]> = {};
     const statuses = statusGroups[activeStatus] || [];
 
@@ -125,38 +126,49 @@ function Workflow() {
     });
 
     return groups;
-  };
+  }, [workflowDisplay, activeStatus, searchQuery]);
 
-  const archivedWorkflow = async (
-    requester_id: number,
-    workflow_id: number
-  ) => {
-    console.log(requester_id, workflow_id);
-    setArchiving(true);
-    try {
-      await axios.put(
-        `${VITE_BACKEND_URL}api/workflow/archive-workflow/${requester_id}/${workflow_id}`
-      );
+  const archivedWorkflow = useCallback(
+    async (requester_id: number, workflow_id: number) => {
+      console.log(requester_id, workflow_id);
+      setArchiving(true);
+      try {
+        await axios.put(
+          `${VITE_BACKEND_URL}api/workflow/archive-workflow/${requester_id}/${workflow_id}`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-      toast.success("Approval workflow archived successfully!");
+        toast.success("Approval workflow archived successfully!");
 
-      setWorkflowDisplay((prevItems) =>
-        prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
-      );
-    } catch (error) {
-      toast.error("Failed to delete approval workflow.");
-      console.log(error);
-    } finally {
-      setArchiving(false);
-    }
-  };
+        setWorkflowDisplay((prevItems) =>
+          prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
+        );
+      } catch (error) {
+        toast.error("Failed to delete approval workflow.");
+        console.log(error);
+      } finally {
+        setArchiving(false);
+      }
+    },
+    [VITE_BACKEND_URL, token]
+  );
 
   const fetchWorkflows = useCallback(async () => {
     if (userId === undefined) return;
     setLoading(true);
     try {
       const response = await axios.get(
-        `${VITE_BACKEND_URL}api/workflow/get-workflows/${userId}`
+        `${VITE_BACKEND_URL}api/workflow/get-workflows/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       const { data } = response.data;
@@ -167,7 +179,7 @@ function Workflow() {
     } finally {
       setLoading(false);
     }
-  }, [userId, VITE_BACKEND_URL]);
+  }, [userId, VITE_BACKEND_URL, token]);
 
   useEffect(() => {
     fetchWorkflows();
@@ -192,7 +204,7 @@ function Workflow() {
     }
   };
 
-  const getCounts = () => {
+  const getCounts = useMemo(() => {
     const counts: Record<string, number> = {};
 
     Object.keys(statusGroups).forEach((group) => {
@@ -206,9 +218,9 @@ function Workflow() {
     });
 
     return counts;
-  };
+  }, [workflowDisplay]);
 
-  const counts = getCounts();
+  const counts = getCounts;
 
   const editApproval = (workflow_id: number | null) => {
     if (workflow_id) {
@@ -217,6 +229,8 @@ function Workflow() {
       setEditModalID(null);
     }
   };
+
+  if (!auth) return null;
 
   return (
     <div className=" min-h-screen relative">
@@ -301,7 +315,7 @@ function Workflow() {
 
           {/* Data Tables */}
           <div className="mt-4 sm:mt-6 space-y-4 sm:space-y-6">
-            {Object.entries(getGroupedWorkflows()).map(
+            {Object.entries(getGroupedWorkflows).map(
               ([groupName, workflows]) => {
                 const { icon, color } = groupStyles[groupName] || {
                   icon: <ClipboardList className="text-gray-500" size={16} />,
