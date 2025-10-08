@@ -12,7 +12,6 @@ import {
   Eye,
   UserRoundPlus as UserRoundPen,
 } from "lucide-react";
-import SYSemesterDropdown from "../../../../components/maintainables/SYSemesterDropdown";
 import {
   type RenewalRow,
   renewalTableHead,
@@ -73,6 +72,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     useState<string>("All");
   const [isRenewalInfoVisible, setIsRenewalInfoVisible] = useState(true);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [sySemesterOptions, setSySemesterOptions] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
 
   const itemsPerPage = 10;
 
@@ -646,6 +648,46 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     console.log("Parent sySemester updated:", sySemester);
   }, [sySemester]);
 
+  // Fetch SY Semester options
+  useEffect(() => {
+    const fetchSySemesterOptions = async () => {
+      try {
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/maintenance/valid_sy_semester`
+        );
+
+        const formatted = response.data.map(
+          (item: {
+            label: string;
+            sy_code: number;
+            semester_code: number;
+            school_year: string;
+            semester: string;
+          }) => ({
+            label: item.label, // e.g. "2025-2026 1st Semester"
+            value: `${item.school_year}_${item.semester_code}`, // unique combo
+          })
+        );
+
+        // Sort by school_year and semester_code to find latest
+        const sorted = [...formatted].sort((a, b) =>
+          b.value.localeCompare(a.value)
+        );
+
+        setSySemesterOptions(sorted);
+
+        // Set default value if none is selected
+        if (!sySemester && sorted.length > 0) {
+          setSySemester(sorted[0].value);
+        }
+      } catch (error) {
+        console.error("Error fetching valid SY-Semester:", error);
+      }
+    };
+
+    fetchSySemesterOptions();
+  }, [VITE_BACKEND_URL, sySemester]);
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasEdits) {
@@ -691,7 +733,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
   return (
     <>
-      <div className="px-2 sm:px-4 py-2">
+      <div className="px-2 sm:px-4 mt-4 ">
         {/* Modern Renewal Information Section */}
         <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-slate-200">
           {/* Header with Modern Styling */}
@@ -1030,7 +1072,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           </div>
 
           {/* Modern Controls Section */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-sm">
+          <div className="">
             <div className="flex flex-col gap-4">
               {/* Status Filter Row */}
               <div className="flex flex-col sm:flex-row gap-3">
@@ -1150,10 +1192,18 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
                     School Year & Semester:
                   </label>
-                  <SYSemesterDropdown
+                  <select
                     value={sySemester}
-                    onChange={(value) => setSySemester(value)}
-                  />
+                    onChange={(e) => setSySemester(e.target.value)}
+                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                  >
+                    <option value="">Select SY-Semester</option>
+                    {sySemesterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Branch Filter */}

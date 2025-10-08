@@ -151,13 +151,12 @@ function SpecificRequest({
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 space-y-6 mx-auto ">
       {/* Header with back button and approval buttons */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+      <div className="flex items-center justify-between pb-4 ">
         <button
           onClick={goBack}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+          className="flex items-center gap-2  py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
         >
-          <ArrowLeft size={16} />
-          Back
+          <ArrowLeft size={20} />
         </button>
 
         {/* Approval buttons at the top */}

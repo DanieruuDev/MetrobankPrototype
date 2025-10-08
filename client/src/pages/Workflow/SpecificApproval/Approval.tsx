@@ -294,9 +294,12 @@ function Approval() {
         <div className="mb-4 mt-4 sm:mb-6">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 px-1  py-2 text-xs sm:text-sm font-medium"
+            className="flex items-center gap-2 pl-3  py-2 text-xs sm:text-sm font-medium"
           >
-            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform duration-200" />
+            <ArrowLeft
+              size={20}
+              className="text-gray-600 group-hover:-translate-x-1 transition-transform duration-200"
+            />
           </button>
         </div>
 

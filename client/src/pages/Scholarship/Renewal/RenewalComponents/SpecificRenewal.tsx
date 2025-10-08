@@ -218,10 +218,12 @@ function SpecificRenewal({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setDetailedRenewal(null)}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-white/50 rounded-lg transition-all duration-200 self-start border-none shadow-sm hover:shadow-md"
+                  className="flex items-center text-xs ml-1sm:text-sm font-medium text-gray-600 "
                 >
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
-                  <span className="text-sm font-medium">Back</span>
+                  <ArrowLeft
+                    size={20}
+                    className="text-gray-600 group-hover:-translate-x-1 transition-transform duration-200"
+                  />
                 </button>
               </div>
             </div>
