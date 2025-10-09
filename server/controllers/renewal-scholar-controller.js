@@ -682,7 +682,7 @@ const updateScholarRenewalV2 = async (req, res) => {
             ([field_name, value]) => [
               validation_id,
               field_name,
-              value.toString(), // Convert to string to match VARCHAR(255)
+              value, // Convert to string to match VARCHAR(255)
               user_id,
               role_id,
             ]
@@ -713,26 +713,26 @@ const updateScholarRenewalV2 = async (req, res) => {
           updatedRows.add(renewal_id);
 
           // Audit: Batch insert into field_validation for renewal_date
-          const auditEntries = [
-            [
-              renewal_id,
-              "renewal_date",
-              changedFields.renewal_date.toString(),
-              validator_id,
-              role_id,
-            ],
-          ];
-          await client.query(
-            `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
-             SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
-            [
-              auditEntries.map((e) => e[0]),
-              auditEntries.map((e) => e[1]),
-              auditEntries.map((e) => e[2]),
-              auditEntries.map((e) => e[3]),
-              auditEntries.map((e) => e[4]),
-            ]
-          );
+          // const auditEntries = [
+          //   [
+          //     renewal_id,
+          //     "renewal_date",
+          //     changedFields.renewal_date.toString(),
+          //     validator_id,
+          //     role_id,
+          //   ],
+          // ];
+          // await client.query(
+          //   `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+          //    SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+          //   [
+          //     auditEntries.map((e) => e[0]),
+          //     auditEntries.map((e) => e[1]),
+          //     auditEntries.map((e) => e[2]),
+          //     auditEntries.map((e) => e[3]),
+          //     auditEntries.map((e) => e[4]),
+          //   ]
+          // );
         }
       }
 
@@ -762,16 +762,16 @@ const updateScholarRenewalV2 = async (req, res) => {
           if (result.rowCount > 0) {
             updatedRows.add(renewal_id);
 
-            // Audit: Batch insert into field_validation for validator fields
-            const auditEntries = Object.entries(validatorFields).map(
-              ([field_name, value]) => [
-                renewal_id,
-                field_name,
-                value.toString(), // Convert to string to match VARCHAR(255)
-                validator_id,
-                role_id,
-              ]
-            );
+            // // Audit: Batch insert into field_validation for validator fields
+            // const auditEntries = Object.entries(validatorFields).map(
+            //   ([field_name, value]) => [
+            //     renewal_id,
+            //     field_name,
+            //     value.toString(), // Convert to string to match VARCHAR(255)
+            //     validator_id,
+            //     role_id,
+            //   ]
+            // );
             // if (auditEntries.length > 0) {
             //   await client.query(
             //     `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
