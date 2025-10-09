@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -36,7 +36,7 @@ export const ComboChart = () => {
   const [comboChartData, setComboChartData] = useState<ComboData[]>([]);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const fetchComboChartData = async () => {
+  const fetchComboChartData = useCallback(async () => {
     try {
       const response = await axios.get(
         `${VITE_BACKEND_URL}api/disbursement/overview/semester-scholars`
@@ -49,7 +49,7 @@ export const ComboChart = () => {
     } catch (error) {
       console.error("Failed to fetch combo chart data:", error);
     }
-  };
+  }, [VITE_BACKEND_URL]);
 
   const formatDisbursement = (value: number) => {
     if (value >= 1_000_000) {
@@ -80,7 +80,6 @@ export const ComboChart = () => {
           ) / 1000
         ) * 1000
       : 100000;
-  displayedData.map((item) => console.log(item.total_scholars));
   const chartData = {
     labels: displayedData.map((item) => {
       const sem =
@@ -121,14 +120,24 @@ export const ComboChart = () => {
         position: "top" as const,
         align: "end" as const,
         labels: {
-          boxWidth: 12,
-          padding: 20,
+          boxWidth: 10,
+          padding: 15,
+          font: {
+            size: 10,
+          },
         },
       },
       tooltip: {
+        cornerRadius: 6,
+        padding: 8,
+        titleFont: {
+          size: 11,
+        },
+        bodyFont: {
+          size: 10,
+        },
         callbacks: {
           label: function (context: TooltipItem<"bar" | "line">) {
-            console.log("Tooltip context:", context); // Add this line for debugging
             let label = context.dataset.label || "";
             if (label) {
               label += ": ";
@@ -141,7 +150,7 @@ export const ComboChart = () => {
                 label += context.raw.toString();
               }
             } else {
-              label += "N/A"; // fallback if value is missing
+              label += "N/A";
             }
 
             return label;
@@ -152,11 +161,13 @@ export const ComboChart = () => {
     scales: {
       x: {
         ticks: {
-          autoSkip: false,
-          maxRotation: 0,
+          autoSkip: true,
+          maxRotation: 45,
+          minRotation: 0,
           font: {
-            size: 8.5,
+            size: 9,
           },
+          maxTicksLimit: 6,
         },
         grid: {
           display: false,
@@ -169,12 +180,16 @@ export const ComboChart = () => {
         min: 0,
         max: maxScholars,
         ticks: {
-          stepSize: Math.ceil(maxScholars / 5), // 5 steps on the Y-axis
-          padding: 10,
+          stepSize: Math.ceil(maxScholars / 5),
+          padding: 8,
+          font: {
+            size: 9,
+          },
+          maxTicksLimit: 6,
         },
-
         grid: {
           drawOnChartArea: true,
+          color: "rgba(0, 0, 0, 0.1)",
         },
       },
       y1: {
@@ -190,8 +205,12 @@ export const ComboChart = () => {
             }
             return value;
           },
-          stepSize: maxDisbursement / 4, // Or tweak as needed
-          padding: 10,
+          stepSize: maxDisbursement / 4,
+          padding: 8,
+          font: {
+            size: 9,
+          },
+          maxTicksLimit: 5,
         },
         grid: {
           drawOnChartArea: false,
@@ -202,20 +221,23 @@ export const ComboChart = () => {
 
   useEffect(() => {
     fetchComboChartData();
-  }, []);
+  }, [fetchComboChartData]);
 
   return (
-    <div
-      style={{
-        position: "relative",
-        height: "250px",
-        width: "100%",
-      }}
-    >
-      <h3 className="text-center text-lg font-semibold mb-4">
+    <div className="w-full">
+      <h3 className="text-center text-sm sm:text-base md:text-lg font-semibold mb-2 sm:mb-3 md:mb-4">
         Semester Disbursements & Scholars
       </h3>
-      <Chart type="bar" data={chartData} options={options} />
+      <div
+        style={{
+          position: "relative",
+          height: "200px",
+          width: "100%",
+        }}
+        className="sm:h-[250px] md:h-[280px] lg:h-[320px] xl:h-[350px]"
+      >
+        <Chart type="bar" data={chartData} options={options} />
+      </div>
     </div>
   );
 };

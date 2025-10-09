@@ -13,6 +13,7 @@ import {
   Clock,
   Calendar,
   X,
+  RotateCcw,
   MessageSquare,
   Reply,
 } from "lucide-react";
@@ -27,7 +28,7 @@ export interface SpecificRequestProps {
   goBack: () => void;
   getSpecificRequestApproval: () => Promise<void>;
   updateApproverResponse: (
-    response: "Approved" | "Reject",
+    response: "Approved" | "Reject" | "Return",
     comment: string | null,
     approver_status: "Completed" | "Missed" | "Replaced"
   ) => Promise<void>;
@@ -48,17 +49,17 @@ function SpecificRequest({
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
+  console.log("approver status", specificRequest);
   const handleDownload = () => {
     if (!specificRequest?.doc_name) {
       console.error("No file to download");
       return;
     }
 
-    const filePath = encodeURIComponent(specificRequest?.doc_name);
+    const filePath = encodeURIComponent(specificRequest?.doc_name); // encode special chars
     const link = document.createElement("a");
     link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
-    link.setAttribute("download", specificRequest?.doc_name);
+    link.setAttribute("download", specificRequest?.doc_name); // filename for browser
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -66,8 +67,8 @@ function SpecificRequest({
 
   const handleApproval = useCallback(async () => {
     if (!status) return alert("Please select a response.");
-    if (status === "Reject" && comment.trim() === "") {
-      return alert("Comment is required when rejecting.");
+    if ((status === "Reject" || status === "Return") && comment.trim() === "") {
+      return alert("Comment is required when rejecting or returning.");
     }
 
     setLoading(true);
@@ -110,6 +111,7 @@ function SpecificRequest({
     getRequestApprovalList,
   ]);
 
+  console.log(specificRequest);
   if (!specificRequest) {
     return <Loading />;
   }
@@ -119,10 +121,8 @@ function SpecificRequest({
     (specificRequest.completed_approvers / specificRequest.total_approvers) *
       100
   );
-  const isRejected = specificRequest.approval_progress.some(
-    (approver) => approver.approval_status === "Canceled"
-  );
 
+  // Format date for display
   const formatDate = (dateString: string) => {
     if (!dateString) return "Pending";
     const date = new Date(dateString);
@@ -144,20 +144,25 @@ function SpecificRequest({
     });
   };
 
+  const isRejected = specificRequest.approval_progress.some(
+    (approver) => approver.approval_status === "Canceled"
+  );
+
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 space-y-6 mx-auto max-w-6xl">
-      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+    <div className="bg-white rounded-xl shadow-sm p-6 space-y-6 mx-auto ">
+      {/* Header with back button and approval buttons */}
+      <div className="flex items-center justify-between pb-4 ">
         <button
           onClick={goBack}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+          className="flex items-center gap-2  py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
         >
-          <ArrowLeft size={16} />
-          Back to requests
+          <ArrowLeft size={20} />
         </button>
 
+        {/* Approval buttons at the top */}
         {specificRequest.current_approver === specificRequest.approver_name &&
           (specificRequest.approver_response === "Pending" ||
-            (specificRequest.approver_response === "Reject" &&
+            (specificRequest.approver_response === "Returned" &&
               specificRequest.return_conversation?.some(
                 (conv) => Number(conv.created_by) === userId
               ))) && (
@@ -175,6 +180,17 @@ function SpecificRequest({
               </button>
               <button
                 onClick={() => {
+                  setStatus("Return");
+                  setIsModalOpen(true);
+                }}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-orange-300 text-sm font-medium rounded-md shadow-sm text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Return
+              </button>
+              <button
+                onClick={() => {
                   setStatus("Approved");
                   setIsModalOpen(true);
                 }}
@@ -189,6 +205,7 @@ function SpecificRequest({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Approval progress */}
         <div className="lg:col-span-1">
           <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 h-full">
             <div className="flex items-center justify-between mb-4">
@@ -202,12 +219,16 @@ function SpecificRequest({
               </span>
             </div>
 
+            {/* Progress visualization */}
             {specificRequest.approval_progress &&
               specificRequest.approval_progress.length > 0 && (
                 <div className="space-y-6">
-                  {hasMultipleApprovers && (
-                    <div className="relative mb-4 px-4">
+                  {/* Progress bar - only show line if multiple approvers */}
+                  <div className="relative mb-4 px-4">
+                    {/* Progress line container - only show if multiple approvers */}
+                    {hasMultipleApprovers && (
                       <div className="absolute top-1/2 left-4 right-4 h-1.5 bg-gray-200 rounded-full transform -translate-y-1/2">
+                        {/* Progress indicator */}
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
                             isRejected ? "bg-red-500" : "bg-green-500"
@@ -219,66 +240,78 @@ function SpecificRequest({
                           }}
                         />
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="relative flex justify-between">
-                    {specificRequest.approval_progress
-                      .filter(
-                        (approver) => approver.approval_status !== "Replaced"
-                      )
-                      .map((approver, index) => {
-                        const isCurrent =
-                          approver.approver_name ===
-                          specificRequest.current_approver;
-                        const isWorkflowCompleted =
-                          specificRequest.workflow_status === "Completed";
+                    {/* Approver circles */}
+                    <div className="relative flex justify-between">
+                      {specificRequest.approval_progress
+                        .filter(
+                          (approver) => approver.approval_status !== "Replaced"
+                        )
+                        .map((approver, index) => {
+                          const isCurrent =
+                            approver.approver_name ===
+                            specificRequest.current_approver;
+                          const isWorkflowCompleted =
+                            specificRequest.workflow_status === "Completed";
 
-                        return (
-                          <div
-                            key={index}
-                            className="flex flex-col items-center"
-                            style={{
-                              width: `${
-                                100 / specificRequest.total_approvers
-                              }%`,
-                            }}
-                          >
+                          return (
                             <div
-                              className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium mb-2 border-2 border-white ${
-                                approver.response === "Approved"
-                                  ? "bg-green-500 text-white shadow-sm"
-                                  : approver.response === "Reject" ||
-                                    approver.approval_status === "Canceled"
-                                  ? "bg-red-500 text-white shadow-sm"
-                                  : isCurrent && !isRejected
-                                  ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-200"
-                                  : "bg-gray-200 text-gray-500"
-                              }`}
+                              key={index}
+                              className="flex flex-col items-center"
+                              style={{
+                                width: `${
+                                  100 / specificRequest.total_approvers
+                                }%`,
+                              }}
                             >
-                              {approver.response === "Approved" ? (
-                                <Check size={14} />
-                              ) : approver.response === "Reject" ||
-                                approver.approval_status === "Canceled" ? (
-                                <X size={14} />
-                              ) : (
-                                approver.approver_order
-                              )}
+                              <div
+                                className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium mb-2 border-2 border-white ${
+                                  approver.response === "Approved"
+                                    ? "bg-green-500 text-white shadow-sm"
+                                    : approver.response === "Reject"
+                                    ? "bg-red-500 text-white shadow-sm"
+                                    : approver.response === "Returned"
+                                    ? "bg-orange-500 text-white shadow-sm"
+                                    : approver.approval_status === "Canceled"
+                                    ? "bg-red-500 text-white shadow-sm"
+                                    : isCurrent && !isRejected
+                                    ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-200"
+                                    : "bg-gray-200 text-gray-500"
+                                }`}
+                              >
+                                {approver.response === "Approved" ? (
+                                  <Check size={14} />
+                                ) : approver.response === "Reject" ? (
+                                  <X size={14} />
+                                ) : approver.response === "Returned" ? (
+                                  <RotateCcw size={14} />
+                                ) : approver.approval_status === "Canceled" ? (
+                                  <X size={14} />
+                                ) : (
+                                  <span className="text-xs">
+                                    {approver.approver_order}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Show completed_at if workflow is completed */}
+                              {isWorkflowCompleted &&
+                                index ===
+                                  specificRequest.total_approvers - 1 && (
+                                  <span className="text-xs text-green-600 mt-1 text-center">
+                                    Completed at:{" "}
+                                    {new Date(
+                                      specificRequest.completed_at
+                                    ).toLocaleDateString()}
+                                  </span>
+                                )}
                             </div>
-                            {isWorkflowCompleted &&
-                              index === specificRequest.total_approvers - 1 && (
-                                <span className="text-xs text-green-600 mt-1">
-                                  Completed at:{" "}
-                                  {new Date(
-                                    specificRequest.completed_at
-                                  ).toLocaleString()}
-                                </span>
-                              )}
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                    </div>
                   </div>
 
+                  {/* Submission info */}
                   <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
@@ -304,6 +337,7 @@ function SpecificRequest({
                     </div>
                   </div>
 
+                  {/* Approver steps */}
                   <div className="space-y-4">
                     {specificRequest.approval_progress
                       .filter(
@@ -323,9 +357,10 @@ function SpecificRequest({
                             className={`bg-white rounded-lg p-4 border ${
                               approval.response === "Approved"
                                 ? "border-green-300"
-                                : approval.response === "Reject" ||
-                                  approval.approval_status === "Canceled"
+                                : approval.response === "Reject"
                                 ? "border-red-300"
+                                : approval.response === "Returned"
+                                ? "border-orange-300"
                                 : isCurrent
                                 ? "border-blue-300"
                                 : "border-gray-300"
@@ -339,9 +374,10 @@ function SpecificRequest({
                                 className={`text-xs font-medium ${
                                   approval.response === "Approved"
                                     ? "text-green-600"
-                                    : approval.response === "Reject" ||
-                                      approval.approval_status === "Canceled"
+                                    : approval.response === "Reject"
                                     ? "text-red-600"
+                                    : approval.response === "Returned"
+                                    ? "text-orange-600"
                                     : isCurrent
                                     ? "text-blue-600"
                                     : "text-gray-500"
@@ -349,9 +385,10 @@ function SpecificRequest({
                               >
                                 {approval.response === "Approved"
                                   ? "Approved"
-                                  : approval.response === "Reject" ||
-                                    approval.approval_status === "Canceled"
+                                  : approval.response === "Reject"
                                   ? "Rejected"
+                                  : approval.response === "Returned"
+                                  ? "Returned"
                                   : isCurrent
                                   ? "Current"
                                   : approval.approval_status}
@@ -365,6 +402,8 @@ function SpecificRequest({
                                     : approval.response === "Reject" ||
                                       approval.approval_status === "Canceled"
                                     ? "bg-red-100 text-red-600"
+                                    : approval.response === "Returned"
+                                    ? "bg-orange-100 text-orange-600"
                                     : isCurrent
                                     ? "bg-blue-100 text-blue-600"
                                     : "bg-gray-100 text-gray-500"
@@ -372,6 +411,7 @@ function SpecificRequest({
                               >
                                 <User size={14} />
                               </div>
+
                               <div>
                                 <p className="text-sm font-medium text-gray-800">
                                   {displayName}
@@ -388,21 +428,28 @@ function SpecificRequest({
                                   <span>
                                     {approval.response === "Approved"
                                       ? "Approved"
-                                      : "Rejected"}{" "}
+                                      : approval.response === "Reject"
+                                      ? "Rejected"
+                                      : approval.response === "Returned"
+                                      ? "Rejected"
+                                      : "Completed"}{" "}
                                     on {formatDate(approval.approval_time)}
                                   </span>
                                 </div>
                               )}
+
                             {isCurrent &&
-                            approval.approval_status !== "Reject" ? (
+                            approval.approval_status !== "Returned" ? (
                               <div className="flex items-center gap-1 text-xs text-blue-600">
                                 <Clock size={12} />
                                 <span>Awaiting approval</span>
                               </div>
-                            ) : approval.approval_status === "Reject" ? (
-                              <div className="flex items-center gap-1 text-xs text-red-600">
-                                <Clock size={12} />
-                                <span>Awaiting requester response</span>
+                            ) : approval.approval_status === "Returned" ? (
+                              <div>
+                                <div className="flex items-center gap-1 text-xs text-orange-600">
+                                  <Clock size={12} />
+                                  <span>Awaiting for requester response</span>
+                                </div>
                               </div>
                             ) : (
                               ""
@@ -416,39 +463,44 @@ function SpecificRequest({
           </div>
         </div>
 
+        {/* Right column - Request content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Return Conversation */}
           {specificRequest.return_conversation &&
             specificRequest.return_conversation.length > 0 && (
               <div className="bg-white rounded-xl p-5 border border-gray-200">
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                   <MessageSquare size={16} />
-                  Conversation
+                  Return Conversation
                 </h3>
+
                 <div className="space-y-4">
                   {specificRequest.return_conversation.map((returnItem) => (
                     <div
                       key={returnItem.return_id}
-                      className="border border-gray-200 rounded-lg overflow-hidden"
+                      className="border border-gray-200 rounded-lg overflow-hidden bg-white"
                     >
-                      <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                      {/* Return reason from approver */}
+                      <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-600">
-                              <XCircle size={12} />
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-600">
+                              <RotateCcw size={12} />
                             </div>
-                            <span className="text-sm font-medium text-red-800">
-                              Rejected by {returnItem.created_by}
+                            <span className="text-sm font-medium text-orange-800">
+                              Returned by {returnItem.created_by}
                             </span>
                           </div>
-                          <span className="text-xs text-red-600">
+                          <span className="text-xs text-orange-600">
                             {formatConversationDate(returnItem.created_at)}
                           </span>
                         </div>
-                        <p className="text-sm text-red-700 ml-8">
+                        <p className="text-sm text-orange-700 ml-8">
                           {returnItem.reason}
                         </p>
                       </div>
 
+                      {/* Requester responses */}
                       {returnItem.requester_responses &&
                         returnItem.requester_responses.length > 0 && (
                           <div className="bg-blue-50 p-4">
@@ -473,11 +525,15 @@ function SpecificRequest({
                                           )}
                                         </span>
                                       </div>
+
+                                      {/* Response message */}
                                       {response.message && (
                                         <p className="text-sm text-blue-700 mb-2">
                                           {response.message}
                                         </p>
                                       )}
+
+                                      {/* Response file attachment */}
                                       {response.file_name && (
                                         <div className="flex items-center gap-2 p-2 bg-white rounded border border-blue-200">
                                           <FileText
@@ -510,6 +566,7 @@ function SpecificRequest({
                           </div>
                         )}
 
+                      {/* Show if requester needs to take action */}
                       {!returnItem.requester_take_action && (
                         <div className="bg-yellow-50 border-t border-yellow-200 p-3">
                           <div className="flex items-center gap-2 text-sm text-yellow-800">
@@ -526,12 +583,15 @@ function SpecificRequest({
               </div>
             )}
 
+          {/* Request Details */}
           <div className="bg-white rounded-xl p-5 border border-gray-200">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
               <FileText size={16} />
               Request Details
             </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Status */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Status
@@ -544,6 +604,8 @@ function SpecificRequest({
                   {specificRequest.approver_status}
                 </span>
               </div>
+
+              {/* Request ID */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Request ID
@@ -552,6 +614,8 @@ function SpecificRequest({
                   {specificRequest.workflow_id}
                 </span>
               </div>
+
+              {/* Submitted Date */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Submitted
@@ -561,6 +625,7 @@ function SpecificRequest({
                   <span>{formatDate(specificRequest.date_started)}</span>
                 </div>
               </div>
+
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Requester
@@ -589,6 +654,8 @@ function SpecificRequest({
                 </div>
               </div>
             </div>
+
+            {/* Description */}
             <div className="mt-4">
               <label className="block text-xs font-medium text-gray-500 mb-2">
                 Description
@@ -599,6 +666,7 @@ function SpecificRequest({
             </div>
           </div>
 
+          {/* Attachment */}
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
               <h3 className="text-sm font-semibold text-gray-700">
@@ -627,6 +695,7 @@ function SpecificRequest({
             </div>
           </div>
 
+          {/* Comment section */}
           <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
             {specificRequest.approver_comment ? (
               <>
@@ -656,6 +725,7 @@ function SpecificRequest({
         </div>
       </div>
 
+      {/* Confirmation Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.5)]">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
@@ -663,6 +733,10 @@ function SpecificRequest({
               {status === "Reject" ? (
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
                   <AlertCircle className="h-6 w-6 text-red-600" />
+                </div>
+              ) : status === "Return" ? (
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
+                  <RotateCcw className="h-6 w-6 text-orange-600" />
                 </div>
               ) : (
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
@@ -675,19 +749,22 @@ function SpecificRequest({
               <p className="text-sm text-gray-500 mb-4">
                 {status === "Reject"
                   ? "This action cannot be undone. Please provide a reason for rejection."
+                  : status === "Return"
+                  ? "This request will be returned to the requester. Please provide a reason for returning."
                   : "You're approving this request. Are you sure?"}
               </p>
 
-              {status === "Reject" && (
+              {(status === "Reject" || status === "Return") && (
                 <div className="w-full mb-4">
                   <label
-                    htmlFor="reject-reason"
+                    htmlFor={`${status.toLowerCase()}-reason`}
                     className="block text-sm font-medium text-gray-700 text-left mb-1"
                   >
-                    Reason for rejection <span className="text-red-500">*</span>
+                    Reason for {status.toLowerCase()}{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    id="reject-reason"
+                    id={`${status.toLowerCase()}-reason`}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Enter your reason..."
@@ -712,10 +789,16 @@ function SpecificRequest({
                   className={`px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
                     status === "Reject"
                       ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                      : status === "Return"
+                      ? "bg-orange-600 hover:bg-orange-700 focus:ring-orange-500"
                       : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
                   } focus:outline-none focus:ring-2 focus:ring-offset-2`}
                   onClick={handleApproval}
-                  disabled={loading || (status === "Reject" && !comment.trim())}
+                  disabled={
+                    loading ||
+                    ((status === "Reject" || status === "Return") &&
+                      !comment.trim())
+                  }
                 >
                   {loading ? "Processing..." : `Confirm ${status}`}
                 </button>
