@@ -682,7 +682,7 @@ const updateScholarRenewalV2 = async (req, res) => {
             ([field_name, value]) => [
               validation_id,
               field_name,
-              value.toString(), // Convert to string to match VARCHAR(255)
+              value, // Convert to string to match VARCHAR(255)
               user_id,
               role_id,
             ]
@@ -762,7 +762,7 @@ const updateScholarRenewalV2 = async (req, res) => {
           if (result.rowCount > 0) {
             updatedRows.add(renewal_id);
 
-            // Audit: Batch insert into field_validation for validator fields
+            // // Audit: Batch insert into field_validation for validator fields
             // const auditEntries = Object.entries(validatorFields).map(
             //   ([field_name, value]) => [
             //     renewal_id,
