@@ -126,8 +126,7 @@ const ROIandAnalytics: React.FC = () => {
     useState<number>(0.5); // 50% default
   const [yearlyValueGenerated, setYearlyValueGenerated] =
     useState<number>(60000); // ₱60K per scholar per year
-  const [scholarRetentionRate, setScholarRetentionRate] =
-    useState<number>(0.85); // 85% default retention rate
+  const [scholarRetentionRate] = useState<number>(0.85); // 85% default retention rate
 
   const programData: ProgramAnalytic[] = [
     {
