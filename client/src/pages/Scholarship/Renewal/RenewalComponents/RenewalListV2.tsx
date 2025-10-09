@@ -358,10 +358,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     (k) => updated[k as keyof RenewalDetails] === "Failed"
                   )
                   .join(", ")
-              : "Not Started";
+              : scholarship_status === "Passed"
+              ? null
+              : r.delisting_root_cause;
 
           const delisted_date =
-            scholarship_status === "Delisted" ? new Date().toISOString() : null;
+            scholarship_status === "Delisted"
+              ? new Date().toISOString()
+              : scholarship_status === "Passed"
+              ? null
+              : r.delisted_date;
 
           const allPassed = Object.keys(validation)
             .filter((k) => k !== "scholarship_status")
@@ -484,10 +490,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               .filter((k) => k !== "scholarship_status")
               .filter((k) => updated[k as keyof RenewalDetails] === "Failed")
               .join(", ")
-          : "Not Started";
+          : scholarship_status === "Passed"
+          ? null
+          : row.delisting_root_cause;
 
       const delisted_date =
-        scholarship_status === "Delisted" ? new Date().toISOString() : null;
+        scholarship_status === "Delisted"
+          ? new Date().toISOString()
+          : scholarship_status === "Passed"
+          ? null
+          : row.delisted_date;
 
       const allPassed = Object.keys(validation)
         .filter((k) => k !== "scholarship_status")
@@ -553,7 +565,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         );
       }
 
-      if (branch !== "All") {
+      // For STI roles, automatically filter by their assigned branch
+      if (role_id === 3 || role_id === 4) {
+        const assignedBranch = auth?.info?.branch?.branch_name;
+        if (assignedBranch) {
+          filtered = filtered.filter((item) => item.campus === assignedBranch);
+        }
+      } else if (branch !== "All") {
         filtered = filtered.filter((item) => item.campus === branch);
       }
 
@@ -569,7 +587,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
       setTempRenewalData(filtered);
     },
-    [renewalData]
+    [renewalData, role_id, auth?.info?.branch?.branch_name]
   );
 
   const handleCheckModal = (type: string) => {
@@ -816,7 +834,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </span>
                 </div>
                 <p className="text-sm font-bold text-slate-800 mb-1">
-                  {selectedBranchFilter === "All"
+                  {role_id === 3 || role_id === 4 // Assuming STI roles are 3 and 4
+                    ? auth?.info?.branch?.branch_name || "Not Assigned"
+                    : selectedBranchFilter === "All"
                     ? "All Branches"
                     : selectedBranchFilter}
                 </p>
@@ -1206,24 +1226,26 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </select>
                 </div>
 
-                {/* Branch Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                    Branch:
-                  </label>
-                  <select
-                    value={selectedBranchFilter}
-                    onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
-                  >
-                    <option value="All">All Branches</option>
-                    {uniqueBranches.map((branch) => (
-                      <option key={branch} value={branch}>
-                        {branch}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Branch Filter - Hidden for STI roles */}
+                {role_id !== 3 && role_id !== 4 && (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+                      Branch:
+                    </label>
+                    <select
+                      value={selectedBranchFilter}
+                      onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                    >
+                      <option value="All">All Branches</option>
+                      {uniqueBranches.map((branch) => (
+                        <option key={branch} value={branch}>
+                          {branch}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Year Level Filter */}
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center">

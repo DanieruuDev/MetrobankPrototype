@@ -431,7 +431,7 @@ function SpecificRequest({
                                       : approval.response === "Reject"
                                       ? "Rejected"
                                       : approval.response === "Returned"
-                                      ? "Returned"
+                                      ? "Rejected"
                                       : "Completed"}{" "}
                                     on {formatDate(approval.approval_time)}
                                   </span>

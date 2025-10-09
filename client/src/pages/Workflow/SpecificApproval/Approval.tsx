@@ -161,10 +161,12 @@ function Approval() {
     const approver = detailedWorkflow?.approvers?.find(
       (a) => a.approver_id === approverId
     );
-    const isReturned = approver?.approver_status === "Returned";
+    const isRejected =
+      approver?.approver_status === "Returned" ||
+      approver?.response === "Returned";
 
     if (expandedApproverId === approverId) {
-      if (!isReturned) {
+      if (!isRejected) {
         setExpandedApproverId(null);
       }
     } else {
@@ -402,12 +404,13 @@ function Approval() {
                       )
                       .map((approver) => {
                         const isApproved = approver.response === "Approved";
-                        const isRejected = approver.response === "Reject";
-                        const isReturned = approver.response === "Returned";
-                        const isCurrent = approver.is_current && !isReturned;
+                        const isRejected =
+                          approver.response === "Reject" ||
+                          approver.response === "Returned";
+                        const isCurrent = approver.is_current && !isRejected;
 
-                        const displayStatus = isReturned
-                          ? "Returned"
+                        const displayStatus = isRejected
+                          ? "Rejected"
                           : isCurrent
                           ? "Current"
                           : approver.approver_status;
@@ -430,8 +433,6 @@ function Approval() {
                                   ? "bg-yellow-400/80"
                                   : isRejected
                                   ? "bg-red-500/80"
-                                  : isReturned
-                                  ? "bg-orange-500/80"
                                   : "bg-gray-400/80"
                               }`}
                             >
@@ -439,18 +440,6 @@ function Approval() {
                                 <Check className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white" />
                               ) : isRejected ? (
                                 <X className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white" />
-                              ) : isReturned ? (
-                                <svg
-                                  className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414L2.586 8l3.707-3.707a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
                               ) : (
                                 <span className="text-white font-medium text-xs sm:text-sm lg:text-base">
                                   {approver.approver_order}
@@ -471,8 +460,6 @@ function Approval() {
                                       ? "bg-yellow-500/10 border-yellow-400/30"
                                       : isRejected
                                       ? "bg-red-500/10 border-red-400/30"
-                                      : isReturned
-                                      ? "bg-orange-500/10 border-orange-400/30"
                                       : "bg-gray-500/10 border-gray-400/30"
                                     : isApproved
                                     ? "bg-green-500/10 border-green-400/30"
@@ -482,8 +469,6 @@ function Approval() {
                                     ? "bg-yellow-500/10 border-yellow-400/30"
                                     : isRejected
                                     ? "bg-red-500/10 border-red-400/30"
-                                    : isReturned
-                                    ? "bg-orange-500/10 border-orange-400/30"
                                     : "bg-gray-500/10 border-gray-400/30"
                                 }`}
                                 onClick={() =>
@@ -519,8 +504,6 @@ function Approval() {
                                             ? "bg-yellow-100"
                                             : isRejected
                                             ? "bg-red-100"
-                                            : isReturned
-                                            ? "bg-orange-100"
                                             : "bg-gray-100"
                                         }`}
                                       >
@@ -566,7 +549,7 @@ function Approval() {
                                 </div>
                               </div>
                               {/* Return Feedback Section - Always present but conditionally visible */}
-                              {(isReturned ||
+                              {(isRejected ||
                                 approver.return_feedback.length > 0) && (
                                 <div
                                   className={`bg-orange-500/10 backdrop-blur-sm p-4 rounded-lg border border-orange-400/30 mt-2 transition-all duration-200 ${
@@ -593,7 +576,7 @@ function Approval() {
                                   </h4>
 
                                   {approver.return_feedback.length === 0 &&
-                                    isReturned && (
+                                    isRejected && (
                                       <div className="text-sm text-orange-700 italic">
                                         This step was returned but no specific
                                         feedback was provided.

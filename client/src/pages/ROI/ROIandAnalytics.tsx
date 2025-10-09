@@ -23,14 +23,14 @@ const RetentionProjectionCard: React.FC<RetentionProjectionProps> = ({
   avgBreakEven,
   TrendingUpIcon,
 }) => {
-  // Determine key retention milestones (in months)
-  const breakEvenMonths = Math.ceil(avgBreakEven);
-  const breakEvenDays = Math.ceil(avgBreakEven * 30.44); // 30.44 is average days in a month
+  // Determine key retention milestones (in years)
+  const breakEvenYears = Math.ceil(avgBreakEven);
+  const breakEvenMonths = Math.ceil(avgBreakEven * 12);
 
   // Profit threshold 1: Break-even + 1 year
-  const profitThreshold1 = Math.ceil(avgBreakEven + 12);
+  const profitThreshold1 = Math.ceil(avgBreakEven + 1);
   // Profit threshold 2: Break-even + 3 years
-  const profitThreshold2 = Math.ceil(avgBreakEven + 36);
+  const profitThreshold2 = Math.ceil(avgBreakEven + 3);
 
   // Generate the core conclusion sentence
   let conclusionText = "";
@@ -40,27 +40,23 @@ const RetentionProjectionCard: React.FC<RetentionProjectionProps> = ({
     conclusionText =
       "The program is profitable from Day 1, indicating initial profit or cost avoidance exceeds the total investment.";
   } else if (avgBreakEven < 1) {
-    conclusionText = `To reach the break-even point, the average scholar must stay with the company for a minimum of ${breakEvenDays} days (less than a month).`;
+    conclusionText = `To reach the break-even point, the average scholar must stay with the company for a minimum of ${breakEvenMonths} months (less than a year).`;
   } else {
-    conclusionText = `To reach the break-even point, the average scholar must stay with the company for a minimum of ${breakEvenMonths} months (or ${avgBreakEven.toFixed(
+    conclusionText = `To reach the break-even point, the average scholar must stay with the company for a minimum of ${breakEvenYears} years (or ${avgBreakEven.toFixed(
       1
-    )} months).`;
+    )} years).`;
   }
   // ⚠️ END OF UPDATED LOGIC
 
   // Generate predictive statements
   const predictiveStatements = [
     {
-      time: `${profitThreshold1} months (${(profitThreshold1 / 12).toFixed(
-        1
-      )} years)`,
+      time: `${profitThreshold1} years`,
       status: "The program generates significant profit and ROI increases.",
       color: "text-yellow-600",
     },
     {
-      time: `${profitThreshold2} months (${(profitThreshold2 / 12).toFixed(
-        1
-      )} years)`,
+      time: `${profitThreshold2} years`,
       status: "The program achieves long-term exponential return (high ROI).",
       color: "text-green-600",
     },
@@ -113,8 +109,8 @@ const RetentionProjectionCard: React.FC<RetentionProjectionProps> = ({
         </div>
       </div>
       <p className="text-xs text-gray-400 mt-3 sm:mt-4 pt-2 border-t">
-        *Projections are based on the current EHC and Monthly Value per Scholar
-        inputs.
+        *Projections are based on the current Yearly Hiring Cost, Absorption
+        Rate, and Yearly Value Generated inputs.
       </p>
     </div>
   );
@@ -124,9 +120,14 @@ const RetentionProjectionCard: React.FC<RetentionProjectionProps> = ({
 const ROIandAnalytics: React.FC = () => {
   const { collapsed } = useSidebar(); // --- 1. STATE FOR USER INPUTS --- // ⚠️ CHANGE: Updated initial values based on your request
 
-  const [estimatedEHCCost, setEstimatedEHCCost] = useState<number>(300000);
-  const [avgMonthlyValuePerScholarInput, setAvgMonthlyValuePerScholarInput] =
-    useState<number>(5000); // --- 2. HARDCODED MOCK DATA ---
+  const [avgYearlyExternalHiringCost, setAvgYearlyExternalHiringCost] =
+    useState<number>(300000);
+  const [scholarAbsorptionRate, setScholarAbsorptionRate] =
+    useState<number>(0.5); // 50% default
+  const [yearlyValueGenerated, setYearlyValueGenerated] =
+    useState<number>(60000); // ₱60K per scholar per year
+  const [scholarRetentionRate, setScholarRetentionRate] =
+    useState<number>(0.85); // 85% default retention rate
 
   const programData: ProgramAnalytic[] = [
     {
@@ -152,42 +153,50 @@ const ROIandAnalytics: React.FC = () => {
     0
   );
 
-  const totalMonthlyGain = avgMonthlyValuePerScholarInput * totalStudents;
-  const totalAnnualGain = totalMonthlyGain * 12;
+  // Calculate actual hired scholars based on absorption rate
+  const actualHiredScholars = Math.round(totalStudents * scholarAbsorptionRate);
 
-  const totalCostAvoidanceEHC = estimatedEHCCost * totalStudents;
+  // Calculate yearly gains from hired scholars
+  const totalYearlyGain = yearlyValueGenerated * actualHiredScholars;
 
-  const totalAnnualReturn = totalAnnualGain + totalCostAvoidanceEHC;
+  // Calculate hiring cost savings from hired scholars
+  const totalHiringCostSavings =
+    avgYearlyExternalHiringCost * actualHiredScholars;
 
+  // Total annual return (value generated + hiring cost savings)
+  const totalAnnualReturn = totalYearlyGain + totalHiringCostSavings;
+
+  // Net profit/savings
   const totalSavingsOrProfit = totalAnnualReturn - totalInvestment;
 
+  // ROI calculation
   const overallROI =
-    totalInvestment === 0 ? 0 : (totalSavingsOrProfit / totalInvestment) * 100; // BREAK-EVEN CALCULATION (Months)
+    totalInvestment === 0 ? 0 : (totalSavingsOrProfit / totalInvestment) * 100;
 
-  const netInvestmentToRecover = totalInvestment - totalCostAvoidanceEHC;
-
-  const avgBreakEven =
-    totalMonthlyGain <= 0 || netInvestmentToRecover <= 0
+  // Break-even calculation (years)
+  const netInvestmentToRecover = totalInvestment - totalHiringCostSavings;
+  const avgBreakEvenYears =
+    totalYearlyGain <= 0 || netInvestmentToRecover <= 0
       ? 0
-      : netInvestmentToRecover / totalMonthlyGain;
+      : netInvestmentToRecover / totalYearlyGain;
 
   const avgInvestmentPerScholar =
     totalStudents === 0 ? 0 : totalInvestment / totalStudents; // --- 4. DATA STRUCTURES FOR CHARTS --- // Dynamic ROI Time Series for Break-Even Chart
 
-  const generateROISeries = (months: number) => {
-    const series = []; // Initial net value is the cost of investment offset by EHC avoidance
-    let cumulativeNetValue = -totalInvestment + totalCostAvoidanceEHC;
+  const generateROISeries = (years: number) => {
+    const series = []; // Initial net value is the cost of investment offset by hiring cost savings
+    let cumulativeNetValue = -totalInvestment + totalHiringCostSavings;
 
     series.push({ month: 0, net_value: cumulativeNetValue });
 
-    for (let i = 1; i <= months; i++) {
-      cumulativeNetValue += totalMonthlyGain; // Use the Monthly Gain (value generated)
+    for (let i = 1; i <= years; i++) {
+      cumulativeNetValue += totalYearlyGain; // Use the Yearly Gain (value generated)
       series.push({ month: i, net_value: cumulativeNetValue });
     }
     return series;
-  }; // Generate data for 60 months (5 years)
+  }; // Generate data for 10 years
 
-  const roiTimeSeries = generateROISeries(60); // --- ICONS (Defined locally) ---
+  const roiTimeSeries = generateROISeries(10); // --- ICONS (Defined locally) ---
 
   const DollarSignIcon: React.FC<{ className?: string }> = (props) => (
     <svg
@@ -284,92 +293,127 @@ const ROIandAnalytics: React.FC = () => {
         <div className="pt-2 sm:px-4 lg:px-6 flex-1 overflow-auto">
           <div className="max-w-[1900px] mx-auto">
             {/* INPUTS SECTION - Responsive with glass morphism */}
-            <div className="bg-white/70 backdrop-blur-md border border-white/30 rounded-xl shadow-lg p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mx-1 sm:mx-0">
+            <div className="bg-white/70 backdrop-blur-md border border-white/30 rounded-xl shadow-lg p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mx-1 sm:mx-0">
               <div className="flex flex-col">
                 <label
-                  htmlFor="ehc-input"
+                  htmlFor="hiring-cost-input"
                   className="text-xs sm:text-sm font-medium text-blue-700 mb-1 sm:mb-2"
                 >
                   <span className="hidden sm:inline">
-                    Estimated External Hiring Cost (EHC) per Employee Hire
+                    Average Yearly External Hiring Cost
                   </span>
-                  <span className="sm:hidden">EHC per Employee Hire</span>
+                  <span className="sm:hidden">Yearly Hiring Cost</span>
                 </label>
                 <input
-                  id="ehc-input"
+                  id="hiring-cost-input"
                   type="number"
-                  value={estimatedEHCCost}
-                  onChange={handleInputChange(setEstimatedEHCCost)}
-                  placeholder="e.g., 550000"
+                  value={avgYearlyExternalHiringCost}
+                  onChange={handleInputChange(setAvgYearlyExternalHiringCost)}
+                  placeholder="e.g., 300000"
                   className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"
                   min="1"
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Initial gain/cost avoidance per successful hire.
+                  Cost saved per scholar hired internally vs. external
+                  recruitment.
                 </p>
               </div>
               <div className="flex flex-col">
                 <label
-                  htmlFor="return-input"
+                  htmlFor="absorption-input"
                   className="text-xs sm:text-sm font-medium text-blue-700 mb-1 sm:mb-2"
                 >
                   <span className="hidden sm:inline">
-                    Average monthly value per scholar (Gains from Investment +
-                    Post-Absorption)
+                    Scholar Absorption Rate
                   </span>
-                  <span className="sm:hidden">Monthly Value per Scholar</span>
+                  <span className="sm:hidden">Absorption Rate</span>
                 </label>
                 <input
-                  id="return-input"
+                  id="absorption-input"
                   type="number"
-                  value={avgMonthlyValuePerScholarInput}
-                  onChange={handleInputChange(
-                    setAvgMonthlyValuePerScholarInput
-                  )}
+                  value={scholarAbsorptionRate * 100}
+                  onChange={(e) => {
+                    let value =
+                      parseFloat(e.target.value.replace(/[^0-9.]/g, "")) || 0;
+                    if (value <= 0) value = 1;
+                    if (value > 100) value = 100;
+                    setScholarAbsorptionRate(value / 100);
+                  }}
+                  placeholder="e.g., 50"
+                  className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"
+                  min="1"
+                  max="100"
+                />
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  Percentage of scholars who get hired by MetroBank after
+                  graduation.
+                </p>
+              </div>
+              <div className="flex flex-col">
+                <label
+                  htmlFor="value-input"
+                  className="text-xs sm:text-sm font-medium text-blue-700 mb-1 sm:mb-2"
+                >
+                  <span className="hidden sm:inline">
+                    Yearly Value Generated by Scholarship Program
+                  </span>
+                  <span className="sm:hidden">Yearly Value Generated</span>
+                </label>
+                <input
+                  id="value-input"
+                  type="number"
+                  value={yearlyValueGenerated}
+                  onChange={handleInputChange(setYearlyValueGenerated)}
                   placeholder="e.g., 60000"
                   className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"
                   min="1"
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Drives Total ROI and Break-Even Length.
+                  Annual value generated per scholar (productivity + cost
+                  savings).
                 </p>
               </div>
             </div>
 
-            {/* TOP METRICS ROW - Responsive grid */}
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 mx-1 sm:mx-0">
-              <MetricCard
-                title="Total Investment"
-                value={formatCurrencyShort(totalInvestment)}
-                icon={<DollarSignIcon />}
-                change={0}
-              />
-              <MetricCard
-                title="Program ROI"
-                value={`${overallROI.toFixed(1)}%`}
-                icon={<PieChartIcon />}
-              />
-              <MetricCard
-                title="Annual Profit/Savings"
-                value={formatCurrencyShort(totalSavingsOrProfit)}
-                icon={<DollarSignIcon />}
-              />
-              <MetricCard
-                title="Initial Savings (EHC)"
-                value={formatCurrencyShort(totalCostAvoidanceEHC)}
-                icon={<DollarSignIcon />}
-              />
-              <MetricCard
-                title="Break-Even Length"
-                value={`${avgBreakEven.toFixed(1)} Months`}
-                icon={<TrendingUpIcon />}
-              />
-              <MetricCard
-                title="Avg Investment per Scholar"
-                value={formatCurrencyAverage(avgInvestmentPerScholar)}
-                icon={<DollarSignIcon />}
-                change={0}
-              />
+            {/* COMPACT METRICS GRID */}
+            <div className="mb-4 sm:mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mx-1 sm:mx-0">
+                <MetricCard
+                  title="Program ROI"
+                  value={`${overallROI.toFixed(1)}%`}
+                  icon={<PieChartIcon />}
+                />
+                <MetricCard
+                  title="Retention Rate"
+                  value={`${(scholarRetentionRate * 100).toFixed(1)}%`}
+                  icon={<PieChartIcon />}
+                />
+                <MetricCard
+                  title="Break-Even"
+                  value={`${avgBreakEvenYears.toFixed(1)}Y`}
+                  icon={<TrendingUpIcon />}
+                />
+                <MetricCard
+                  title="Total Investment"
+                  value={formatCurrencyShort(totalInvestment)}
+                  icon={<DollarSignIcon />}
+                />
+                <MetricCard
+                  title="Annual Profit"
+                  value={formatCurrencyShort(totalSavingsOrProfit)}
+                  icon={<DollarSignIcon />}
+                />
+                <MetricCard
+                  title="Hiring Savings"
+                  value={formatCurrencyShort(totalHiringCostSavings)}
+                  icon={<DollarSignIcon />}
+                />
+                <MetricCard
+                  title="Avg per Scholar"
+                  value={formatCurrencyAverage(avgInvestmentPerScholar)}
+                  icon={<DollarSignIcon />}
+                />
+              </div>
             </div>
 
             {/* Main Charts Row - Responsive layout */}
@@ -382,6 +426,23 @@ const ROIandAnalytics: React.FC = () => {
                   </span>
                   <span className="sm:hidden">Break-Even Analysis</span>
                 </h3>
+                <div className="text-xs text-gray-600 mb-2 px-2">
+                  <p>
+                    <strong>Chart Elements:</strong>
+                  </p>
+                  <p>
+                    • <strong>Initial Value:</strong> -Total Investment + Hiring
+                    Cost Savings
+                  </p>
+                  <p>
+                    • <strong>Yearly Growth:</strong> +Yearly Value Generated
+                    per Hired Scholar
+                  </p>
+                  <p>
+                    • <strong>Break-Even Point:</strong> When cumulative value
+                    reaches ₱0
+                  </p>
+                </div>
                 <div className="h-[200px] xs:h-[250px] sm:h-[300px] lg:h-[350px]">
                   <LineGraph data={roiTimeSeries} />
                 </div>
@@ -390,7 +451,7 @@ const ROIandAnalytics: React.FC = () => {
               {/* Retention Projection Card */}
               <div className="lg:col-span-2">
                 <RetentionProjectionCard
-                  avgBreakEven={avgBreakEven}
+                  avgBreakEven={avgBreakEvenYears}
                   TrendingUpIcon={TrendingUpIcon}
                 />
               </div>

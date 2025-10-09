@@ -75,7 +75,7 @@ function Request() {
       bg: "bg-gray-600",
     },
     {
-      label: "Returned",
+      label: "Rejected",
       icon: <RotateCcw />,
       text: "text-orange-600",
       bg: "bg-orange-600",
@@ -104,7 +104,7 @@ function Request() {
           req.approver.approver_status === "Missed",
         Canceled: (req: WorkflowApprovalList) =>
           req.approver.approver_status === "Canceled",
-        Returned: (req: WorkflowApprovalList) =>
+        Rejected: (req: WorkflowApprovalList) =>
           req.approver.approver_status === "Returned",
         Replaced: (req: WorkflowApprovalList) =>
           req.approver.approver_status === "Replaced",
