@@ -25,7 +25,7 @@ function CheckAllDropdown({ label, handleCheck }: CheckAllDropdownProps) {
   }, []);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative z-50" ref={dropdownRef}>
       {/* Trigger */}
       <div
         className="flex items-center justify-center gap-2 cursor-pointer"

@@ -682,7 +682,7 @@ const updateScholarRenewalV2 = async (req, res) => {
             ([field_name, value]) => [
               validation_id,
               field_name,
-              value, // Convert to string to match VARCHAR(255)
+              value !== null ? value.toString() : null, // Safely handle null
               user_id,
               role_id,
             ]
@@ -694,7 +694,7 @@ const updateScholarRenewalV2 = async (req, res) => {
               [
                 auditEntries.map((e) => e[0]), // validation_id
                 auditEntries.map((e) => e[1]), // field_name
-                auditEntries.map((e) => e[2]), // value
+                auditEntries.map((e) => e[2]), // value (null-safe)
                 auditEntries.map((e) => e[3]), // validated_by
                 auditEntries.map((e) => e[4]), // role_id
               ]
@@ -717,7 +717,9 @@ const updateScholarRenewalV2 = async (req, res) => {
             [
               validation_id,
               "renewal_date",
-              changedFields.renewal_date.toString(),
+              changedFields.renewal_date !== null
+                ? changedFields.renewal_date.toString()
+                : null, // Safely handle null
               validator_id,
               role_id,
             ],
@@ -767,7 +769,7 @@ const updateScholarRenewalV2 = async (req, res) => {
               ([field_name, value]) => [
                 validation_id,
                 field_name,
-                value.toString(), // Convert to string to match VARCHAR(255)
+                value !== null ? value.toString() : null, // Safely handle null
                 user_id,
                 role_id,
               ]
@@ -779,7 +781,7 @@ const updateScholarRenewalV2 = async (req, res) => {
                 [
                   auditEntries.map((e) => e[0]), // validation_id
                   auditEntries.map((e) => e[1]), // field_name
-                  auditEntries.map((e) => e[2]), // value
+                  auditEntries.map((e) => e[2]), // value (null-safe)
                   auditEntries.map((e) => e[3]), // validated_by
                   auditEntries.map((e) => e[4]), // role_id
                 ]

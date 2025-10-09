@@ -309,10 +309,23 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           `${VITE_BACKEND_URL}api/renewal/update-renewalV2`,
           updateRows
         );
+        console.log("Response:", res); // Log the full response
 
+        // Refresh data
         getRenewalData(sySemester);
-        toast.success(`${res.data.totalUpdated} row(s) ${res.data.message}`);
-        console.log("Res Data:", res.data);
+
+        // Ensure toast is shown regardless of response structure
+        if (res.status === 200) {
+          if (res.data?.totalUpdated && res.data?.message) {
+            toast.success(
+              `${res.data.totalUpdated} row(s) ${res.data.message}`
+            );
+          } else {
+            toast.success("Changes saved successfully");
+          }
+        } else {
+          toast.warn("Update completed with unexpected response.");
+        }
       } else {
         toast.info("No changes to update.");
       }
@@ -408,18 +421,20 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       (field) => renewal[field as keyof RenewalDetails] === "Not Started"
     );
 
-    if (hasNotStarted) {
-      toast.error(
-        "All validation fields must be set to Passed or Failed before validating."
-      );
-      return;
-    }
-
     setTempRenewalData((prev) => {
       const updatedRows = prev.map((r) => {
         if (r.renewal_id === renewal.renewal_id) {
+          // Determine the new value for is_validated
           const newValue =
             currentValue === null ? true : currentValue === true ? false : null;
+
+          // If trying to set to true (validated) and any field is Not Started, prevent it
+          if (newValue === true && hasNotStarted) {
+            toast.error(
+              "All validation fields must be set to Passed or Failed before validating."
+            );
+            return r; // Return unchanged row to prevent update
+          }
 
           const updated = { ...r, is_validated: newValue };
 
@@ -1377,7 +1392,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                 </th>
                               ) : (
                                 <th
-                                  className="px-5 py-3 min-w-[200px] relative"
+                                  className="px-5 py-3 min-w-[200px] relative z-50"
                                   key={key}
                                 >
                                   <CheckAllDropdown
@@ -1390,7 +1405,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                           ))}
                       </tr>
                     </thead>
-                    <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-slate-200 text-[12px] sm:text-[14px]">
+                    <tbody className="bg-white/50  divide-y divide-slate-200 text-[12px] sm:text-[14px]">
                       {tempRenewalData &&
                         tempRenewalData
                           .slice((page - 1) * itemsPerPage, page * itemsPerPage)
