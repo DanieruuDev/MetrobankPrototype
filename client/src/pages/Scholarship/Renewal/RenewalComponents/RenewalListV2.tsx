@@ -228,7 +228,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         original,
         ...rest
       } = row;
-
+      console.log("valid id", validation_id);
       const changedFields = Object.fromEntries(
         Object.entries(rest).filter(
           ([key, value]) =>
@@ -251,12 +251,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
     try {
       setIsLoading(true);
+      console.log("update rows", updateRows);
       if (updateRows.length > 0) {
         const res = await axios.put(
           `${VITE_BACKEND_URL}api/renewal/update-renewalV2`,
           updateRows
         );
-        console.log(res);
+
         getRenewalData(sySemester);
         toast.success(`${res.data.totalUpdated} row(s) ${res.data.message}`);
         console.log("Res Data:", res.data);
