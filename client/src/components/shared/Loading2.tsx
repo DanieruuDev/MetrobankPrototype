@@ -1,5 +1,3 @@
-import React from "react";
-
 function Loading2() {
   return (
     <div className="flex items-center justify-center h-full w-full">

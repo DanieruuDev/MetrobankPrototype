@@ -19,6 +19,7 @@ interface ApproverInfo {
 function WorkflowSummary({ formData }: WorkflowSummaryProps) {
   const [approverInfo, setApproverInfo] = useState<ApproverInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   useEffect(() => {
     const fetchApproverInfo = async () => {
@@ -27,7 +28,7 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
         const res = await Promise.all(
           formData.approvers.map((approver) =>
             axios.get(
-              `http://localhost:5000/api/workflow/find-email/${approver.email}`
+              `${VITE_BACKEND_URL}api/workflow/find-email/${approver.email}`
             )
           )
         );

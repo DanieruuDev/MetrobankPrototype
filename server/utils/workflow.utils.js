@@ -1,9 +1,14 @@
 const { createNotification } = require("../services/notificationService");
 const {
+  readXlsx,
+  UploadFileToDisbursement,
+} = require("../services/ExcelFileReader");
+const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
   sendWorkflowCompletedEmail,
 } = require("../utils/emailing");
+
 const checkWorkflowExists = async (
   client,
   approval_req_type,
@@ -247,9 +252,8 @@ const getRequesterAndWorkflowDetails = async (
   if (!query.rows.length) return null;
 
   return {
-    requesterEmail: query.rows[0].admin_email,
-    requesterName: query.rows[0].admin_name,
     workflowDetailsForEmail: {
+      requesterEmail: query.rows[0].admin_email,
       request_title: query.rows[0].rq_title,
       requester_name: query.rows[0].admin_name,
       due_date: query.rows[0].due_date,
@@ -266,7 +270,8 @@ const handleApprovedCase = async (
   user_id,
   comment,
   workflowDetailsForEmail,
-  requester_id
+  requester_id,
+  approver_id
 ) => {
   let nextApproverFound = false;
   let nextApproverEmail = null;
@@ -276,47 +281,17 @@ const handleApprovedCase = async (
   try {
     await client.query("BEGIN");
 
-    let curRes = await client.query(
-      `
-      SELECT approver_id, approver_order, status, is_current, user_id
-      FROM wf_approver
-      WHERE workflow_id = $1 AND user_id = $2 AND is_current = true
-      FOR UPDATE
-      `,
-      [workflow_id, user_id]
-    );
-
-    if (curRes.rows.length === 0) {
-      curRes = await client.query(
-        `
-        SELECT approver_id, approver_order, status, is_current, user_id
-        FROM wf_approver
-        WHERE workflow_id = $1 AND approver_order = $2
-        FOR UPDATE
-        `,
-        [workflow_id, currentApproverOrder]
-      );
-    }
-
-    if (curRes.rows.length === 0) {
-      throw new Error(
-        `Could not locate current approver row for workflow_id=${workflow_id}, user_id=${user_id}, order=${currentApproverOrder}`
-      );
-    }
-
-    const currentApproverId = curRes.rows[0].approver_id;
-
     const updCur = await client.query(
       `
       UPDATE wf_approver
       SET status = 'Completed', is_current = false
       WHERE approver_id = $1
       `,
-      [currentApproverId]
+      [approver_id]
     );
     if (updCur.rowCount !== 1) {
       throw new Error(
-        `Failed to update current approver (approver_id=${currentApproverId}) to Completed. rowCount=${updCur.rowCount}`
+        `Failed to update current approver (approver_id=${approver_id}) to Completed. rowCount=${updCur.rowCount}`
       );
     }
     await insertWorkflowLog(
@@ -344,7 +319,6 @@ const handleApprovedCase = async (
     );
 
     if (nextRes.rows.length > 0) {
-      // Next approver exists — activate them
       const nextRow = nextRes.rows[0];
       const nextApproverId = nextRow.approver_id;
       nextUserId = nextRow.user_id;
@@ -406,6 +380,7 @@ const handleApprovedCase = async (
         workflowCompleted = true;
       }
     }
+
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -422,15 +397,15 @@ const handleApprovedCase = async (
   // ========== Side effects (run after commit so emails/notifs don't rollback DB) ==========
   // If we moved to next approver -> send email & notifications (non-fatal if fail)
   if (nextApproverFound) {
-    try {
-      await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
-    } catch (err) {
-      console.error("sendItsYourTurnEmail failed:", {
-        nextUserId,
-        nextApproverEmail,
-        err,
-      });
-    }
+    // try {
+    //   await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+    // } catch (err) {
+    //   console.error("sendItsYourTurnEmail failed:", {
+    //     nextUserId,
+    //     nextApproverEmail,
+    //     err,
+    //   });
+    // }
 
     try {
       await createNotification({
@@ -473,15 +448,15 @@ const handleApprovedCase = async (
   // If workflow completed -> notify requester and email
   if (workflowCompleted) {
     try {
-      await createNotification({
-        type: "WORKFLOW_COMPLETED",
-        title: "Workflow is Completed",
-        message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
-        relatedId: workflow_id,
-        actorId: null,
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: requester_id } }],
-      });
+      // await createNotification({
+      //   type: "WORKFLOW_COMPLETED",
+      //   title: "Workflow is Completed",
+      //   message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
+      //   relatedId: workflow_id,
+      //   actorId: null,
+      //   actionRequired: false,
+      //   recipients: [{ approvers: { user_id: requester_id } }],
+      // });
     } catch (err) {
       console.error("createNotification (completed) failed:", {
         workflow_id,
@@ -491,6 +466,7 @@ const handleApprovedCase = async (
     }
 
     try {
+      console.log("email", workflowDetailsForEmail.requesterEmail);
       await sendWorkflowCompletedEmail(
         workflowDetailsForEmail.requesterEmail,
         workflowDetailsForEmail
@@ -608,17 +584,17 @@ const handleReturnedCase = async (
       workflow_id,
       created_by,
       "Approver",
-      "Returned",
+      "Rejected",
       "Pending",
-      "Returned",
+      "Rejected",
       comment
     );
 
     // 3. Notification
     await createNotification({
-      type: "WORKFLOW_RETURNED",
-      title: "Workflow Returned",
-      message: `Your workflow has been returned. Reason: ${comment}`,
+      type: "WORKFLOW_REJECTED",
+      title: "Workflow Rejected",
+      message: `Your workflow has been rejected. Reason: ${comment}, see workflow for more info`,
       relatedId: workflow_id,
       actorId: created_by,
       actionRequired: true,

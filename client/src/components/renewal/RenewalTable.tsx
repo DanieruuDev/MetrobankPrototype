@@ -16,7 +16,7 @@ const tableHead = {
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_police_record_validation: "No Police Record",
+  no_criminal_charges_validation: "No Criminal Charges",
   full_load_validation: "No Full Load",
   withdrawal_change_course_validation: "Withdrawal/Change of Course",
   enrollment_validation: "Enrollment Validation",
@@ -33,7 +33,7 @@ const validation = {
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_police_record_validation: "No Police Record",
+  no_criminal_charges_validation: "No Criminal Charges",
   full_load_validation: "No Full Load",
   withdrawal_change_course_validation: "Withdrawal/Change of Course",
   enrollment_validation: "Enrollment Validation",
@@ -67,7 +67,7 @@ function RenewalTable({
   }, [renewalData]);
 
   console.log(tempRenewalData);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const handleGpaChange = (student_id: number, value: string) => {
     let numericValue = parseFloat(value);
     if (numericValue < 0) numericValue = 0;
@@ -174,7 +174,8 @@ function RenewalTable({
         no_failing_grd_validation: updatedStudent.no_failing_grd_validation,
         no_other_scholar_validation: updatedStudent.no_other_scholar_validation,
         goodmoral_validation: updatedStudent.goodmoral_validation,
-        no_police_record_validation: updatedStudent.no_police_record_validation,
+        no_criminal_charges_validation:
+          updatedStudent.no_criminal_charges_validation,
         full_load_validation: updatedStudent.full_load_validation,
         withdrawal_change_course_validation:
           updatedStudent.withdrawal_change_course_validation,
@@ -185,7 +186,7 @@ function RenewalTable({
       };
 
       const response = await axios.put(
-        "http://localhost:5000/api/renewal/update-renewal",
+        `${VITE_BACKEND_URL}api/renewal/update-renewal`,
         requestData
       );
 

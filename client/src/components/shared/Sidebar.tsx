@@ -23,7 +23,13 @@ const Sidebar = () => {
       to: "/renewal-scholarship",
       label: "Scholarship Renewal",
       Icon: BookOpen,
-      allowedRoles: ["mb hr", "mbs head", "system_admin", "sti registrar"],
+      allowedRoles: [
+        "mb hr",
+        "mbs head",
+        "system_admin",
+        "sti registrar",
+        "sti discipline office",
+      ],
     },
     {
       to: "/workflow-approval",
@@ -36,6 +42,7 @@ const Sidebar = () => {
         "mb foundation",
         "mbs head",
         "system_admin",
+        "sti discipline office",
       ],
     },
     {

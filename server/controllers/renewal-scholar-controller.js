@@ -6,7 +6,7 @@ const ExcelJS = require("exceljs");
 
 //Upload new renewal
 const uploadScholarRenewals = async (req, res) => {
-  const { school_year, year_level, semester } = req.body;
+  const { school_year, year_level, semester, user_id } = req.body;
 
   console.log(school_year, semester);
   if (!school_year || !year_level || !semester) {
@@ -76,7 +76,7 @@ const uploadScholarRenewals = async (req, res) => {
     const newStudents = studentsResult.rows.filter(
       (student) => !existingStudentIds.has(student.student_id)
     );
-    console.log(newStudents);
+
     if (newStudents.length === 0) {
       await client.query("ROLLBACK");
       return res.status(400).json({
@@ -84,31 +84,56 @@ const uploadScholarRenewals = async (req, res) => {
           "Error: All students for this year level, school year, and semester are already generated. No duplication allowed.",
       });
     }
-
-    //edit campus code to be reference on campus maintenance
     const insertRenewalQuery = `
-    INSERT INTO renewal_scholar (
-      student_id, batch_id, campus_name, 
-      renewal_yr_lvl_basis, renewal_sem_basis, renewal_school_year_basis, 
-      yr_lvl, semester, school_year
-    )
-    SELECT * FROM UNNEST (
-      $1::int[], $2::int[], $3::text[], 
-      $4::int[], $5::int[], $6::int[], 
-      $7::int[], $8::int[], $9::int[]
-    )
-    RETURNING renewal_id
-  `;
+  INSERT INTO renewal_scholar (
+    student_id,
+    batch_id,
+    campus_name,
+    campus_code,
+    renewal_yr_lvl_basis,
+    renewal_sem_basis,
+    renewal_school_year_basis,
+    yr_lvl,
+    semester,
+    school_year,
+    initialized_by
+  )
+  SELECT
+    s.student_id,
+    s.batch_code,
+    s.campus,
+    m.campus_id,
+    s.yr_lvl_code,
+    s.semester_code,
+    s.school_year_code,
+    $1::int,  -- year_level
+    $2::int,  -- semester
+    $3::int,  -- currentSY
+    $4::int   -- initialized_by
+  FROM (
+    SELECT
+      unnest($5::int[]) AS student_id,
+      unnest($6::text[]) AS campus,
+      unnest($7::int[]) AS yr_lvl_code,
+      unnest($8::int[]) AS semester_code,
+      unnest($9::int[]) AS school_year_code,
+      unnest($10::int[]) AS batch_code
+  ) s
+  JOIN maintenance_campus m ON m.campus_name = s.campus
+  RETURNING renewal_id, campus_code, campus_name
+`;
+
     const values = [
+      year_level,
+      semester,
+      currentSY.rows[0].sy_code,
+      user_id, // <-- pass initialized_by here
       newStudents.map((s) => s.student_id),
-      newStudents.map((s) => s.batch_code),
       newStudents.map((s) => s.campus),
       newStudents.map((s) => s.yr_lvl_code),
       newStudents.map((s) => s.semester_code),
       newStudents.map((s) => s.school_year_code),
-      Array(newStudents.length).fill(year_level),
-      Array(newStudents.length).fill(semester),
-      Array(newStudents.length).fill(currentSY.rows[0].sy_code),
+      newStudents.map((s) => s.batch_code),
     ];
 
     const renewalResult = await client.query(insertRenewalQuery, values);
@@ -118,14 +143,89 @@ const uploadScholarRenewals = async (req, res) => {
         message: "Partial insert detected. All actions rolled back.",
       });
     }
-    const renewalIds = renewalResult.rows.map((row) => row.renewal_id);
-    const insertValidationQuery = `
-      INSERT INTO renewal_validation (renewal_id) 
-      SELECT * FROM UNNEST ($1::int[])
-    `;
-    await client.query(insertValidationQuery, [renewalIds]);
+    console.log(renewalResult.rows);
+    const renewalIds = renewalResult.rows.map((r) => r.renewal_id);
 
-    //Soon to add notification function
+    const insertValidationQuery = `INSERT INTO renewal_validation (renewal_id) SELECT * FROM UNNEST ($1::int[])`;
+    await client.query(insertValidationQuery, [renewalIds]);
+    // 5. Assign validators (DO, Registrar)
+
+    const branchAdminsRes = await client.query(`
+  SELECT a.admin_id, a.role_id, b.branch_id
+  FROM administration_adminaccounts a
+  JOIN administration_brancheads b ON a.admin_id = b.admin_id
+  WHERE a.role_id IN (3, 9)
+`);
+
+    const validatorInserts = [];
+    console.log("Renewal Campus", renewalResult.rows[0]);
+    for (let i = 0; i < renewalResult.rows.length; i++) {
+      const renewal = renewalResult.rows[i];
+      const validationIdRes = await client.query(
+        `SELECT validation_id FROM renewal_validation WHERE renewal_id = $1`,
+        [renewal.renewal_id]
+      );
+      console.log("ValidationIdRes  Result", validationIdRes.rows);
+      if (!validationIdRes.rows[0]) {
+        throw new Error(
+          `No validation record found for renewal_id ${renewal.renewal_id}`
+        );
+      }
+
+      const validationId = validationIdRes.rows[0].validation_id;
+
+      const branchAdmins = branchAdminsRes.rows.filter(
+        (a) => a.branch_id === renewal.campus_code
+      );
+
+      if (branchAdmins.length === 0) {
+        throw new Error(
+          `No branch admins found for campus_code ${renewal.campus_code}`
+        );
+      }
+
+      for (const admin of branchAdmins) {
+        validatorInserts.push([
+          validationId,
+          admin.role_id,
+          admin.branch_id,
+          null,
+          admin.admin_id,
+          null,
+        ]);
+      }
+
+      validatorInserts.push([
+        validationId,
+        7,
+        renewal.campus_code,
+        null,
+        user_id,
+        null,
+      ]);
+    }
+
+    if (validatorInserts.length > 0) {
+      const insertValidatorResult = await client.query(
+        `
+    INSERT INTO renewal_validator (validation_id, role_id, branch_code, is_validated, user_id, completed_at)
+    SELECT * FROM UNNEST($1::int[], $2::int[], $3::int[], $4::bool[], $5::int[], $6::timestamptz[])
+  `,
+        [
+          validatorInserts.map((v) => v[0]),
+          validatorInserts.map((v) => v[1]),
+          validatorInserts.map((v) => v[2]),
+          validatorInserts.map((v) => v[3]),
+          validatorInserts.map((v) => v[4]),
+          validatorInserts.map((v) => v[5]),
+        ]
+      );
+
+      if (insertValidatorResult.rowCount !== validatorInserts.length) {
+        throw new Error("Some validators were not inserted correctly.");
+      }
+    }
+
     //Email function??
     await client.query("COMMIT");
 
@@ -147,23 +247,43 @@ const uploadScholarRenewals = async (req, res) => {
 
 const fetchAllScholarRenewal = async (req, res) => {
   try {
-    const { school_year, semester, branch } = req.query;
+    const { school_year, semester, branch, role_id, user_id } = req.query;
+    // Map role_id → correct view
+    let viewName;
+    if (role_id === "7") {
+      viewName = "vw_renewal_details_hr";
+    } else if (role_id === "3") {
+      viewName = "vw_renewal_details_registrar";
+    } else if (role_id === "9") {
+      viewName = "vw_renewal_details_do";
+    } else {
+      return res.status(403).json({ message: "Unauthorized role" });
+    }
 
     let baseQuery = `
-      FROM vw_renewal_details
+      FROM ${viewName}
       WHERE school_year = $1 AND semester = $2
     `;
 
     const values = [school_year, semester];
-    let paramIndex = values.length; // track parameter index
+    let paramIndex = values.length;
 
-    if (branch) {
+    if (role_id === "7") {
       paramIndex++;
-      baseQuery += ` AND campus = $${paramIndex}`;
-      values.push(branch);
+      baseQuery += ` AND initialized_by = $${paramIndex}`;
+      values.push(user_id);
+
+      if (branch) {
+        paramIndex++;
+        baseQuery += ` AND campus = $${paramIndex}`;
+        values.push(branch);
+      }
+    } else {
+      paramIndex++;
+      baseQuery += ` AND user_id = $${paramIndex}`;
+      values.push(user_id);
     }
 
-    // Fetch all rows
     const dataQuery = await pool.query(`SELECT * ${baseQuery}`, values);
     const totalCount = dataQuery.rows.length;
 
@@ -294,6 +414,12 @@ const updateScholarRenewal = async (req, res) => {
     validation_scholarship_status,
     delisted_date,
     delisting_root_cause,
+
+    is_validated,
+    validator_id,
+    role_id,
+
+    user_id,
   } = req.body;
 
   // Required Fields Validation
@@ -460,8 +586,8 @@ const updateScholarRenewal = async (req, res) => {
 };
 
 const updateScholarRenewalV2 = async (req, res) => {
-  const updates = req.body; // expects array of { renewal_id, changedFields }
-
+  const updates = req.body; // expects array of { renewal_id, validator_id?, changedFields }
+  console.log("Update here", updates);
   if (!Array.isArray(updates) || updates.length === 0) {
     return res
       .status(400)
@@ -471,10 +597,16 @@ const updateScholarRenewalV2 = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const updatedRows = new Set(); // <-- keep track of unique updated renewal_ids
-
+    const updatedRows = new Set();
+    console.log(updates);
     for (const row of updates) {
-      const { renewal_id, changedFields } = row;
+      const {
+        renewal_id,
+        validator_id,
+        changedFields,
+        validation_id,
+        user_id,
+      } = row;
 
       if (
         !renewal_id ||
@@ -484,9 +616,54 @@ const updateScholarRenewalV2 = async (req, res) => {
         continue;
       }
 
-      // 1️⃣ Handle renewal_validation update (skip renewal_date)
-      const validationFields = { ...changedFields };
-      delete validationFields.renewal_date;
+      // Retrieve role_id for auditing if validator_id is provided
+      let role_id = null;
+      if (validator_id) {
+        const { rows: validatorRows } = await client.query(
+          `SELECT role_id FROM renewal_validator WHERE validator_id = $1`,
+          [validator_id]
+        );
+        if (validatorRows.length > 0) {
+          role_id = validatorRows[0].role_id;
+        }
+      }
+
+      // ✅ STEP 1: Renewal validation fields
+      let validationFields = { ...changedFields };
+      delete validationFields.renewal_date; // leave date for renewal_scholar
+      delete validationFields.branch_code;
+      delete validationFields.is_validated;
+      delete validationFields.completed_at;
+
+      // If validator_id provided → filter by role responsibilities
+      if (validator_id) {
+        const { rows: validatorRows } = await client.query(
+          `SELECT role_id FROM renewal_validator WHERE validator_id = $1`,
+          [validator_id]
+        );
+
+        if (validatorRows.length > 0) {
+          const role_id = validatorRows[0].role_id;
+
+          const { rows: respRows } = await client.query(
+            `SELECT responsibilities FROM validation_responsibility WHERE role_id = $1`,
+            [role_id]
+          );
+
+          if (respRows.length > 0) {
+            const allowed = respRows[0].responsibilities;
+
+            // If role has "All", allow everything
+            if (!allowed.includes("All")) {
+              validationFields = Object.fromEntries(
+                Object.entries(validationFields).filter(([key]) =>
+                  allowed.includes(key)
+                )
+              );
+            }
+          }
+        }
+      }
 
       if (Object.keys(validationFields).length > 0) {
         const setClauses = Object.keys(validationFields)
@@ -494,28 +671,129 @@ const updateScholarRenewalV2 = async (req, res) => {
           .join(", ");
         const values = Object.values(validationFields);
 
-        const query = `UPDATE renewal_validation SET ${setClauses} WHERE renewal_id = $${
-          values.length + 1
-        }`;
+        const query = `UPDATE renewal_validation SET ${setClauses} WHERE renewal_id = $${values.length + 1}`;
         const result = await client.query(query, [...values, renewal_id]);
 
-        if (result.rowCount > 0) updatedRows.add(renewal_id);
+        if (result.rowCount > 0) {
+          updatedRows.add(validation_id);
+
+          // Audit: Batch insert into field_validation for renewal_validation fields
+          const auditEntries = Object.entries(validationFields).map(
+            ([field_name, value]) => [
+              validation_id,
+              field_name,
+              value.toString(), // Convert to string to match VARCHAR(255)
+              user_id,
+              role_id,
+            ]
+          );
+          if (auditEntries.length > 0) {
+            await client.query(
+              `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+               SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+              [
+                auditEntries.map((e) => e[0]), // validation_id
+                auditEntries.map((e) => e[1]), // field_name
+                auditEntries.map((e) => e[2]), // value
+                auditEntries.map((e) => e[3]), // validated_by
+                auditEntries.map((e) => e[4]), // role_id
+              ]
+            );
+          }
+        }
       }
 
-      // 2️⃣ Handle renewal_scholar update if renewal_date exists
+      // ✅ STEP 2: Renewal scholar (renewal_date only)
       if (changedFields.renewal_date !== undefined) {
         const result = await client.query(
           `UPDATE renewal_scholar SET renewal_date = $1 WHERE renewal_id = $2`,
           [changedFields.renewal_date, renewal_id]
         );
-        if (result.rowCount > 0) updatedRows.add(renewal_id); // <-- track updated id
+        if (result.rowCount > 0) {
+          updatedRows.add(renewal_id);
+
+          // Audit: Batch insert into field_validation for renewal_date
+          const auditEntries = [
+            [
+              renewal_id,
+              "renewal_date",
+              changedFields.renewal_date.toString(),
+              validator_id,
+              role_id,
+            ],
+          ];
+          await client.query(
+            `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+             SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+            [
+              auditEntries.map((e) => e[0]),
+              auditEntries.map((e) => e[1]),
+              auditEntries.map((e) => e[2]),
+              auditEntries.map((e) => e[3]),
+              auditEntries.map((e) => e[4]),
+            ]
+          );
+        }
+      }
+
+      // ✅ STEP 3: Renewal validator fields
+      if (validator_id) {
+        const validatorFields = {};
+        const allowedValidatorFields = [
+          "branch_code",
+          "is_validated",
+          "completed_at",
+        ];
+        for (const key of allowedValidatorFields) {
+          if (changedFields[key] !== undefined) {
+            validatorFields[key] = changedFields[key];
+          }
+        }
+
+        if (Object.keys(validatorFields).length > 0) {
+          const setClauses = Object.keys(validatorFields)
+            .map((key, idx) => `"${key}" = $${idx + 1}`)
+            .join(", ");
+          const values = Object.values(validatorFields);
+
+          const query = `UPDATE renewal_validator SET ${setClauses} WHERE validator_id = $${values.length + 1}`;
+          const result = await client.query(query, [...values, validator_id]);
+
+          if (result.rowCount > 0) {
+            updatedRows.add(renewal_id);
+
+            // Audit: Batch insert into field_validation for validator fields
+            const auditEntries = Object.entries(validatorFields).map(
+              ([field_name, value]) => [
+                renewal_id,
+                field_name,
+                value.toString(), // Convert to string to match VARCHAR(255)
+                validator_id,
+                role_id,
+              ]
+            );
+            // if (auditEntries.length > 0) {
+            //   await client.query(
+            //     `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+            //      SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+            //     [
+            //       auditEntries.map((e) => e[0]), // validation_id
+            //       auditEntries.map((e) => e[1]), // field_name
+            //       auditEntries.map((e) => e[2]), // value
+            //       auditEntries.map((e) => e[3]), // validated_by
+            //       auditEntries.map((e) => e[4]), // role_id
+            //     ]
+            //   );
+            // }
+          }
+        }
       }
     }
 
     await client.query("COMMIT");
     res.status(200).json({
       message: "Updated successfully",
-      updatedRows: Array.from(updatedRows), // <-- return list of updated renewal_ids
+      updatedRows: Array.from(updatedRows),
       totalUpdated: updatedRows.size,
     });
   } catch (error) {
@@ -752,6 +1030,77 @@ const getExcelRenewalReport = async (req, res) => {
   }
 };
 
+const getInitialRenewalInfo = async (req, res) => {
+  const { school_year, semester } = req.query;
+  console.log(school_year, semester);
+
+  if (!school_year || !semester) {
+    return res
+      .status(400)
+      .json({ message: "Missing School Year and Semester Field" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT 
+         COUNT(*) AS count,
+         rs.renewal_school_year_basis,
+         sy.school_year AS renewal_school_year_basis_text,
+         rs.renewal_sem_basis,
+         sem.semester AS renewal_sem_basis_text,
+         rs.school_year,
+         sy2.school_year AS school_year_text,
+         rs.semester,
+         sem2.semester AS semester_text
+       FROM renewal_scholar rs
+       LEFT JOIN maintenance_sy sy 
+         ON rs.renewal_school_year_basis = sy.sy_code
+       LEFT JOIN maintenance_semester sem 
+         ON rs.renewal_sem_basis = sem.semester_code
+       LEFT JOIN maintenance_sy sy2
+         ON rs.school_year = sy2.sy_code
+       LEFT JOIN maintenance_semester sem2
+         ON rs.semester = sem2.semester_code
+       WHERE rs.school_year = $1 
+         AND rs.semester = $2 
+         AND rs.is_initial = false
+       GROUP BY 
+         rs.renewal_school_year_basis, sy.school_year,
+         rs.renewal_sem_basis, sem.semester,
+         rs.school_year, sy2.school_year,
+         rs.semester, sem2.semester
+       LIMIT 1`, // ensures only one row
+      [school_year, semester]
+    );
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      return res.status(200).json({
+        message: "Count fetch successfully",
+        data: {
+          count: Number(row.count),
+          renewal_school_year_basis: row.renewal_school_year_basis,
+          renewal_school_year_basis_text: row.renewal_school_year_basis_text,
+          renewal_sem_basis: row.renewal_sem_basis,
+          renewal_sem_basis_text: row.renewal_sem_basis_text,
+          school_year: row.school_year,
+          school_year_text: row.school_year_text,
+          semester: row.semester,
+          semester_text: row.semester_text,
+        },
+      });
+    } else {
+      return res.status(200).json({
+        message: "No records found",
+        data: null,
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 //Delete scholar renewal
 
 module.exports = {
@@ -762,4 +1111,5 @@ module.exports = {
   getExcelRenewalReport,
   filteredScholarRenewal,
   updateScholarRenewalV2,
+  getInitialRenewalInfo,
 };

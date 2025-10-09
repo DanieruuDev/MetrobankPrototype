@@ -7,6 +7,7 @@ interface ScholarshipRenewalModalProps {
   getRenewalData: (sy: string, semester: string) => void;
   sySemester: string;
   onChangeSySemester?: (value: string) => void; // NEW
+  user_id: number;
 }
 
 export interface RenewalFormData {
@@ -21,6 +22,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
   getRenewalData,
   sySemester,
   onChangeSySemester,
+  user_id,
 }) => {
   let sy = "";
   let semCode = "";
@@ -40,6 +42,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const schoolYearOptions = ["2023-2024", "2024-2025", "2025-2026"];
   const yearLevelOptions: string[] = [
     "1st Year",
@@ -82,11 +85,12 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/renewal/generate-renewal",
+        `${VITE_BACKEND_URL}api/renewal/generate-renewal`,
         {
           school_year: schoolYear,
           year_level: Number(yearLevel.substring(0, 1)),
           semester: Number(semester.substring(0, 1)),
+          user_id: user_id,
         }
       );
 
@@ -144,7 +148,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
         {/* Header with close button */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium text-gray-700">
-            Generate New Scholarship Renewal
+            Initialize Scholarship Renewal
           </h2>
           <button
             onClick={handleClose}
@@ -357,7 +361,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                 Processing...
               </>
             ) : (
-              "Generate New Renewal"
+              "Initialize Renewal"
             )}
           </button>
         </div>

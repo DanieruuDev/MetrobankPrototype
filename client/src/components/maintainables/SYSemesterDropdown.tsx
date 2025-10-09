@@ -24,11 +24,12 @@ const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await axios.get<ValidSYSemester[]>(
-          "http://localhost:5000/api/maintenance/valid_sy_semester"
+          `${VITE_BACKEND_URL}api/maintenance/valid_sy_semester`
         );
 
         const formatted: Option[] = res.data.map((item) => ({

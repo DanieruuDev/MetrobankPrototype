@@ -45,6 +45,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const { currentWeekStart, weekDays } = useMemo(() => {
     const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -75,7 +76,7 @@ const AgendaView = ({ getBadgeColor, onScheduleClick }: AgendaViewProps) => {
         "yyyy-MM-dd"
       );
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/${formattedDate}`
+        `${VITE_BACKEND_URL}api/disbursement/schedule/${formattedDate}`
       );
       console.log(response.data);
       setSchedules(response.data);

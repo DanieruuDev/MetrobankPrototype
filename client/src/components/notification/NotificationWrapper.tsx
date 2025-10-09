@@ -26,12 +26,12 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
         const { data } = await axios.get(
-          `http://localhost:5000/api/notification/${userId}`
+          `${VITE_BACKEND_URL}api/notification/${userId}`
         );
         setNotifications(data);
       } catch (err) {
@@ -44,7 +44,7 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
   const markAsRead = async (notification_id: number) => {
     try {
       await axios.put(
-        `http://localhost:5000/api/notification/${notification_id}/read/${userId}`
+        `${VITE_BACKEND_URL}api/notification/${notification_id}/read/${userId}`
       );
       setNotifications((prev) =>
         prev.map((n) =>
@@ -58,7 +58,7 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
   const markAllAsRead = async () => {
     try {
       const response = await axios.put(
-        `http://localhost:5000/api/notification/read_all/${userId}`
+        `${VITE_BACKEND_URL}api/notification/read_all/${userId}`
       );
       toast.success(
         `${

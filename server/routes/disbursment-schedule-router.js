@@ -2,6 +2,7 @@ const express = require("express");
 const {
   createDisbursementSchedule,
   fetchDisbursementSchedules,
+  fetchDisbursementSchedulesByRange,
   getTwoWeeksDisbursementSchedules,
   fetchDetailSchedule,
   fetchWeeklyDisbursementSchedules,
@@ -19,6 +20,7 @@ disbursementRouter.post("/schedule", createDisbursementSchedule);
 // More specific GET routes first
 disbursementRouter.get("/schedule/detailed/:sched_id", fetchDetailSchedule);
 disbursementRouter.get("/schedule/weeks", getTwoWeeksDisbursementSchedules);
+disbursementRouter.get("/schedule/range", fetchDisbursementSchedulesByRange);
 
 // Then routes with params, from more specific to less specific
 disbursementRouter.get("/schedule/:year/:month", fetchDisbursementSchedules);

@@ -41,6 +41,8 @@ interface ITrackingDetailed {
   sched_title: string;
   event_type: number;
   schedule_status: string;
+  workflow_id: number;
+
   schedule_due: string;
   event_start_date: string;
   event_description: string;
@@ -70,6 +72,7 @@ function DetailedTracking() {
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const { collapsed } = useSidebar();
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -80,7 +83,7 @@ function DetailedTracking() {
       try {
         setIsLoading(true);
         const response = await axios.get(
-          `http://localhost:5000/api/disbursement/tracking/${sched_id}`
+          `${VITE_BACKEND_URL}api/disbursement/tracking/${sched_id}`
         );
         console.log(response.data);
         setTrackingDetailed(response.data);
@@ -95,13 +98,17 @@ function DetailedTracking() {
   }, [sched_id]);
 
   const handleComplete = async () => {
+    if (!trackingDetailed) return;
     try {
       setIsCompleting(true);
       await axios.put(
-        `http://localhost:5000/api/disbursement/tracking/complete/${sched_id}`
+        `${VITE_BACKEND_URL}api/disbursement/tracking/complete/${sched_id}`,
+        {
+          workflow_id: trackingDetailed[0].workflow_id,
+        }
       );
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/tracking/${sched_id}`
+        `${VITE_BACKEND_URL}api/disbursement/tracking/${sched_id}`
       );
       toast.success("Disbursement completed");
       setTrackingDetailed(response.data);

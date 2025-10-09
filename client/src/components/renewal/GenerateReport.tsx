@@ -19,6 +19,7 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
     useState<boolean>(false);
   const [schoolYearDropdownOpen, setSchoolYearDropdownOpen] =
     useState<boolean>(false);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const schoolYearOptions = [
@@ -68,7 +69,7 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
 
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/renewal/get-renewal-report/${encodeURIComponent(
+        `${VITE_BACKEND_URL}api/renewal/get-renewal-report/${encodeURIComponent(
           yearLevel
         )}/${encodeURIComponent(schoolYear)}/${encodeURIComponent(semester)}`,
         { responseType: "blob" }

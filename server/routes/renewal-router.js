@@ -7,6 +7,7 @@ const {
   getExcelRenewalReport,
   filteredScholarRenewal,
   updateScholarRenewalV2,
+  getInitialRenewalInfo,
 } = require("../controllers/renewal-scholar-controller");
 
 const renewalRouter = express.Router();
@@ -21,6 +22,7 @@ renewalRouter.get(
   "/get-renewal-report/:yr_lvl/:school_year/:semester",
   getExcelRenewalReport
 );
+renewalRouter.get("/count-renewal", getInitialRenewalInfo);
 
 renewalRouter.get("/get-filter-renewal", filteredScholarRenewal);
 

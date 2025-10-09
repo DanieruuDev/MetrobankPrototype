@@ -1,8 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios, { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 interface LoginErrors {
   email?: string;
@@ -15,7 +15,22 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
-  const auth = useContext(AuthContext);
+  const auth = useAuth();
+  const { setToken, token } = auth;
+  useEffect(() => {
+    if (token) {
+      const lastPage = sessionStorage.getItem("lastPage");
+
+      if (lastPage) {
+        navigate(lastPage, { replace: true });
+        sessionStorage.removeItem("lastPage");
+      } else {
+        navigate("/workflow-approval", { replace: true });
+      }
+    }
+  }, [token, navigate]);
+
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const validate = (): boolean => {
     const newErrors: LoginErrors = {};
@@ -45,17 +60,18 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        {
-          email,
-          password,
-        }
+        `${VITE_BACKEND_URL}api/auth/login`,
+        { email, password },
+        { withCredentials: true }
       );
+      console.log("API response:", response.data);
+      const { accessToken } = response.data;
 
-      const { token } = response.data;
+      if (!accessToken || typeof accessToken !== "string") {
+        throw new Error("Invalid or missing token in API response");
+      }
 
-      auth?.login(token);
-
+      setToken(accessToken); // Updates token and user state
       toast.success("Login successful!");
       navigate("/workflow-approval");
     } catch (error) {
@@ -78,11 +94,9 @@ const LoginPage: React.FC = () => {
             className="w-20 h-auto object-contain"
           />
         </div>
-
         <h2 className="text-center text-2xl font-extrabold text-[#024FA8] mb-6">
-          Metrobank S.T.R.O.N.G.
+          Metrobank STRONG
         </h2>
-
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label
@@ -109,7 +123,6 @@ const LoginPage: React.FC = () => {
               </p>
             )}
           </div>
-
           <div>
             <label
               htmlFor="password"
@@ -135,7 +148,6 @@ const LoginPage: React.FC = () => {
               </p>
             )}
           </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -169,7 +181,6 @@ const LoginPage: React.FC = () => {
             )}
           </button>
         </form>
-
         <p className="mt-6 text-center text-sm text-gray-600">
           © {new Date().getFullYear()} Metrobank. All rights reserved.
         </p>

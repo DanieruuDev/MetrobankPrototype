@@ -10,8 +10,11 @@ const createEventSchedule = async (client, data) => {
     description,
     branchId,
     disbursement_type_id,
+    workflow_id,
   } = data;
   console.log("Branch id to: ", branchId);
+
+  console.log(workflow_id);
   const { rows: existingDisb } = await client.query(
     `
   SELECT ds.disb_sched_id
@@ -25,7 +28,14 @@ const createEventSchedule = async (client, data) => {
   `,
     [sy_code, semester_code, branchId, disbursement_type_id]
   );
+  const countEventWithWorkflowID = await client.query(
+    "SELECT COUNT(*) FROM event_schedule WHERE workflow_id = $1",
+    [workflow_id]
+  );
 
+  if (countEventWithWorkflowID.rows[0].count > 0) {
+    throw new Error(`A event schedule already exists for this Workflow.`);
+  }
   if (existingDisb.length > 0) {
     throw new Error(
       `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, Branch ${branchId}, and Disbursement Type ${disbursement_type_id}.`
@@ -47,10 +57,11 @@ const createEventSchedule = async (client, data) => {
   console.log("Branch", branchId);
   if (!students.length) {
     throw new Error(
-      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branchId} for this event.`
+      `No students found eligible in SY ${sy_code}, Semester ${semester_code}, Branch ${branchId} for this event.`
     );
   }
 
+  console.log("Eligible Student: ", students);
   const today = new Date().toISOString().split("T")[0];
   let schedule_status = "Not Started";
   if (starting_date) {
@@ -65,9 +76,9 @@ const createEventSchedule = async (client, data) => {
     `
     INSERT INTO event_schedule (
       event_type, sched_title, schedule_due, starting_date,
-      sy_code, semester_code, requester, description, schedule_status
+      sy_code, semester_code, requester, description, schedule_status, workflow_id
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING sched_id
     `,
     [
@@ -80,6 +91,7 @@ const createEventSchedule = async (client, data) => {
       requester,
       description,
       schedule_status,
+      workflow_id,
     ]
   );
 

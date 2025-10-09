@@ -1,6 +1,6 @@
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 //import CreateApproval from "../../components/CreateApproval";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -19,12 +19,12 @@ import {
 import EditApproval from "../../components/approval/my-approval/EditApproval";
 import CreateApproval from "../../components/approval/my-approval/CreateApproval";
 
-import { AuthContext } from "../../context/AuthContext";
 import { useSidebar } from "../../context/SidebarContext";
 import ConfirmDialog from "../../components/approval/ConfirmDialog";
 import { NavLink } from "react-router-dom";
 import WorkflowStatusBar from "../../components/approval/my-approval/WorkflowStatusBar";
 import MyApprovalControl from "../../components/approval/my-approval/MyApprovalControls";
+import { useAuth } from "../../context/AuthContext";
 
 function Workflow() {
   const [workflowDisplay, setWorkflowDisplay] = useState<
@@ -42,9 +42,10 @@ function Workflow() {
   const [editModalID, setEditModalID] = useState<number | null>(null);
   const [isModal, setIsModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const auth = useContext(AuthContext);
-  const userId = auth?.user?.user_id;
+  const auth = useAuth();
+
   const [activeStatus, setActiveStatus] = useState("All");
 
   const statusGroups: Record<string, string[]> = {
@@ -86,11 +87,10 @@ function Workflow() {
     };
 
   // return { groupName: workflows[] }
-  const getGroupedWorkflows = () => {
+  const getGroupedWorkflows = useMemo(() => {
     const groups: Record<string, WorkflowDisplaySchema[]> = {};
     const statuses = statusGroups[activeStatus] || [];
 
-    // All shows everything in one table
     if (activeStatus === "All") {
       groups["All Requests"] = workflowDisplay.filter(
         (workflow) =>
@@ -107,7 +107,6 @@ function Workflow() {
       return groups;
     }
 
-    // For Active / Needs Attention / Completed → multiple tables
     statuses.forEach((status) => {
       groups[status] = workflowDisplay.filter(
         (workflow) =>
@@ -125,38 +124,43 @@ function Workflow() {
     });
 
     return groups;
-  };
+  }, [workflowDisplay, activeStatus, searchQuery]);
 
-  const archivedWorkflow = async (
-    requester_id: number,
-    workflow_id: number
-  ) => {
-    console.log(requester_id, workflow_id);
-    setArchiving(true);
-    try {
-      await axios.put(
-        `http://localhost:5000/api/workflow/archive-workflow/${requester_id}/${workflow_id}`
-      );
+  const archivedWorkflow = useCallback(
+    async (requester_id: number, workflow_id: number) => {
+      console.log(requester_id, workflow_id);
+      setArchiving(true);
+      try {
+        await axios.put(
+          `${VITE_BACKEND_URL}api/workflow/archive-workflow/${requester_id}/${workflow_id}`
+        );
 
-      toast.success("Approval workflow archived successfully!");
+        toast.success("Approval workflow archived successfully!");
 
-      setWorkflowDisplay((prevItems) =>
-        prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
-      );
-    } catch (error) {
-      toast.error("Failed to delete approval workflow.");
-      console.log(error);
-    } finally {
-      setArchiving(false);
-    }
-  };
+        setWorkflowDisplay((prevItems) =>
+          prevItems.filter((workflow) => workflow.workflow_id !== workflow_id)
+        );
+      } catch (error) {
+        toast.error("Failed to delete approval workflow.");
+        console.log(error);
+      } finally {
+        setArchiving(false);
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
 
   const fetchWorkflows = async () => {
     if (userId === undefined) return;
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/workflow/get-workflows/${userId}`
+        `${VITE_BACKEND_URL}api/workflow/get-workflows/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       const { data } = response.data;
@@ -192,7 +196,7 @@ function Workflow() {
     }
   };
 
-  const getCounts = () => {
+  const counts = useMemo(() => {
     const counts: Record<string, number> = {};
 
     Object.keys(statusGroups).forEach((group) => {
@@ -206,9 +210,7 @@ function Workflow() {
     });
 
     return counts;
-  };
-
-  const counts = getCounts();
+  }, [workflowDisplay]);
 
   const editApproval = (workflow_id: number | null) => {
     if (workflow_id) {
@@ -217,6 +219,10 @@ function Workflow() {
       setEditModalID(null);
     }
   };
+  if (!auth) return;
+  const userId = auth?.user?.user_id;
+  const { token } = auth;
+  console.log(token);
 
   return (
     <div
@@ -289,27 +295,25 @@ function Workflow() {
           />
         )}
         <div className="mt-4 space-y-6">
-          {Object.entries(getGroupedWorkflows()).map(
-            ([groupName, workflows]) => {
-              const { icon, color } = groupStyles[groupName] || {
-                icon: <ClipboardList className="text-gray-500" size={16} />,
-                color: "gray",
-              };
+          {Object.entries(getGroupedWorkflows).map(([groupName, workflows]) => {
+            const { icon, color } = groupStyles[groupName] || {
+              icon: <ClipboardList className="text-gray-500" size={16} />,
+              color: "gray",
+            };
 
-              return (
-                <DataTable
-                  key={groupName}
-                  title={groupName}
-                  workflows={workflows}
-                  loading={loading}
-                  onArchived={openArchivedConfirm}
-                  titleIcon={icon}
-                  titleColor={color}
-                  editApproval={editApproval}
-                />
-              );
-            }
-          )}
+            return (
+              <DataTable
+                key={groupName}
+                title={groupName}
+                workflows={workflows}
+                loading={loading}
+                onArchived={openArchivedConfirm}
+                titleIcon={icon}
+                titleColor={color}
+                editApproval={editApproval}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

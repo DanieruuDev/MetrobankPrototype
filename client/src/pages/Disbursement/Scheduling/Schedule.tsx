@@ -35,6 +35,7 @@ function Schedule() {
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const { collapsed } = useSidebar();
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const onClose = (isClosed: boolean) => {
     setIsModalOpen(isClosed);
     setSelectedDate(null);
@@ -67,14 +68,47 @@ function Schedule() {
   const fetchSchedules = async (date: Date) => {
     setLoading(true);
     setError(null);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    // const apiUrl = import.meta.env.VITE_LOCAL_API_URL;
-    // console.log(apiUrl);
+
+    // Calculate the full date range visible in the calendar
+    const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+    // Get the start of the week for the first day of the month
+    const startOfWeek = new Date(startOfMonth);
+    startOfWeek.setDate(startOfMonth.getDate() - startOfMonth.getDay());
+
+    // Get the end of the week for the last day of the month
+    const endOfWeek = new Date(endOfMonth);
+    endOfWeek.setDate(endOfMonth.getDate() + (6 - endOfMonth.getDay()));
+
+    // Add extra buffer to ensure we capture all visible dates
+    const bufferStart = new Date(startOfWeek);
+    bufferStart.setDate(startOfWeek.getDate() - 1);
+
+    const bufferEnd = new Date(endOfWeek);
+    bufferEnd.setDate(endOfWeek.getDate() + 1);
+
+    // Format dates for API call (use local date to avoid timezone issues)
+    const startDate = `${bufferStart.getFullYear()}-${String(
+      bufferStart.getMonth() + 1
+    ).padStart(2, "0")}-${String(bufferStart.getDate()).padStart(2, "0")}`;
+    const endDate = `${bufferEnd.getFullYear()}-${String(
+      bufferEnd.getMonth() + 1
+    ).padStart(2, "0")}-${String(bufferEnd.getDate()).padStart(2, "0")}`;
+
+    console.log("Fetching schedules for date range:", {
+      startDate,
+      endDate,
+      currentMonth: date,
+      originalRange: {
+        startOfWeek: startOfWeek.toISOString().split("T")[0],
+        endOfWeek: endOfWeek.toISOString().split("T")[0],
+      },
+    });
 
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/disbursement/schedule/${year}/${month}`
+        `${VITE_BACKEND_URL}api/disbursement/schedule/range?start=${startDate}&end=${endDate}`
       );
       setSchedules(
         response.data.map((schedule: DisbursementSchedule) => ({

@@ -23,10 +23,13 @@ const createDisbursementSchedule = async (req, res) => {
     requester,
     required_hours,
     description,
+    workflow_id,
   } = req.body;
 
   const client = await pool.connect();
   console.log(branch_code);
+
+  console.log("Sample ID: ", workflow_id);
   try {
     await client.query("BEGIN");
 
@@ -40,7 +43,8 @@ const createDisbursementSchedule = async (req, res) => {
       !semester_code ||
       !branch_code ||
       !requester ||
-      !description
+      !description ||
+      !workflow_id
     ) {
       return res.status(400).json({ message: "Missing required fields." });
     }
@@ -53,6 +57,7 @@ const createDisbursementSchedule = async (req, res) => {
     );
     let branchId = branchIdResult.rows[0].campus_id;
     console.log("BRANCH ID KO", branchId);
+
     const sched_id = await createEventSchedule(client, {
       event_type,
       starting_date,
@@ -64,6 +69,7 @@ const createDisbursementSchedule = async (req, res) => {
       description,
       branchId,
       disbursement_type_id,
+      workflow_id,
     });
 
     if (!sched_id) {
@@ -138,24 +144,17 @@ const getEligibleScholarCount = async (req, res) => {
 
     let query = `
       SELECT COUNT(*) 
-      FROM disbursement_detail dd
-      JOIN disbursement_tracking dt ON dd.disbursement_id = dt.disbursement_id
-      JOIN renewal_scholar rs ON dt.renewal_id = rs.renewal_id
-      JOIN disbursement_type dty ON dd.disbursement_type_id = dty.disbursement_type_id
-      WHERE rs.yr_lvl = $1
-        AND rs.semester = $2
-        AND rs.school_year = $3
-        AND dd.disb_sched_id IS NULL
-        AND rs.campus_name = $5
+     FROM vw_scholar_disbursement
+      WHERE semester = $1 AND school_year = $2 AND campus_name = $3 disbursement_status = "Not Started"
     `;
 
-    const values = [yr_lvl_code, semester_code, sy_code];
+    const values = [semester_code, sy_code, branch];
 
     if (disbursement_type) {
-      query += ` AND dty.disbursement_label = $4`;
+      query += ` AND disbursement_label = $4`;
       values.push(disbursement_type);
     } else if (disbursement_id) {
-      query += ` AND dd.disbursement_type_id = $4`;
+      query += ` AND disbursement_type_id = $4`;
       values.push(disbursement_id);
     }
 
@@ -199,6 +198,36 @@ const fetchDisbursementSchedules = async (req, res) => {
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching disbursement schedules:", error);
+    res.status(500).json({ message: "Error fetching disbursement schedules" });
+    await client.query("ROLLBACK");
+  } finally {
+    client.release();
+  }
+};
+
+const fetchDisbursementSchedulesByRange = async (req, res) => {
+  const client = await pool.connect();
+  const { start, end } = req.query;
+
+  if (!start || !end) {
+    return res.status(400).json({ error: "Start and end dates are required" });
+  }
+
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        SELECT 
+          *
+        FROM vw_disb_calendar_sched WHERE schedule_due BETWEEN $1 AND $2;
+      `,
+      [start, end]
+    );
+    console.log("Range query result:", result.rows);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching disbursement schedules by range:", error);
     res.status(500).json({ message: "Error fetching disbursement schedules" });
     await client.query("ROLLBACK");
   } finally {
@@ -456,6 +485,7 @@ const getEligibleScholarCountSimple = async (req, res) => {
 module.exports = {
   createDisbursementSchedule,
   fetchDisbursementSchedules,
+  fetchDisbursementSchedulesByRange,
   getTwoWeeksDisbursementSchedules,
   fetchDetailSchedule,
   fetchWeeklyDisbursementSchedules,

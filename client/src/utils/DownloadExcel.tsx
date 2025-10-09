@@ -3,14 +3,14 @@ import * as XLSX from "xlsx";
 export const downloadExcel = (
   fileName: string,
   headers: string[],
-  data: (string | number | null)[][] = []
+  data: (string | number | boolean | null)[][] = []
 ) => {
   const worksheetData = [headers, ...data];
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
   // Apply style to headers (first row)
   headers.forEach((_, colIdx) => {
-    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIdx }); // row 0, column idx
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIdx });
     if (!worksheet[cellAddress]) return;
     worksheet[cellAddress].s = {
       font: { bold: true, color: { rgb: "FFFFFF" } },
@@ -25,8 +25,15 @@ export const downloadExcel = (
     };
   });
 
-  // Column width
-  worksheet["!cols"] = headers.map(() => ({ wch: 20 }));
+  // Auto-adjust column widths based on content
+  const colWidths = headers.map((header, colIdx) => {
+    const maxLength = Math.max(
+      header.length,
+      ...data.map((row) => String(row[colIdx] ?? "").length)
+    );
+    return { wch: Math.max(10, maxLength + 2) }; // Minimum width of 10
+  });
+  worksheet["!cols"] = colWidths;
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Template");

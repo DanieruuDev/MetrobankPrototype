@@ -1,12 +1,25 @@
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+  useCallback,
+} from "react";
 import { jwtDecode } from "jwt-decode";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 interface JwtPayload {
   user_id: number;
   email: string;
   role_id: number;
   role_name: string;
+  exp?: number;
+}
+
+interface Branch {
+  branch_id: number;
+  branch_name: string;
 }
 
 interface User {
@@ -14,27 +27,29 @@ interface User {
   email: string;
   role_id: number;
   role_name: string;
+  branch: Branch | null;
 }
+
 interface Info {
   admin_id: number;
-  email: string;
+  admin_email: string;
   role_id: number;
   role_name: string;
   admin_name: string;
   admin_job: string;
+  branch: Branch | null;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  setToken: (token: string) => void;
   isAuthenticated: boolean;
   loading: boolean;
   info: Info | null;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
@@ -49,84 +64,108 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [info, setInfo] = useState<Info | null>(null);
 
-  const fetchUserInfo = async (authToken: string | null) => {
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  axios.defaults.withCredentials = true;
+
+  const fetchUserInfo = useCallback(
+    async (accessToken: string) => {
+      try {
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/auth/user-info`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+        setInfo(response.data);
+      } catch (error) {
+        console.error("Failed to fetch user info:", error);
+        return null;
+      }
+    },
+    [VITE_BACKEND_URL]
+  );
+
+  const logout = useCallback(async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:5000/api/auth/user-info",
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
+      await axios.post(
+        `${VITE_BACKEND_URL}api/auth/logout`,
+        {},
+        { withCredentials: true }
       );
-      return response.data;
     } catch (error) {
-      console.error("Failed to fetch user info:", error);
-      return null;
+      console.error("Logout error:", error);
     }
-  };
+    setUser(null);
+    setToken(null);
+    setInfo(null);
+  }, [VITE_BACKEND_URL]);
 
   useEffect(() => {
-    const loadUser = async () => {
-      const savedToken = localStorage.getItem("token");
-      if (savedToken) {
-        try {
-          const decoded = jwtDecode<JwtPayload>(savedToken);
+    const refreshAccessToken = async () => {
+      try {
+        const res = await axios.get(
+          `${VITE_BACKEND_URL}api/auth/refresh-token`,
+          {
+            withCredentials: true,
+          }
+        );
+
+        const newAccessToken = res.data.newAccessToken;
+        console.log("Refreshed access token:", newAccessToken);
+
+        if (newAccessToken) {
+          setToken(newAccessToken);
+          const decoded = jwtDecode<JwtPayload>(newAccessToken);
+          console.log("New token", decoded);
           setUser({
             user_id: decoded.user_id,
             email: decoded.email,
             role_id: decoded.role_id,
             role_name: decoded.role_name,
+            branch: null,
           });
-          setToken(savedToken);
-
-          const freshUser = await fetchUserInfo(savedToken);
-          if (freshUser) {
-            setInfo(freshUser);
-          }
-        } catch (error) {
-          console.error("Invalid token:", error);
-          setUser(null);
-          setToken(null);
-          setInfo(null);
-          localStorage.removeItem("token");
+          await fetchUserInfo(newAccessToken);
+        } else {
+          throw new Error("No access token returned");
         }
+      } catch (error) {
+        console.error("Failed to refresh token:", error);
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 401) {
+          await logout(); // Clear auth state on 401
+        }
+        setToken(null);
+        setUser(null);
+        setInfo(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
+    refreshAccessToken();
+  }, [VITE_BACKEND_URL, fetchUserInfo, logout]);
 
-    loadUser();
-  }, []);
-
-  const login = async (authToken: string) => {
+  const setTokenAndUser = (newToken: string) => {
+    setToken(newToken);
     try {
-      const decoded = jwtDecode<JwtPayload>(authToken);
+      const decoded = jwtDecode<JwtPayload>(newToken);
       setUser({
         user_id: decoded.user_id,
         email: decoded.email,
         role_id: decoded.role_id,
         role_name: decoded.role_name,
+        branch: null,
       });
-      console.log(decoded.user_id);
-      setToken(authToken);
-      localStorage.setItem("token", authToken);
-
-      const freshUser = await fetchUserInfo(authToken);
-      if (freshUser) {
-        setInfo(freshUser);
-      }
-    } catch (error) {
-      console.error("Invalid token during login:", error);
+      fetchUserInfo(newToken);
+    } catch (err) {
+      console.error("Failed to decode token:", err);
+      setToken(null);
+      setUser(null);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setInfo(null);
-    localStorage.removeItem("token");
-  };
-
+  // Only render children when loading is complete
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -136,9 +175,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       value={{
         user,
         token,
-        login,
+        setToken: setTokenAndUser,
         logout,
-        isAuthenticated: !!token,
+        isAuthenticated: !!token && !!user,
         loading,
         info,
       }}
@@ -146,4 +185,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };

@@ -5,6 +5,7 @@ const userAdminRouter = require("./routes/admin-user-router.js");
 const path = require("path");
 const disbursementRouter = require("./routes/disbursment-schedule-router.js");
 const app = express();
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const disbursementOverview = require("./routes/disbursement-overview-router.js");
 const disbursementTracking = require("./routes/disbursement-tracking-router.js");
@@ -15,14 +16,13 @@ const notificationRouter = require("./routes/notification-router.js");
 const approvalRouter = require("./routes/approval-routes.js");
 require("./utils/scheduler.js");
 require("dotenv").config();
-
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: ["https://metrobank-prototype.vercel.app", "http://localhost:5173"],
     credentials: true,
   })
 );

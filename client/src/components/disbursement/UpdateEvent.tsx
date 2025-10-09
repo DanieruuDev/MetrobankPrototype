@@ -23,7 +23,7 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
 }) => {
   const todayDate = new Date().toISOString().split("T")[0];
   const [loading, setLoading] = useState(false);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [tempData, setTempData] = useState<EdittableDisbursementData | null>(
     edittableData
   );
@@ -89,7 +89,7 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
     console.log(localDate);
     try {
       const response = await axios.put(
-        `http://localhost:5000/api/disbursement/schedule/${tempData?.sched_id}`,
+        `${VITE_BACKEND_URL}api/disbursement/schedule/${tempData?.sched_id}`,
         {
           sched_title: tempData?.sched_title,
           schedule_due: scheduleDueUTC,

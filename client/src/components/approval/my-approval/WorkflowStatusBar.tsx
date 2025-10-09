@@ -1,5 +1,5 @@
 import { CircleCheck, RotateCwSquare, TriangleAlert } from "lucide-react";
-import React from "react";
+
 const statuses = [
   {
     label: "All",

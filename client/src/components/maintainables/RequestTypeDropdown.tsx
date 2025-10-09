@@ -21,12 +21,12 @@ const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
   const [requestTypes, setRequestTypes] = useState<RequestType[]>([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await axios.get(
-          "http://localhost:5000/api/maintenance/wf_request"
+          `${VITE_BACKEND_URL}api/maintenance/wf_request`
         );
         setRequestTypes(res.data.data);
       } catch (err) {

@@ -1,5 +1,3 @@
-// controllers/authController.js
-
 const pool = require("../database/dbConnect.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -87,24 +85,100 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Incorrect credentials" });
     }
 
-    // Create JWT token with role info
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       {
         user_id: user.admin_id,
         email: user.admin_email,
         role_id: user.role_id,
         role_name: user.role_name,
       },
-      process.env.SECRET_KEY,
-      { expiresIn: "1h" }
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" }
     );
 
-    return res.status(200).json({ email: user.admin_email, token });
+    const refreshToken = jwt.sign(
+      {
+        user_id: user.admin_id,
+        email: user.admin_email,
+        role_id: user.role_id,
+        role_name: user.role_name,
+      },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    console.log("Setting refreshToken:", refreshToken);
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    console.log("Cookie set successfully");
+    return res.status(200).json({ email: user.admin_email, accessToken });
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Internal server error" });
   } finally {
     client.release();
+  }
+};
+
+const refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  console.log("Refresh", token);
+  if (!token) {
+    return res.status(401).json({ message: "No refresh token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    const userCheck = await pool.query(
+      `SELECT a.admin_id, a.admin_email, a.role_id, r.role_name
+       FROM administration_adminaccounts a
+       JOIN roles r ON a.role_id = r.role_id
+        WHERE admin_id = $1`,
+      [decoded.user_id]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(403).json({ message: "User no longer exists" });
+    }
+
+    const user = userCheck.rows[0];
+
+    // Generate new access token
+    const newAccessToken = jwt.sign(
+      {
+        user_id: user.admin_id,
+        email: user.admin_email,
+        role_id: user.role_id,
+        role_name: user.role_name,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    return res.status(200).json({ email: user.admin_email, newAccessToken });
+  } catch (error) {
+    console.error("Error refreshing token:", error);
+    return res
+      .status(403)
+      .json({ message: "Invalid or expired refresh token" });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+    return res.status(200).json({ message: "Logout successfully" });
+  } catch (error) {
+    console.error("Error logout:", error);
+    return res.status(500).json({ message: "Internal server error." });
   }
 };
 
@@ -118,18 +192,50 @@ const fetchUserInfo = async (req, res) => {
   }
 
   try {
-    const queryText = `SELECT * FROM administration_adminaccounts WHERE admin_id = $1`; // note: admin_id is your PK
+    const queryText = `
+      SELECT 
+        a.admin_id,
+        a.admin_email,
+        a.admin_job,
+        a.admin_name,
+        a.role_id,
+        r.role_name,
+        b.branch_id,
+        b.branch_name
+      FROM administration_adminaccounts a
+      JOIN roles r ON a.role_id = r.role_id
+      LEFT JOIN administration_brancheads b ON a.admin_id = b.admin_id
+      WHERE a.admin_id = $1
+    `;
     const { rows } = await pool.query(queryText, [user_id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    return res.status(200).json(rows[0]);
+    // Structure the response
+    const user = {
+      admin_id: rows[0].admin_id,
+      admin_email: rows[0].admin_email,
+      admin_job: rows[0].admin_job,
+      admin_name: rows[0].admin_name,
+      role_id: rows[0].role_id,
+      role_name: rows[0].role_name,
+      branch: rows[0].branch_id
+        ? { branch_id: rows[0].branch_id, branch_name: rows[0].branch_name }
+        : null,
+    };
+
+    return res.status(200).json(user);
   } catch (error) {
     console.error("Error fetching user info:", error);
     return res.status(500).json({ message: "Internal server error." });
   }
 };
-
-module.exports = { registerUser, loginUser, fetchUserInfo };
+module.exports = {
+  registerUser,
+  loginUser,
+  fetchUserInfo,
+  refreshToken,
+  logout,
+};

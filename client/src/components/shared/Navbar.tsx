@@ -18,7 +18,7 @@ const Navbar = ({ pageName }: NavbarProps) => {
   const handleLogout = () => {
     auth?.logout();
     toast.success("Logged out successfully!");
-    navigate("/login");
+    navigate("/");
     setIsDropdownOpen(false);
   };
 
@@ -122,10 +122,7 @@ const Navbar = ({ pageName }: NavbarProps) => {
             )}
           </div>
         ) : (
-          <Link
-            to="/login"
-            className="text-[#024FA8] font-semibold hover:underline"
-          >
+          <Link to="/" className="text-[#024FA8] font-semibold hover:underline">
             Login
           </Link>
         )}

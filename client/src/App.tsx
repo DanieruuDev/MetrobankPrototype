@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import Home from "./pages/Home";
+
 import Login from "./pages/Login";
 import Workflow from "./pages/Workflow/Workflow";
 import NotFound from "./pages/NotFound";
@@ -28,8 +28,7 @@ function App() {
       <SidebarProvider>
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Login />} />
 
           {/* Private routes with role-based access */}
           <Route
@@ -43,6 +42,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
+                  "Discipline Office",
                 ]}
               >
                 <Workflow />
@@ -61,6 +61,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
+                  "Discipline Office",
                 ]}
               >
                 <Approval />
@@ -78,6 +79,7 @@ function App() {
                   "MB Foundation",
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
+                  "Discipline Office",
                 ]}
               >
                 <Request />
@@ -94,6 +96,7 @@ function App() {
                   "MBS HEAD",
                   "SYSTEM_ADMIN",
                   "STI Registrar",
+                  "Discipline Office",
                 ]}
               >
                 <Renewal />
