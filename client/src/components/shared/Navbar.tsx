@@ -20,7 +20,7 @@ const Navbar = ({ pageName }: NavbarProps) => {
   const handleLogout = () => {
     auth?.logout();
     toast.success("Logged out successfully!");
-    navigate("/login");
+    navigate("/");
     setIsDropdownOpen(false);
   };
 
