@@ -8,6 +8,7 @@ import {
   ChevronRight,
   PieChart,
   ChevronLeft,
+  FileSpreadsheet,
 } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext"; // Adjust the path as needed
 import { useSidebar } from "../../context/SidebarContext";
@@ -32,6 +33,12 @@ const Sidebar = () => {
         "sti registrar",
         "discipline office",
       ],
+    },
+    {
+      to: "/tuition-invoice",
+      label: "Tuition Invoice Upload",
+      Icon: FileSpreadsheet,
+      allowedRoles: ["mb hr", "mbs head", "system_admin", "sti registrar"],
     },
     {
       to: "/workflow-approval",

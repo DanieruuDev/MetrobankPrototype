@@ -53,7 +53,7 @@ const Navbar = ({ pageName }: NavbarProps) => {
   const initials = getInitials(userName);
 
   return (
-    <nav className="flex items-center justify-between lg:ml-10  px-2 sm:px-4 py-2 sm:py-3 lg:py-4 border-b-[#024FA8] border-2 border-x-0 border-t-0 bg-white z-50">
+    <nav className="flex items-center justify-between   px-2 sm:px-4 py-2 sm:py-3 lg:py-4 border-b-[#024FA8] border-2 border-x-0 border-t-0 bg-white z-50">
       {/* Left side - Hamburger menu (mobile) and page title */}
       <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
         {/* Hamburger menu - only visible on mobile */}
