@@ -127,6 +127,8 @@ const ROIandAnalytics: React.FC = () => {
   const [yearlyValueGenerated, setYearlyValueGenerated] =
     useState<number>(60000); // ₱60K per scholar per year
   const [scholarRetentionRate] = useState<number>(0.85); // 85% default retention rate
+  const [selectedPredictionYear, setSelectedPredictionYear] =
+    useState<number>(5); // AI Prediction year selector
 
   const programData: ProgramAnalytic[] = [
     {
@@ -186,16 +188,63 @@ const ROIandAnalytics: React.FC = () => {
     const series = []; // Initial net value is the cost of investment offset by hiring cost savings
     let cumulativeNetValue = -totalInvestment + totalHiringCostSavings;
 
-    series.push({ month: 0, net_value: cumulativeNetValue });
+    series.push({ year: 0, net_value: cumulativeNetValue });
 
     for (let i = 1; i <= years; i++) {
       cumulativeNetValue += totalYearlyGain; // Use the Yearly Gain (value generated)
-      series.push({ month: i, net_value: cumulativeNetValue });
+      series.push({ year: i, net_value: cumulativeNetValue });
     }
     return series;
   }; // Generate data for 10 years
 
-  const roiTimeSeries = generateROISeries(10); // --- ICONS (Defined locally) ---
+  const roiTimeSeries = generateROISeries(10);
+
+  // --- AI PREDICTION CALCULATION ---
+  const calculateAIPrediction = (selectedYear: number) => {
+    // 1. Calculate scholars still retained by year X (exponential decay)
+    const scholarsRetainedAtYearX =
+      actualHiredScholars * Math.pow(scholarRetentionRate, selectedYear);
+
+    // 2. Calculate cumulative value generated from Year 1 to Year X
+    let cumulativeValueGenerated = 0;
+    for (let year = 1; year <= selectedYear; year++) {
+      const scholarsAtYear =
+        actualHiredScholars * Math.pow(scholarRetentionRate, year);
+      cumulativeValueGenerated += scholarsAtYear * yearlyValueGenerated;
+    }
+
+    // 3. Initial hiring cost savings (one-time benefit at Year 0)
+    const initialHiringSavings = totalHiringCostSavings;
+
+    // 4. Calculate net value at year X
+    const netValueAtYearX =
+      -totalInvestment + initialHiringSavings + cumulativeValueGenerated;
+
+    // 5. Calculate ROI at year X
+    const roiAtYearX =
+      totalInvestment === 0 ? 0 : (netValueAtYearX / totalInvestment) * 100;
+
+    // 6. Break-even status
+    const hasReachedBreakEven = netValueAtYearX >= 0;
+
+    // 7. Annual value being generated in that specific year
+    const annualValueAtYearX = scholarsRetainedAtYearX * yearlyValueGenerated;
+
+    return {
+      selectedYear,
+      scholarsRetained: Math.round(scholarsRetainedAtYearX),
+      cumulativeValue: cumulativeValueGenerated,
+      netValue: netValueAtYearX,
+      roi: roiAtYearX,
+      hasReachedBreakEven,
+      annualValue: annualValueAtYearX,
+      totalReturn: initialHiringSavings + cumulativeValueGenerated,
+    };
+  };
+
+  const aiPrediction = calculateAIPrediction(selectedPredictionYear);
+
+  // --- ICONS (Defined locally) ---
 
   const DollarSignIcon: React.FC<{ className?: string }> = (props) => (
     <svg
@@ -453,6 +502,197 @@ const ROIandAnalytics: React.FC = () => {
                   avgBreakEven={avgBreakEvenYears}
                   TrendingUpIcon={TrendingUpIcon}
                 />
+              </div>
+            </div>
+
+            {/* AI Prediction Section */}
+            <div className="bg-white/70 backdrop-blur-md border border-white/30 rounded-xl shadow-lg p-4 sm:p-6 mx-1 sm:mx-0 mt-4 sm:mt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center mb-3 sm:mb-0">
+                  <TrendingUpIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-600" />
+                  AI Prediction
+                </h3>
+
+                {/* Year Selector */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Predict at Year:
+                  </label>
+                  <select
+                    value={selectedPredictionYear}
+                    onChange={(e) =>
+                      setSelectedPredictionYear(Number(e.target.value))
+                    }
+                    className="px-3 py-2 border border-purple-300/50 rounded-lg focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 bg-white/80 backdrop-blur-sm text-sm font-medium"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((year) => (
+                      <option key={year} value={year}>
+                        Year {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Prediction Results Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                {/* Scholars Retained */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-3 sm:p-4 border border-purple-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                    <span className="text-xs font-medium text-purple-600">
+                      Scholars Retained
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-800">
+                    {aiPrediction.scholarsRetained}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {(
+                      (aiPrediction.scholarsRetained / actualHiredScholars) *
+                      100
+                    ).toFixed(1)}
+                    % retention
+                  </div>
+                </div>
+
+                {/* Net Value */}
+                <div
+                  className={`rounded-xl p-3 sm:p-4 border ${
+                    aiPrediction.hasReachedBreakEven
+                      ? "bg-gradient-to-br from-green-50 to-green-100/50 border-green-200/50"
+                      : "bg-gradient-to-br from-red-50 to-red-100/50 border-red-200/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSignIcon
+                      className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                        aiPrediction.hasReachedBreakEven
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-medium ${
+                        aiPrediction.hasReachedBreakEven
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      Net Value
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-800">
+                    {formatCurrencyShort(aiPrediction.netValue)}
+                  </div>
+                  <div className="text-xs mt-1 font-medium">
+                    {aiPrediction.hasReachedBreakEven ? (
+                      <span className="text-green-600">✓ Profitable</span>
+                    ) : (
+                      <span className="text-red-600">⚠ Not yet profitable</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* ROI */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-3 sm:p-4 border border-blue-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <PieChartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                    <span className="text-xs font-medium text-blue-600">
+                      ROI
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-800">
+                    {aiPrediction.roi.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Return on Investment
+                  </div>
+                </div>
+
+                {/* Annual Value */}
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-3 sm:p-4 border border-amber-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSignIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+                    <span className="text-xs font-medium text-amber-600">
+                      Annual Value
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-800">
+                    {formatCurrencyShort(aiPrediction.annualValue)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Generated in Year {selectedPredictionYear}
+                  </div>
+                </div>
+
+                {/* Total Return */}
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-3 sm:p-4 border border-indigo-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSignIcon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+                    <span className="text-xs font-medium text-indigo-600">
+                      Total Return
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-800">
+                    {formatCurrencyShort(aiPrediction.totalReturn)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Cumulative by Year {selectedPredictionYear}
+                  </div>
+                </div>
+              </div>
+
+              {/* Insight Note */}
+              <div className="mt-4 p-3 bg-purple-50/50 border border-purple-200/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                  <strong className="text-purple-700">💡 Insight:</strong> By
+                  Year {selectedPredictionYear}, the program is projected to
+                  have <strong>{aiPrediction.scholarsRetained} scholars</strong>{" "}
+                  still retained (
+                  {(
+                    (aiPrediction.scholarsRetained / actualHiredScholars) *
+                    100
+                  ).toFixed(1)}
+                  % of hired).{" "}
+                  {aiPrediction.hasReachedBreakEven ? (
+                    <>
+                      The program will be{" "}
+                      <strong className="text-green-700">profitable</strong>{" "}
+                      with a net value of{" "}
+                      <strong>
+                        {formatCurrencyShort(aiPrediction.netValue)}
+                      </strong>{" "}
+                      and an ROI of{" "}
+                      <strong>{aiPrediction.roi.toFixed(1)}%</strong>.
+                    </>
+                  ) : (
+                    <>
+                      The program will{" "}
+                      <strong className="text-red-700">
+                        not yet be profitable
+                      </strong>
+                      , with a net deficit of{" "}
+                      <strong>
+                        {formatCurrencyShort(Math.abs(aiPrediction.netValue))}
+                      </strong>
+                      . Break-even is estimated at{" "}
+                      <strong>{avgBreakEvenYears.toFixed(1)} years</strong>.
+                    </>
+                  )}
+                </p>
               </div>
             </div>
           </div>

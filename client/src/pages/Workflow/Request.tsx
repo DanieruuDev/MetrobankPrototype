@@ -10,14 +10,12 @@ import type {
 
 import { AuthContext } from "../../context/AuthContext";
 import {
-  ArrowRightLeft,
   CheckSquare,
   CircleCheck,
   ClipboardList,
   Clock,
   RotateCcw,
   TriangleAlert,
-  XCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -69,22 +67,10 @@ function Request() {
       bg: "bg-yellow-600",
     },
     {
-      label: "Canceled",
-      icon: <XCircle />,
-      text: "text-gray-600",
-      bg: "bg-gray-600",
-    },
-    {
       label: "Rejected",
       icon: <RotateCcw />,
       text: "text-orange-600",
       bg: "bg-orange-600",
-    },
-    {
-      label: "Replaced",
-      icon: <ArrowRightLeft />,
-      text: "text-gray-600",
-      bg: "bg-gray-600",
     },
   ];
 
@@ -102,12 +88,8 @@ function Request() {
           req.approver.approver_status === "Completed",
         Missed: (req: WorkflowApprovalList) =>
           req.approver.approver_status === "Missed",
-        Canceled: (req: WorkflowApprovalList) =>
-          req.approver.approver_status === "Canceled",
         Rejected: (req: WorkflowApprovalList) =>
-          req.approver.approver_status === "Returned",
-        Replaced: (req: WorkflowApprovalList) =>
-          req.approver.approver_status === "Replaced",
+          req.approver.approver_status === "Reject",
       }),
       []
     );
@@ -265,12 +247,6 @@ function Request() {
                         ? "Action"
                         : activeStatus === "Completed"
                         ? "Done"
-                        : activeStatus === "Canceled"
-                        ? "Cancel"
-                        : activeStatus === "Returned"
-                        ? "Return"
-                        : activeStatus === "Replaced"
-                        ? "Replace"
                         : activeStatus}
                     </span>
                     {isFilterExpanded ? (
@@ -336,12 +312,6 @@ function Request() {
                               ? "Action"
                               : status.label === "Completed"
                               ? "Done"
-                              : status.label === "Canceled"
-                              ? "Cancel"
-                              : status.label === "Returned"
-                              ? "Return"
-                              : status.label === "Replaced"
-                              ? "Replace"
                               : status.label}
                           </div>
 

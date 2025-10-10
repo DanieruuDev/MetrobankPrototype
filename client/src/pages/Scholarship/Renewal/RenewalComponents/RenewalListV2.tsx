@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Eye,
   UserRoundPlus as UserRoundPen,
+  History,
 } from "lucide-react";
 import {
   type RenewalRow,
@@ -31,6 +32,7 @@ import Loading from "../../../../components/shared/Loading";
 import PaginationControl from "../../../../components/shared/PaginationControl";
 import { AuthContext } from "../../../../context/AuthContext";
 import CheckAllDropdown from "../../../../components/renewal/CheckAll";
+import AuditLog from "./AuditLog";
 
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
@@ -75,6 +77,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [sySemesterOptions, setSySemesterOptions] = useState<
     Array<{ label: string; value: string }>
   >([]);
+  const [showAuditLog, setShowAuditLog] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -581,8 +584,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         );
       }
 
-      // For STI roles, automatically filter by their assigned branch
-      if (role_id === 3 || role_id === 4) {
+      // Auto-filter by assigned branch for Registrar/Instructor and Discipline Office
+      if (role_id === 3 || role_id === 4 || role_id === 9) {
         const assignedBranch = auth?.info?.branch?.branch_name;
         if (assignedBranch) {
           filtered = filtered.filter((item) => item.campus === assignedBranch);
@@ -1069,6 +1072,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     <Download className="w-4 h-4" />
                     <span className="hidden xs:inline">Download</span>
                   </button>
+
+                  {role_id === 7 && (
+                    <button
+                      className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-700 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50"
+                      onClick={() => setShowAuditLog(true)}
+                    >
+                      <History className="w-4 h-4" />
+                      <span className="hidden xs:inline">Audit Log</span>
+                    </button>
+                  )}
                 </>
               )}
 
@@ -1242,8 +1255,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </select>
                 </div>
 
-                {/* Branch Filter - Hidden for STI roles */}
-                {role_id !== 3 && role_id !== 4 && (
+                {/* Branch Filter - Hidden when user has a specific assigned branch (Registrar/Instructor/DO) */}
+                {!(
+                  (role_id === 3 || role_id === 4 || role_id === 9) &&
+                  Boolean(auth?.info?.branch?.branch_name)
+                ) && (
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
                       Branch:
@@ -1251,7 +1267,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     <select
                       value={selectedBranchFilter}
                       onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
                       <option value="All">All Branches</option>
                       {uniqueBranches.map((branch) => (
@@ -1911,6 +1927,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         confirmText="Save"
         cancelText="Discard Changes"
       />
+      {showAuditLog && <AuditLog onClose={() => setShowAuditLog(false)} />}
     </>
   );
 }

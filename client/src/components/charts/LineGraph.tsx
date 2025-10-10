@@ -6,7 +6,7 @@ Chart.register(...registerables);
 
 // **1. Define Props Interface to fix TypeScript error in ROIandAnalytics.tsx**
 export interface LineGraphProps {
-  data: { month: number; net_value: number }[];
+  data: { year: number; net_value: number }[];
 }
 
 // Helper function to format currency for axis ticks and tooltips
@@ -32,17 +32,17 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return { labels: [], datasets: [] };
 
-    // Find the first month where the net value is zero or positive (Break-Even)
+    // Find the first year where the net value is zero or positive (Break-Even)
     const breakEvenItem = data.find(
-      (item) => item.net_value >= 0 && item.month > 0
+      (item) => item.net_value >= 0 && item.year > 0
     );
-    const breakEvenMonth = breakEvenItem ? breakEvenItem.month : 0;
+    const breakEvenYear = breakEvenItem ? breakEvenItem.year : 0;
 
-    // If the initial net value (Month 0) is already positive, the program is instantly profitable.
+    // If the initial net value (Year 0) is already positive, the program is instantly profitable.
     const isProfitableFromStart = data[0].net_value >= 0;
 
     return {
-      labels: data.map((item) => `Month ${item.month}`),
+      labels: data.map((item) => `Year ${item.year}`),
       datasets: [
         {
           label: "Cumulative Net Value",
@@ -56,11 +56,11 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
         // Break-Even Highlight Point
         {
           label: isProfitableFromStart
-            ? "Initial Profit (Month 0)"
-            : `Break-Even Point (${breakEvenMonth.toFixed(1)} Months)`,
+            ? "Initial Profit (Year 0)"
+            : `Break-Even Point (${breakEvenYear.toFixed(1)} Years)`,
           data: data.map((item) =>
-            // Plot a point only at the exact break-even month
-            item.month === breakEvenItem?.month ? breakEvenItem.net_value : null
+            // Plot a point only at the exact break-even year
+            item.year === breakEvenItem?.year ? breakEvenItem.net_value : null
           ),
           borderColor: isProfitableFromStart ? "green" : "red",
           pointBackgroundColor: isProfitableFromStart ? "green" : "red",
@@ -144,7 +144,7 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
           border: { display: false },
           title: {
             display: !isMobile,
-            text: "Program Duration (Months)",
+            text: "Program Duration (Years)",
             font: { size: isMobile ? 10 : 12 },
           },
         },
