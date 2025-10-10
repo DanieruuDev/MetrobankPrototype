@@ -1,6 +1,7 @@
 import { useContext, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
+  Home,
   BookOpen,
   CheckCircle,
   Calendar,
@@ -22,6 +23,20 @@ const Sidebar = () => {
   const normalizedUserRole = userRole.trim().toLowerCase();
 
   const navItems = [
+    {
+      to: "/dashboard",
+      label: "Dashboard",
+      Icon: Home,
+      allowedRoles: [
+        "mb hr",
+        "mbs head",
+        "system_admin",
+        "sti registrar",
+        "mb financial",
+        "mb foundation",
+        "discipline office",
+      ],
+    },
     {
       to: "/renewal-scholarship",
       label: "Scholarship Renewal",

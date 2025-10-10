@@ -17,6 +17,7 @@ import PrivateRoute from "./components/shared/PrivateRoute";
 import { SidebarProvider } from "./context/SidebarContext";
 import ROIandAnalytics from "./pages/ROI/ROIandAnalytics";
 import TuitionInvoiceUpload from "./pages/TuitionInvoiceUpload/TuitionInvoiceUpload";
+import Dashboard from "./pages/Dashboard/Dashboard";
 
 function App() {
   return (
@@ -84,6 +85,25 @@ function App() {
                 ]}
               >
                 <Request />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "STI Registrar",
+                  "MB HR",
+                  "MB Financial",
+                  "MB Foundation",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "Discipline Office",
+                ]}
+              >
+                <Dashboard />
               </PrivateRoute>
             }
           />
