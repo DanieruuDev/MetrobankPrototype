@@ -588,6 +588,7 @@ const updateScholarRenewal = async (req, res) => {
 const updateScholarRenewalV2 = async (req, res) => {
   const updates = req.body; // expects array of { renewal_id, validator_id?, changedFields }
   console.log("Update here", updates);
+
   if (!Array.isArray(updates) || updates.length === 0) {
     return res
       .status(400)
@@ -595,10 +596,11 @@ const updateScholarRenewalV2 = async (req, res) => {
   }
 
   const client = await pool.connect();
+
   try {
     await client.query("BEGIN");
     const updatedRows = new Set();
-    console.log(updates);
+
     for (const row of updates) {
       const {
         renewal_id,
@@ -607,7 +609,7 @@ const updateScholarRenewalV2 = async (req, res) => {
         validation_id,
         user_id,
       } = row;
-      console.log(validation_id);
+
       if (
         !renewal_id ||
         !changedFields ||
@@ -616,8 +618,10 @@ const updateScholarRenewalV2 = async (req, res) => {
         continue;
       }
 
-      // Retrieve role_id for auditing if validator_id is provided
+      let updatedSomething = false;
       let role_id = null;
+
+      // ✅ Retrieve role_id if validator_id is provided
       if (validator_id) {
         const { rows: validatorRows } = await client.query(
           `SELECT role_id FROM renewal_validator WHERE validator_id = $1`,
@@ -628,39 +632,28 @@ const updateScholarRenewalV2 = async (req, res) => {
         }
       }
 
-      // ✅ STEP 1: Renewal validation fields
+      // ✅ STEP 1: Renewal validation fields (excluding others)
       let validationFields = { ...changedFields };
-      delete validationFields.renewal_date; // leave date for renewal_scholar
+      delete validationFields.renewal_date;
       delete validationFields.branch_code;
       delete validationFields.is_validated;
       delete validationFields.completed_at;
 
-      // If validator_id provided → filter by role responsibilities
-      if (validator_id) {
-        const { rows: validatorRows } = await client.query(
-          `SELECT role_id FROM renewal_validator WHERE validator_id = $1`,
-          [validator_id]
+      // Filter validation fields by role responsibilities
+      if (validator_id && role_id) {
+        const { rows: respRows } = await client.query(
+          `SELECT responsibilities FROM validation_responsibility WHERE role_id = $1`,
+          [role_id]
         );
 
-        if (validatorRows.length > 0) {
-          const role_id = validatorRows[0].role_id;
-
-          const { rows: respRows } = await client.query(
-            `SELECT responsibilities FROM validation_responsibility WHERE role_id = $1`,
-            [role_id]
-          );
-
-          if (respRows.length > 0) {
-            const allowed = respRows[0].responsibilities;
-
-            // If role has "All", allow everything
-            if (!allowed.includes("All")) {
-              validationFields = Object.fromEntries(
-                Object.entries(validationFields).filter(([key]) =>
-                  allowed.includes(key)
-                )
-              );
-            }
+        if (respRows.length > 0) {
+          const allowed = respRows[0].responsibilities;
+          if (!allowed.includes("All")) {
+            validationFields = Object.fromEntries(
+              Object.entries(validationFields).filter(([key]) =>
+                allowed.includes(key)
+              )
+            );
           }
         }
       }
@@ -675,28 +668,30 @@ const updateScholarRenewalV2 = async (req, res) => {
         const result = await client.query(query, [...values, renewal_id]);
 
         if (result.rowCount > 0) {
-          updatedRows.add(validation_id);
+          updatedSomething = true;
 
-          // Audit: Batch insert into field_validation for renewal_validation fields
           const auditEntries = Object.entries(validationFields).map(
             ([field_name, value]) => [
               validation_id,
               field_name,
-              value !== null ? value.toString() : null, // Safely handle null
+              value !== null ? value.toString() : null,
               user_id,
               role_id,
             ]
           );
+
           if (auditEntries.length > 0) {
             await client.query(
-              `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
-               SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+              `INSERT INTO public.field_validation 
+                (validation_id, field_name, value, validated_by, role_id, validated_at)
+               SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), 
+                      unnest($4::int[]), unnest($5::int[]), NOW()`,
               [
-                auditEntries.map((e) => e[0]), // validation_id
-                auditEntries.map((e) => e[1]), // field_name
-                auditEntries.map((e) => e[2]), // value (null-safe)
-                auditEntries.map((e) => e[3]), // validated_by
-                auditEntries.map((e) => e[4]), // role_id
+                auditEntries.map((e) => e[0]),
+                auditEntries.map((e) => e[1]),
+                auditEntries.map((e) => e[2]),
+                auditEntries.map((e) => e[3]),
+                auditEntries.map((e) => e[4]),
               ]
             );
           }
@@ -709,24 +704,27 @@ const updateScholarRenewalV2 = async (req, res) => {
           `UPDATE renewal_scholar SET renewal_date = $1 WHERE renewal_id = $2`,
           [changedFields.renewal_date, renewal_id]
         );
-        if (result.rowCount > 0) {
-          updatedRows.add(renewal_id);
 
-          // Audit: Batch insert into field_validation for renewal_date
+        if (result.rowCount > 0) {
+          updatedSomething = true;
+
           const auditEntries = [
             [
               validation_id,
               "renewal_date",
-              changedFields.renewal_date !== null
+              changedFields.renewal_date
                 ? changedFields.renewal_date.toString()
-                : null, // Safely handle null
-              validator_id,
+                : null,
+              user_id,
               role_id,
             ],
           ];
+
           await client.query(
-            `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
-             SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+            `INSERT INTO public.field_validation 
+              (validation_id, field_name, value, validated_by, role_id, validated_at)
+             SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]),
+                    unnest($4::int[]), unnest($5::int[]), NOW()`,
             [
               auditEntries.map((e) => e[0]),
               auditEntries.map((e) => e[1]),
@@ -740,17 +738,16 @@ const updateScholarRenewalV2 = async (req, res) => {
 
       // ✅ STEP 3: Renewal validator fields
       if (validator_id) {
-        const validatorFields = {};
         const allowedValidatorFields = [
           "branch_code",
           "is_validated",
           "completed_at",
         ];
-        for (const key of allowedValidatorFields) {
-          if (changedFields[key] !== undefined) {
-            validatorFields[key] = changedFields[key];
-          }
-        }
+        const validatorFields = Object.fromEntries(
+          Object.entries(changedFields).filter(([key]) =>
+            allowedValidatorFields.includes(key)
+          )
+        );
 
         if (Object.keys(validatorFields).length > 0) {
           const setClauses = Object.keys(validatorFields)
@@ -762,37 +759,45 @@ const updateScholarRenewalV2 = async (req, res) => {
           const result = await client.query(query, [...values, validator_id]);
 
           if (result.rowCount > 0) {
-            updatedRows.add(validation_id);
+            updatedSomething = true;
 
-            // Audit: Batch insert into field_validation for validator fields
             const auditEntries = Object.entries(validatorFields).map(
               ([field_name, value]) => [
                 validation_id,
                 field_name,
-                value !== null ? value.toString() : null, // Safely handle null
+                value !== null ? value.toString() : null,
                 user_id,
                 role_id,
               ]
             );
+
             if (auditEntries.length > 0) {
               await client.query(
-                `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
-                 SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+                `INSERT INTO public.field_validation 
+                  (validation_id, field_name, value, validated_by, role_id, validated_at)
+                 SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), 
+                        unnest($4::int[]), unnest($5::int[]), NOW()`,
                 [
-                  auditEntries.map((e) => e[0]), // validation_id
-                  auditEntries.map((e) => e[1]), // field_name
-                  auditEntries.map((e) => e[2]), // value (null-safe)
-                  auditEntries.map((e) => e[3]), // validated_by
-                  auditEntries.map((e) => e[4]), // role_id
+                  auditEntries.map((e) => e[0]),
+                  auditEntries.map((e) => e[1]),
+                  auditEntries.map((e) => e[2]),
+                  auditEntries.map((e) => e[3]),
+                  auditEntries.map((e) => e[4]),
                 ]
               );
             }
           }
         }
       }
+
+      // ✅ Count once per row (no matter how many updates per table)
+      if (updatedSomething) {
+        updatedRows.add(renewal_id);
+      }
     }
 
     await client.query("COMMIT");
+
     res.status(200).json({
       message: "Updated successfully",
       updatedRows: Array.from(updatedRows),
@@ -800,7 +805,7 @@ const updateScholarRenewalV2 = async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error(error);
+    console.error("❌ Update failed:", error);
     res.status(500).json({ message: "Update failed", error });
   } finally {
     client.release();

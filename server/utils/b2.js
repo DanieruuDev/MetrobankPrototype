@@ -85,4 +85,35 @@ async function getDownloadStream(fileName) {
   }
 }
 
-module.exports = { uploadFile, getDownloadStream, uploadBuffer };
+async function getUniqueFileName(bucketId, originalName) {
+  let name = originalName;
+  let count = 1;
+
+  while (true) {
+    // Check if file with this name already exists
+    const { data } = await b2.listFileNames({
+      bucketId,
+      prefix: name,
+      maxFileCount: 1,
+    });
+
+    const exists = data.files && data.files.some((f) => f.fileName === name);
+
+    if (!exists) return name;
+
+    const extIndex = originalName.lastIndexOf(".");
+    const base =
+      extIndex !== -1 ? originalName.substring(0, extIndex) : originalName;
+    const ext = extIndex !== -1 ? originalName.substring(extIndex) : "";
+
+    name = `${base} (${count})${ext}`;
+    count++;
+  }
+}
+
+module.exports = {
+  uploadFile,
+  getDownloadStream,
+  uploadBuffer,
+  getUniqueFileName,
+};
