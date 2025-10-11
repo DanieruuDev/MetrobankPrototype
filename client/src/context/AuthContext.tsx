@@ -14,6 +14,7 @@ interface JwtPayload {
   email: string;
   role_id: number;
   role_name: string;
+  campus: Branch | null;
   exp?: number;
 }
 
@@ -124,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email: decoded.email,
             role_id: decoded.role_id,
             role_name: decoded.role_name,
-            branch: null,
+            branch: decoded.campus,
           });
           await fetchUserInfo(newAccessToken);
         } else {

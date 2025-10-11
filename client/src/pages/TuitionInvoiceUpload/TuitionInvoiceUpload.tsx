@@ -11,6 +11,7 @@ import JSZip from "jszip";
 import SYSemesterDropdown from "../../components/maintainables/SYSemesterDropdown";
 import ExcelDownloadButton from "../../components/shared/DownloadExcel";
 import { useAuth } from "../../context/AuthContext";
+import { InitialRenewalInfo } from "../../Interface/IRenewal";
 
 interface StudentFile {
   file_id: number;
@@ -90,7 +91,8 @@ const TuitionInvoiceUpload: React.FC = () => {
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [, setUploadedFiles] = useState<UploadedFile[]>([]);
-
+  const [initialRenewalInfo, setInitialRenewalInfo] =
+    useState<InitialRenewalInfo | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -111,7 +113,12 @@ const TuitionInvoiceUpload: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `${VITE_BACKEND_URL}api/invoice/list/${schoolYear}/${semester}`
+        `${VITE_BACKEND_URL}api/invoice/list/${schoolYear}/${semester}`,
+        {
+          params: {
+            branch: auth?.user?.branch?.branch_name,
+          },
+        }
       );
       const data = response.data;
       console.log(data);
@@ -450,12 +457,43 @@ const TuitionInvoiceUpload: React.FC = () => {
     setPage(newPage);
   };
 
+  console.log(auth?.user?.branch);
+  const fetchRenewalInfo = async () => {
+    try {
+      const semesterCode =
+        semester === "1st Semester" ? 1 : semester === "2nd Semester" ? 2 : 3;
+
+      const response = await axios.get(
+        `${VITE_BACKEND_URL}api/renewal/count-renewal`,
+        {
+          params: {
+            school_year: schoolYear.replace("-", ""), // send as numeric code
+            semester: semesterCode,
+            branch: auth?.user?.branch?.branch_id || null, // optional
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        setInitialRenewalInfo(response.data.data);
+        console.log("Renewal Info:", response.data.data);
+      } else {
+        setInitialRenewalInfo(null);
+        console.log("No renewal info found");
+      }
+    } catch (error) {
+      console.error("Error fetching renewal info:", error);
+      toast.error("Failed to load renewal info");
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
+    fetchRenewalInfo();
   }, [schoolYear, semester]);
   console.log("Check result: ", jobStatus);
 
-  console.log(students);
+  console.log(initialRenewalInfo);
   return (
     <div className="min-h-screen relative">
       <Sidebar />
