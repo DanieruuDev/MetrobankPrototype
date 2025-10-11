@@ -17,31 +17,33 @@ const MetricCard: React.FC<MetricCardProps> = ({
   const isPositive = change !== undefined && change >= 0;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-      {" "}
+    <div className="bg-white/70 backdrop-blur-md border border-white/30 rounded-lg shadow-sm p-2 sm:p-3 hover:bg-white/80 transition-all duration-300 h-full flex flex-col justify-between">
       <div className="flex justify-between items-start">
-        {" "}
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold mt-1">{value}</p>{" "}
-        </div>{" "}
-        <div className="p-2 rounded-lgbg-blue-50 text-blue-600">{icon}</div>{" "}
-      </div>{" "}
-      {/* 👈 Conditional Rendering: Only render the change div if 'change' is provided */}{" "}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">
+            {title}
+          </p>
+          <p className="text-sm sm:text-base lg:text-lg font-bold mt-1 text-gray-800">
+            {value}
+          </p>
+        </div>
+        <div className="p-1.5 rounded-md bg-blue-50/80 backdrop-blur-sm text-blue-600 ml-2 flex-shrink-0">
+          <div className="w-3 h-3 sm:w-4 sm:h-4">{icon}</div>
+        </div>
+      </div>
+      {/* Conditional Rendering: Only render the change div if 'change' is provided */}
       {change !== undefined && (
         <div
-          className={`mt-4 text-sm ${
+          className={`mt-3 sm:mt-4 text-xs sm:text-sm ${
             isPositive ? "text-green-600" : "text-red-600"
           }`}
         >
-          {" "}
           <span>
-            {isPositive ? "↑" : "↓"} {Math.abs(change).toFixed(1)}%{" "}
-            {/* Added text to clarify the comparison period */}
-            <span className="text-gray-500">vs. Prior Data</span>{" "}
-          </span>{" "}
+            {isPositive ? "↑" : "↓"} {Math.abs(change).toFixed(1)}%
+            <span className="text-gray-500 ml-1">vs. Prior Data</span>
+          </span>
         </div>
-      )}{" "}
+      )}
     </div>
   );
 };

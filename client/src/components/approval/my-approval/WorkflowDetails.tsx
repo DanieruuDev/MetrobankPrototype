@@ -86,11 +86,11 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
 
   return (
     <div>
-      <form className="space-y-3">
+      <form className="space-y-3 sm:space-y-4">
         <div>
           <label
             htmlFor="rq_title"
-            className="block mb-1 text-sm font-medium text-gray-700"
+            className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
           >
             Approval Request Title
           </label>
@@ -101,7 +101,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             maxLength={100}
             placeholder="Enter request title..."
             required
-            className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px]"
+            className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-xs sm:text-[15px]"
             value={formData.rq_title}
             onChange={(e) =>
               setFormData((prev) => ({
@@ -112,7 +112,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
           <RequestTypeDropdown
             formData={formData.approval_req_type}
             handleInputChange={handleRequestTypeChange}
@@ -124,7 +124,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
           >
             <label
               htmlFor="due_date"
-              className="block mb-1 text-sm font-medium text-gray-700"
+              className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
             >
               Due Date
             </label>
@@ -136,23 +136,23 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, due_date: e.target.value }))
               }
-              className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
-                  appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-datetime-edit]:text-gray-700"
+              className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
+                  appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-datetime-edit]:text-gray-700 text-xs sm:text-sm"
               required
             />
             <Calendar
-              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-700 pointer-events-none"
+              className="absolute right-2 sm:right-3 top-9 sm:top-11 transform -translate-y-1/2 text-gray-700 pointer-events-none w-4 h-4 sm:w-5 sm:h-5"
               size={20}
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex gap-3">
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
+          <div className="flex gap-2 sm:gap-3">
             {sySelectFields.map(({ name, label, options }) => (
               <div key={name} className="relative flex-1">
                 <label
                   htmlFor={name}
-                  className="block mb-1 text-sm font-medium text-gray-700"
+                  className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
                 >
                   {label}
                 </label>
@@ -165,8 +165,8 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
                       [name]: e.target.value,
                     }))
                   }
-                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+                  className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden text-xs sm:text-sm"
                   required
                 >
                   <option value="" disabled>
@@ -178,19 +178,19 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
                     </option>
                   ))}
                 </select>
-                <div className="absolute inset-y-0 right-3 top-6 flex items-center pointer-events-none text-gray-700">
+                <div className="absolute inset-y-0 right-2 sm:right-3 top-5 sm:top-6 flex items-center pointer-events-none text-gray-700 text-xs sm:text-sm">
                   ⏷
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             {semSelectFields.map(({ name, label, options }) => (
               <div key={name} className="relative flex-1">
                 <label
                   htmlFor={name}
-                  className="block mb-1 text-sm font-medium text-gray-700"
+                  className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
                 >
                   {label}
                 </label>
@@ -203,8 +203,8 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
                       [name]: e.target.value,
                     }))
                   }
-                  className="w-full rounded-md px-4 py-2 pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden"
+                  className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden text-xs sm:text-sm"
                   required
                 >
                   <option value="" disabled>
@@ -216,7 +216,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
                     </option>
                   ))}
                 </select>
-                <div className="absolute inset-y-0 right-3 top-6 flex items-center pointer-events-none text-gray-700">
+                <div className="absolute inset-y-0 right-2 sm:right-3 top-5 sm:top-6 flex items-center pointer-events-none text-gray-700 text-xs sm:text-sm">
                   ⏷
                 </div>
               </div>
@@ -226,12 +226,12 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
 
         <div
           {...getRootProps()}
-          className={`w-full px-6 py-10 border-2 border-dashed border-gray-300 rounded-lg flex justify-center items-center bg-gray-50 hover:bg-gray-100 cursor-pointer `}
+          className={`w-full px-4 sm:px-6 py-6 sm:py-10 border-2 border-dashed border-gray-300 rounded-lg flex justify-center items-center bg-gray-50 hover:bg-gray-100 cursor-pointer`}
         >
           <input {...getInputProps()} />
           {formData.file ? (
             "doc_id" in formData.file ? ( // ✅ existing DB file
-              <p className="text-sm text-center text-gray-700">
+              <p className="text-xs sm:text-sm text-center text-gray-700">
                 Existing File:{" "}
                 <a
                   href={formData.file.doc_path}
@@ -244,32 +244,32 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
               </p>
             ) : (
               // ✅ new uploaded file
-              <p className="text-sm text-center text-gray-700">
+              <p className="text-xs sm:text-sm text-center text-gray-700">
                 File: {formData.file.name}
               </p>
             )
           ) : (
-            <p className="text-sm text-center text-gray-500">
+            <p className="text-xs sm:text-sm text-center text-gray-500">
               Drag & Drop your file here, or click to select
             </p>
           )}
         </div>
-        <div className="text-red">{error}</div>
+        <div className="text-red text-xs sm:text-sm">{error}</div>
 
         <div>
           <label
             htmlFor="description"
-            className="block mb-1 text-sm font-medium text-gray-700"
+            className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
           >
             Additional Details
           </label>
           <textarea
-            maxLength={255}
+            maxLength={300}
             rows={2}
             name="description"
             id="description"
             placeholder="Enter additional details for the approval request..."
-            className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-[15px] resize-none"
+            className="w-full rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 p-2 text-xs sm:text-[15px] resize-none"
             value={formData.description}
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, description: e.target.value }))

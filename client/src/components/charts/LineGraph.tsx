@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { Chart, registerables } from "chart.js/auto";
 import type { ChartOptions, TooltipItem } from "chart.js/auto";
 
@@ -6,7 +6,7 @@ Chart.register(...registerables);
 
 // **1. Define Props Interface to fix TypeScript error in ROIandAnalytics.tsx**
 export interface LineGraphProps {
-  data: { month: number; net_value: number }[];
+  data: { year: number; net_value: number }[];
 }
 
 // Helper function to format currency for axis ticks and tooltips
@@ -23,22 +23,26 @@ const formatCurrencyForGraph = (value: number): string => {
 // **2. Update component signature to accept the data prop**
 const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
   const chartRef = useRef<HTMLCanvasElement>(null);
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== "undefined" ? window.innerWidth : 1024,
+    height: typeof window !== "undefined" ? window.innerHeight : 768,
+  });
 
   // **3. Dynamic Data Generation (Replaces hardcoded roiOverTimeData)**
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return { labels: [], datasets: [] };
 
-    // Find the first month where the net value is zero or positive (Break-Even)
+    // Find the first year where the net value is zero or positive (Break-Even)
     const breakEvenItem = data.find(
-      (item) => item.net_value >= 0 && item.month > 0
+      (item) => item.net_value >= 0 && item.year > 0
     );
-    const breakEvenMonth = breakEvenItem ? breakEvenItem.month : 0;
+    const breakEvenYear = breakEvenItem ? breakEvenItem.year : 0;
 
-    // If the initial net value (Month 0) is already positive, the program is instantly profitable.
+    // If the initial net value (Year 0) is already positive, the program is instantly profitable.
     const isProfitableFromStart = data[0].net_value >= 0;
 
     return {
-      labels: data.map((item) => `Month ${item.month}`),
+      labels: data.map((item) => `Year ${item.year}`),
       datasets: [
         {
           label: "Cumulative Net Value",
@@ -52,11 +56,11 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
         // Break-Even Highlight Point
         {
           label: isProfitableFromStart
-            ? "Initial Profit (Month 0)"
-            : `Break-Even Point (${breakEvenMonth.toFixed(1)} Months)`,
+            ? "Initial Profit (Year 0)"
+            : `Break-Even Point (${breakEvenYear.toFixed(1)} Years)`,
           data: data.map((item) =>
-            // Plot a point only at the exact break-even month
-            item.month === breakEvenItem?.month ? breakEvenItem.net_value : null
+            // Plot a point only at the exact break-even year
+            item.year === breakEvenItem?.year ? breakEvenItem.net_value : null
           ),
           borderColor: isProfitableFromStart ? "green" : "red",
           pointBackgroundColor: isProfitableFromStart ? "green" : "red",
@@ -70,9 +74,12 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
     };
   }, [data]);
 
-  // **4. Update Chart Options for Currency and dynamic scale**
-  const options: ChartOptions<"line"> = useMemo(
-    () => ({
+  // **4. Update Chart Options for Currency and dynamic scale with responsive design**
+  const options: ChartOptions<"line"> = useMemo(() => {
+    // Detect screen size for responsive font sizes
+    const isMobile = windowSize.width < 640;
+
+    return {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
@@ -80,17 +87,17 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
           position: "top" as const,
           labels: {
             usePointStyle: true,
-            padding: 20,
-            font: { size: 12 },
+            padding: isMobile ? 10 : 20,
+            font: { size: isMobile ? 10 : 12 },
           },
         },
         tooltip: {
           mode: "index" as const,
           intersect: false,
           backgroundColor: "rgba(0, 0, 0, 0.8)",
-          titleFont: { size: 14 },
-          bodyFont: { size: 12 },
-          padding: 12,
+          titleFont: { size: isMobile ? 12 : 14 },
+          bodyFont: { size: isMobile ? 10 : 12 },
+          padding: isMobile ? 8 : 12,
           callbacks: {
             title: (context) => context[0].label,
             label: (context: TooltipItem<"line">) => {
@@ -100,7 +107,7 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
                 )}`;
               }
               // Don't show tooltip for the single break-even highlight point
-              return null;
+              return undefined;
             },
           },
         },
@@ -119,7 +126,13 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
           border: { display: false },
           ticks: {
             callback: (value) => formatCurrencyForGraph(Number(value)),
-            font: { size: 11 },
+            font: { size: isMobile ? 9 : 11 },
+            maxTicksLimit: isMobile ? 4 : 6,
+          },
+          title: {
+            display: !isMobile,
+            text: "Cumulative Net Value (₱)",
+            font: { size: isMobile ? 10 : 12 },
           },
           title: {
             display: true,
@@ -128,35 +141,58 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
         },
         x: {
           grid: { display: false },
-          ticks: { font: { size: 11 } },
+          ticks: {
+            font: { size: isMobile ? 9 : 11 },
+            maxTicksLimit: isMobile ? 6 : 10,
+          },
           border: { display: false },
           title: {
-            display: true,
-            text: "Program Duration (Months)",
+            display: !isMobile,
+            text: "Program Duration (Years)",
+            font: { size: isMobile ? 10 : 12 },
           },
         },
       },
       elements: {
-        point: { radius: 3, hoverRadius: 6, hoverBorderWidth: 2 },
-        line: { borderWidth: 2 },
+        point: {
+          radius: isMobile ? 2 : 3,
+          hoverRadius: isMobile ? 4 : 6,
+          hoverBorderWidth: 2,
+        },
+        line: { borderWidth: isMobile ? 1.5 : 2 },
       },
       interaction: {
         mode: "nearest" as const,
         axis: "x" as const,
         intersect: false,
       },
-    }),
-    []
-  );
+      layout: {
+        padding: isMobile ? 10 : 20,
+      },
+    };
+  }, [windowSize.width]);
 
-  // **5. Use dynamic chartData in useEffect**
+  // **5. Add resize listener for responsive behavior**
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // **6. Use dynamic chartData in useEffect**
   useEffect(() => {
     if (!chartRef.current || chartData.labels.length === 0) return;
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
 
     // Destroy existing chart instance before creating a new one
-    let chartInstance: Chart | null = Chart.getChart(ctx);
+    const chartInstance = Chart.getChart(ctx);
     if (chartInstance) {
       chartInstance.destroy();
     }
@@ -171,7 +207,7 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
   }, [chartData, options]);
 
   return (
-    <div className="h-[350px] w-full">
+    <div className="h-[200px] xs:h-[250px] sm:h-[300px] lg:h-[350px] w-full">
       <canvas ref={chartRef} />
     </div>
   );

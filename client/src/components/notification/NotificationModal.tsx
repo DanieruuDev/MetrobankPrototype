@@ -44,14 +44,16 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
   return (
     <>
       {/* Main notification list modal */}
-      <div className="fixed top-16 right-6 w-96 bg-white rounded-md shadow-xl border border-gray-200 px-3 py-4 z-10">
+      <div className="fixed top-12 sm:top-16 right-2 sm:right-6 w-[calc(100vw-1rem)] sm:w-80 lg:w-96 bg-white rounded-md shadow-xl border border-gray-200 px-3 py-4 z-50 max-h-[calc(100vh-4rem)]">
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
-          <h1 className="font-bold text-xl text-gray-900">Notifications</h1>
-          <div className="space-x-2 flex items-center">
+          <h1 className="font-bold text-lg sm:text-xl text-gray-900">
+            Notifications
+          </h1>
+          <div className="space-x-1 sm:space-x-2 flex items-center">
             <button
               onClick={() => setTab("all")}
-              className={`px-4 py-1 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-4 py-1 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 tab === "all"
                   ? "bg-gray-900 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -61,7 +63,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
             </button>
             <button
               onClick={() => setTab("unread")}
-              className={`px-4 py-1 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-4 py-1 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 tab === "unread"
                   ? "bg-gray-900 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -73,7 +75,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
         </div>
 
         {/* Notification list */}
-        <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+        <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-80 overflow-y-auto pr-1 sm:pr-2">
           {filteredNotifications.length === 0 && (
             <p className="text-center text-gray-400 text-sm mt-6">
               No notifications
@@ -83,15 +85,15 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
             <div
               key={n.id}
               onClick={() => handleOpenDetail(n)}
-              className={`flex items-start p-4 mb-2 cursor-pointer  transition-all hover:shadow-md hover:bg-gray-50 border-b ${
+              className={`flex items-start p-3 sm:p-4 mb-1 sm:mb-2 cursor-pointer transition-all hover:shadow-md hover:bg-gray-50 border-b ${
                 !n.is_read
-                  ? "bg-blue-50  border-b-blue-500"
+                  ? "bg-blue-50 border-b-blue-500"
                   : "bg-white border-b-gray-200"
               }`}
             >
               {/* Avatar / Icon */}
-              <div className="flex-shrink-0 mr-3">
-                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold text-sm">
+              <div className="flex-shrink-0 mr-2 sm:mr-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold text-xs sm:text-sm">
                   {n.actor_name
                     ? n.actor_name
                         .split(" ")
@@ -105,11 +107,11 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
               {/* Notification content */}
               <div className="flex-1 min-w-0">
                 <p>
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-gray-900 text-sm sm:text-base">
                     {n.actor_name}:
                   </span>{" "}
                 </p>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="text-gray-700">{n.message}</span>
                 </div>
                 {n.details && (
@@ -124,7 +126,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
 
               {/* Unread indicator */}
               {!n.is_read && (
-                <div className="ml-3 mt-2 w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="ml-2 sm:ml-3 mt-1 sm:mt-2 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
               )}
             </div>
           ))}
@@ -133,10 +135,11 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
           onClick={() => {
             setShowConfirm(true);
           }}
-          className="px-3 py-1 ml-2 rounded-full text-sm font-medium  text-black flex items-center cursor-pointer text-[14px] gap-1 hover:underline"
+          className="px-2 sm:px-3 py-1 ml-1 sm:ml-2 rounded-full text-xs sm:text-sm font-medium text-black flex items-center cursor-pointer gap-1 hover:underline"
         >
-          <Check className="w-4 h-4" />
-          Mark All as Read
+          <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="hidden xs:inline">Mark All as Read</span>
+          <span className="xs:hidden">Mark All</span>
         </button>
         <ConfirmationDialog
           isOpen={showConfirm}
@@ -153,7 +156,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
 
       {/* Detailed notification modal */}
       {selectedNotification && (
-        <div className="fixed inset-0 flex items-center justify-center z-20">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
           {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/50"
@@ -161,16 +164,18 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
           />
 
           {/* Modal content */}
-          <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md z-30">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto z-30">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
               From:{" "}
               <span className="font-bold text-gray-800">
                 {selectedNotification.actor_name || "System"}
               </span>
             </h2>
-            <p className="text-gray-700 mb-3">{selectedNotification.message}</p>
+            <p className="text-sm sm:text-base text-gray-700 mb-3">
+              {selectedNotification.message}
+            </p>
             {selectedNotification.details && (
-              <p className="text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 mb-4">
                 {selectedNotification.details}
               </p>
             )}
@@ -178,20 +183,20 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
               {new Date(selectedNotification.created_at).toLocaleString()}
             </span>
 
-            <div className="flex justify-end gap-3 mt-5">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 mt-5">
               {selectedNotification.action_required &&
                 selectedNotification.action_type && (
                   <>
-                    <button className="px-4 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-sm font-medium">
+                    <button className="px-3 sm:px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-sm font-medium">
                       Decline
                     </button>
-                    <button className="px-4 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium">
+                    <button className="px-3 sm:px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium">
                       Accept
                     </button>
                   </>
                 )}
               <button
-                className="px-4 py-1 rounded-md bg-gray-200 hover:bg-gray-300 text-sm font-medium"
+                className="px-3 sm:px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-sm font-medium"
                 onClick={closeDetailModal}
               >
                 Close

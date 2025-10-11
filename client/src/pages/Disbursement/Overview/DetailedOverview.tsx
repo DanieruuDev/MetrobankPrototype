@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Navbar from "../../../components/shared/Navbar";
 import Sidebar from "../../../components/shared/Sidebar";
 import { useParams, useNavigate } from "react-router-dom"; // Added useNavigate
@@ -109,7 +109,7 @@ const DetailedOverview: React.FC = () => {
   }
   // Make sure this is your only formatCurrency function in the file
 
-  const fetchStudentBasicInfo = async (): Promise<void> => {
+  const fetchStudentBasicInfo = useCallback(async (): Promise<void> => {
     try {
       const response = await axios.get(
         `${VITE_BACKEND_URL}api/disbursement/overview/student-info/${id}`
@@ -128,9 +128,9 @@ const DetailedOverview: React.FC = () => {
         setError("Failed to fetch student information");
       }
     }
-  };
+  }, [VITE_BACKEND_URL, id]);
 
-  const fetchDisbursementData = async (): Promise<void> => {
+  const fetchDisbursementData = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     try {
       const response = await axios.get(
@@ -155,7 +155,7 @@ const DetailedOverview: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [VITE_BACKEND_URL, id]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -173,7 +173,7 @@ const DetailedOverview: React.FC = () => {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, fetchStudentBasicInfo, fetchDisbursementData]);
 
   const organizeByTerms = (): TermGroup[] => {
     if (!disbursements || disbursements.length === 0) return [];
@@ -256,12 +256,12 @@ const DetailedOverview: React.FC = () => {
       <div className="flex">
         <div
           className={`${
-            collapsed ? "pl-20" : "pl-[250px]"
+            collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
           } transition-[padding-left] duration-300 w-full`}
         >
           <Navbar pageName="Disbursement Overview" />
           <Sidebar />
-          <div className="mt-4 px-8 pb-12 max-w-8xl mx-auto">
+          <div className="mt-4 px-3 sm:px-4 lg:px-8 pb-8 sm:pb-12 max-w-8xl mx-auto">
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -280,12 +280,12 @@ const DetailedOverview: React.FC = () => {
       <div className="flex">
         <div
           className={`${
-            collapsed ? "pl-20" : "pl-[250px]"
+            collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
           } transition-[padding-left] duration-300 w-full`}
         >
           <Navbar pageName="Disbursement Overview" />
           <Sidebar />
-          <div className="mt-4 px-8 pb-12 max-w-8xl mx-auto">
+          <div className="mt-4 px-3 sm:px-4 lg:px-8 pb-8 sm:pb-12 max-w-8xl mx-auto">
             <div className="flex items-center justify-center py-20">
               <div className="text-center p-6 bg-white rounded-lg shadow-sm">
                 <h2 className="text-xl font-semibold text-red-600">
@@ -312,12 +312,12 @@ const DetailedOverview: React.FC = () => {
       <div className="flex">
         <div
           className={`${
-            collapsed ? "pl-20" : "pl-[250px]"
+            collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
           } transition-[padding-left] duration-300 w-full`}
         >
           <Navbar pageName="Disbursement Overview" />
           <Sidebar />
-          <div className="mt-4 px-8 pb-12 max-w-8xl mx-auto">
+          <div className="mt-4 px-3 sm:px-4 lg:px-8 pb-8 sm:pb-12 max-w-8xl mx-auto">
             <div className="flex items-center justify-center py-20">
               <div className="text-center p-6 bg-white rounded-lg shadow-sm">
                 <h2 className="text-xl font-semibold text-red-600">
@@ -349,66 +349,69 @@ const DetailedOverview: React.FC = () => {
   const currentTerm = hasDisbursements ? allTerms[selectedTermIndex] : null;
 
   return (
-    <div className="flex">
+    <div className="min-h-screen relative">
+      <Sidebar />
       <div
-        className={`${
-          collapsed ? "pl-20" : "pl-[250px]"
-        } transition-[padding-left] duration-300 w-full`}
+        className={`
+          transition-all duration-300 ease-in-out w-full
+          ${collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[240px]"}
+        `}
       >
         <Navbar pageName="Disbursement Overview" />
-
-        <Sidebar />
-        <div className="mt-4 px-8 pb-12 max-w-8xl mx-auto">
+        <div className="mt-4 px-3 sm:px-4 lg:px-8 pb-8 sm:pb-12 max-w-8xl mx-auto">
           {/* Back button and Scholar Profile Summary */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <button
               onClick={() => navigate("/financial-overview")}
               className="group flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
             >
               <ArrowLeft
-                size={25}
-                className="group-hover:-translate-x-1 transition-transform"
+                size={20}
+                className="group-hover:-translate-x-1 transition-transform sm:w-6 sm:h-6"
               />
             </button>
 
-            <div className="flex items-center justify-between mt-10">
-              <div className="flex items-center">
-                <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold mr-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-6 sm:mt-10 gap-4">
+              <div className="flex items-center min-w-0 flex-1">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-base sm:text-lg font-bold mr-3 sm:mr-4 flex-shrink-0">
                   {studentInfo.scholar_name
                     .split(" ")
                     .map((name) => name[0])
                     .join("")}
                 </div>
-                <div>
-                  <h1 className="text-xl font-semibold">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-xl font-semibold truncate">
                     {studentInfo.scholar_name}
                   </h1>
-                  <div className="flex items-center text-sm text-gray-500 mt-1">
-                    <span>ID: {studentInfo.student_id}</span>
-                    <span className="mx-2">•</span>
-                    <span>{studentInfo.campus}</span>
-                    <span className="mx-2">•</span>
-                    <span>{studentInfo.current_yr_lvl}</span>
-                    <span className="mx-2">•</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs ${
-                        studentInfo.scholarship_status === "Active"
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-700"
-                      }`}
-                    >
-                      {studentInfo.scholarship_status}
-                    </span>
+                  <div className="flex flex-col-2 gap-1 sm:flex-row sm:items-center sm:gap-0 text-xs sm:text-sm text-gray-500 mt-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span>ID: {studentInfo.student_id}</span>
+
+                      <span>{studentInfo.campus}</span>
+
+                      <span>{studentInfo.current_yr_lvl}</span>
+                    </div>
+                    <div className="flex items-center gap-1 sm:ml-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs ${
+                          studentInfo.scholarship_status === "Active"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {studentInfo.scholarship_status}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
               <button
                 onClick={generatePDF}
-                className="flex items-center gap-2 text-sm font-semibold text-white bg-blue-600 border border-blue-600 hover:bg-white hover:text-blue-600 px-5 py-2 rounded-2xl transition"
+                className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 border border-blue-600 hover:bg-white hover:text-blue-600 px-3 sm:px-5 py-2 rounded-2xl transition flex-shrink-0"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
+                  className="h-3 w-3 sm:h-4 sm:w-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -420,24 +423,29 @@ const DetailedOverview: React.FC = () => {
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                   />
                 </svg>
-                Download PDF
+                <span className="hidden sm:inline">Download PDF</span>
+                <span className="sm:hidden">PDF</span>
               </button>
             </div>
           </div>
 
           {/* Rest of your component remains the same */}
           {/* Current Term & Total Assessment */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm p-5">
-              <h3 className="text-sm text-gray-500 mb-1">Current Term</h3>
-              <p className="text-lg font-medium">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+              <h3 className="text-xs sm:text-sm text-gray-500 mb-1">
+                Current Term
+              </h3>
+              <p className="text-base sm:text-lg font-medium">
                 {studentInfo.current_school_year} |{" "}
                 {studentInfo.current_semester}
               </p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm p-5">
-              <h3 className="text-sm text-gray-500 mb-1">Total Assessment</h3>
-              <p className="text-lg font-medium text-blue-600">
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+              <h3 className="text-xs sm:text-sm text-gray-500 mb-1">
+                Total Assessment
+              </h3>
+              <p className="text-base sm:text-lg font-medium text-blue-600">
                 {formatCurrency(totalHistoricalAmount)}
               </p>
             </div>
@@ -445,12 +453,12 @@ const DetailedOverview: React.FC = () => {
 
           {/* Term Selection */}
           {hasDisbursements && (
-            <div className="mb-6">
-              <div className="flex space-x-1 overflow-x-auto pb-2">
+            <div className="mb-4 sm:mb-6">
+              <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2">
                 {allTerms.map((term, index) => (
                   <button
                     key={index}
-                    className={`px-4 py-2 rounded-full whitespace-nowrap ${
+                    className={`px-3 sm:px-4 py-2 rounded-full whitespace-nowrap text-xs sm:text-sm ${
                       selectedTermIndex === index
                         ? "bg-blue-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -466,14 +474,14 @@ const DetailedOverview: React.FC = () => {
 
           {/* Disbursement Breakdown or No Data Message */}
           {hasDisbursements ? (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 sm:mb-8">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="text-lg font-medium">
+              <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-100">
+                <h2 className="text-base sm:text-lg font-medium">
                   {currentTerm?.school_year} | {currentTerm?.semester} |{" "}
                   {currentTerm?.year_level}
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
                   Disbursement breakdown for selected term
                 </p>
               </div>
@@ -483,16 +491,16 @@ const DetailedOverview: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Type
                       </th>
-                      <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Amount
                       </th>
-                      <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date
                       </th>
                     </tr>
@@ -503,18 +511,18 @@ const DetailedOverview: React.FC = () => {
                         key={idx}
                         className="hover:bg-gray-50 transition-colors"
                       >
-                        <td className="py-4 px-6 whitespace-nowrap font-medium">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap font-medium text-sm sm:text-base">
                           {item.disbursement_type}
                         </td>
-                        <td className="py-4 px-6 whitespace-nowrap">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap">
                           <StatusBadge status={item.disbursement_status} />
                         </td>
-                        <td className="py-4 px-6 whitespace-nowrap font-medium">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap font-medium text-sm sm:text-base">
                           {item.amount
                             ? formatCurrency(parseFloat(item.amount))
                             : "—"}
                         </td>
-                        <td className="py-4 px-6 whitespace-nowrap text-gray-500">
+                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap text-gray-500 text-sm sm:text-base">
                           {formatDate(item.disbursement_date)}
                         </td>
                       </tr>
@@ -522,12 +530,15 @@ const DetailedOverview: React.FC = () => {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-50">
-                      <td colSpan={2} className="py-3 px-6 font-medium">
+                      <td
+                        colSpan={2}
+                        className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base"
+                      >
                         Term Total
                       </td>
                       <td
                         colSpan={2}
-                        className="py-3 px-6 font-medium text-blue-600"
+                        className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-blue-600 text-sm sm:text-base"
                       >
                         {formatCurrency(
                           calculateTotalAmount(currentTerm?.disbursements || [])
@@ -539,11 +550,11 @@ const DetailedOverview: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
-              <div className="px-6 py-8 text-center">
-                <div className="text-gray-400 mb-4">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 sm:mb-8">
+              <div className="px-3 sm:px-4 lg:px-6 py-6 sm:py-8 text-center">
+                <div className="text-gray-400 mb-3 sm:mb-4">
                   <svg
-                    className="mx-auto h-12 w-12"
+                    className="mx-auto h-8 w-8 sm:h-12 sm:w-12"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -556,10 +567,10 @@ const DetailedOverview: React.FC = () => {
                     />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1 sm:mb-2">
                   No Disbursement History
                 </h3>
-                <p className="text-gray-500">
+                <p className="text-sm sm:text-base text-gray-500">
                   This student has no disbursement history available.
                 </p>
               </div>

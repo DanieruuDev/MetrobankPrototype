@@ -16,8 +16,8 @@ const DropdownFilter = ({
   onChange,
 }: DropdownFilterProps) => {
   return (
-    <div className="relative gap-4 text-sm text-gray-500 text-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-150">
-      <div className="py-1 px-2">
+    <div className="relative">
+      <div className="py-1 px-2 text-sm text-gray-500 text-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-150">
         {label && (
           <label htmlFor={name} className="sr-only">
             {label}
@@ -28,7 +28,7 @@ const DropdownFilter = ({
           name={name}
           value={value}
           onChange={onChange}
-          className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none hover:cursor-pointer appearance-none pr-6"
+          className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none hover:cursor-pointer appearance-none pr-6 py-1 text-sm"
         >
           <option value="" className="px-2 py-1">
             {`All ${label ?? name}`}

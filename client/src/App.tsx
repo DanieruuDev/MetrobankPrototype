@@ -16,6 +16,7 @@ import DetailedTracking from "./pages/Disbursement/Tracking/DetailedTracking";
 import PrivateRoute from "./components/shared/PrivateRoute";
 import { SidebarProvider } from "./context/SidebarContext";
 import ROIandAnalytics from "./pages/ROI/ROIandAnalytics";
+import TuitionInvoiceUpload from "./pages/TuitionInvoiceUpload/TuitionInvoiceUpload";
 
 function App() {
   return (
@@ -100,6 +101,21 @@ function App() {
                 ]}
               >
                 <Renewal />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/tuition-invoice"
+            element={
+              <PrivateRoute
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                ]}
+              >
+                <TuitionInvoiceUpload />
               </PrivateRoute>
             }
           />

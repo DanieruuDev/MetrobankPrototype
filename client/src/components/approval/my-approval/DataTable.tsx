@@ -45,7 +45,7 @@ const getStatusIcon = (status: string) => {
       return <CircleAlert className="text-yellow-500" size={16} />;
     case "Failed":
       return <XCircle className="text-red-500" size={16} />;
-    case "Returned":
+    case "Rejected":
       return <RotateCcw className="text-orange-500" size={16} />;
     default:
       return <Clock className="text-gray-300" size={16} />;

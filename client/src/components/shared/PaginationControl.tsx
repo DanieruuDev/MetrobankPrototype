@@ -39,19 +39,19 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
       <button
         onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="flex items-center gap-1 px-3 py-1 rounded hover:bg-gray-100 disabled:opacity-50 font-medium cursor-pointer"
+        className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded hover:bg-gray-100 disabled:opacity-50 font-medium cursor-pointer text-sm"
       >
         <ChevronLeft className="h-4 w-4" />
-        <span>Previous</span>
+        <span className="hidden sm:inline">Previous</span>
       </button>
 
-      <div className="flex items-center gap-1 mx-2">
+      <div className="flex items-center gap-1 mx-1 sm:mx-2">
         {createPageNumbers().map((page, index) =>
           typeof page === "number" ? (
             <button
               key={index}
               onClick={() => onPageChange(page)}
-              className={`px-3 py-1 min-w-[32px] rounded cursor-pointer ${
+              className={`px-2 sm:px-3 py-1 min-w-[28px] sm:min-w-[32px] rounded cursor-pointer text-sm ${
                 page === currentPage
                   ? "bg-blue-600 text-white font-semibold"
                   : "hover:bg-gray-100"
@@ -60,7 +60,7 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
               {page}
             </button>
           ) : (
-            <span key={index} className="px-1 select-none">
+            <span key={index} className="px-1 select-none text-sm">
               {page}
             </span>
           )
@@ -72,9 +72,9 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
           currentPage < totalPages && onPageChange(currentPage + 1)
         }
         disabled={currentPage === totalPages}
-        className="flex items-center gap-1 px-3 py-1 rounded hover:bg-gray-100 disabled:opacity-50 font-medium cursor-pointer"
+        className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded hover:bg-gray-100 disabled:opacity-50 font-medium cursor-pointer text-sm"
       >
-        <span>Next</span>
+        <span className="hidden sm:inline">Next</span>
         <ChevronRight className="h-4 w-4" />
       </button>
     </div>

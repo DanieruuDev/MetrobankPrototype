@@ -607,7 +607,7 @@ const updateScholarRenewalV2 = async (req, res) => {
         validation_id,
         user_id,
       } = row;
-
+      console.log(validation_id);
       if (
         !renewal_id ||
         !changedFields ||
@@ -682,7 +682,7 @@ const updateScholarRenewalV2 = async (req, res) => {
             ([field_name, value]) => [
               validation_id,
               field_name,
-              value.toString(), // Convert to string to match VARCHAR(255)
+              value !== null ? value.toString() : null, // Safely handle null
               user_id,
               role_id,
             ]
@@ -694,7 +694,7 @@ const updateScholarRenewalV2 = async (req, res) => {
               [
                 auditEntries.map((e) => e[0]), // validation_id
                 auditEntries.map((e) => e[1]), // field_name
-                auditEntries.map((e) => e[2]), // value
+                auditEntries.map((e) => e[2]), // value (null-safe)
                 auditEntries.map((e) => e[3]), // validated_by
                 auditEntries.map((e) => e[4]), // role_id
               ]
@@ -715,9 +715,11 @@ const updateScholarRenewalV2 = async (req, res) => {
           // Audit: Batch insert into field_validation for renewal_date
           const auditEntries = [
             [
-              renewal_id,
+              validation_id,
               "renewal_date",
-              changedFields.renewal_date.toString(),
+              changedFields.renewal_date !== null
+                ? changedFields.renewal_date.toString()
+                : null, // Safely handle null
               validator_id,
               role_id,
             ],
@@ -760,31 +762,31 @@ const updateScholarRenewalV2 = async (req, res) => {
           const result = await client.query(query, [...values, validator_id]);
 
           if (result.rowCount > 0) {
-            updatedRows.add(renewal_id);
+            updatedRows.add(validation_id);
 
             // Audit: Batch insert into field_validation for validator fields
             const auditEntries = Object.entries(validatorFields).map(
               ([field_name, value]) => [
-                renewal_id,
+                validation_id,
                 field_name,
-                value.toString(), // Convert to string to match VARCHAR(255)
-                validator_id,
+                value !== null ? value.toString() : null, // Safely handle null
+                user_id,
                 role_id,
               ]
             );
-            // if (auditEntries.length > 0) {
-            //   await client.query(
-            //     `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
-            //      SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
-            //     [
-            //       auditEntries.map((e) => e[0]), // validation_id
-            //       auditEntries.map((e) => e[1]), // field_name
-            //       auditEntries.map((e) => e[2]), // value
-            //       auditEntries.map((e) => e[3]), // validated_by
-            //       auditEntries.map((e) => e[4]), // role_id
-            //     ]
-            //   );
-            // }
+            if (auditEntries.length > 0) {
+              await client.query(
+                `INSERT INTO public.field_validation (validation_id, field_name, value, validated_by, role_id, validated_at)
+                 SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), unnest($4::int[]), unnest($5::int[]), NOW()`,
+                [
+                  auditEntries.map((e) => e[0]), // validation_id
+                  auditEntries.map((e) => e[1]), // field_name
+                  auditEntries.map((e) => e[2]), // value (null-safe)
+                  auditEntries.map((e) => e[3]), // validated_by
+                  auditEntries.map((e) => e[4]), // role_id
+                ]
+              );
+            }
           }
         }
       }
@@ -1101,6 +1103,146 @@ const getInitialRenewalInfo = async (req, res) => {
   }
 };
 
+// Get Audit Log for Renewal
+const getRenewalAuditLog = async (req, res) => {
+  try {
+    const {
+      student_id,
+      renewal_id,
+      validation_id,
+      admin_id,
+      role_id,
+      change_category,
+      start_date,
+      end_date,
+      limit = 100,
+      offset = 0,
+    } = req.query;
+
+    let query = `SELECT * FROM vw_renewal_audit_log WHERE 1=1`;
+    const values = [];
+    let paramIndex = 1;
+
+    // Filter by student_id
+    if (student_id) {
+      query += ` AND student_id = $${paramIndex++}`;
+      values.push(student_id);
+    }
+
+    // Filter by renewal_id
+    if (renewal_id) {
+      query += ` AND renewal_id = $${paramIndex++}`;
+      values.push(renewal_id);
+    }
+
+    // Filter by validation_id
+    if (validation_id) {
+      query += ` AND validation_id = $${paramIndex++}`;
+      values.push(validation_id);
+    }
+
+    // Filter by admin_id (who made the change)
+    if (admin_id) {
+      query += ` AND admin_id = $${paramIndex++}`;
+      values.push(admin_id);
+    }
+
+    // Filter by role_id
+    if (role_id) {
+      query += ` AND role_id = $${paramIndex++}`;
+      values.push(role_id);
+    }
+
+    // Filter by change category
+    if (change_category) {
+      query += ` AND change_category = $${paramIndex++}`;
+      values.push(change_category);
+    }
+
+    // Filter by date range
+    if (start_date) {
+      query += ` AND changed_at >= $${paramIndex++}`;
+      values.push(start_date);
+    }
+
+    if (end_date) {
+      query += ` AND changed_at <= $${paramIndex++}`;
+      values.push(end_date);
+    }
+
+    // Order by most recent first
+    query += ` ORDER BY changed_at DESC`;
+
+    // Add pagination
+    query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    values.push(parseInt(limit), parseInt(offset));
+
+    const result = await pool.query(query, values);
+
+    // Get total count for pagination
+    let countQuery = `SELECT COUNT(*) FROM vw_renewal_audit_log WHERE 1=1`;
+    const countValues = [];
+    let countParamIndex = 1;
+
+    // Build count query with proper parameter indices
+    if (student_id) {
+      countQuery += ` AND student_id = $${countParamIndex++}`;
+      countValues.push(student_id);
+    }
+    if (renewal_id) {
+      countQuery += ` AND renewal_id = $${countParamIndex++}`;
+      countValues.push(renewal_id);
+    }
+    if (validation_id) {
+      countQuery += ` AND validation_id = $${countParamIndex++}`;
+      countValues.push(validation_id);
+    }
+    if (admin_id) {
+      countQuery += ` AND admin_id = $${countParamIndex++}`;
+      countValues.push(admin_id);
+    }
+    if (role_id) {
+      countQuery += ` AND role_id = $${countParamIndex++}`;
+      countValues.push(role_id);
+    }
+    if (change_category) {
+      countQuery += ` AND change_category = $${countParamIndex++}`;
+      countValues.push(change_category);
+    }
+    if (start_date) {
+      countQuery += ` AND changed_at >= $${countParamIndex++}`;
+      countValues.push(start_date);
+    }
+    if (end_date) {
+      countQuery += ` AND changed_at <= $${countParamIndex++}`;
+      countValues.push(end_date);
+    }
+
+    const countResult = await pool.query(countQuery, countValues);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    res.status(200).json({
+      success: true,
+      message: "Audit log retrieved successfully",
+      data: result.rows,
+      pagination: {
+        total: totalCount,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        totalPages: Math.ceil(totalCount / parseInt(limit)),
+        currentPage: Math.floor(parseInt(offset) / parseInt(limit)) + 1,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching audit log:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve audit log",
+      error: error.message,
+    });
+  }
+};
+
 //Delete scholar renewal
 
 module.exports = {
@@ -1112,4 +1254,5 @@ module.exports = {
   filteredScholarRenewal,
   updateScholarRenewalV2,
   getInitialRenewalInfo,
+  getRenewalAuditLog,
 };

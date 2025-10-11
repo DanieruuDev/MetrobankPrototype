@@ -8,6 +8,7 @@ const {
   filteredScholarRenewal,
   updateScholarRenewalV2,
   getInitialRenewalInfo,
+  getRenewalAuditLog,
 } = require("../controllers/renewal-scholar-controller");
 
 const renewalRouter = express.Router();
@@ -25,5 +26,7 @@ renewalRouter.get(
 renewalRouter.get("/count-renewal", getInitialRenewalInfo);
 
 renewalRouter.get("/get-filter-renewal", filteredScholarRenewal);
+
+renewalRouter.get("/audit-log", getRenewalAuditLog);
 
 module.exports = renewalRouter;
