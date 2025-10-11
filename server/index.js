@@ -16,7 +16,7 @@ const notificationRouter = require("./routes/notification-router.js");
 const approvalRouter = require("./routes/approval-routes.js");
 const documentRouter = require("./routes/document-router");
 const uploadStatusRouter = require("./routes/upload-status.js");
-
+const tuitionInvoiceRouter = require("./routes/tuition-invoice-router.js");
 require("./utils/scheduler.js");
 require("dotenv").config();
 app.use(express.json());
@@ -44,6 +44,7 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/api/notification", notificationRouter);
 app.use("/api/approvals", approvalRouter);
 app.use("/api/jobs", uploadStatusRouter);
+app.use("/api/invoice", tuitionInvoiceRouter);
 
 app.use("/", async (req, res) => {
   res.send("Hello World");
