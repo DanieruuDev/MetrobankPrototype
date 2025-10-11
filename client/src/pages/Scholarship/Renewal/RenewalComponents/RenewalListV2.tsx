@@ -1235,16 +1235,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               </div>
 
               {/* Additional Filters Row */}
-              <div className="flex flex-col lg:flex-row gap-3">
+              <div className="flex flex-wrap items-end gap-3">
                 {/* School Year & Semester Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                    School Year & Semester:
+                <div className="group relative w-full xs:w-[180px] sm:w-[200px]">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 ml-1">
+                    School Year • Semester
                   </label>
                   <select
                     value={sySemester}
                     onChange={(e) => setSySemester(e.target.value)}
-                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                    className="w-full px-3 py-2.5 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer"
                   >
                     <option value="">Select SY-Semester</option>
                     {sySemesterOptions.map((option) => (
@@ -1260,14 +1260,14 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   (role_id === 3 || role_id === 4 || role_id === 9) &&
                   Boolean(auth?.info?.branch?.branch_name)
                 ) && (
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                      Branch:
+                  <div className="group relative w-full xs:w-[180px] sm:w-[200px]">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5 ml-1">
+                      Campus/Branch
                     </label>
                     <select
                       value={selectedBranchFilter}
                       onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2.5 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:border-white/50"
                     >
                       <option value="All">All Branches</option>
                       {uniqueBranches.map((branch) => (
@@ -1280,14 +1280,14 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 )}
 
                 {/* Year Level Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                    Year Level:
+                <div className="group relative w-full xs:w-[180px] sm:w-[200px]">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 ml-1">
+                    Year Level
                   </label>
                   <select
                     value={selectedYearLevelFilter}
                     onChange={(e) => setSelectedYearLevelFilter(e.target.value)}
-                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                    className="w-full px-3 py-2.5 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer"
                   >
                     <option value="All">All Year Levels</option>
                     {uniqueYearLevels.map((yearLevel) => (
@@ -1299,17 +1299,22 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 </div>
 
                 {/* Clear Filters Button */}
-                <button
-                  onClick={() => {
-                    setSelectedStatus("All");
-                    setSelectedBranchFilter("All");
-                    setSelectedYearLevelFilter("All");
-                    setSearchQuery("");
-                  }}
-                  className="px-3 py-2 text-xs font-medium bg-white/100  text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
-                >
-                  Clear Filters
-                </button>
+                <div className="group relative w-full xs:w-[180px] sm:w-[200px]">
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 ml-1 opacity-0">
+                    Hidden
+                  </label>
+                  <button
+                    onClick={() => {
+                      setSelectedStatus("All");
+                      setSelectedBranchFilter("All");
+                      setSelectedYearLevelFilter("All");
+                      setSearchQuery("");
+                    }}
+                    className="w-full px-3 py-2.5 text-xs sm:text-sm font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-gray-50 hover:border-gray-300 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm cursor-pointer"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
               </div>
             </div>
           </div>

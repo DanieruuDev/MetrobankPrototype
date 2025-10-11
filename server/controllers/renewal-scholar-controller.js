@@ -1126,6 +1126,7 @@ const getRenewalAuditLog = async (req, res) => {
       validation_id,
       admin_id,
       role_id,
+      branch_id,
       change_category,
       start_date,
       end_date,
@@ -1165,6 +1166,12 @@ const getRenewalAuditLog = async (req, res) => {
     if (role_id) {
       query += ` AND role_id = $${paramIndex++}`;
       values.push(role_id);
+    }
+
+    // Filter by branch_id
+    if (branch_id) {
+      query += ` AND branch_id = $${paramIndex++}`;
+      values.push(branch_id);
     }
 
     // Filter by change category
@@ -1218,6 +1225,10 @@ const getRenewalAuditLog = async (req, res) => {
     if (role_id) {
       countQuery += ` AND role_id = $${countParamIndex++}`;
       countValues.push(role_id);
+    }
+    if (branch_id) {
+      countQuery += ` AND branch_id = $${countParamIndex++}`;
+      countValues.push(branch_id);
     }
     if (change_category) {
       countQuery += ` AND change_category = $${countParamIndex++}`;

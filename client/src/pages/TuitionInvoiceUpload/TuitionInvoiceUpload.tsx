@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Sidebar from "../../components/shared/Sidebar";
 import Navbar from "../../components/shared/Navbar";
 import { useSidebar } from "../../context/SidebarContext";
-import { Upload, CheckCircle, FileText, AlertCircle } from "lucide-react";
+import {
+  Upload,
+  CheckCircle,
+  FileText,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import Loading from "../../components/shared/Loading";
 import PaginationControl from "../../components/shared/PaginationControl";
@@ -106,9 +113,51 @@ const TuitionInvoiceUpload: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
+  // Filter states
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [selectedYearLevel, setSelectedYearLevel] = useState<string>("all");
+  const [selectedProgram, setSelectedProgram] = useState<string>("all");
+
+  // Dropdown open states
+  const [branchOpen, setBranchOpen] = useState(false);
+  const [yearLevelOpen, setYearLevelOpen] = useState(false);
+  const [programOpen, setProgramOpen] = useState(false);
+
+  // Filter section collapse state (for mobile)
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
+
+  // Refs for click outside detection
+  const branchRef = useRef<HTMLDivElement>(null);
+  const yearLevelRef = useRef<HTMLDivElement>(null);
+  const programRef = useRef<HTMLDivElement>(null);
+
   const auth = useAuth();
   // const userId = auth?.user?.user_id;
   const role = auth?.user?.role_id;
+
+  // Extract unique values for filters
+  const uniqueBranches = Array.from(
+    new Set(students.map((s) => s.campus))
+  ).sort();
+  const uniqueYearLevels = Array.from(
+    new Set(students.map((s) => s.year_level))
+  ).sort();
+  const uniquePrograms = Array.from(
+    new Set(students.map((s) => s.program))
+  ).sort();
+
+  // Filtered students based on selected filters
+  const filteredStudents = students.filter((student) => {
+    const branchMatch =
+      selectedBranch === "all" || student.campus === selectedBranch;
+    const yearLevelMatch =
+      selectedYearLevel === "all" || student.year_level === selectedYearLevel;
+    const programMatch =
+      selectedProgram === "all" || student.program === selectedProgram;
+
+    return branchMatch && yearLevelMatch && programMatch;
+  });
+
   const fetchStudents = async () => {
     setIsLoading(true);
     try {
@@ -123,7 +172,6 @@ const TuitionInvoiceUpload: React.FC = () => {
       const data = response.data;
       console.log(data);
       setStudents(data);
-      setTotalPages(Math.ceil(data.length / itemsPerPage));
     } catch (error) {
       console.error("Error fetching students:", error);
       toast.error("Failed to load student data");
@@ -490,7 +538,44 @@ const TuitionInvoiceUpload: React.FC = () => {
   useEffect(() => {
     fetchStudents();
     fetchRenewalInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolYear, semester]);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        branchRef.current &&
+        !branchRef.current.contains(event.target as Node)
+      ) {
+        setBranchOpen(false);
+      }
+      if (
+        yearLevelRef.current &&
+        !yearLevelRef.current.contains(event.target as Node)
+      ) {
+        setYearLevelOpen(false);
+      }
+      if (
+        programRef.current &&
+        !programRef.current.contains(event.target as Node)
+      ) {
+        setProgramOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Update total pages when filtered students change
+  useEffect(() => {
+    setTotalPages(Math.ceil(filteredStudents.length / itemsPerPage));
+    setPage(1); // Reset to first page when filters change
+  }, [filteredStudents.length]);
+
   console.log("Check result: ", jobStatus);
 
   console.log(initialRenewalInfo);
@@ -507,65 +592,18 @@ const TuitionInvoiceUpload: React.FC = () => {
         <Navbar pageName="Tuition Invoice Upload" />
 
         <div className="px-4 sm:px-6 py-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            {/* Left side title */}
-            <h2 className="text-xl font-bold text-slate-800">
-              Tuition Invoice Upload
-            </h2>
-
-            {/* Right side controls */}
-            <div className="flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
-              {/* Dropdown with fixed width & no vertical stretch */}
-              <div className="min-w-[230px] sm:w-auto flex-shrink-0">
-                <SYSemesterDropdown
-                  value={`${schoolYear}_${
-                    semester === "1st Semester"
-                      ? 1
-                      : semester === "2nd Semester"
-                      ? 2
-                      : 3
-                  }`}
-                  onChange={(value) => {
-                    const [sy, semCode] = value.split("_");
-                    const semesterMap: Record<string, string> = {
-                      "1": "1st Semester",
-                      "2": "2nd Semester",
-                      "3": "Summer",
-                    };
-                    setSchoolYear(sy);
-                    setSemester(semesterMap[semCode] || "1st Semester");
-                  }}
-                />
-              </div>
-
-              {/* Upload button */}
-              <div className="flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
-                {/* ✅ Role 3: Show Upload only */}
-                {role === 3 && (
-                  <button
-                    className="flex items-center justify-center gap-2 px-4 py-[11px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-all duration-200"
-                    onClick={() => setIsUploadOpen(true)}
-                  >
-                    <Upload className="w-4 h-4" />
-                    <span>Upload Invoice</span>
-                  </button>
-                )}
-
-                {/* ✅ Role 7: Show Download only */}
-                {role === 7 && (
-                  <ExcelDownloadButton
-                    students={students}
-                    schoolYear={schoolYear}
-                    semester={semester}
-                    disbursementLabel={
-                      students[0]?.disbursement_label ||
-                      "Tuition Fee and Other School Fees"
-                    }
-                  />
-                )}
-              </div>
+          {/* Upload Button for Role 3 */}
+          {role === 3 && (
+            <div className="mb-6">
+              <button
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-all duration-200"
+                onClick={() => setIsUploadOpen(true)}
+              >
+                <Upload className="w-4 h-4" />
+                <span>Upload Invoice</span>
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Improved Upload Modal */}
           {isUploadOpen && (
@@ -957,167 +995,727 @@ const TuitionInvoiceUpload: React.FC = () => {
               </div>
             </div>
           )}
-          {isLoading && <Loading />}
 
-          {!isLoading &&
-            students.length > 0 &&
-            (() => {
-              const total = students.length;
-              const uploaded = students.filter(
-                (s) => s.disbursement_files && s.disbursement_files.length > 0
-              ).length;
-              const remaining = total - uploaded;
+          {/* Filter Section */}
+          {!isLoading && (
+            <div className="mb-6 bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200 overflow-visible relative z-10 lg:z-50">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div className="flex items-center justify-between w-full sm:w-auto">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-800 flex items-center gap-2">
+                    <svg
+                      className="w-5 h-5 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    Filter Students
+                  </h3>
 
-              return (
-                <>
-                  <div className="flex justify-between items-center mb-4 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
-                    <p className="text-sm text-gray-800 font-medium">
-                      📊 Upload Summary
-                    </p>
-                    <div className="flex gap-6 text-sm">
-                      <span className="text-gray-700">
-                        <b>Total:</b> {total}
-                      </span>
-                      <span className="text-green-600">
-                        <b>Uploaded:</b> {uploaded}
-                      </span>
-                      <span className="text-red-600">
-                        <b>Remaining:</b> {remaining}
-                      </span>
-                    </div>
-                  </div>
+                  {/* Mobile toggle button */}
+                  <button
+                    onClick={() => setFiltersExpanded(!filtersExpanded)}
+                    className="sm:hidden p-2 hover:bg-gray-100/50 rounded-lg transition-colors"
+                    aria-label="Toggle filters"
+                  >
+                    {filtersExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-gray-600" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-600" />
+                    )}
+                  </button>
+                </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-white/50 shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50/80 backdrop-blur-sm">
-                          <tr className="text-slate-700 text-xs sm:text-sm font-medium text-left">
-                            <th
-                              colSpan={10}
-                              className="px-4 py-3 border border-gray-300"
-                            >
-                              School Year and Semester: {schoolYear} {semester}
-                            </th>
-                          </tr>
-                          <tr className="text-slate-700 text-xs sm:text-sm font-medium text-left">
-                            <th className="px-4 py-3 border border-gray-300">
-                              Student ID
-                            </th>
-                            <th className="px-4 py-3 border border-gray-300">
-                              Scholar Name
-                            </th>
-                            <th className="px-4 py-3 border border-gray-300">
-                              Campus
-                            </th>
-                            <th className="px-4 py-3 border border-gray-300">
-                              Year Level
-                            </th>
-                            <th className="px-4 py-3 border border-gray-300">
-                              Disbursement Label
-                            </th>
-                            <th className="px-4 py-3 border border-gray-300">
-                              Disbursement Status
-                            </th>
-
-                            <th className="px-4 py-3 border border-gray-300">
-                              Amount
-                            </th>
-                            <th className="px-4 py-3 border border-gray-300">
-                              Files
-                            </th>
-                          </tr>
-                        </thead>
-
-                        <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-slate-200 text-[12px] sm:text-[14px]">
-                          {students
-                            .slice(
-                              (page - 1) * itemsPerPage,
-                              page * itemsPerPage
-                            )
-                            .map((student) => (
-                              <tr
-                                key={student.renewal_id}
-                                className={`border border-gray-300 ${
-                                  !student.disbursement_files?.length
-                                    ? "bg-red-50/50"
-                                    : ""
-                                }`}
-                              >
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.student_id}
-                                </td>
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.scholar_name}
-                                </td>
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.campus}
-                                </td>
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.year_level}
-                                </td>
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.disbursement_label}
-                                </td>
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.disbursement_status}
-                                </td>
-
-                                <td className="px-4 py-2 border border-gray-300">
-                                  {student.disbursement_amount
-                                    ? `₱${student.disbursement_amount.toLocaleString()}`
-                                    : "N/A"}
-                                </td>
-
-                                <td className="px-4 py-2 border border-gray-300 max-w-[300px]">
-                                  {student.disbursement_files &&
-                                  student.disbursement_files.length > 0 ? (
-                                    <ul className="space-y-1">
-                                      {student.disbursement_files.map(
-                                        (file, index) => (
-                                          <li key={index}>
-                                            <a
-                                              href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-blue-600 hover:underline text-[13px] "
-                                            >
-                                              {file.file_name}
-                                            </a>
-                                          </li>
-                                        )
-                                      )}
-                                    </ul>
-                                  ) : (
-                                    <span className="text-gray-400 text-[13px]">
-                                      None
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="px-4 py-3 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
-                      <PaginationControl
-                        currentPage={page}
-                        totalPages={totalPages}
-                        onPageChange={handlePageChange}
+                {/* Right-side actions: Download only */}
+                <div
+                  className={`flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 ${
+                    !filtersExpanded ? "hidden sm:flex" : ""
+                  }`}
+                >
+                  {role === 7 && students.length > 0 && (
+                    <div className="xs:min-w-[220px]">
+                      <ExcelDownloadButton
+                        students={filteredStudents}
+                        schoolYear={schoolYear}
+                        semester={semester}
+                        disbursementLabel={
+                          filteredStudents[0]?.disbursement_label ||
+                          "Tuition Fee and Other School Fees"
+                        }
                       />
                     </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Filter Dropdowns - Collapsible on mobile */}
+              <div
+                className={`grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-visible transition-all duration-300 ${
+                  !filtersExpanded ? "hidden sm:grid" : ""
+                }`}
+              >
+                {/* SY-Semester Filter */}
+                <div className="group relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
+                    School Year • Semester
+                  </label>
+                  <div className="w-full px-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:border-blue-500/50 transition-all duration-200 relative z-[70]">
+                    <SYSemesterDropdown
+                      value={`${schoolYear}_${
+                        semester === "1st Semester"
+                          ? 1
+                          : semester === "2nd Semester"
+                          ? 2
+                          : 3
+                      }`}
+                      onChange={(value) => {
+                        const [sy, semCode] = value.split("_");
+                        const semesterMap: Record<string, string> = {
+                          "1": "1st Semester",
+                          "2": "2nd Semester",
+                          "3": "Summer",
+                        };
+                        setSchoolYear(sy);
+                        setSemester(semesterMap[semCode] || "1st Semester");
+                      }}
+                    />
                   </div>
-                </>
-              );
-            })()}
-          {!isLoading && students.length === 0 && (
-            <div className="text-center text-gray-500 py-6">
-              No students found for {schoolYear} {semester}.
+                </div>
+
+                {/* Branch Filter - Only show when there are students */}
+                {students.length > 0 && (
+                  <div ref={branchRef} className="group relative">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
+                      Campus/Branch
+                    </label>
+                    <div className="w-full px-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:border-blue-500/50 transition-all duration-200 relative z-[60]">
+                      <div
+                        className="cursor-pointer flex justify-between items-center text-sm text-gray-700"
+                        onClick={() => setBranchOpen(!branchOpen)}
+                      >
+                        <span className="truncate">
+                          {selectedBranch === "all"
+                            ? `All Campuses (${students.length})`
+                            : `${selectedBranch} (${
+                                students.filter(
+                                  (s) => s.campus === selectedBranch
+                                ).length
+                              })`}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-200 ${
+                            branchOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
+                      {branchOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-2 border border-gray-200 rounded-lg max-h-60 overflow-y-auto bg-white shadow-lg z-[9999]">
+                          <div
+                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                              selectedBranch === "all"
+                                ? "bg-blue-50 text-blue-700 font-medium"
+                                : "hover:bg-gray-50 text-gray-700"
+                            }`}
+                            onClick={() => {
+                              setSelectedBranch("all");
+                              setBranchOpen(false);
+                            }}
+                          >
+                            All Campuses ({students.length})
+                          </div>
+                          {uniqueBranches.map((branch) => (
+                            <div
+                              key={branch}
+                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                selectedBranch === branch
+                                  ? "bg-blue-50 text-blue-700 font-medium"
+                                  : "hover:bg-gray-50 text-gray-700"
+                              }`}
+                              onClick={() => {
+                                setSelectedBranch(branch);
+                                setBranchOpen(false);
+                              }}
+                            >
+                              {branch} (
+                              {
+                                students.filter((s) => s.campus === branch)
+                                  .length
+                              }
+                              )
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Year Level Filter - Only show when there are students */}
+                {students.length > 0 && (
+                  <div ref={yearLevelRef} className="group relative">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
+                      Year Level
+                    </label>
+                    <div className="w-full px-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:border-blue-500/50 transition-all duration-200 relative z-[50]">
+                      <div
+                        className="cursor-pointer flex justify-between items-center text-sm text-gray-700"
+                        onClick={() => setYearLevelOpen(!yearLevelOpen)}
+                      >
+                        <span className="truncate">
+                          {selectedYearLevel === "all"
+                            ? `All Year Levels (${students.length})`
+                            : `${selectedYearLevel} (${
+                                students.filter(
+                                  (s) => s.year_level === selectedYearLevel
+                                ).length
+                              })`}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-200 ${
+                            yearLevelOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
+                      {yearLevelOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-2 border border-gray-200 rounded-lg max-h-60 overflow-y-auto bg-white shadow-lg z-[9999]">
+                          <div
+                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                              selectedYearLevel === "all"
+                                ? "bg-blue-50 text-blue-700 font-medium"
+                                : "hover:bg-gray-50 text-gray-700"
+                            }`}
+                            onClick={() => {
+                              setSelectedYearLevel("all");
+                              setYearLevelOpen(false);
+                            }}
+                          >
+                            All Year Levels ({students.length})
+                          </div>
+                          {uniqueYearLevels.map((yearLevel) => (
+                            <div
+                              key={yearLevel}
+                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                selectedYearLevel === yearLevel
+                                  ? "bg-blue-50 text-blue-700 font-medium"
+                                  : "hover:bg-gray-50 text-gray-700"
+                              }`}
+                              onClick={() => {
+                                setSelectedYearLevel(yearLevel);
+                                setYearLevelOpen(false);
+                              }}
+                            >
+                              {yearLevel} (
+                              {
+                                students.filter(
+                                  (s) => s.year_level === yearLevel
+                                ).length
+                              }
+                              )
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Program Filter - Only show when there are students */}
+                {students.length > 0 && (
+                  <div ref={programRef} className="group relative">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
+                      Program
+                    </label>
+                    <div className="w-full px-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:border-blue-500/50 transition-all duration-200 relative z-[40]">
+                      <div
+                        className="cursor-pointer flex justify-between items-center text-sm text-gray-700"
+                        onClick={() => setProgramOpen(!programOpen)}
+                      >
+                        <span className="truncate">
+                          {selectedProgram === "all"
+                            ? `All Programs (${students.length})`
+                            : `${selectedProgram} (${
+                                students.filter(
+                                  (s) => s.program === selectedProgram
+                                ).length
+                              })`}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-200 ${
+                            programOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
+                      {programOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-2 border border-gray-200 rounded-lg max-h-60 overflow-y-auto bg-white shadow-lg z-[9999]">
+                          <div
+                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                              selectedProgram === "all"
+                                ? "bg-blue-50 text-blue-700 font-medium"
+                                : "hover:bg-gray-50 text-gray-700"
+                            }`}
+                            onClick={() => {
+                              setSelectedProgram("all");
+                              setProgramOpen(false);
+                            }}
+                          >
+                            All Programs ({students.length})
+                          </div>
+                          {uniquePrograms.map((program) => (
+                            <div
+                              key={program}
+                              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                selectedProgram === program
+                                  ? "bg-blue-50 text-blue-700 font-medium"
+                                  : "hover:bg-gray-50 text-gray-700"
+                              }`}
+                              onClick={() => {
+                                setSelectedProgram(program);
+                                setProgramOpen(false);
+                              }}
+                            >
+                              {program} (
+                              {
+                                students.filter((s) => s.program === program)
+                                  .length
+                              }
+                              )
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Clear All Filters Button - Below Dropdowns, Right-aligned on Desktop */}
+              {students.length > 0 &&
+                (selectedBranch !== "all" ||
+                  selectedYearLevel !== "all" ||
+                  selectedProgram !== "all") && (
+                  <div
+                    className={`mt-4 flex justify-end ${
+                      !filtersExpanded ? "hidden sm:flex" : "flex"
+                    }`}
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedBranch("all");
+                        setSelectedYearLevel("all");
+                        setSelectedProgram("all");
+                      }}
+                      className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-lg font-medium transition-all duration-200 border border-gray-200 shadow-sm text-sm"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                )}
+
+              {/* Results Summary */}
             </div>
           )}
+
+          {isLoading && <Loading />}
+
+          {!isLoading && students.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-lg overflow-hidden relative z-0">
+              {/* Table Header with SY/Semester */}
+              <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                <p className="text-sm sm:text-base font-semibold text-gray-800">
+                  {schoolYear} • {semester}
+                </p>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50/90 backdrop-blur-sm">
+                    <tr className="text-slate-700 text-xs sm:text-sm font-semibold text-left">
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 whitespace-nowrap">
+                        Student ID
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 min-w-[150px]">
+                        Scholar Name
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 whitespace-nowrap">
+                        Campus
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 whitespace-nowrap">
+                        Year Level
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 min-w-[180px]">
+                        Disbursement Label
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 whitespace-nowrap">
+                        Status
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 border-r border-gray-200 whitespace-nowrap text-right">
+                        Amount
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 min-w-[200px]">Files</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="bg-white/50 backdrop-blur-sm divide-y divide-slate-200 text-xs sm:text-sm">
+                    {filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-12 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-8 h-8 text-orange-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-base font-semibold text-gray-800 mb-1">
+                                No Matching Students
+                              </p>
+                              <p className="text-sm text-gray-600 mb-3">
+                                Try adjusting your filter criteria
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setSelectedBranch("all");
+                                  setSelectedYearLevel("all");
+                                  setSelectedProgram("all");
+                                }}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-all duration-200"
+                              >
+                                Clear All Filters
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudents
+                        .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+                        .map((student) => (
+                          <tr
+                            key={student.renewal_id}
+                            className={`hover:bg-gray-50 transition-colors ${
+                              !student.disbursement_files?.length
+                                ? "bg-red-50/70"
+                                : "bg-white/30"
+                            }`}
+                          >
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 font-mono text-gray-700 whitespace-nowrap">
+                              {student.student_id}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 font-medium text-gray-800">
+                              {student.scholar_name}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 text-gray-700 whitespace-nowrap">
+                              {student.campus}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 text-gray-700 text-center whitespace-nowrap">
+                              {student.year_level}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 text-gray-700">
+                              {student.disbursement_label}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 whitespace-nowrap">
+                              <span
+                                className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                  student.disbursement_status === "Completed"
+                                    ? "bg-green-100 text-green-700"
+                                    : student.disbursement_status === "Pending"
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {student.disbursement_status}
+                              </span>
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 border-r border-gray-200 font-semibold text-gray-800 text-right whitespace-nowrap">
+                              {student.disbursement_amount ? (
+                                `₱${student.disbursement_amount.toLocaleString()}`
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </td>
+                            <td className="px-3 sm:px-4 py-3 max-w-[300px]">
+                              {student.disbursement_files &&
+                              student.disbursement_files.length > 0 ? (
+                                <div className="space-y-1">
+                                  {student.disbursement_files.map(
+                                    (file, index) => (
+                                      <a
+                                        key={index}
+                                        href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block text-blue-600 hover:text-blue-800 hover:underline truncate"
+                                        title={file.file_name}
+                                      >
+                                        📄 {file.file_name}
+                                      </a>
+                                    )
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 italic">
+                                  No files
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden">
+                {filteredStudents.length === 0 ? (
+                  <div className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg
+                          className="w-8 h-8 text-orange-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-gray-800 mb-1">
+                          No Matching Students
+                        </p>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Try adjusting your filter criteria
+                        </p>
+                        <button
+                          onClick={() => {
+                            setSelectedBranch("all");
+                            setSelectedYearLevel("all");
+                            setSelectedProgram("all");
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-all duration-200"
+                        >
+                          Clear All Filters
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-3">
+                    {filteredStudents
+                      .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+                      .map((student) => (
+                        <div
+                          key={student.renewal_id}
+                          className={`p-4 rounded-lg shadow-sm border ${
+                            !student.disbursement_files?.length
+                              ? "bg-red-50/70 border-red-200"
+                              : "bg-white/30 border-gray-200"
+                          }`}
+                        >
+                          {/* Student Header */}
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900 text-sm">
+                                {student.scholar_name}
+                              </h3>
+                              <p className="text-xs text-gray-600 font-mono mt-0.5">
+                                ID: {student.student_id}
+                              </p>
+                            </div>
+                            <span
+                              className={`ml-2 inline-flex px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
+                                student.disbursement_status === "Completed"
+                                  ? "bg-green-100 text-green-700"
+                                  : student.disbursement_status === "Pending"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {student.disbursement_status}
+                            </span>
+                          </div>
+
+                          {/* Student Details Grid */}
+                          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                            <div>
+                              <span className="text-gray-500 block">
+                                Campus
+                              </span>
+                              <span className="text-gray-700 font-medium">
+                                {student.campus}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500 block">
+                                Year Level
+                              </span>
+                              <span className="text-gray-700 font-medium">
+                                {student.year_level}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-gray-500 block">
+                                Program
+                              </span>
+                              <span className="text-gray-700 font-medium">
+                                {student.program}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-gray-500 block">
+                                Disbursement Label
+                              </span>
+                              <span className="text-gray-700 font-medium">
+                                {student.disbursement_label}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Amount */}
+                          <div className="flex justify-between items-center py-2 border-t border-gray-200">
+                            <span className="text-xs text-gray-500">
+                              Amount
+                            </span>
+                            <span className="text-sm font-semibold text-gray-800">
+                              {student.disbursement_amount ? (
+                                `₱${student.disbursement_amount.toLocaleString()}`
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Files */}
+                          {student.disbursement_files &&
+                          student.disbursement_files.length > 0 ? (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <span className="text-xs text-gray-500 block mb-2">
+                                Files
+                              </span>
+                              <div className="space-y-1.5">
+                                {student.disbursement_files.map(
+                                  (file, index) => (
+                                    <a
+                                      key={index}
+                                      href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-xs"
+                                    >
+                                      <svg
+                                        className="w-4 h-4 flex-shrink-0"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        />
+                                      </svg>
+                                      <span className="truncate">
+                                        {file.file_name}
+                                      </span>
+                                    </a>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <span className="text-xs text-gray-400 italic">
+                                No files uploaded
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination Footer - Only show if there are filtered results */}
+              {filteredStudents.length > 0 && (
+                <div className="px-4 py-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border-t border-gray-200">
+                  <div className="flex justify-center">
+                    <PaginationControl
+                      currentPage={page}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Empty State - No Students */}
           {!isLoading && students.length === 0 && (
-            <div className="text-center text-gray-500 py-6">
-              No students found for {schoolYear} {semester}.
+            <div className="text-center py-16 bg-white/40 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-10 h-10 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-gray-800 mb-1">
+                    No Students Found
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    There are no students enrolled for {schoolYear} • {semester}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
