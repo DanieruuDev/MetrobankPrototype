@@ -1,5 +1,6 @@
 const pool = require("../database/dbConnect.js");
 const ExcelJS = require("exceljs");
+const { startProcess } = require("../services/processProgressService.js");
 
 //MASS UPLOAD INITIAL LIST AFTER IDENTIFYING SCHOLAR APPLICANTS
 //Functionality to update masterlist scholarship
@@ -38,6 +39,7 @@ const uploadScholarRenewals = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
     const currentSY = await client.query(
       "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [currentSchoolYear]
@@ -47,7 +49,11 @@ const uploadScholarRenewals = async (req, res) => {
       [previousSchoolYear]
     );
     console.log(currentSchoolYear, previousSchoolYear);
+    const result = await startProcess(currentSY.rows[0].sy_code, semester);
 
+    if (result.success === false) {
+      return res.status(400).json({ message: "Starting process failed" });
+    }
     const studentsResult = await client.query(
       "SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus FROM masterlist WHERE yr_lvl_code = $1 AND semester_code =$2 AND school_year_code = $3 AND scholarship_status != 'Delisted'",
       [previousYearLevel, previousSemester, previousSchoolYear]

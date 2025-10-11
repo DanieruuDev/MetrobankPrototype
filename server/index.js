@@ -18,6 +18,7 @@ const documentRouter = require("./routes/document-router");
 const uploadStatusRouter = require("./routes/upload-status.js");
 const tuitionInvoiceRouter = require("./routes/tuition-invoice-router.js");
 require("./utils/scheduler.js");
+const processProgressRouter = require("./routes/process-progress-controller.js");
 require("dotenv").config();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -45,6 +46,7 @@ app.use("/api/notification", notificationRouter);
 app.use("/api/approvals", approvalRouter);
 app.use("/api/jobs", uploadStatusRouter);
 app.use("/api/invoice", tuitionInvoiceRouter);
+app.use("api/process", processProgressRouter);
 
 app.use("/", async (req, res) => {
   res.send("Hello World");
