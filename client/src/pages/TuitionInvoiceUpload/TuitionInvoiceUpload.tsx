@@ -1038,19 +1038,25 @@ const TuitionInvoiceUpload: React.FC = () => {
                     !filtersExpanded ? "hidden sm:flex" : ""
                   }`}
                 >
-                  {role === 7 && students.length > 0 && (
-                    <div className="xs:min-w-[220px]">
-                      <ExcelDownloadButton
-                        students={filteredStudents}
-                        schoolYear={schoolYear}
-                        semester={semester}
-                        disbursementLabel={
-                          filteredStudents[0]?.disbursement_label ||
-                          "Tuition Fee and Other School Fees"
-                        }
-                      />
-                    </div>
-                  )}
+                  {role === 7 &&
+                    students.length > 0 &&
+                    filteredStudents.filter(
+                      (s) =>
+                        !s.disbursement_files ||
+                        s.disbursement_files.length === 0
+                    ).length === 0 && (
+                      <div className="xs:min-w-[220px]">
+                        <ExcelDownloadButton
+                          students={filteredStudents}
+                          schoolYear={schoolYear}
+                          semester={semester}
+                          disbursementLabel={
+                            filteredStudents[0]?.disbursement_label ||
+                            "Tuition Fee and Other School Fees"
+                          }
+                        />
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -1340,11 +1346,43 @@ const TuitionInvoiceUpload: React.FC = () => {
 
           {!isLoading && students.length > 0 && (
             <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-lg overflow-hidden relative z-0">
-              {/* Table Header with SY/Semester */}
-              <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+              {/* Table Header with SY/Semester and Upload Summary */}
+              <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <p className="text-sm sm:text-base font-semibold text-gray-800">
                   {schoolYear} • {semester}
                 </p>
+                <div className="flex items-center gap-3 text-sm font-medium">
+                  <span className="text-gray-700">
+                    Total:{" "}
+                    <span className="text-gray-900">
+                      {filteredStudents.length}
+                    </span>
+                  </span>
+                  <span className="text-green-600">
+                    Uploaded:{" "}
+                    <span className="text-green-700">
+                      {
+                        filteredStudents.filter(
+                          (s) =>
+                            s.disbursement_files &&
+                            s.disbursement_files.length > 0
+                        ).length
+                      }
+                    </span>
+                  </span>
+                  <span className="text-red-600">
+                    Remaining:{" "}
+                    <span className="text-red-700">
+                      {
+                        filteredStudents.filter(
+                          (s) =>
+                            !s.disbursement_files ||
+                            s.disbursement_files.length === 0
+                        ).length
+                      }
+                    </span>
+                  </span>
+                </div>
               </div>
 
               {/* Desktop Table View */}
