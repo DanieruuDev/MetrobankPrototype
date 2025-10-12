@@ -370,12 +370,24 @@ const createApproval = async (req, res) => {
         recipients: [approverQueries],
       });
 
+      const firstApprover = approverQueries[0].approvers;
+
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
-        [approverQueries[0].approvers.approver_id]
+        [firstApprover.approver_id] // Use the correctly defined variable
       );
 
-      const firstApprover = approverQueries[0].approvers;
+      try {
+        await sendItsYourTurnEmail(
+          firstApprover.user_email,
+          workflowDetailsForEmail
+        );
+      } catch (e) {
+        console.error(
+          "Failed to send 'Its Your Turn' email for new workflow:",
+          e
+        );
+      }
 
       await createNotification({
         type: "WORKFLOW_APPROVER_TURN",
@@ -731,71 +743,32 @@ const approveApproval = async (req, res) => {
         workflowDetailsForEmail,
         requester_id,
         approver_id
-      );
+      ); // Update approver's status and response (Completed/Approved)
       await updateApproverAndResponse(client, approver_id, response, comment);
-    }
-    // else if (response === "Reject") {
-    //   await handleRejectCase(
-    //     client,
-    //     workflow_id,
-    //     user_id,
-    //     comment,
-    //     workflowDetailsForEmail,
-    //     requester_id
-    //   );
-    //   await updateApproverAndResponse(client, approver_id, response, comment);
-    // }
-    else if (response === "Reject") {
-      try {
-        await client.query("BEGIN");
+    } else if (response === "Reject") {
+      // 1. Log rejection, create notification, and send email (handled inside utility)
+      await handleReturnedCase(
+        client,
+        response_id,
+        comment,
+        user_id,
+        workflow_id,
+        requester_id,
+        approver_id
+      ); // 2. Update approver's status and response (Completed/Rejected)
 
-        await handleReturnedCase(
-          client,
-          response_id,
-          comment,
-          user_id,
-          workflow_id,
-          requester_id,
-          approver_id
-        );
-
-        // Update only the response; do not overwrite approver comments with return reasons
-        await client.query(
-          `
-      UPDATE approver_response
-      SET response = $1, updated_at = NOW()
-      WHERE approver_id = $2
-      `,
-          ["Reject", approver_id]
-        );
-
-        //   await client.query(
-        //     `
-        // UPDATE wf_approver
-        // SET status = 'Returned'
-        // WHERE approver_id = $1
-        // `,
-        //     [approver_id]
-        //   );
-
-        await client.query(
-          `
-      UPDATE workflow
-      SET status = 'Failed'
-      WHERE workflow_id = $1
-      `,
-          [workflow_id]
-        );
-
-        await client.query("COMMIT");
-      } catch (err) {
-        await client.query("ROLLBACK");
-        console.error("🚨 Error in Returned flow:", err);
-        throw err; // just bubble it up
-      }
+      await updateApproverAndResponse(client, approver_id, response, comment); // 3. Set the overall workflow status to Failed
+      await client.query(
+        `
+      UPDATE workflow
+      SET status = 'Failed'
+      WHERE workflow_id = $1
+      `,
+        [workflow_id]
+      );
     }
 
-    await client.query("COMMIT");
+    await client.query("COMMIT"); // Main COMMIT
 
     const detailedQuery = `
       SELECT workflow_status, approver_response, approver_comment, approver_status, is_current
@@ -1117,7 +1090,7 @@ const archiveApproval = async (req, res) => {
 
     return res.status(200).json({
       message: "Workflow archived successfully and approvers notified",
-      workflow: archivedWorkflow,
+      workflow: archivedWorkflow, // <-- Fix
     });
   } catch (error) {
     await client.query("ROLLBACK");

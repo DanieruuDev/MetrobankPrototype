@@ -362,8 +362,8 @@ const ROIandAnalytics: React.FC = () => {
                   min="1"
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Cost saved per scholar hired internally vs. external
-                  recruitment.
+                  Average costs of recruitment, onboarding, and training on job
+                  openings for the year.
                 </p>
               </div>
               <div className="flex flex-col">
@@ -372,7 +372,7 @@ const ROIandAnalytics: React.FC = () => {
                   className="text-xs sm:text-sm font-medium text-blue-700 mb-1 sm:mb-2"
                 >
                   <span className="hidden sm:inline">
-                    Scholar Absorption Rate
+                    Scholar Absorption Rate (%)
                   </span>
                   <span className="sm:hidden">Absorption Rate</span>
                 </label>
@@ -393,7 +393,7 @@ const ROIandAnalytics: React.FC = () => {
                   max="100"
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Percentage of scholars who get hired by MetroBank after
+                  Percentage of scholars who get hired by Metrobank after
                   graduation.
                 </p>
               </div>
@@ -417,8 +417,8 @@ const ROIandAnalytics: React.FC = () => {
                   min="1"
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                  Annual value generated per scholar (productivity + cost
-                  savings).
+                  Annual value generated (productivity and salary of absorbed
+                  scholars + cost savings).
                 </p>
               </div>
             </div>
@@ -427,17 +427,17 @@ const ROIandAnalytics: React.FC = () => {
             <div className="mb-4 sm:mb-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mx-1 sm:mx-0">
                 <MetricCard
-                  title="Program ROI"
+                  title="Initial Program ROI"
                   value={`${overallROI.toFixed(1)}%`}
                   icon={<PieChartIcon />}
                 />
                 <MetricCard
-                  title="Retention Rate"
+                  title="Scholar Retention Rate"
                   value={`${(scholarRetentionRate * 100).toFixed(1)}%`}
                   icon={<PieChartIcon />}
                 />
                 <MetricCard
-                  title="Break-Even"
+                  title="Break-Even Duration"
                   value={`${avgBreakEvenYears.toFixed(1)}Y`}
                   icon={<TrendingUpIcon />}
                 />
@@ -452,12 +452,12 @@ const ROIandAnalytics: React.FC = () => {
                   icon={<DollarSignIcon />}
                 />
                 <MetricCard
-                  title="Hiring Savings"
+                  title="Hiring Cost Savings"
                   value={formatCurrencyShort(totalHiringCostSavings)}
                   icon={<DollarSignIcon />}
                 />
                 <MetricCard
-                  title="Avg per Scholar"
+                  title="Avg Investment/Scholar"
                   value={formatCurrencyAverage(avgInvestmentPerScholar)}
                   icon={<DollarSignIcon />}
                 />
@@ -510,7 +510,7 @@ const ROIandAnalytics: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center mb-3 sm:mb-0">
                   <TrendingUpIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-600" />
-                  AI Prediction
+                  Prediction
                 </h3>
 
                 {/* Year Selector */}

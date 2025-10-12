@@ -7,6 +7,9 @@ const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
   sendWorkflowCompletedEmail,
+  sendWorkflowRejectedEmail, // ✅ NEW
+  sendWorkflowMovedForward, // ✅ NEW
+  sendDeadlineReminder, // ✅ NEW (for completeness, even if not used immediately)
 } = require("../utils/emailing");
 
 const checkWorkflowExists = async (
@@ -73,59 +76,78 @@ const fetchRequester = async (client, requester_id) => {
   );
 };
 
+// =================================================================================
+// 🚨 FIX APPLIED HERE 🚨
+// =================================================================================
+
 const insertApprovers = async (
   client,
   approverList,
   workflowId,
-  workflowDetails
+  workflowDetails // Assuming this contains rq_title, requester_name, etc.
 ) => {
-  const approverQueries = await Promise.all(
-    approverList.map(async (approver) => {
-      const findId = await client.query(
-        `SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1`,
-        [approver.email]
-      );
-      if (findId.rows.length === 0) {
-        throw new Error(`Approver with email ${approver.email} not found`);
-      }
-      const userId = findId.rows[0].admin_id;
+  // Step 1: Concurrently perform all database inserts and fetch results
+  const dbInsertPromises = approverList.map(async (approver) => {
+    // --- DB: Find User ID ---
+    const findId = await client.query(
+      `SELECT admin_id FROM administration_adminaccounts WHERE admin_email = $1`,
+      [approver.email]
+    );
+    if (findId.rows.length === 0) {
+      throw new Error(`Approver with email ${approver.email} not found`);
+    }
+    const userId = findId.rows[0].admin_id; // --- DB: Insert WF Approver Record ---
 
-      const approvalRes = await client.query(
-        `INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned, role)
+    const approvalRes = await client.query(
+      `INSERT INTO wf_approver (workflow_id, user_id, user_email, approver_order, status, due_date, is_reassigned, role)
        VALUES ($1,$2,$3,$4,$5,$6,$7, $8) RETURNING *`,
-        [
-          workflowId,
-          userId,
-          approver.email,
-          approver.order,
-          "Pending",
-          approver.date,
-          false,
-          approver.role,
-        ]
-      );
+      [
+        workflowId,
+        userId,
+        approver.email,
+        approver.order,
+        "Pending",
+        approver.date,
+        false,
+        approver.role,
+      ]
+    ); // --- DB: Insert Approver Response Record ---
 
-      const responseRes = await client.query(
-        `INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *`,
-        [approvalRes.rows[0].approver_id]
-      );
-      try {
-        await sendApproverAddedEmail(approver.email, workflowDetails);
-      } catch (err) {
+    const responseRes = await client.query(
+      `INSERT INTO approver_response (approver_id) VALUES ($1) RETURNING *`,
+      [approvalRes.rows[0].approver_id]
+    ); // DO NOT SEND EMAIL HERE. Return the necessary email data for the next step.
+    return {
+      email: approver.email, // Key piece of data for the next step
+      approvers: approvalRes.rows[0],
+      approval_response: responseRes.rows[0],
+    };
+  }); // Await all database inserts. If any database query fails, this whole block will reject.
+
+  const approverRecords = await Promise.all(dbInsertPromises); // Step 2: Concurrently send all emails now that DB is consistent.
+
+  const emailPromises = approverRecords.map((approver) => {
+    // Catch the email error here to prevent a single email failure
+    // from halting the entire process after the DB work is done.
+    return sendApproverAddedEmail(approver.email, workflowDetails).catch(
+      (err) => {
         console.error(
           `❌ Failed to send email to approver ${approver.email}:`,
           err.message
-        );
+        ); // Resolve the promise with a status object instead of throwing
+        return { email: approver.email, status: "EMAIL_FAILED" };
       }
-      return {
-        approvers: approvalRes.rows[0],
-        approval_response: responseRes.rows[0],
-      };
-    })
-  );
+    );
+  }); // Await all email attempts to ensure they are fully executed before the function exits.
 
-  return approverQueries;
+  await Promise.all(emailPromises); // Return the database records
+
+  return approverRecords;
 };
+
+// =================================================================================
+// 🚨 END OF FIX 🚨
+// =================================================================================
 
 const insertWorkflowLog = async (
   client,
@@ -161,8 +183,7 @@ const checkReject = async (client, workflowId, workflowDetailsForEmail) => {
     const rejector = rejectResult.rows[0];
     if (!rejector) return []; // no rejection found
 
-    console.log(rejector);
-    // Log the system cancellation
+    console.log(rejector); // Log the system cancellation
     await insertWorkflowLog(
       client,
       workflowId,
@@ -172,9 +193,8 @@ const checkReject = async (client, workflowId, workflowDetailsForEmail) => {
       "Pending",
       "Canceled",
       "Workflow has been canceled"
-    );
+    ); // 2️⃣ Get all canceled approvers for this workflow
 
-    // 2️⃣ Get all canceled approvers for this workflow
     const canceledResult = await client.query(
       `SELECT user_id, user_email
        FROM wf_approver
@@ -254,7 +274,7 @@ const getRequesterAndWorkflowDetails = async (
   return {
     workflowDetailsForEmail: {
       requesterEmail: query.rows[0].admin_email,
-      request_title: query.rows[0].rq_title,
+      rq_title: query.rows[0].rq_title,
       requester_name: query.rows[0].admin_name,
       due_date: query.rows[0].due_date,
       rq_description: query.rows[0].description,
@@ -392,20 +412,38 @@ const handleApprovedCase = async (
       stack: err.stack,
     });
     throw err; // re-throw so callers can handle HTTP response / retries
-  }
-
-  // ========== Side effects (run after commit so emails/notifs don't rollback DB) ==========
+  } // ========== Side effects (run after commit so emails/notifs don't rollback DB) ==========
   // If we moved to next approver -> send email & notifications (non-fatal if fail)
+
   if (nextApproverFound) {
-    // try {
-    //   await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
-    // } catch (err) {
-    //   console.error("sendItsYourTurnEmail failed:", {
-    //     nextUserId,
-    //     nextApproverEmail,
-    //     err,
-    //   });
-    // }
+    try {
+      // ✅ 1. Send "It's Your Turn" Email to the NEXT approver
+      await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+    } catch (err) {
+      console.error("sendItsYourTurnEmail failed:", {
+        nextUserId,
+        nextApproverEmail,
+        err,
+      });
+    }
+
+    try {
+      // ✅ 2. Send "Moved Forward" Email to the REQUESTER
+      // NOTE: You need to ensure workflowDetailsForEmail includes next_approver_name
+      // If next_approver_name isn't in workflowDetailsForEmail, you'll need to fetch it.
+      // Assuming you add a name property to nextRow and update the email object:
+      workflowDetailsForEmail.next_approver_name = nextApproverEmail; // Fallback to email if name is hard to get
+      await sendWorkflowMovedForward(
+        workflowDetailsForEmail.requesterEmail,
+        workflowDetailsForEmail
+      );
+    } catch (err) {
+      console.error("sendWorkflowMovedForward failed:", {
+        workflow_id,
+        requester_id,
+        err,
+      });
+    }
 
     try {
       await createNotification({
@@ -443,20 +481,19 @@ const handleApprovedCase = async (
         err,
       });
     }
-  }
+  } // If workflow completed -> notify requester and email
 
-  // If workflow completed -> notify requester and email
   if (workflowCompleted) {
     try {
-      // await createNotification({
-      //   type: "WORKFLOW_COMPLETED",
-      //   title: "Workflow is Completed",
-      //   message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
-      //   relatedId: workflow_id,
-      //   actorId: null,
-      //   actionRequired: false,
-      //   recipients: [{ approvers: { user_id: requester_id } }],
-      // });
+      await createNotification({
+        type: "WORKFLOW_COMPLETED",
+        title: "Workflow is Completed",
+        message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
+        relatedId: workflow_id,
+        actorId: null,
+        actionRequired: false,
+        recipients: [{ approvers: { user_id: requester_id } }],
+      });
     } catch (err) {
       console.error("createNotification (completed) failed:", {
         workflow_id,
@@ -478,9 +515,8 @@ const handleApprovedCase = async (
         err,
       });
     }
-  }
+  } // success
 
-  // success
   return {
     movedToNext: nextApproverFound,
     nextUserId,
@@ -488,76 +524,76 @@ const handleApprovedCase = async (
   };
 };
 
-const handleRejectCase = async (
-  client,
-  workflow_id,
-  user_id,
-  comment,
-  workflowDetailsForEmail,
-  requester_id
-) => {
-  try {
-    await client.query("BEGIN");
+// const handleRejectCase = async (
+//   client,
+//   workflow_id,
+//   user_id,
+//   comment,
+//   workflowDetailsForEmail,
+//   requester_id
+// ) => {
+//   try {
+//     await client.query("BEGIN");
 
-    try {
-      await insertWorkflowLog(
-        client,
-        workflow_id,
-        user_id,
-        "Approver",
-        "Rejected",
-        "Pending",
-        "Rejected",
-        comment
-      );
-    } catch (err) {
-      console.error("❌ Failed to insert workflow log (Reject):", err);
-      throw err;
-    }
+//     try {
+//       await insertWorkflowLog(
+//         client,
+//         workflow_id,
+//         user_id,
+//         "Approver",
+//         "Rejected",
+//         "Pending",
+//         "Rejected",
+//         comment
+//       );
+//     } catch (err) {
+//       console.error("❌ Failed to insert workflow log (Reject):", err);
+//       throw err;
+//     }
 
-    try {
-      await client.query(
-        `
-        UPDATE workflow
-        SET status = 'Failed', completed_at = NOW()
-        WHERE workflow_id = $1
-        `,
-        [workflow_id]
-      );
-    } catch (err) {
-      console.error("❌ Failed to update workflow status to Failed:", err);
-      throw err;
-    }
+//     try {
+//       await client.query(
+//         `
+//         UPDATE workflow
+//         SET status = 'Failed', completed_at = NOW()
+//         WHERE workflow_id = $1
+//         `,
+//         [workflow_id]
+//       );
+//     } catch (err) {
+//       console.error("❌ Failed to update workflow status to Failed:", err);
+//       throw err;
+//     }
 
-    try {
-      await createNotification({
-        type: "WORKFLOW_REJECTED",
-        title: "Workflow was Rejected",
-        message: `Request "${workflowDetailsForEmail.request_title}" was rejected by ${user_id}.`,
-        relatedId: workflow_id,
-        actorId: user_id,
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: requester_id } }],
-      });
-    } catch (err) {
-      console.error("❌ Failed to create rejection notification:", err);
-      throw err;
-    }
+//     try {
+//       await createNotification({
+//         type: "WORKFLOW_REJECTED",
+//         title: "Workflow was Rejected",
+//         message: `Request "${workflowDetailsForEmail.request_title}" was rejected by ${user_id}.`,
+//         relatedId: workflow_id,
+//         actorId: user_id,
+//         actionRequired: false,
+//         recipients: [{ approvers: { user_id: requester_id } }],
+//       });
+//     } catch (err) {
+//       console.error("❌ Failed to create rejection notification:", err);
+//       throw err;
+//     }
 
-    try {
-      await checkReject(client, workflow_id, workflowDetailsForEmail);
-    } catch (err) {
-      console.error("❌ Failed in checkReject function:", err);
-      throw err;
-    }
+//     try {
+//       await checkReject(client, workflow_id, workflowDetailsForEmail);
+//     } catch (err) {
+//       console.error("❌ Failed in checkReject function:", err);
+//       throw err;
+//     }
 
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("🚨 Error in handleRejectCase:", err);
-    throw err; // rethrow so caller can handle
-  }
-};
+//     await client.query("COMMIT");
+//   } catch (err) {
+//     await client.query("ROLLBACK");
+//     console.error("🚨 Error in handleRejectCase:", err);
+//     throw err; // rethrow so caller can handle
+//   }
+// };
 
 const handleReturnedCase = async (
   client,
@@ -570,7 +606,14 @@ const handleReturnedCase = async (
 ) => {
   try {
     console.log("appr", approver_id);
-    await client.query("BEGIN");
+    await client.query("BEGIN"); // ✅ NEW: Fetch workflow details for email
+
+    const detailsResult = await getRequesterAndWorkflowDetails(
+      client,
+      workflow_id,
+      requester_id
+    );
+    const workflowDetailsForEmail = detailsResult.workflowDetailsForEmail;
     const feedbackRes = await client.query(
       `INSERT INTO return_feedback (response_id, reason, created_by, approver_id, created_at) 
        VALUES ($1, $2, $3, $4, NOW())
@@ -588,9 +631,8 @@ const handleReturnedCase = async (
       "Pending",
       "Rejected",
       comment
-    );
+    ); // 3. Notification
 
-    // 3. Notification
     await createNotification({
       type: "WORKFLOW_REJECTED",
       title: "Workflow Rejected",
@@ -602,6 +644,19 @@ const handleReturnedCase = async (
       actionPayload: { return_id, response_id },
       recipients: [{ approvers: { user_id: requester_id } }],
     });
+    try {
+      await sendWorkflowRejectedEmail(
+        workflowDetailsForEmail.requesterEmail,
+        workflowDetailsForEmail,
+        comment // Pass the reason for rejection
+      );
+    } catch (err) {
+      console.error("sendWorkflowRejectedEmail failed:", {
+        workflow_id,
+        requester_id,
+        err,
+      });
+    }
     console.log("Handle returned works");
     await client.query("COMMIT");
     return return_id;
@@ -616,12 +671,11 @@ module.exports = {
   insertDocument,
   insertWorkflow,
   fetchRequester,
-  insertApprovers,
+  insertApprovers, // Exporting the corrected function
   insertWorkflowLog,
   checkReject,
   updateApproverAndResponse,
   getRequesterAndWorkflowDetails,
   handleApprovedCase,
-  handleRejectCase,
   handleReturnedCase,
 };
