@@ -24,13 +24,7 @@ const getScholarDisbursementSummary = async (req, res) => {
     const dataQuery = await pool.query(
       `
       SELECT 
-        student_name, 
-        student_id, 
-        student_year_lvl, 
-        student_semester, 
-        student_school_year, 
-        student_branch, 
-        total_received
+      *
       FROM vw_disbursement_overview
       ORDER BY student_name
       LIMIT $1 OFFSET $2
@@ -78,11 +72,10 @@ const getDisbursementHistoryByStudentId = async (req, res) => {
       return res.status(400).json({ message: "Student ID is required." });
     }
 
-    // Try the view first, but fallback to a simpler query if it fails
     try {
       const query = `
         SELECT *
-        FROM vw_scholar_disbursement_history
+        FROM vw_scholar_disbursement
         WHERE student_id = $1
         ORDER BY disbursement_date DESC;
       `;
