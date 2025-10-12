@@ -18,7 +18,7 @@ interface StudentDisbursement {
   student_semester: string;
   student_school_year: string;
   student_branch: string;
-  total_disbursed_amount: number | string; // Database returns as string
+  total_disbursed_amount: number;
 }
 
 interface SchoolYear {
@@ -133,16 +133,7 @@ const DisbursementOverview = () => {
       setTotalPage(totalPages);
       setPage(currentPage);
       setStudentList(data);
-      console.log("📊 Disbursement Overview Data:", data);
-      console.log("📊 First student:", data[0]);
-      console.log(
-        "📊 Sample amounts:",
-        data.slice(0, 5).map((s: StudentDisbursement) => ({
-          name: s.student_name,
-          amount: s.total_disbursed_amount,
-        }))
-      );
-
+      console.log("Response", response.data);
       // Fetch all students for search functionality
       const allStudentsResponse = await axios.get(
         `${VITE_BACKEND_URL}api/disbursement/overview/scholar-list?page=1&limit=10000`
@@ -159,6 +150,7 @@ const DisbursementOverview = () => {
       }
 
       setAllStudents(allStudentsData);
+      console.log("All", allStudentsData);
 
       // Fetch total disbursed amount from backend
       const totalDisbursedResponse = await axios.get(
