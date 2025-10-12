@@ -32,7 +32,7 @@ const getScholarDisbursementSummary = async (req, res) => {
       [limit, offset]
     );
 
-    console.log("Data query successful, rows:", dataQuery.rows.length);
+    console.log("Data query successful, rows:", dataQuery.rows);
 
     // Query total count of records (no LIMIT/OFFSET here)
     const countQuery = await pool.query(
