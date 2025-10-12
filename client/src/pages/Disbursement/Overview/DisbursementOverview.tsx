@@ -104,12 +104,13 @@ const DisbursementOverview = () => {
     });
   })();
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
+    const safeAmount = Number(amount) || 0; // convert null/undefined/NaN → 0
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
       minimumFractionDigits: 2,
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   const fetchDisbursementSummary = async () => {
@@ -122,6 +123,7 @@ const DisbursementOverview = () => {
       setTotalPage(totalPages);
       setPage(currentPage);
       setStudentList(data);
+      console.log(data);
 
       // Fetch all students for search functionality
       const allStudentsResponse = await axios.get(
