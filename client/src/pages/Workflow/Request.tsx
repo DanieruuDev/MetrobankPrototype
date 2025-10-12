@@ -18,6 +18,7 @@ import {
   TriangleAlert,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import Navbar from "../../components/shared/Navbar";
@@ -72,6 +73,12 @@ function Request() {
       text: "text-orange-600",
       bg: "bg-orange-600",
     },
+    {
+      label: "Replaced",
+      icon: <RefreshCw />,
+      text: "text-purple-600",
+      bg: "bg-purple-600",
+    },
   ];
 
   // ✅ centralize filter rules
@@ -90,6 +97,8 @@ function Request() {
           req.approver.approver_status === "Missed",
         Rejected: (req: WorkflowApprovalList) =>
           req.approver.approver_status === "Reject",
+        Replaced: (req: WorkflowApprovalList) =>
+          req.approver.approver_status === "Replaced",
       }),
       []
     );
@@ -247,6 +256,8 @@ function Request() {
                         ? "Action"
                         : activeStatus === "Completed"
                         ? "Done"
+                        : activeStatus === "Replaced"
+                        ? "Replace"
                         : activeStatus}
                     </span>
                     {isFilterExpanded ? (
@@ -312,6 +323,8 @@ function Request() {
                               ? "Action"
                               : status.label === "Completed"
                               ? "Done"
+                              : status.label === "Replaced"
+                              ? "Replace"
                               : status.label}
                           </div>
 

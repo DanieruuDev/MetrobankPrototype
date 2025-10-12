@@ -1,8 +1,5 @@
-const { DocumentProcessorServiceClient } =
-  require("@google-cloud/documentai").v1;
+const client = require("../config/documentai");
 require("dotenv").config();
-
-const client = new DocumentProcessorServiceClient();
 
 const processPDF = async (fileBuffer) => {
   const name = `projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us/processors/${process.env.DOCUMENT_FORM_PARSER_ID}`;
@@ -15,12 +12,8 @@ const processPDF = async (fileBuffer) => {
     },
   };
 
-  console.log("⚙️ Sending document to Form Parser (KVP extraction)...");
   const [result] = await client.processDocument(request);
   const { document } = result;
-
-  console.log("✅ Document processed by Form Parser.");
-  console.log(`📄 Pages: ${document.pages?.length || 0}`);
 
   const kvps = [];
   document.pages?.forEach((page, i) => {
@@ -43,24 +36,15 @@ const processPDF = async (fileBuffer) => {
     }
   });
 
-  console.log("🔍 Extracted Key-Value Pairs:", kvps.length);
-  kvps.forEach((kv) =>
-    console.log(`   [Page ${kv.page}] ${kv.key} → ${kv.value}`)
-  );
-
   // 🔄 Fallback to Entities if KVPs are empty or messy
   let entities = [];
   if (!kvps.length || kvps.every((kvp) => !kvp.key || !kvp.value)) {
-    console.log("⚠️ No valid KVPs detected. Using Entities instead...");
     if (document.entities?.length) {
       entities = document.entities.map((e) => ({
         type: e.type || "UNKNOWN",
         text: e.mentionText || "",
         confidence: e.confidence || null,
       }));
-      entities.forEach((ent) =>
-        console.log(`   [Entity] ${ent.type}: ${ent.text}`)
-      );
     }
   }
 
