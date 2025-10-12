@@ -998,7 +998,7 @@ const TuitionInvoiceUpload: React.FC = () => {
 
           {/* Filter Section */}
           {!isLoading && (
-            <div className="mb-6 bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200 overflow-visible relative z-10 lg:z-50">
+            <div className="mb-6 bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200 overflow-visible relative z-10 lg:z-10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div className="flex items-center justify-between w-full sm:w-auto">
                   <h3 className="text-sm sm:text-base font-semibold text-gray-800 flex items-center gap-2">
