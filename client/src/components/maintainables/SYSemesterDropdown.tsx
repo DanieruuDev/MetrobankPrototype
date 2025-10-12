@@ -54,6 +54,7 @@ const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, onChange]);
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -77,27 +78,38 @@ const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
 
   return (
     <div ref={dropdownRef} className="relative w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        SY-Semester
-      </label>
-
       {/* Dropdown trigger */}
       <div
-        className="p-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center"
+        className="cursor-pointer flex justify-between items-center text-sm text-gray-700"
         onClick={() => setOpen(!open)}
       >
-        <span>{selectedOption?.label || "Select SY-Semester"}</span>
+        <span className="truncate">
+          {selectedOption?.label || "Select SY-Semester"}
+        </span>
 
-        <span className="ml-2">&#9662;</span>
+        <svg
+          className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
       </div>
 
       {/* Dropdown menu */}
       {open && (
-        <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-100 mt-1 shadow-lg">
+        <div className="absolute left-0 right-0 top-full mt-2 border border-gray-200 rounded-lg max-h-60 overflow-y-auto bg-white shadow-lg z-[9999]">
           {options.map((opt) => (
             <div
               key={opt.value}
-              className="p-2 hover:bg-gray-200 cursor-pointer"
+              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                opt.value === value
+                  ? "bg-blue-50 text-blue-700 font-medium"
+                  : "hover:bg-gray-50 text-gray-700"
+              }`}
               onClick={() => {
                 onChange(opt.value);
                 setOpen(false);

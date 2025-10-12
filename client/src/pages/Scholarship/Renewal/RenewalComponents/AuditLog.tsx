@@ -125,13 +125,7 @@ const AuditLog: React.FC<AuditLogProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50  p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Audit Log</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Track all changes and updates to student records
-            </p>
-          </div>
+        <div className="flex items-center justify-end px-6 pt-6 border-b border-gray-200">
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -154,7 +148,7 @@ const AuditLog: React.FC<AuditLogProps> = ({
         {/* Filters Panel */}
         {showFilters && (
           <div className="px-6  py-4 border-b border-gray-200 bg-gray-50">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Role
@@ -175,7 +169,30 @@ const AuditLog: React.FC<AuditLogProps> = ({
                   <option value="">All Roles</option>
                   <option value="3">Registrar</option>
                   <option value="7">MBS HR</option>
-                  <option value="9">Director's Office</option>
+                  <option value="9">Discipline Office</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Branch
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  value={filters.branch_id || ""}
+                  onChange={(e) =>
+                    setFilters({
+                      ...filters,
+                      branch_id: e.target.value
+                        ? parseInt(e.target.value)
+                        : undefined,
+                      offset: 0,
+                    })
+                  }
+                >
+                  <option value="">All Branches</option>
+                  <option value="1">STI Ortigas Cainta</option>
+                  <option value="2">STI Sta Mesa</option>
                 </select>
               </div>
 
@@ -281,7 +298,7 @@ const AuditLog: React.FC<AuditLogProps> = ({
         )}
 
         {/* Audit Log List */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-2">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
@@ -316,51 +333,59 @@ const AuditLog: React.FC<AuditLogProps> = ({
                         >
                           {log.change_category}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-[10px] md:text-xs text-gray-500">
                           {log.scholar_name} ({log.campus})
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <User size={14} />
+                      <div className="flex flex-col gap-1 text-xs md:text-sm text-gray-600">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <User size={12} className="md:w-[14px] md:h-[14px]" />
                           <span className="font-medium">{log.changed_by}</span>
                           <span className="text-gray-400">
-                            ({log.changed_by_role})
+                            ({log.changed_by_role}
+                            {log.branch_name && ` - ${log.branch_name}`})
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Clock size={14} />
+                          <Clock
+                            size={12}
+                            className="md:w-[14px] md:h-[14px]"
+                          />
                           <span>{formatDateTime(log.changed_at)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">Field Changed:</span>
-                        <span className="ml-2 font-medium text-gray-900">
+                  <div className="bg-gray-50 rounded-lg p-2 md:p-3">
+                    <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs md:text-sm">
+                      <div className="flex flex-col">
+                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
+                          Field Changed:
+                        </span>
+                        <span className="font-medium text-gray-900">
                           {formatFieldName(log.field_name)}
                         </span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">New Value:</span>
-                        <span className="ml-2 font-medium text-gray-900">
+                      <div className="flex flex-col">
+                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
+                          New Value:
+                        </span>
+                        <span className="font-medium text-gray-900">
                           {log.new_value || "N/A"}
                         </span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">School Year:</span>
-                        <span className="ml-2 text-gray-900">
-                          {log.school_year}
+                      <div className="flex flex-col">
+                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
+                          School Year:
                         </span>
+                        <span className="text-gray-900">{log.school_year}</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">Semester:</span>
-                        <span className="ml-2 text-gray-900">
-                          {log.semester}
+                      <div className="flex flex-col">
+                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
+                          Semester:
                         </span>
+                        <span className="text-gray-900">{log.semester}</span>
                       </div>
                     </div>
                   </div>

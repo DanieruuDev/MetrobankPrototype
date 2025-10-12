@@ -98,7 +98,7 @@ const Sidebar = () => {
       {/* Sidebar */}
       <div
         className={`fixed left-0 top-0 bottom-0 transition-all duration-500 ease-in-out
-          bg-gradient-to-b from-[#024FA8]/90 to-[#0376C0]/90 backdrop-blur-xl shadow-2xl z-50
+          bg-gradient-to-b from-[#024FA8]/90 to-[#0376C0]/90 backdrop-blur-xl shadow-2xl z-[60]
           border-r border-white/20
           ${collapsed && !isMobileOpen ? "w-20 px-2" : "w-[240px] px-4"}
           ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
