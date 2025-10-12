@@ -1153,6 +1153,56 @@ const getDataToEdit = async (req, res) => {
     });
   }
 };
+const getEligibleListDisbursement = async (req, res) => {
+  const { disbursement_type_id, school_year, semester } = req.params;
+
+  // 🔸 Validate required fields
+  if (!disbursement_type_id || !school_year || !semester) {
+    return res.status(400).json({ message: "Missing required parameters." });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        student_id,
+        student_name,
+        campus_name AS campus,
+        school_year_label AS school_year,
+        semester_label AS semester,
+        yr_lvl_label AS year_level,
+        program,
+        disbursement_label
+      FROM vw_scholar_disbursement
+      WHERE disbursement_type_id = $1
+        AND school_year = $2
+        AND semester = $3
+    `;
+
+    const result = await pool.query(query, [
+      disbursement_type_id,
+      school_year,
+      semester,
+    ]);
+
+    // 🔸 Handle no results
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          "No scholars found for the given disbursement type and period.",
+      });
+    }
+
+    // ✅ Return successful response
+    return res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("❌ Error fetching eligible disbursement list:", error);
+
+    return res.status(500).json({
+      message: "An error occurred while fetching the eligible list.",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   uploadFile,
@@ -1172,4 +1222,5 @@ module.exports = {
   archiveApproval,
   getDataToEdit,
   EditApprovalByID,
+  getEligibleListDisbursement,
 };

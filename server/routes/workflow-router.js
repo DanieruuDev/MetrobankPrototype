@@ -18,6 +18,7 @@ const {
   handleRequesterResponse,
   archiveApproval,
   getDataToEdit,
+  getEligibleListDisbursement,
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 
@@ -61,6 +62,11 @@ workflowRouter.post(
   "/requester-response",
   upload.single("file"),
   handleRequesterResponse
+);
+
+workflowRouter.get(
+  "/list/:disbursement_type_id/:school_year/:semester",
+  getEligibleListDisbursement
 );
 
 module.exports = workflowRouter;

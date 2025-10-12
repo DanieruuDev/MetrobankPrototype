@@ -1087,7 +1087,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             <div className="flex flex-wrap items-center gap-2">
               {!isEdit && role_id === 7 && (
                 <>
-                  {tempRenewalData.length === initialRenewalInfo?.count && (
+                  {tempRenewalData.length !== initialRenewalInfo?.count && (
                     <button
                       className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl cursor-pointer
     ${
