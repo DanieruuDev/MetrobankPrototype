@@ -18,7 +18,7 @@ interface StudentDisbursement {
   student_semester: string;
   student_school_year: string;
   student_branch: string;
-  total_received: number;
+  total_disbursed_amount: number | string; // Database returns as string
 }
 
 interface SchoolYear {
@@ -104,8 +104,18 @@ const DisbursementOverview = () => {
     });
   })();
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    const safeAmount = Number(amount) || 0; // convert null/undefined/NaN → 0
+  const formatCurrency = (amount: number | null | undefined | string) => {
+    // Handle string amounts from database
+    const safeAmount =
+      typeof amount === "string" ? parseFloat(amount) : Number(amount) || 0;
+
+    // Debug logging
+    if (amount && amount !== 0) {
+      console.log(
+        `💰 Formatting: ${amount} (type: ${typeof amount}) → ${safeAmount}`
+      );
+    }
+
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
@@ -123,7 +133,15 @@ const DisbursementOverview = () => {
       setTotalPage(totalPages);
       setPage(currentPage);
       setStudentList(data);
-      console.log(data);
+      console.log("📊 Disbursement Overview Data:", data);
+      console.log("📊 First student:", data[0]);
+      console.log(
+        "📊 Sample amounts:",
+        data.slice(0, 5).map((s: StudentDisbursement) => ({
+          name: s.student_name,
+          amount: s.total_disbursed_amount,
+        }))
+      );
 
       // Fetch all students for search functionality
       const allStudentsResponse = await axios.get(
@@ -261,8 +279,8 @@ const DisbursementOverview = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6 min-h-[280px] sm:min-h-[320px]">
-              {!loading && schoolYears.length > 2 ? (
-                <DonutChart school_year={schoolYears[2].sy_code} />
+              {!loading && schoolYears.length > 1 ? (
+                <DonutChart school_year={schoolYears[1].sy_code} />
               ) : (
                 <div className="flex justify-center items-center h-full min-h-[200px]">
                   <Loading />
@@ -415,7 +433,7 @@ const DisbursementOverview = () => {
                           {student.student_branch}
                         </td>
                         <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                          {formatCurrency(student.total_received)}
+                          {formatCurrency(student.total_disbursed_amount)}
                         </td>
                       </tr>
                     ))

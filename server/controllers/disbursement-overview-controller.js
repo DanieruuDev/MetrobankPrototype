@@ -72,45 +72,37 @@ const getDisbursementHistoryByStudentId = async (req, res) => {
       return res.status(400).json({ message: "Student ID is required." });
     }
 
-    try {
-      const query = `
-        SELECT *
-        FROM vw_scholar_disbursement
-        WHERE student_id = $1
-        ORDER BY disbursement_date DESC;
-      `;
+    const query = `
+      SELECT 
+        student_id,
+        student_name as scholar_name,
+        campus_name as current_campus,
+        scholarship_status as current_scholarship_status,
+        school_year_label as current_school_year,
+        semester_label as current_semester,
+        yr_lvl_label as current_yr_lvl,
+        disbursement_id,
+        disbursement_amount as amount,
+        disbursement_status,
+        completed_at,
+        school_year_label as disbursement_school_year,
+        semester_label as disbursement_semester,
+        yr_lvl_label as disbursement_yr_lvl,
+        disbursement_label as disbursement_type,
+        NULL as required_hours,
+        completed_at as disbursement_date
+      FROM vw_scholar_disbursement
+      WHERE student_id = $1
+      ORDER BY school_year DESC, semester DESC, completed_at DESC NULLS LAST, disb_detail_id DESC;
+    `;
 
-      const { rows } = await pool.query(query, [id]);
-      res.status(200).json(rows);
-    } catch (viewError) {
-      console.log("View failed, using fallback query:", viewError.message);
+    const { rows } = await pool.query(query, [id]);
 
-      // Fallback query that doesn't depend on maintenance tables
-      const fallbackQuery = `
-        SELECT 
-          m.student_id,
-          m.scholar_name,
-          m.campus,
-          'N/A' as disbursement_type,
-          'N/A' as disbursement_status,
-          NULL as disbursement_date,
-          NULL as amount,
-          'N/A' as current_yr_lvl,
-          'N/A' as current_semester,
-          'N/A' as current_school_year
-        FROM masterlist m
-        WHERE m.student_id = $1;
-      `;
-
-      const { rows } = await pool.query(fallbackQuery, [id]);
-
-      if (rows.length === 0) {
-        return res.status(404).json({ message: "Student not found." });
-      }
-
-      // Return empty array to indicate no disbursement history
-      res.status(200).json([]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Student not found." });
     }
+
+    res.status(200).json(rows);
   } catch (err) {
     console.error("Error fetching disbursement history:", err);
     res.status(500).json({ message: "Internal Server Error" });
@@ -181,7 +173,7 @@ const getCompletedDisbursementTotals = async (req, res) => {
       SELECT 
         dt.disbursement_label AS category,
         COUNT(DISTINCT m.student_id) AS total_students,
-        SUM(dd.disbursement_amount) AS total_amount
+        COALESCE(SUM(dd.disbursement_amount), 0) AS total_amount
       FROM disbursement_detail dd
       JOIN disbursement_tracking dtr ON dd.disbursement_id = dtr.disbursement_id
       JOIN renewal_scholar rs ON dtr.renewal_id = rs.renewal_id
@@ -189,11 +181,12 @@ const getCompletedDisbursementTotals = async (req, res) => {
       JOIN disbursement_type dt ON dd.disbursement_type_id = dt.disbursement_type_id
       WHERE dd.disbursement_status = 'Completed'
         AND m.scholarship_status = 'Active'
+        AND rs.school_year = $1
       GROUP BY dt.disbursement_label
       ORDER BY total_amount DESC
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, [sy_code]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({

@@ -57,6 +57,7 @@ const DetailedOverview: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTermIndex, setSelectedTermIndex] = useState<number>(0);
+  const [showAllTerms, setShowAllTerms] = useState<boolean>(false);
   const { collapsed } = useSidebar();
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   // Make sure this is the ONLY formatCurrency function in your file
@@ -451,104 +452,302 @@ const DetailedOverview: React.FC = () => {
             </div>
           </div>
 
-          {/* Term Selection */}
+          {/* Term Selection Dropdown */}
           {hasDisbursements && (
-            <div className="mb-4 sm:mb-6">
-              <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2">
-                {allTerms.map((term, index) => (
-                  <button
-                    key={index}
-                    className={`px-3 sm:px-4 py-2 rounded-full whitespace-nowrap text-xs sm:text-sm ${
-                      selectedTermIndex === index
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                    onClick={() => setSelectedTermIndex(index)}
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-2">
+                <div className="relative">
+                  <select
+                    value={showAllTerms ? "all" : selectedTermIndex.toString()}
+                    onChange={(e) => {
+                      if (e.target.value === "all") {
+                        setShowAllTerms(true);
+                      } else {
+                        setShowAllTerms(false);
+                        setSelectedTermIndex(parseInt(e.target.value));
+                      }
+                    }}
+                    className="appearance-none pl-4 pr-10 py-3 rounded-xl text-sm font-medium
+                      bg-white/70 backdrop-blur-md
+                      border border-gray-200/60
+                      text-gray-700
+                      hover:bg-white/90 hover:border-blue-300 hover:shadow-xl
+                      focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400
+                      transition-all duration-300 cursor-pointer
+                      shadow-lg shadow-blue-100/50
+                      min-w-[280px]"
                   >
-                    {term.school_year} | {term.semester}
-                  </button>
-                ))}
+                    <option value="all"> All Terms</option>
+                    {allTerms.map((term, index) => (
+                      <option key={index} value={index}>
+                        {term.school_year} | {term.semester} | {term.year_level}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Dropdown Arrow */}
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
           )}
 
           {/* Disbursement Breakdown or No Data Message */}
           {hasDisbursements ? (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 sm:mb-8">
-              {/* Header */}
-              <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-100">
-                <h2 className="text-base sm:text-lg font-medium">
-                  {currentTerm?.school_year} | {currentTerm?.semester} |{" "}
-                  {currentTerm?.year_level}
-                </h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                  Disbursement breakdown for selected term
-                </p>
-              </div>
+            showAllTerms ? (
+              // Show all terms
+              <div className="space-y-4 sm:space-y-6">
+                {allTerms.map((term, termIndex) => (
+                  <div
+                    key={termIndex}
+                    className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200"
+                  >
+                    {/* Header */}
+                    <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gray-50">
+                      <h2 className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 break-words">
+                        {term.school_year} | {term.semester} | {term.year_level}
+                      </h2>
+                    </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {currentTerm?.disbursements.map((item, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap font-medium text-sm sm:text-base">
-                          {item.disbursement_type}
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap">
+                    {/* Mobile Card View */}
+                    <div className="block md:hidden">
+                      {term.disbursements.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="p-4 border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-medium text-sm text-gray-900 flex-1">
+                                {item.disbursement_type}
+                              </span>
+                              <StatusBadge status={item.disbursement_status} />
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-gray-500">Amount:</span>
+                              <span className="font-medium text-gray-900">
+                                {item.amount
+                                  ? formatCurrency(parseFloat(item.amount))
+                                  : "—"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-gray-500">Date:</span>
+                              <span className="text-gray-600">
+                                {formatDate(item.disbursement_date)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Mobile Total */}
+                      <div className="px-4 py-3 bg-gray-50 flex justify-between items-center">
+                        <span className="font-medium text-sm">Total</span>
+                        <span className="font-medium text-blue-600 text-sm">
+                          {formatCurrency(
+                            calculateTotalAmount(term.disbursements)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full min-w-[600px]">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Type
+                            </th>
+                            <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Amount
+                            </th>
+                            <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {term.disbursements.map((item, idx) => (
+                            <tr
+                              key={idx}
+                              className="hover:bg-gray-50 transition-colors"
+                            >
+                              <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base">
+                                {item.disbursement_type}
+                              </td>
+                              <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6">
+                                <StatusBadge
+                                  status={item.disbursement_status}
+                                />
+                              </td>
+                              <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base">
+                                {item.amount
+                                  ? formatCurrency(parseFloat(item.amount))
+                                  : "—"}
+                              </td>
+                              <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-gray-500 text-sm sm:text-base">
+                                {formatDate(item.disbursement_date)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-gray-50">
+                            <td
+                              colSpan={2}
+                              className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base"
+                            >
+                              Total
+                            </td>
+                            <td
+                              colSpan={2}
+                              className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-blue-600 text-sm sm:text-base"
+                            >
+                              {formatCurrency(
+                                calculateTotalAmount(term.disbursements)
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // Show single selected term
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6 sm:mb-8 border border-gray-200">
+                {/* Header */}
+                <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 break-words">
+                    {currentTerm?.school_year} | {currentTerm?.semester} |{" "}
+                    {currentTerm?.year_level}
+                  </h2>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="block md:hidden">
+                  {currentTerm?.disbursements.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="font-medium text-sm text-gray-900 flex-1">
+                            {item.disbursement_type}
+                          </span>
                           <StatusBadge status={item.disbursement_status} />
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-500">Amount:</span>
+                          <span className="font-medium text-gray-900">
+                            {item.amount
+                              ? formatCurrency(parseFloat(item.amount))
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-500">Date:</span>
+                          <span className="text-gray-600">
+                            {formatDate(item.disbursement_date)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Mobile Total */}
+                  <div className="px-4 py-3 bg-gray-50 flex justify-between items-center">
+                    <span className="font-medium text-sm">Total</span>
+                    <span className="font-medium text-blue-600 text-sm">
+                      {formatCurrency(
+                        calculateTotalAmount(currentTerm?.disbursements || [])
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="text-left py-2 sm:py-3 px-3 sm:px-4 lg:px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {currentTerm?.disbursements.map((item, idx) => (
+                        <tr
+                          key={idx}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base">
+                            {item.disbursement_type}
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6">
+                            <StatusBadge status={item.disbursement_status} />
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base">
+                            {item.amount
+                              ? formatCurrency(parseFloat(item.amount))
+                              : "—"}
+                          </td>
+                          <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 text-gray-500 text-sm sm:text-base">
+                            {formatDate(item.disbursement_date)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50">
+                        <td
+                          colSpan={2}
+                          className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base"
+                        >
+                          Total
                         </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap font-medium text-sm sm:text-base">
-                          {item.amount
-                            ? formatCurrency(parseFloat(item.amount))
-                            : "—"}
-                        </td>
-                        <td className="py-3 sm:py-4 px-3 sm:px-4 lg:px-6 whitespace-nowrap text-gray-500 text-sm sm:text-base">
-                          {formatDate(item.disbursement_date)}
+                        <td
+                          colSpan={2}
+                          className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-blue-600 text-sm sm:text-base"
+                        >
+                          {formatCurrency(
+                            calculateTotalAmount(
+                              currentTerm?.disbursements || []
+                            )
+                          )}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50">
-                      <td
-                        colSpan={2}
-                        className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-sm sm:text-base"
-                      >
-                        Term Total
-                      </td>
-                      <td
-                        colSpan={2}
-                        className="py-2 sm:py-3 px-3 sm:px-4 lg:px-6 font-medium text-blue-600 text-sm sm:text-base"
-                      >
-                        {formatCurrency(
-                          calculateTotalAmount(currentTerm?.disbursements || [])
-                        )}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 sm:mb-8">
               <div className="px-3 sm:px-4 lg:px-6 py-6 sm:py-8 text-center">
