@@ -241,7 +241,7 @@ const DisbursementOverview = () => {
                     Total Scholars
                   </p>
                   <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">
-                    {summaryStats.totalStudents}
+                    17
                   </p>
                 </div>
               </div>
