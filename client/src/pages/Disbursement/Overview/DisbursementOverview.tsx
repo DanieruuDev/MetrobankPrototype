@@ -104,8 +104,18 @@ const DisbursementOverview = () => {
     });
   })();
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    const safeAmount = Number(amount) || 0; // convert null/undefined/NaN → 0
+  const formatCurrency = (amount: number | null | undefined | string) => {
+    // Handle string amounts from database
+    const safeAmount =
+      typeof amount === "string" ? parseFloat(amount) : Number(amount) || 0;
+
+    // Debug logging
+    if (amount && amount !== 0) {
+      console.log(
+        `💰 Formatting: ${amount} (type: ${typeof amount}) → ${safeAmount}`
+      );
+    }
+
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
@@ -261,8 +271,8 @@ const DisbursementOverview = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6 min-h-[280px] sm:min-h-[320px]">
-              {!loading && schoolYears.length > 2 ? (
-                <DonutChart school_year={schoolYears[2].sy_code} />
+              {!loading && schoolYears.length > 1 ? (
+                <DonutChart school_year={schoolYears[1].sy_code} />
               ) : (
                 <div className="flex justify-center items-center h-full min-h-[200px]">
                   <Loading />

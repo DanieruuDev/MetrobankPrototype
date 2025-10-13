@@ -1,4 +1,4 @@
-// import axios from "axios"; // Commented out for mock data testing
+import axios from "axios";
 import { Chart, ChartConfiguration, ChartData, registerables } from "chart.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -38,45 +38,20 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
     disbursementData?.reduce((acc, item) => acc + item.total_students, 0) ?? 0;
 
   const fetchDisbursementData = async () => {
-    // Use mock data for testing - comment out the API call
-    setDisbursementData([
-      {
-        category: "Academic Excellence Award",
-        total_students: 150,
-        total_amount: "3000000",
-      },
-      {
-        category: "Internship Allowance",
-        total_students: 120,
-        total_amount: "1800000",
-      },
-      {
-        category: "Semestral Allowance",
-        total_students: 200,
-        total_amount: "2000000",
-      },
-      { category: "Thesis Fee", total_students: 80, total_amount: "800000" },
-      {
-        category: "Tuition Fee and Other School Fees",
-        total_students: 300,
-        total_amount: "4500000",
-      },
-    ]);
+    const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-    // Uncomment below to use real API data
-    /*
     try {
-      console.log("Fetching data for school year:", sy_code);
+      console.log("Fetching data for school year:", school_year);
       const response = await axios.get(
-        `${VITE_BACKEND_URL}api/disbursement/overview/completed-totals/${sy_code}`
+        `${VITE_BACKEND_URL}api/disbursement/overview/completed-totals/${school_year}`
       );
       if (!response) throw new Error("Failed to fetch disbursement data.");
       console.log("API response:", response.data);
       setDisbursementData(response.data);
     } catch (error) {
       console.error("Error fetching disbursement data:", error);
+      setDisbursementData([]);
     }
-    */
   };
 
   const createChart = useCallback(() => {
@@ -219,18 +194,12 @@ export const DonutChart = ({ school_year }: DonutChartProps) => {
   }, [disbursementData, totalAmount, formatCurrencyShort]);
 
   useEffect(() => {
-    // Always fetch mock data for testing
-    fetchDisbursementData();
-
-    // Uncomment below to use real API with school_year validation
-    /*
     if (school_year && !isNaN(Number(school_year))) {
-      fetchDisbursementData(school_year);
+      fetchDisbursementData();
     } else {
       console.warn("Invalid or undefined school_year, skipping fetch.");
     }
-    */
-  }, [school_year]);
+  }, [school_year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     createChart();
