@@ -136,14 +136,6 @@ const getProcess = async (req, res) => {
     `;
     const response = await client.query(query, [sy_code, semester_code]);
 
-    // 3️⃣ Handle no results
-    if (response.rows.length === 0) {
-      return res.status(404).json({
-        message:
-          "No disbursement process found for the specified school year and semester.",
-      });
-    }
-
     // 4️⃣ Success
     console.log("✅ Process fetched successfully:", response.rows[0]);
     return res.status(200).json({
