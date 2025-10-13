@@ -130,11 +130,13 @@ const TuitionInvoiceUpload: React.FC = () => {
       toast.error("Missing file to extract");
       return;
     }
+
     setIsProcessing(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
 
+      // 1️⃣ Send to document extraction endpoint
       const { data } = await axios.post(
         `${VITE_BACKEND_URL}api/document/extract`,
         formData,
@@ -159,12 +161,14 @@ const TuitionInvoiceUpload: React.FC = () => {
         },
       });
 
+      // 2️⃣ If ZIP — extract PDFs, process each individually
       if (file.name.toLowerCase().endsWith(".zip")) {
         const zip = new JSZip();
         const zipContent = await zip.loadAsync(file);
         const pdfFiles = Object.keys(zipContent.files).filter((fileName) =>
           fileName.toLowerCase().endsWith(".pdf")
         );
+
         setJobStatus((prev) => ({
           jobId: prev!.jobId,
           status: "processing",
@@ -185,9 +189,11 @@ const TuitionInvoiceUpload: React.FC = () => {
             toast.error(`Empty or invalid PDF: ${pdfFileName}`);
             continue;
           }
+
           const pdfFile = new File([pdfBlob], pdfFileName, {
             type: "application/pdf",
           });
+
           const pdfFormData = new FormData();
           pdfFormData.append("file", pdfFile);
 
@@ -215,10 +221,10 @@ const TuitionInvoiceUpload: React.FC = () => {
             ) {
               processedFiles++;
 
-              // ✅ Attach the actual PDF File to each extracted document
+              // ✅ Attach fileObject for each extracted doc
               const docsWithFile = pdfJob.documents.map((d: Document) => ({
                 ...d,
-                fileObject: pdfFile, // <--- this is the key line
+                fileObject: pdfFile,
               }));
 
               allDocuments.push(...docsWithFile);
@@ -243,7 +249,10 @@ const TuitionInvoiceUpload: React.FC = () => {
 
           pollPdfJobStatus();
         }
-      } else {
+      }
+
+      // 3️⃣ If single PDF — poll the extraction job directly
+      else {
         const pollJobStatus = async () => {
           try {
             const res = await axios.get(`${VITE_BACKEND_URL}api/jobs/${jobId}`);
@@ -292,7 +301,10 @@ const TuitionInvoiceUpload: React.FC = () => {
                     }
               );
               setTimeout(pollJobStatus, 1000);
-            } else if (job.status === "done") {
+            }
+
+            // ✅ When extraction completes
+            else if (job.status === "done") {
               setJobStatus((prev) =>
                 prev
                   ? {
@@ -327,6 +339,24 @@ const TuitionInvoiceUpload: React.FC = () => {
                       },
                     }
               );
+
+              // ✅ Attach the original uploaded file to extracted docs (fix)
+              if (job.documents && file) {
+                const docsWithFile = job.documents.map((d: Document) => ({
+                  ...d,
+                  fileObject: file,
+                }));
+
+                setJobStatus((prev) => ({
+                  ...prev!,
+                  result: {
+                    ...prev!.result!,
+                    documents: docsWithFile,
+                  },
+                }));
+              }
+
+              // optional: maintain uploaded file list
               if (job.documents) {
                 const newUploadedFiles = job.documents.map((doc: Document) => ({
                   id: Date.now() + Math.random(),

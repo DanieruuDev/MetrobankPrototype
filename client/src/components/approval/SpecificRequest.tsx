@@ -13,7 +13,6 @@ import {
   Clock,
   Calendar,
   X,
-  RotateCcw,
   MessageSquare,
   Reply,
 } from "lucide-react";
@@ -28,7 +27,7 @@ export interface SpecificRequestProps {
   goBack: () => void;
   getSpecificRequestApproval: () => Promise<void>;
   updateApproverResponse: (
-    response: "Approved" | "Reject" | "Return",
+    response: "Approved" | "Reject",
     comment: string | null,
     approver_status: "Completed" | "Missed" | "Replaced"
   ) => Promise<void>;
@@ -67,8 +66,8 @@ function SpecificRequest({
 
   const handleApproval = useCallback(async () => {
     if (!status) return alert("Please select a response.");
-    if ((status === "Reject" || status === "Return") && comment.trim() === "") {
-      return alert("Comment is required when rejecting or returning.");
+    if (status === "Reject" && comment.trim() === "") {
+      return alert("Comment is required when rejecting.");
     }
 
     setLoading(true);
@@ -161,11 +160,7 @@ function SpecificRequest({
 
         {/* Approval buttons at the top */}
         {specificRequest.current_approver === specificRequest.approver_name &&
-          (specificRequest.approver_response === "Pending" ||
-            (specificRequest.approver_response === "Returned" &&
-              specificRequest.return_conversation?.some(
-                (conv) => Number(conv.created_by) === userId
-              ))) && (
+          specificRequest.approver_response === "Pending" && (
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -177,17 +172,6 @@ function SpecificRequest({
               >
                 <XCircle className="mr-2 h-4 w-4" />
                 Reject
-              </button>
-              <button
-                onClick={() => {
-                  setStatus("Return");
-                  setIsModalOpen(true);
-                }}
-                disabled={loading}
-                className="inline-flex items-center px-4 py-2 border border-orange-300 text-sm font-medium rounded-md shadow-sm text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Return
               </button>
               <button
                 onClick={() => {
@@ -271,8 +255,6 @@ function SpecificRequest({
                                     ? "bg-green-500 text-white shadow-sm"
                                     : approver.response === "Reject"
                                     ? "bg-red-500 text-white shadow-sm"
-                                    : approver.response === "Returned"
-                                    ? "bg-orange-500 text-white shadow-sm"
                                     : approver.approval_status === "Canceled"
                                     ? "bg-red-500 text-white shadow-sm"
                                     : isCurrent && !isRejected
@@ -284,8 +266,6 @@ function SpecificRequest({
                                   <Check size={14} />
                                 ) : approver.response === "Reject" ? (
                                   <X size={14} />
-                                ) : approver.response === "Returned" ? (
-                                  <RotateCcw size={14} />
                                 ) : approver.approval_status === "Canceled" ? (
                                   <X size={14} />
                                 ) : (
@@ -359,8 +339,6 @@ function SpecificRequest({
                                 ? "border-green-300"
                                 : approval.response === "Reject"
                                 ? "border-red-300"
-                                : approval.response === "Returned"
-                                ? "border-orange-300"
                                 : isCurrent
                                 ? "border-blue-300"
                                 : "border-gray-300"
@@ -376,8 +354,6 @@ function SpecificRequest({
                                     ? "text-green-600"
                                     : approval.response === "Reject"
                                     ? "text-red-600"
-                                    : approval.response === "Returned"
-                                    ? "text-orange-600"
                                     : isCurrent
                                     ? "text-blue-600"
                                     : "text-gray-500"
@@ -387,8 +363,6 @@ function SpecificRequest({
                                   ? "Approved"
                                   : approval.response === "Reject"
                                   ? "Rejected"
-                                  : approval.response === "Returned"
-                                  ? "Returned"
                                   : isCurrent
                                   ? "Current"
                                   : approval.approval_status}
@@ -402,8 +376,6 @@ function SpecificRequest({
                                     : approval.response === "Reject" ||
                                       approval.approval_status === "Canceled"
                                     ? "bg-red-100 text-red-600"
-                                    : approval.response === "Returned"
-                                    ? "bg-orange-100 text-orange-600"
                                     : isCurrent
                                     ? "bg-blue-100 text-blue-600"
                                     : "bg-gray-100 text-gray-500"
@@ -430,29 +402,17 @@ function SpecificRequest({
                                       ? "Approved"
                                       : approval.response === "Reject"
                                       ? "Rejected"
-                                      : approval.response === "Returned"
-                                      ? "Rejected"
                                       : "Completed"}{" "}
                                     on {formatDate(approval.approval_time)}
                                   </span>
                                 </div>
                               )}
 
-                            {isCurrent &&
-                            approval.approval_status !== "Returned" ? (
+                            {isCurrent && (
                               <div className="flex items-center gap-1 text-xs text-blue-600">
                                 <Clock size={12} />
                                 <span>Awaiting approval</span>
                               </div>
-                            ) : approval.approval_status === "Returned" ? (
-                              <div>
-                                <div className="flex items-center gap-1 text-xs text-orange-600">
-                                  <Clock size={12} />
-                                  <span>Awaiting for requester response</span>
-                                </div>
-                              </div>
-                            ) : (
-                              ""
                             )}
                           </div>
                         );
@@ -465,13 +425,13 @@ function SpecificRequest({
 
         {/* Right column - Request content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Return Conversation */}
+          {/* Rejected Conversation */}
           {specificRequest.return_conversation &&
             specificRequest.return_conversation.length > 0 && (
               <div className="bg-white rounded-xl p-5 border border-gray-200">
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
                   <MessageSquare size={16} />
-                  Return Conversation
+                  Rejection Conversation
                 </h3>
 
                 <div className="space-y-4">
@@ -480,22 +440,22 @@ function SpecificRequest({
                       key={returnItem.return_id}
                       className="border border-gray-200 rounded-lg overflow-hidden bg-white"
                     >
-                      {/* Return reason from approver */}
-                      <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
+                      {/* Rejection reason from approver */}
+                      <div className="bg-red-50 border-l-4 border-red-400 p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-600">
-                              <RotateCcw size={12} />
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-600">
+                              <XCircle size={12} />
                             </div>
-                            <span className="text-sm font-medium text-orange-800">
-                              Returned by {returnItem.created_by}
+                            <span className="text-sm font-medium text-red-800">
+                              Rejected by {returnItem.created_by}
                             </span>
                           </div>
-                          <span className="text-xs text-orange-600">
+                          <span className="text-xs text-red-600">
                             {formatConversationDate(returnItem.created_at)}
                           </span>
                         </div>
-                        <p className="text-sm text-orange-700 ml-8">
+                        <p className="text-sm text-red-700 ml-8">
                           {returnItem.reason}
                         </p>
                       </div>
@@ -568,8 +528,8 @@ function SpecificRequest({
 
                       {/* Show if requester needs to take action */}
                       {!returnItem.requester_take_action && (
-                        <div className="bg-yellow-50 border-t border-yellow-200 p-3">
-                          <div className="flex items-center gap-2 text-sm text-yellow-800">
+                        <div className="bg-red-50 border-t border-red-200 p-3">
+                          <div className="flex items-center gap-2 text-sm text-red-800">
                             <Clock size={14} />
                             <span className="font-medium">
                               Awaiting requester response
@@ -734,10 +694,6 @@ function SpecificRequest({
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
                   <AlertCircle className="h-6 w-6 text-red-600" />
                 </div>
-              ) : status === "Return" ? (
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
-                  <RotateCcw className="h-6 w-6 text-orange-600" />
-                </div>
               ) : (
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                   <CheckCircle className="h-6 w-6 text-green-600" />
@@ -749,22 +705,19 @@ function SpecificRequest({
               <p className="text-sm text-gray-500 mb-4">
                 {status === "Reject"
                   ? "This action cannot be undone. Please provide a reason for rejection."
-                  : status === "Return"
-                  ? "This request will be returned to the requester. Please provide a reason for returning."
                   : "You're approving this request. Are you sure?"}
               </p>
 
-              {(status === "Reject" || status === "Return") && (
+              {status === "Reject" && (
                 <div className="w-full mb-4">
                   <label
-                    htmlFor={`${status.toLowerCase()}-reason`}
+                    htmlFor="reject-reason"
                     className="block text-sm font-medium text-gray-700 text-left mb-1"
                   >
-                    Reason for {status.toLowerCase()}{" "}
-                    <span className="text-red-500">*</span>
+                    Reason for rejection <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    id={`${status.toLowerCase()}-reason`}
+                    id="reject-reason"
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Enter your reason..."
@@ -789,16 +742,10 @@ function SpecificRequest({
                   className={`px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
                     status === "Reject"
                       ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                      : status === "Return"
-                      ? "bg-orange-600 hover:bg-orange-700 focus:ring-orange-500"
                       : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
                   } focus:outline-none focus:ring-2 focus:ring-offset-2`}
                   onClick={handleApproval}
-                  disabled={
-                    loading ||
-                    ((status === "Reject" || status === "Return") &&
-                      !comment.trim())
-                  }
+                  disabled={loading || (status === "Reject" && !comment.trim())}
                 >
                   {loading ? "Processing..." : `Confirm ${status}`}
                 </button>

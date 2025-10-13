@@ -14,7 +14,6 @@ import {
   CheckCircle,
   CircleAlert,
   XCircle,
-  RotateCcw,
 } from "lucide-react";
 import EditApproval from "../../components/approval/my-approval/EditApproval";
 import CreateApproval from "../../components/approval/my-approval/CreateApproval";
@@ -29,8 +28,8 @@ import MyApprovalControl from "../../components/approval/my-approval/MyApprovalC
 const statusGroups: Record<string, string[]> = {
   All: [],
   Active: ["In Progress", "Not Started"],
-  "Needs Attention": ["Returned", "Missed"],
-  Completed: ["Completed", "Failed"],
+  "Needs Attention": ["Failed", "Missed"],
+  Completed: ["Completed"],
 };
 
 const groupStyles: Record<string, { color: string; icon: React.ReactNode }> = {
@@ -49,10 +48,6 @@ const groupStyles: Record<string, { color: string; icon: React.ReactNode }> = {
   Missed: {
     color: "yellow",
     icon: <CircleAlert className="text-yellow-500" size={16} />,
-  },
-  Returned: {
-    color: "orange",
-    icon: <RotateCcw className="text-orange-500" size={16} />,
   },
   Completed: {
     color: "green",
@@ -173,7 +168,13 @@ function Workflow() {
 
       const { data } = response.data;
 
-      setWorkflowDisplay(data);
+      // Map "Returned" status to "Failed" for display purposes
+      const mappedData = data.map((workflow: WorkflowDisplaySchema) => ({
+        ...workflow,
+        status: workflow.status === "Returned" ? "Failed" : workflow.status,
+      }));
+
+      setWorkflowDisplay(mappedData);
     } catch (error) {
       console.error("Error fetching workflows:", error);
     } finally {
