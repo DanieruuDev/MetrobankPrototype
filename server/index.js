@@ -26,7 +26,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: ["https://metrobank-prototype.vercel.app", "http://localhost:5173"],
+    origin: ["www.mbstrongwebapp.com", "http://localhost:5173"],
     credentials: true,
   })
 );
