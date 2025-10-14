@@ -31,6 +31,7 @@ app.use(
   })
 );
 
+app.options("*", cors());
 const PORT = process.env.PORT || 5000;
 
 app.use("/api/auth", userAdminRouter);
