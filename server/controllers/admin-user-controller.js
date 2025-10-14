@@ -127,7 +127,8 @@ const loginUser = async (req, res) => {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: "lax",
+      domain: ".mbstrongwebapp.com",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     console.log("Cookie set successfully");
@@ -203,8 +204,8 @@ const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      sameSite: "lax",
+      domain: ".mbstrongwebapp.com",
     });
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {
