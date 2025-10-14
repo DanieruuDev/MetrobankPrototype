@@ -124,7 +124,13 @@ function App() {
             path="/schedule"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "Discipline Office",
+                ]}
               >
                 <Schedule />
               </PrivateRoute>
@@ -135,7 +141,13 @@ function App() {
             path="/tracking"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "Discipline Office",
+                ]}
               >
                 <ScheduleTracking />
               </PrivateRoute>
@@ -178,7 +190,13 @@ function App() {
             path="/tracking/detailed/:sched_id"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "Discipline Office",
+                ]}
               >
                 <DetailedTracking />
               </PrivateRoute>
