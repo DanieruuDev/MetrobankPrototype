@@ -18,7 +18,6 @@ interface CreateApproval2Props {
 
 //!Notes: Try to change the approval request decription into a checkbox of data for type of reques
 function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stepNum, setStepNum] = useState(1);
   const auth = useContext(AuthContext);
@@ -26,6 +25,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [approversValid, setApproversValid] = useState(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [showValidation, setShowValidation] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const isApproverValid = (): boolean => {
     if (!approversValid) {
@@ -127,7 +127,6 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }
   };
 
-  // In CreateApproval.tsx, update the handleSubmit function:
   const handleSubmit = async () => {
     if (!formData.approvers || formData.approvers.length === 0) {
       toast.error("Please add at least one approver");
@@ -301,11 +300,11 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
 
             {stepNum === 3 ? (
               <button
-                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer disabled:opacity-50"
                 onClick={handleSubmit}
                 disabled={loading}
               >
-                {loading ? "Loading..." : "Create Workflow"}
+                Create Workflow
               </button>
             ) : (
               <button

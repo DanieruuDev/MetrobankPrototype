@@ -22,7 +22,6 @@ import { formatDate } from "../../../utils/DateConvertionFormat";
 import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { AuthContext } from "../../../context/AuthContext";
 import ChangeApproverModal from "../../../components/approval/my-approval/ChangeApproverModal";
-import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../../../components/shared/Navbar";
 import { useSidebar } from "../../../context/SidebarContext";
@@ -117,10 +116,8 @@ function Approval() {
     }
 
     try {
-      const API_BASE_URL = "http://localhost:5000";
-
       const response = await axios.put(
-        `${API_BASE_URL}/api/workflow/change-approval/${userId}`,
+        `http://localhost:5000/api/workflow/change-approval/${userId}`,
         {
           workflow_id: workflow.workflow_id,
           old_approver_id: selectedApprover.approver_id,
@@ -129,16 +126,14 @@ function Approval() {
         }
       );
 
-      fetchWorkflow(workflow.requester_id, workflow.workflow_id);
-      alert(response.data.message || "Approver changed successfully.");
-      window.location.reload();
-
       if (response.status === 200) {
+        alert(response.data.message || "Approver changed successfully.");
         setShowModal(false);
+        window.location.reload();
       }
     } catch (error) {
       console.error("Error changing approver:", error);
-      alert(error || "Failed to change approver.");
+      alert("Failed to change approver.");
     }
   };
   const getStatusTextColor = (status: string) => {
@@ -195,7 +190,7 @@ function Approval() {
   ) => {
     setIsResponseLoading(true);
     if (!returnedResponseComment || !workflow) {
-      toast.warn("⚠️ Please provide a comment for your response.");
+      alert("⚠️ Please provide a comment for your response.");
       return;
     }
 
@@ -216,11 +211,11 @@ function Approval() {
           },
         }
       );
-      toast.success("✅ Response submitted successfully!");
+      alert("✅ Response submitted successfully!");
       fetchWorkflow(Number(userId), workflow.workflow_id);
     } catch (error) {
       console.log(error);
-      toast.error(`❌ Failed to submit response: ${error}`);
+      alert(`❌ Failed to submit response: ${error}`);
     } finally {
       setIsResponseLoading(false);
     }

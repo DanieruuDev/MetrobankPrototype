@@ -466,7 +466,7 @@ function AddApprover({
                       onChange={(e) =>
                         updateApprover(approver.id, "email", e.target.value)
                       }
-                      className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      className={`no-drag border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                         hasValidEmail && !isDuplicate
                           ? "border-green-300 bg-green-50"
                           : showValidation && (!hasValidEmail || isDuplicate)
@@ -474,7 +474,9 @@ function AddApprover({
                           : "border-gray-300"
                       }`}
                       placeholder="Enter email address"
+                      autoComplete="off"
                     />
+
                     {showValidation &&
                       trimmedEmail &&
                       !isValidEmail(trimmedEmail) && (
