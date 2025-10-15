@@ -9,7 +9,6 @@ const { startProcess } = require("../services/processProgressService.js");
 const uploadScholarRenewals = async (req, res) => {
   const { school_year, year_level, semester, user_id } = req.body;
 
-  console.log(school_year, semester);
   if (!school_year || !year_level || !semester) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -48,7 +47,7 @@ const uploadScholarRenewals = async (req, res) => {
       "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [previousSchoolYear]
     );
-    console.log(currentSchoolYear, previousSchoolYear);
+
     const result = await startProcess(currentSY.rows[0].sy_code, semester);
 
     if (result.success === false) {
@@ -149,7 +148,7 @@ const uploadScholarRenewals = async (req, res) => {
         message: "Partial insert detected. All actions rolled back.",
       });
     }
-    console.log(renewalResult.rows);
+
     const renewalIds = renewalResult.rows.map((r) => r.renewal_id);
 
     const insertValidationQuery = `INSERT INTO renewal_validation (renewal_id) SELECT * FROM UNNEST ($1::int[])`;
@@ -164,14 +163,14 @@ const uploadScholarRenewals = async (req, res) => {
 `);
 
     const validatorInserts = [];
-    console.log("Renewal Campus", renewalResult.rows[0]);
+
     for (let i = 0; i < renewalResult.rows.length; i++) {
       const renewal = renewalResult.rows[i];
       const validationIdRes = await client.query(
         `SELECT validation_id FROM renewal_validation WHERE renewal_id = $1`,
         [renewal.renewal_id]
       );
-      console.log("ValidationIdRes  Result", validationIdRes.rows);
+
       if (!validationIdRes.rows[0]) {
         throw new Error(
           `No validation record found for renewal_id ${renewal.renewal_id}`
@@ -195,7 +194,6 @@ const uploadScholarRenewals = async (req, res) => {
           validationId,
           admin.role_id,
           admin.branch_id,
-          null,
           admin.admin_id,
           null,
         ]);
@@ -205,7 +203,6 @@ const uploadScholarRenewals = async (req, res) => {
         validationId,
         7,
         renewal.campus_code,
-        null,
         user_id,
         null,
       ]);
@@ -214,8 +211,8 @@ const uploadScholarRenewals = async (req, res) => {
     if (validatorInserts.length > 0) {
       const insertValidatorResult = await client.query(
         `
-    INSERT INTO renewal_validator (validation_id, role_id, branch_code, is_validated, user_id, completed_at)
-    SELECT * FROM UNNEST($1::int[], $2::int[], $3::int[], $4::bool[], $5::int[], $6::timestamptz[])
+    INSERT INTO renewal_validator (validation_id, role_id, branch_code, user_id, completed_at)
+    SELECT * FROM UNNEST($1::int[], $2::int[], $3::int[],  $4::int[], $5::timestamptz[])
   `,
         [
           validatorInserts.map((v) => v[0]),
@@ -223,7 +220,6 @@ const uploadScholarRenewals = async (req, res) => {
           validatorInserts.map((v) => v[2]),
           validatorInserts.map((v) => v[3]),
           validatorInserts.map((v) => v[4]),
-          validatorInserts.map((v) => v[5]),
         ]
       );
 
@@ -314,7 +310,7 @@ const filteredScholarRenewal = async (req, res) => {
     let query = `SELECT * FROM vw_renewal_details WHERE 1=1`;
     const values = [];
     let index = 1;
-    console.log(school_year, year_level, semester, campus);
+
     if (school_year) {
       query += ` AND school_year = $${index++}`;
       values.push(`${school_year.trim()}`);
@@ -337,13 +333,13 @@ const filteredScholarRenewal = async (req, res) => {
     }
 
     const result = await client.query(query, values);
-    console.log(values);
+
     if (result.rows.length === 0) {
       return res
         .status(404)
         .json({ message: "No matching renewal records found." });
     }
-    console.log(result.rows);
+
     res.status(200).json({
       message: "Filtered renewal records retrieved successfully.",
       data: result.rows,
@@ -358,7 +354,7 @@ const filteredScholarRenewal = async (req, res) => {
 
 const getScholarRenewal = async (req, res) => {
   const { student_id, renewal_id } = req.params;
-  console.log(student_id, renewal_id);
+
   const client = await pool.connect();
   try {
     //scholarship_summary LOCALHOST
@@ -370,7 +366,6 @@ const getScholarRenewal = async (req, res) => {
       student_id,
       renewal_id,
     ]);
-    console.log(studentResult.rows[0]);
 
     if (studentResult.rows.length === 0) {
       return res.status(404).json({ message: "Scholar renewal not found" });
@@ -593,7 +588,6 @@ const updateScholarRenewal = async (req, res) => {
 
 const updateScholarRenewalV2 = async (req, res) => {
   const updates = req.body; // expects array of { renewal_id, validator_id?, changedFields }
-  console.log("Update here", updates);
 
   if (!Array.isArray(updates) || updates.length === 0) {
     return res
@@ -829,7 +823,7 @@ const getExcelRenewalReport = async (req, res) => {
         error: "Please provide year level, school year, and semester",
       });
     }
-    console.log(yr_lvl, school_year, semester);
+
     const query = `
       SELECT * FROM vw_renewal_details
       WHERE year_level ILIKE $1
@@ -1045,7 +1039,6 @@ const getExcelRenewalReport = async (req, res) => {
 
 const getInitialRenewalInfo = async (req, res) => {
   const { school_year, semester, branch } = req.query; // ✅ added optional branch
-  console.log("Params:", school_year, semester, branch);
 
   if (!school_year || !semester) {
     return res

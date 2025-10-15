@@ -35,7 +35,8 @@ function UploadFileRenewalModal({
     no_failing_grd_validation: r.no_failing_grd_validation,
     no_other_scholar_validation: r.no_other_scholar_validation,
     goodmoral_validation: r.goodmoral_validation,
-    no_criminal_charges_validation: r.no_criminal_charges_validation,
+    no_derogatory_record: r.no_derogatory_record,
+
     full_load_validation: r.full_load_validation,
     withdrawal_change_course_validation: r.withdrawal_change_course_validation,
     enrollment_validation: r.enrollment_validation,
@@ -88,7 +89,8 @@ function UploadFileRenewalModal({
           "No Failing Grades": "no_failing_grd_validation",
           "No Other Scholarship": "no_other_scholar_validation",
           "Good Moral": "goodmoral_validation",
-          "No Criminal Charges": "no_criminal_charges_validation",
+          "No Derogatory Record": "no_derogatory_record",
+
           "Full Load": "full_load_validation",
           "Withdrawal/Change of Program": "withdrawal_change_course_validation",
           "Enrollment Validation": "enrollment_validation",

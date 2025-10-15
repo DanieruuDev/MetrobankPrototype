@@ -3,7 +3,7 @@ const pool = require("../database/dbConnect.js");
 // Get all notifications for a user (with actor info)
 const getUserNotifications = async (req, res) => {
   const { user_id } = req.params;
-  console.log(user_id);
+
   try {
     const query = `
       SELECT 
@@ -40,7 +40,7 @@ const getUserNotifications = async (req, res) => {
 // Mark a notification as read
 const markAsRead = async (req, res) => {
   const { notification_id, user_id } = req.params;
-  console.log("Update ko lang ", notification_id, user_id);
+
   try {
     const query = `
       UPDATE notification_recipients
