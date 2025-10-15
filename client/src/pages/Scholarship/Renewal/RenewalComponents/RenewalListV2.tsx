@@ -14,8 +14,6 @@ import {
   History,
   SquareCheckBig,
   RotateCcw,
-  AlertCircle,
-  Loader2,
 } from "lucide-react";
 import {
   type RenewalRow,
@@ -97,8 +95,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     Array<{ label: string; value: string }>
   >([]);
   const [showAuditLog, setShowAuditLog] = useState(false);
-  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   const itemsPerPage = 10;
 
@@ -291,14 +287,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     return "Not Started";
   };
 
-  const handleShowSaveConfirmation = () => {
-    if (!hasEdits) {
-      toast.info("No changes to save.");
-      return;
-    }
-    setShowSaveConfirmation(true);
-  };
-
   const submitSaveChanges = async (
     tempRenewalData: RenewalDetailsClone[],
     skipCheck = false
@@ -365,7 +353,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     }
 
     try {
-      setIsSaving(true);
       console.log("update rows", updateRows);
 
       if (updateRows.length > 0) {
@@ -1297,7 +1284,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               {/* Save Changes Button (Edit Mode) */}
               {isEdit && (
                 <button
-                  onClick={handleShowSaveConfirmation}
+                  onClick={() => submitSaveChanges(tempRenewalData)}
                   disabled={!hasEdits}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
                     hasEdits
@@ -2154,89 +2141,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         cancelText="Discard Changes"
       />
       {showAuditLog && <AuditLog onClose={() => setShowAuditLog(false)} />}
-
-      {/* Save Confirmation Modal */}
-      {showSaveConfirmation && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998] animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Confirm Save Changes
-              </h3>
-            </div>
-
-            <div className="mb-6 space-y-2">
-              <p className="text-gray-600 text-sm">
-                You are about to save changes to student records.
-              </p>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-gray-700">
-                    Records Modified:
-                  </span>
-                  <span className="text-gray-900 font-semibold">
-                    {tempRenewalData.filter((row) => row.isEdited).length}{" "}
-                    student(s)
-                  </span>
-                </div>
-              </div>
-              <p className="text-gray-600 text-sm mt-3">
-                This action will update the validation status and records. Do
-                you want to proceed?
-              </p>
-            </div>
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowSaveConfirmation(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => submitSaveChanges(tempRenewalData)}
-                className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
-              >
-                Yes, Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Full-Screen Loading Overlay for Saving */}
-      {isSaving && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
-                </div>
-                <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
-              </div>
-
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Saving Changes
-              </h3>
-              <p className="text-gray-600 text-sm text-center mb-4">
-                Please wait while we update the student records...
-              </p>
-
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
-              </div>
-
-              <p className="text-xs text-gray-500 mt-4 text-center">
-                This may take a few moments. Please do not close this window.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
