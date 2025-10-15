@@ -148,56 +148,6 @@ const insertWorkflowLog = async (
   ]);
 };
 
-const checkReject = async (client, workflowId, workflowDetailsForEmail) => {
-  try {
-    const rejectResult = await client.query("SELECT * FROM check_reject($1)", [
-      workflowId,
-    ]);
-
-    const rejector = rejectResult.rows[0];
-    if (!rejector) return []; // no rejection found
-
-    console.log(rejector);
-    // Log the system cancellation
-    await insertWorkflowLog(
-      client,
-      workflowId,
-      rejector.user_id,
-      "System",
-      "Canceled",
-      "Pending",
-      "Canceled",
-      "Workflow has been canceled"
-    );
-
-    // 2️⃣ Get all canceled approvers for this workflow
-    const canceledResult = await client.query(
-      `SELECT user_id, user_email
-       FROM wf_approver
-       WHERE workflow_id = $1
-         AND status = 'Canceled'`,
-      [workflowId]
-    );
-
-    for (const canceled of canceledResult.rows) {
-      await createNotification({
-        type: "WORKFLOW_REJECTED",
-        title: "Workflow Canceled",
-        message: `Approval for "${workflowDetailsForEmail.request_title}" has been canceled due to a rejection.`,
-        relatedId: workflowId,
-        actorId: rejector.user_id, // the approver who rejected
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: canceled.user_id } }],
-      });
-    }
-
-    return canceledResult.rows;
-  } catch (error) {
-    console.error("Error in checkReject:", error);
-    throw error;
-  }
-};
-
 const updateApproverAndResponse = async (
   client,
   approver_id,
@@ -267,7 +217,8 @@ const handleApprovedCase = async (
   comment,
   workflowDetailsForEmail,
   requester_id,
-  approver_id
+  approver_id,
+  io
 ) => {
   let nextApproverFound = false;
   let nextApproverEmail = null;
@@ -377,6 +328,99 @@ const handleApprovedCase = async (
       }
     }
 
+    if (nextApproverFound) {
+      // try {
+      //   await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+      // } catch (err) {
+      //   console.error("sendItsYourTurnEmail failed:", {
+      //     nextUserId,
+      //     nextApproverEmail,
+      //     err,
+      //   });
+      // }
+
+      try {
+        await createNotification(
+          {
+            type: "APPROVAL",
+            title: "It's Your Turn to Approve",
+            message: `Your turn to approve "${workflowDetailsForEmail.request_title}".`,
+            relatedId: workflow_id,
+            actorId: requester_id,
+            actionRequired: true,
+            actionType: "VISIT",
+            recipients: [{ approvers: { user_id: nextUserId } }],
+          },
+          io
+        );
+      } catch (err) {
+        console.error("createNotification (approver turn) failed:", {
+          workflow_id,
+          nextUserId,
+          err,
+        });
+      }
+
+      try {
+        await createNotification(
+          {
+            type: "APPROVAL",
+            title: "Workflow Progressed",
+            message: `Request "${workflowDetailsForEmail.request_title}" has been moved to the next approver.`,
+            relatedId: workflow_id,
+            actorId: user_id,
+            actionRequired: false,
+            recipients: [{ approvers: { user_id: requester_id } }],
+          },
+          io
+        );
+      } catch (err) {
+        console.error("createNotification (participation) failed:", {
+          workflow_id,
+          requester_id,
+          err,
+        });
+      }
+    }
+
+    // If workflow completed -> notify requester and email
+    if (workflowCompleted) {
+      try {
+        await createNotification(
+          {
+            type: "APPROVAL",
+            title: "Workflow is Completed",
+            message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
+            relatedId: workflow_id,
+            actorId: null,
+            actionRequired: false,
+            recipients: [{ approvers: { user_id: requester_id } }],
+          },
+          io
+        );
+      } catch (err) {
+        console.error("createNotification (completed) failed:", {
+          workflow_id,
+          requester_id,
+          err,
+        });
+      }
+
+      try {
+        console.log("email", workflowDetailsForEmail.requesterEmail);
+        await sendWorkflowCompletedEmail(
+          workflowDetailsForEmail.requesterEmail,
+          workflowDetailsForEmail
+        );
+      } catch (err) {
+        console.error("sendWorkflowCompletedEmail failed:", {
+          workflow_id,
+          requester_id,
+          err,
+        });
+      }
+    }
+
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -390,169 +434,11 @@ const handleApprovedCase = async (
     throw err; // re-throw so callers can handle HTTP response / retries
   }
 
-  // ========== Side effects (run after commit so emails/notifs don't rollback DB) ==========
-  // If we moved to next approver -> send email & notifications (non-fatal if fail)
-  if (nextApproverFound) {
-    // try {
-    //   await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
-    // } catch (err) {
-    //   console.error("sendItsYourTurnEmail failed:", {
-    //     nextUserId,
-    //     nextApproverEmail,
-    //     err,
-    //   });
-    // }
-
-    try {
-      await createNotification({
-        type: "WORKFLOW_APPROVER_TURN",
-        title: "It's Your Turn to Approve",
-        message: `Your turn to approve "${workflowDetailsForEmail.request_title}".`,
-        relatedId: workflow_id,
-        actorId: requester_id,
-        actionRequired: true,
-        actionType: "APPROVE",
-        recipients: [{ approvers: { user_id: nextUserId } }],
-      });
-    } catch (err) {
-      console.error("createNotification (approver turn) failed:", {
-        workflow_id,
-        nextUserId,
-        err,
-      });
-    }
-
-    try {
-      await createNotification({
-        type: "WORKFLOW_PARTICIPATION",
-        title: "Workflow Progressed",
-        message: `Request "${workflowDetailsForEmail.request_title}" has been moved to the next approver.`,
-        relatedId: workflow_id,
-        actorId: user_id,
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: requester_id } }],
-      });
-    } catch (err) {
-      console.error("createNotification (participation) failed:", {
-        workflow_id,
-        requester_id,
-        err,
-      });
-    }
-  }
-
-  // If workflow completed -> notify requester and email
-  if (workflowCompleted) {
-    try {
-      // await createNotification({
-      //   type: "WORKFLOW_COMPLETED",
-      //   title: "Workflow is Completed",
-      //   message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
-      //   relatedId: workflow_id,
-      //   actorId: null,
-      //   actionRequired: false,
-      //   recipients: [{ approvers: { user_id: requester_id } }],
-      // });
-    } catch (err) {
-      console.error("createNotification (completed) failed:", {
-        workflow_id,
-        requester_id,
-        err,
-      });
-    }
-
-    try {
-      console.log("email", workflowDetailsForEmail.requesterEmail);
-      await sendWorkflowCompletedEmail(
-        workflowDetailsForEmail.requesterEmail,
-        workflowDetailsForEmail
-      );
-    } catch (err) {
-      console.error("sendWorkflowCompletedEmail failed:", {
-        workflow_id,
-        requester_id,
-        err,
-      });
-    }
-  }
-
-  // success
   return {
     movedToNext: nextApproverFound,
     nextUserId,
     completed: workflowCompleted,
   };
-};
-
-const handleRejectCase = async (
-  client,
-  workflow_id,
-  user_id,
-  comment,
-  workflowDetailsForEmail,
-  requester_id
-) => {
-  try {
-    await client.query("BEGIN");
-
-    try {
-      await insertWorkflowLog(
-        client,
-        workflow_id,
-        user_id,
-        "Approver",
-        "Rejected",
-        "Pending",
-        "Rejected",
-        comment
-      );
-    } catch (err) {
-      console.error("❌ Failed to insert workflow log (Reject):", err);
-      throw err;
-    }
-
-    try {
-      await client.query(
-        `
-        UPDATE workflow
-        SET status = 'Failed', completed_at = NOW()
-        WHERE workflow_id = $1
-        `,
-        [workflow_id]
-      );
-    } catch (err) {
-      console.error("❌ Failed to update workflow status to Failed:", err);
-      throw err;
-    }
-
-    try {
-      await createNotification({
-        type: "WORKFLOW_REJECTED",
-        title: "Workflow was Rejected",
-        message: `Request "${workflowDetailsForEmail.request_title}" was rejected by ${user_id}.`,
-        relatedId: workflow_id,
-        actorId: user_id,
-        actionRequired: false,
-        recipients: [{ approvers: { user_id: requester_id } }],
-      });
-    } catch (err) {
-      console.error("❌ Failed to create rejection notification:", err);
-      throw err;
-    }
-
-    try {
-      await checkReject(client, workflow_id, workflowDetailsForEmail);
-    } catch (err) {
-      console.error("❌ Failed in checkReject function:", err);
-      throw err;
-    }
-
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("🚨 Error in handleRejectCase:", err);
-    throw err; // rethrow so caller can handle
-  }
 };
 
 const handleReturnedCase = async (
@@ -562,7 +448,8 @@ const handleReturnedCase = async (
   created_by,
   workflow_id,
   requester_id,
-  approver_id
+  approver_id,
+  io
 ) => {
   try {
     console.log("appr", approver_id);
@@ -587,17 +474,20 @@ const handleReturnedCase = async (
     );
 
     // 3. Notification
-    await createNotification({
-      type: "WORKFLOW_REJECTED",
-      title: "Workflow Rejected",
-      message: `Your workflow has been rejected. Reason: ${comment}, see workflow for more info`,
-      relatedId: workflow_id,
-      actorId: created_by,
-      actionRequired: true,
-      actionType: "RETURNED",
-      actionPayload: { return_id, response_id },
-      recipients: [{ approvers: { user_id: requester_id } }],
-    });
+    await createNotification(
+      {
+        type: "APPROVAL",
+        title: "Workflow Rejected",
+        message: `Your workflow has been rejected. Reason: ${comment}, see workflow for more info`,
+        relatedId: workflow_id,
+        actorId: created_by,
+        actionRequired: true,
+        actionType: "VISIT",
+        actionPayload: { return_id, response_id },
+        recipients: [{ approvers: { user_id: requester_id } }],
+      },
+      io
+    );
     console.log("Handle returned works");
     await client.query("COMMIT");
     return return_id;
@@ -614,10 +504,10 @@ module.exports = {
   fetchRequester,
   insertApprovers,
   insertWorkflowLog,
-  checkReject,
+
   updateApproverAndResponse,
   getRequesterAndWorkflowDetails,
   handleApprovedCase,
-  handleRejectCase,
+
   handleReturnedCase,
 };

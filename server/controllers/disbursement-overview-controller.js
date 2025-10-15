@@ -8,17 +8,10 @@ const getScholarDisbursementSummary = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    console.log("Fetching disbursement summary with params:", {
-      page,
-      limit,
-      offset,
-    });
-
     // First, let's test if the view exists and is accessible
     const testQuery = await pool.query(
       "SELECT 1 FROM vw_disbursement_overview LIMIT 1"
     );
-    console.log("View test successful");
 
     // Query to fetch paginated data
     const dataQuery = await pool.query(
@@ -32,16 +25,12 @@ const getScholarDisbursementSummary = async (req, res) => {
       [limit, offset]
     );
 
-    console.log("Data query successful, rows:", dataQuery.rows);
-
     // Query total count of records (no LIMIT/OFFSET here)
     const countQuery = await pool.query(
       `SELECT COUNT(*) FROM vw_disbursement_overview`
     );
     const totalCount = parseInt(countQuery.rows[0].count);
     const totalPages = Math.ceil(totalCount / limit);
-
-    console.log("Count query successful, total count:", totalCount);
 
     // Return paginated results and pagination info
     res.status(200).json({

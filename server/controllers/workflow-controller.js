@@ -17,7 +17,6 @@ const {
   updateApproverAndResponse,
   getRequesterAndWorkflowDetails,
   handleApprovedCase,
-  handleRejectCase,
   handleReturnedCase,
 } = require("../utils/workflow.utils.js");
 const { createNotification } = require("../services/notificationService.js");
@@ -77,7 +76,6 @@ const deleteApproval = async (req, res) => {
   const client = await pool.connect();
   const { user_id, workflow_id } = req.params;
 
-  console.log(user_id, workflow_id);
   try {
     if (!user_id || !workflow_id) {
       return res
@@ -101,7 +99,7 @@ const deleteApproval = async (req, res) => {
     ]);
 
     await client.query("COMMIT");
-    console.log(approvalsQuery.rows[0].document_id);
+
     return res.status(200).json({
       message: "Approval Workflow deleted successfully",
       delete: approvalsQuery.rows[0].document_id,
@@ -207,10 +205,8 @@ const changeApprover = async (req, res) => {
       reason // comments
     );
 
-    // Notify old approver
-    console.log("old approver id:", oldApprover.user_id);
     await createNotification({
-      type: "WORKFLOW_PARTICIPATION",
+      type: "APPROVAL",
       title: "You have been replaced as approver",
       message: `You have been replaced as an approver for workflow "${workflow_id}".`,
       relatedId: workflow_id,
@@ -233,7 +229,7 @@ const changeApprover = async (req, res) => {
 
     // Notify new approver
     await createNotification({
-      type: "WORKFLOW_APPROVER_TURN",
+      type: "APPROVAL",
       title: "You have been assigned as approver",
       message: `You have been assigned as an approver for workflow "${workflow_id}".`,
       relatedId: workflow_id,
@@ -360,15 +356,18 @@ const createApproval = async (req, res) => {
     );
 
     if (approverQueries.length > 0) {
-      await createNotification({
-        type: "WORKFLOW_PARTICIPATION",
-        title: "You are part of a workflow",
-        message: `Added you as an approver for workflow "${rq_title}".`,
-        relatedId: workflowId,
-        actorId: requester_id,
-        actionRequired: false,
-        recipients: [approverQueries],
-      });
+      await createNotification(
+        {
+          type: "APPROVAL",
+          title: "You are part of a workflow",
+          message: `Added you as an approver for workflow "${rq_title}".`,
+          relatedId: workflowId,
+          actorId: requester_id,
+          actionRequired: false,
+          recipients: [approverQueries],
+        },
+        req.io
+      );
 
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
@@ -377,28 +376,34 @@ const createApproval = async (req, res) => {
 
       const firstApprover = approverQueries[0].approvers;
 
-      await createNotification({
-        type: "WORKFLOW_APPROVER_TURN",
-        title: "Approval Required",
-        message: `It’s your turn to review and approve workflow "${rq_title}".`,
-        relatedId: workflowId,
-        actorId: requester_id,
-        actionRequired: true,
-        actionType: "VISIT_PAGE",
-        actionPayload: { workflowId, approverId: firstApprover.approver_id },
-        recipients: [{ approvers: { user_id: firstApprover.user_id } }],
-      });
+      await createNotification(
+        {
+          type: "APPROVAL",
+          title: "Approval Required",
+          message: `It’s your turn to review and approve workflow "${rq_title}".`,
+          relatedId: workflowId,
+          actorId: requester_id,
+          actionRequired: true,
+          actionType: "VISIT",
+          actionPayload: { workflowId, approverId: firstApprover.approver_id },
+          recipients: [{ approvers: { user_id: firstApprover.user_id } }],
+        },
+        req.io
+      );
     }
 
-    await createNotification({
-      type: "WORKFLOW_REQUESTED",
-      title: "Workflow Created",
-      message: `Workflow "${rq_title}" has been submitted and is pending approval.`,
-      relatedId: workflowId,
-      actorId: requester_id,
-      actionRequired: false,
-      recipients: [{ approvers: { user_id: requester_id } }],
-    });
+    await createNotification(
+      {
+        type: "APPROVAL",
+        title: "Workflow Created",
+        message: `Workflow "${rq_title}" has been submitted and is pending approval.`,
+        relatedId: workflowId,
+        actorId: requester_id,
+        actionRequired: false,
+        recipients: [{ approvers: { user_id: requester_id } }],
+      },
+      req.io
+    );
 
     await client.query(
       "INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, comments) VALUES ($1, $2, $3, $4, $5)",
@@ -457,8 +462,7 @@ const EditApprovalByID = async (req, res) => {
 
   try {
     await client.query("BEGIN");
-    console.log(workflow_id);
-    console.log(parseInt(workflow_id));
+
     // --- Validate requester ownership ---
     const { rows: workflowRows } = await client.query(
       "SELECT requester_id FROM workflow WHERE workflow_id = $1",
@@ -472,7 +476,6 @@ const EditApprovalByID = async (req, res) => {
 
     const currentRequesterId = workflowRows[0].requester_id;
     if (Number(requester_id) !== currentRequesterId) {
-      console.log(requester_id, currentRequesterId);
       await client.query("ROLLBACK");
       return res
         .status(403)
@@ -689,6 +692,7 @@ const approveApproval = async (req, res) => {
     requester_id,
     user_id,
   } = req.body;
+  const io = req.io;
 
   const requiredFields = {
     approver_id,
@@ -730,22 +734,11 @@ const approveApproval = async (req, res) => {
         comment,
         workflowDetailsForEmail,
         requester_id,
-        approver_id
+        approver_id,
+        io
       );
       await updateApproverAndResponse(client, approver_id, response, comment);
-    }
-    // else if (response === "Reject") {
-    //   await handleRejectCase(
-    //     client,
-    //     workflow_id,
-    //     user_id,
-    //     comment,
-    //     workflowDetailsForEmail,
-    //     requester_id
-    //   );
-    //   await updateApproverAndResponse(client, approver_id, response, comment);
-    // }
-    else if (response === "Reject") {
+    } else if (response === "Reject") {
       try {
         await client.query("BEGIN");
 
@@ -756,10 +749,10 @@ const approveApproval = async (req, res) => {
           user_id,
           workflow_id,
           requester_id,
-          approver_id
+          approver_id,
+          io
         );
 
-        // Update only the response; do not overwrite approver comments with return reasons
         await client.query(
           `
       UPDATE approver_response
@@ -768,15 +761,6 @@ const approveApproval = async (req, res) => {
       `,
           ["Reject", approver_id]
         );
-
-        //   await client.query(
-        //     `
-        // UPDATE wf_approver
-        // SET status = 'Returned'
-        // WHERE approver_id = $1
-        // `,
-        //     [approver_id]
-        //   );
 
         await client.query(
           `
@@ -839,7 +823,7 @@ const approveApproval = async (req, res) => {
 const emailFinder = async (req, res) => {
   try {
     const { query } = req.params;
-    console.log(query);
+
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "Query string is required." });
     }
@@ -906,8 +890,6 @@ const downloadFile = async (req, res) => {
   }
 
   try {
-    console.log("Downloading file from B2:", fileName);
-
     // Get the file stream from B2
     const fileStream = await getDownloadStream(fileName);
 
@@ -934,7 +916,6 @@ const downloadFile = async (req, res) => {
 const emailFinderWithRole = async (req, res) => {
   try {
     const { email } = req.params;
-    console.log("Looking up email:", email);
 
     const result = await pool.query(
       "SELECT * FROM administration_adminaccounts WHERE admin_email = $1",
@@ -1015,7 +996,6 @@ const handleRequesterResponse = async (req, res) => {
   const { return_id, comment, requester_id, workflow_id, response_id } =
     req.body;
   const file = req.file;
-  console.log(file);
 
   const client = await pool.connect();
   try {
@@ -1051,7 +1031,6 @@ const handleRequesterResponse = async (req, res) => {
     );
 
     const reqResponseId = insertRes.rows[0].req_response_id;
-    console.log(reqResponseId);
 
     await client.query(
       `UPDATE approver_response SET response = $1 WHERE response_id = $2`,
@@ -1062,19 +1041,12 @@ const handleRequesterResponse = async (req, res) => {
       `UPDATE return_feedback SET requester_take_action = $1 WHERE return_id = $2`,
       [true, return_id]
     );
-    console.log("Return feedback udpate done");
+
     await client.query(
       `UPDATE workflow SET status = 'In Progress' WHERE workflow_id = $1`,
       [workflow_id]
     );
-    console.log("workflow udpate done");
-    // await client.query(
-    //   `UPDATE wf_approver
-    //    SET status = 'Pending'
-    //    WHERE workflow_id = $1
-    //      AND status = 'Returned'`,
-    //   [workflow_id]
-    // );
+
     await client.query("COMMIT");
 
     res.status(201).json({
@@ -1141,18 +1113,19 @@ const archiveApproval = async (req, res) => {
         approvers: { user_id: a.user_id },
       }));
 
-      console.log("Recipients:", wrappedApprovers);
-
-      await createNotification({
-        type: "WORKFLOW_PARTICIPATION",
-        title: "Workflow Archived",
-        message: `The workflow "${archivedWorkflow.rq_title}" has been archived.`,
-        relatedId: workflow_id,
-        actorId: requester_id,
-        actionRequired: false,
-        actionType: "VIEW_ONLY",
-        recipients: wrappedApprovers,
-      });
+      await createNotification(
+        {
+          type: "APPROVAL",
+          title: "Workflow Archived",
+          message: `The workflow "${archivedWorkflow.rq_title}" has been archived.`,
+          relatedId: workflow_id,
+          actorId: requester_id,
+          actionRequired: false,
+          actionType: "VIEW",
+          recipients: wrappedApprovers,
+        },
+        req.io
+      );
     }
 
     await client.query("COMMIT");
@@ -1172,7 +1145,7 @@ const archiveApproval = async (req, res) => {
 
 const getDataToEdit = async (req, res) => {
   const { workflow_id } = req.params;
-  console.log(workflow_id);
+
   if (!workflow_id) {
     return res.status(404).json({ message: "Workflow ID is missing." });
   }
