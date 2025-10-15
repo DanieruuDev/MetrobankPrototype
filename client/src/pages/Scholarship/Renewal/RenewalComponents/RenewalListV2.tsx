@@ -57,6 +57,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
     []
   );
+  const [isUnvalidatedConfirmOpen, setIsUnvalidatedConfirmOpen] =
+    useState(false);
+
+  const [pendingSaveData, setPendingSaveData] = useState<
+    RenewalDetailsClone[] | null
+  >(null);
+
   const [processInfo, setProcessInfo] = useState<ProcessInfo>({
     process_id: null,
     current_stage: "",
@@ -292,8 +299,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setShowSaveConfirmation(true);
   };
 
-  const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
-    setShowSaveConfirmation(false);
+  const submitSaveChanges = async (
+    tempRenewalData: RenewalDetailsClone[],
+    skipCheck = false
+  ) => {
     const editedRows = tempRenewalData.filter((row) => row.isEdited);
 
     const updateRows = editedRows.map((row: RenewalDetailsClone) => {
@@ -307,7 +316,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         original,
         ...rest
       } = row;
-      console.log("valid id", validation_id);
+
       const changedFields = Object.fromEntries(
         Object.entries(rest).filter(
           ([key, value]) =>
@@ -326,22 +335,49 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         changedFields,
       };
     });
+
     console.log("change", updateRows);
+
+    // 🧠 Check if there are unvalidated edited rows, unless skipCheck = true
+    if (!skipCheck) {
+      const unvalidatedEditedRows = editedRows.filter(
+        (row) => row.is_validated === false
+      );
+
+      if (unvalidatedEditedRows.length > 0) {
+        setPendingSaveData(tempRenewalData);
+        setIsUnvalidatedConfirmOpen(true);
+        return; // ⛔ Pause save until user confirms
+      }
+    }
+
+    // 🧠 Check if there are unvalidated edited rows, unless skipCheck = true
+    if (!skipCheck) {
+      const unvalidatedEditedRows = editedRows.filter(
+        (row) => row.is_validated === false
+      );
+
+      if (unvalidatedEditedRows.length > 0) {
+        setPendingSaveData(tempRenewalData);
+        setIsUnvalidatedConfirmOpen(true);
+        return; // ⛔ Pause save until user confirms
+      }
+    }
 
     try {
       setIsSaving(true);
       console.log("update rows", updateRows);
+
       if (updateRows.length > 0) {
         const res = await axios.put(
           `${VITE_BACKEND_URL}api/renewal/update-renewalV2`,
           updateRows
         );
-        console.log("Response:", res); // Log the full response
+        console.log("Response:", res);
 
         // Refresh data
         getRenewalData(sySemester);
 
-        // Ensure toast is shown regardless of response structure
         if (res.status === 200) {
           if (res.data?.totalUpdated && res.data?.message) {
             toast.success(
@@ -367,7 +403,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         toast.error("Unexpected error occurred");
       }
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
+      setIsUnvalidatedConfirmOpen(false);
+      setPendingSaveData(null);
     }
   };
 
@@ -452,8 +490,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       const updatedRows = prev.map((r) => {
         if (r.renewal_id === renewal.renewal_id) {
           // Determine the new value for is_validated
-          const newValue =
-            currentValue === null ? true : currentValue === true ? false : null;
+          const newValue = !currentValue;
 
           // If trying to set to true (validated) and any field is Not Started, prevent it
           if (newValue === true && hasNotStarted) {
@@ -1273,6 +1310,20 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   <span className="xs:hidden">Save</span>
                 </button>
               )}
+
+              <ConfirmationDialog
+                isOpen={isUnvalidatedConfirmOpen}
+                message={`Some records you edited are not yet validated. All changes will be saved, but only validated records will be sent to HR. Do you want to continue? `}
+                onConfirm={() => {
+                  if (pendingSaveData) submitSaveChanges(pendingSaveData, true);
+                }}
+                onCancel={() => {
+                  setIsUnvalidatedConfirmOpen(false);
+                  setPendingSaveData(null);
+                }}
+                confirmText="Proceed Anyway"
+                cancelText="Cancel"
+              />
             </div>
           </div>
 

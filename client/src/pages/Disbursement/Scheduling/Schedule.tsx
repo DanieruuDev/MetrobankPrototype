@@ -9,6 +9,7 @@ import axios from "axios";
 import { isBefore, startOfDay } from "date-fns";
 import AgendaView from "../../../components/disbursement/Agenda";
 import { useSidebar } from "../../../context/SidebarContext";
+import { useAuth } from "../../../context/AuthContext";
 
 export interface DisbursementSchedule {
   sched_id: number;
@@ -35,6 +36,9 @@ function Schedule() {
   const [viewMode, setViewMode] = useState<"month" | "agenda">("month");
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
   const { collapsed } = useSidebar();
+  const { user } = useAuth(); // Get current user info
+  const role_id = user?.role_id;
+  console.log(role_id);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const onClose = (isClosed: boolean) => {
@@ -290,15 +294,19 @@ function Schedule() {
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                className="bg-[#3B89FD] text-white rounded-md gap-2 py-2 px-3 sm:px-4 flex items-center cursor-pointer hover:bg-[#3b62fd] w-full sm:w-auto justify-center"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <Plus />
-                <span className="text-[14px]  xs:inline">Schedule</span>
-              </button>
-            </div>
+            {role_id === 7 ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <button
+                  className="bg-[#3B89FD] text-white rounded-md gap-2 py-2 px-3 sm:px-4 flex items-center cursor-pointer hover:bg-[#3b62fd] w-full sm:w-auto justify-center"
+                  onClick={() => setIsModalOpen(true)}
+                >
+                  <Plus />
+                  <span className="text-[14px]  xs:inline">Schedule</span>
+                </button>
+              </div>
+            ) : (
+              ""
+            )}
           </div>
 
           {/* Mobile Floating Schedule Button */}

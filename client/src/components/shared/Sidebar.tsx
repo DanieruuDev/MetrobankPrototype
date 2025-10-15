@@ -58,7 +58,13 @@ const Sidebar = () => {
       to: "/schedule",
       label: "Calendar of Activities",
       Icon: Calendar,
-      allowedRoles: ["mb hr", "mbs head", "system_admin"],
+      allowedRoles: [
+        "mb hr",
+        "mbs head",
+        "system_admin",
+        "sti registrar",
+        "discipline office",
+      ],
     },
     {
       to: "/financial-overview",

@@ -42,7 +42,7 @@ const markCompleteSchedule = async (req, res) => {
   const { sched_id } = req.params;
   const { workflow_id, updates } = req.body;
   const client = await pool.connect();
-  console.log(updates);
+
   if (!workflow_id) {
     return res.status(400).json({ message: "Invalid workflow_id." });
   }
