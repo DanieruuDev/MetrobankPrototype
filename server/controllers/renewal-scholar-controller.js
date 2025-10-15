@@ -1,6 +1,7 @@
 const pool = require("../database/dbConnect.js");
 const ExcelJS = require("exceljs");
 const { startProcess } = require("../services/processProgressService.js");
+const { computeScholarshipStatus } = require("../services/renewalService.js");
 
 //MASS UPLOAD INITIAL LIST AFTER IDENTIFYING SCHOLAR APPLICANTS
 //Functionality to update masterlist scholarship
@@ -668,31 +669,35 @@ const updateScholarRenewalV2 = async (req, res) => {
         const result = await client.query(query, [...values, renewal_id]);
 
         if (result.rowCount > 0) {
-          updatedSomething = true;
-
-          const auditEntries = Object.entries(validationFields).map(
-            ([field_name, value]) => [
-              validation_id,
-              field_name,
-              value !== null ? value.toString() : null,
-              user_id,
-              role_id,
-            ]
+          const { rows } = await client.query(
+            `SELECT * FROM renewal_validation WHERE renewal_id = $1`,
+            [renewal_id]
           );
 
-          if (auditEntries.length > 0) {
+          if (rows.length > 0) {
+            const validationRow = rows[0];
+            const newStatus = computeScholarshipStatus(validationRow);
+            console.log(newStatus);
+            let delistingRootCause = null;
+            let delistedDate = null;
+
+            if (newStatus === "Delisted") {
+              const failedFields = Object.keys(validationRow)
+                .filter((k) => validationRow[k] === "Failed")
+                .join(", ");
+              delistingRootCause = failedFields;
+              delistedDate = new Date().toISOString();
+            }
+
             await client.query(
-              `INSERT INTO public.field_validation 
-                (validation_id, field_name, value, validated_by, role_id, validated_at)
-               SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), 
-                      unnest($4::int[]), unnest($5::int[]), NOW()`,
-              [
-                auditEntries.map((e) => e[0]),
-                auditEntries.map((e) => e[1]),
-                auditEntries.map((e) => e[2]),
-                auditEntries.map((e) => e[3]),
-                auditEntries.map((e) => e[4]),
-              ]
+              `
+        UPDATE renewal_validation
+        SET scholarship_status = $1,
+            delisting_root_cause = $2,
+            delisted_date = $3
+        WHERE renewal_id = $4
+        `,
+              [newStatus, delistingRootCause, delistedDate, renewal_id]
             );
           }
         }
