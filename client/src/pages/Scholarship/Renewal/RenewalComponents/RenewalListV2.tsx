@@ -365,7 +365,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     }
 
     try {
-      setIsSaving(true);
+      setIsLoading(true);
       console.log("update rows", updateRows);
 
       if (updateRows.length > 0) {
@@ -2197,7 +2197,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 Cancel
               </button>
               <button
-                onClick={() => submitSaveChanges(tempRenewalData)}
+                onClick={() => {
+                  submitSaveChanges(tempRenewalData);
+                  setShowSaveConfirmation(false);
+                }}
                 className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
               >
                 Yes, Save Changes
