@@ -3,6 +3,7 @@ import axios from "axios";
 import NotificationModal from "./NotificationModal";
 import { Bell } from "lucide-react";
 import { toast } from "react-toastify";
+import { socket } from "../../utils/socket";
 
 interface Notification {
   id: number;
@@ -27,6 +28,8 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+  // 🟢 Fetch existing notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -39,6 +42,22 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
       }
     };
     if (userId) fetchNotifications();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    socket.emit("register_user", userId);
+    console.log(`✅ Registered user_${userId} for notifications`);
+
+    socket.on("new_notification", (notif) => {
+      console.log("🔔 New real-time notification:", notif);
+      setNotifications((prev) => [notif, ...prev]);
+    });
+
+    return () => {
+      socket.off("new_notification");
+    };
   }, [userId]);
 
   const markAsRead = async (notification_id: number) => {
@@ -55,6 +74,8 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
       console.error("Failed to mark as read:", err);
     }
   };
+
+  // 🟢 Mark all as read
   const markAllAsRead = async () => {
     try {
       const response = await axios.put(
@@ -73,7 +94,7 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
     }
   };
 
-  // Handle clicks outside wrapper
+  // 🟢 Handle clicks outside modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -84,9 +105,7 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -110,7 +129,7 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
           <NotificationModal
             notifications={notifications}
             markAsRead={markAsRead}
-            markAllAsRead={markAllAsRead} // <-- pass it here
+            markAllAsRead={markAllAsRead}
           />
         </div>
       )}

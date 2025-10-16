@@ -3,14 +3,10 @@ const pool = require("../database/dbConnect.js");
 const updateRenewalProcess = async (req, res) => {
   const { sy_code, semester_code, stage_name, action, user_id } = req.body;
 
-  console.log("🟦 updateRenewalProcess called with:", req.body);
-
   // 1️⃣ Validate input
   if (!sy_code || !semester_code || !stage_name || !action || !user_id) {
     return res.status(400).json({ message: "Missing required fields." });
   }
-
-  console.log("🔹 Processing renewal stage update...");
 
   const client = await pool.connect();
   try {
@@ -80,7 +76,6 @@ const updateRenewalProcess = async (req, res) => {
     }
 
     const updatedStage = updateStageRes.rows[0];
-    console.log("✅ Stage updated successfully:", updatedStage);
 
     // 5️⃣ Update parent process current stage
     await client.query(
@@ -92,10 +87,6 @@ const updateRenewalProcess = async (req, res) => {
       WHERE process_id = $1
       `,
       [processId, newProcessStage]
-    );
-
-    console.log(
-      `🔄 disbursement_process.current_stage set to '${newProcessStage}'`
     );
 
     // 6️⃣ Return success response
@@ -117,8 +108,6 @@ const updateRenewalProcess = async (req, res) => {
 const getProcess = async (req, res) => {
   const { sy_code, semester_code } = req.params;
 
-  console.log("🟦 getProcess called with:", req.params);
-
   // 1️⃣ Validate input
   if (!sy_code || !semester_code) {
     return res.status(400).json({
@@ -136,8 +125,6 @@ const getProcess = async (req, res) => {
     `;
     const response = await client.query(query, [sy_code, semester_code]);
 
-    // 4️⃣ Success
-    console.log("✅ Process fetched successfully:", response.rows[0]);
     return res.status(200).json({
       message: "Process retrieved successfully.",
       data: response.rows[0],
