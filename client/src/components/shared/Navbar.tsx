@@ -15,13 +15,19 @@ const Navbar = ({ pageName }: NavbarProps) => {
   const navigate = useNavigate();
   const { setIsMobileOpen } = useSidebar();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
+    setShowLogoutConfirmation(true);
+    setIsDropdownOpen(false);
+  };
+
+  const handleConfirmedLogout = () => {
     auth?.logout();
     toast.success("Logged out successfully!");
     navigate("/");
-    setIsDropdownOpen(false);
+    setShowLogoutConfirmation(false);
   };
 
   useEffect(() => {
@@ -53,143 +59,176 @@ const Navbar = ({ pageName }: NavbarProps) => {
   const initials = getInitials(userName);
 
   return (
-    <nav className="sticky top-0 lg:relative flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 lg:py-4 border-b-[#024FA8] border-2 border-x-0 border-t-0 bg-white z-50">
-      {/* Left side - Hamburger menu (mobile) and page title */}
-      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-        {/* Hamburger menu - only visible on mobile */}
-        <button
-          onClick={() => setIsMobileOpen(true)}
-          className="lg:hidden p-1.5 rounded-md bg-white/20 backdrop-blur-sm 
-            hover:bg-white/30 border border-white/30 shadow-md 
-            transition-all duration-200 flex-shrink-0"
-          aria-label="Open menu"
-        >
-          <Menu className="h-5 w-5 text-[#024FA8]" />
-        </button>
+    <>
+      <nav className="sticky top-0 lg:relative flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 lg:py-4 border-b-[#024FA8] border-2 border-x-0 border-t-0 bg-white z-50">
+        {/* Left side - Hamburger menu (mobile) and page title */}
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+          {/* Hamburger menu - only visible on mobile */}
+          <button
+            onClick={() => setIsMobileOpen(true)}
+            className="lg:hidden p-1.5"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5 text-[#024FA8]" />
+          </button>
 
-        {/* Page title */}
-        <div className="text-[#024FA8] text-sm sm:text-lg lg:text-[25px] font-medium truncate min-w-0">
-          {pageName}
+          {/* Page title */}
+          <div className="text-[#024FA8] text-sm sm:text-lg lg:text-[25px] font-medium truncate min-w-0">
+            {pageName}
+          </div>
         </div>
-      </div>
 
-      {/* Right side - User info and notifications */}
-      <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
-        {auth?.user ? (
-          <div className="relative z-50" ref={dropdownRef}>
-            <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
-              {/* Notifications */}
-              <div className="flex-shrink-0">
-                <NotificationWrapper userId={auth?.info?.admin_id || 0} />
-              </div>
-
-              {/* Role badge - hidden on mobile and tablet */}
-              <div
-                className="hidden lg:block px-2 lg:px-3 py-1 rounded-full border border-blue-600/50 
-                  bg-blue-50/80 backdrop-blur-sm text-blue-700 text-xs font-semibold
-                  tracking-wide uppercase shadow-lg"
-                title={auth.user.role_name}
-              >
-                {auth.user.role_name}
-              </div>
-
-              {/* User info with dropdown - clickable area */}
-              <div className="flex items-center space-x-1 sm:space-x-2 group">
-                {/* Username - display only on desktop (not clickable) */}
-                <div className="hidden sm:block text-xs sm:text-sm font-medium text-gray-700 max-w-[80px] lg:max-w-none truncate">
-                  {userName}
+        {/* Right side - User info and notifications */}
+        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
+          {auth?.user ? (
+            <div className="relative z-50" ref={dropdownRef}>
+              <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
+                {/* Notifications */}
+                <div className="flex-shrink-0">
+                  <NotificationWrapper userId={auth?.info?.admin_id || 0} />
                 </div>
 
-                {/* User avatar - clickable on mobile only */}
-                <button
-                  onClick={() => {
-                    console.log(
-                      "Avatar clicked, current state:",
-                      isDropdownOpen
-                    );
-                    setIsDropdownOpen(!isDropdownOpen);
-                  }}
-                  className="sm:hidden flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
+                {/* Role badge - hidden on mobile and tablet */}
+                <div
+                  className="hidden lg:block px-2 lg:px-3 py-1 rounded-full border border-blue-600/50 
+                  bg-blue-50/80 backdrop-blur-sm text-blue-700 text-xs font-semibold
+                  tracking-wide uppercase shadow-lg"
+                  title={auth.user.role_name}
+                >
+                  {auth.user.role_name}
+                </div>
+
+                {/* User info with dropdown - clickable area */}
+                <div className="flex items-center space-x-1 sm:space-x-2 group">
+                  {/* Username - display only on desktop (not clickable) */}
+                  <div className="hidden sm:block text-xs sm:text-sm font-medium text-gray-700 max-w-[80px] lg:max-w-none truncate">
+                    {userName}
+                  </div>
+
+                  {/* User avatar - clickable on mobile only */}
+                  <button
+                    onClick={() => {
+                      console.log(
+                        "Avatar clicked, current state:",
+                        isDropdownOpen
+                      );
+                      setIsDropdownOpen(!isDropdownOpen);
+                    }}
+                    className="sm:hidden flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
                     bg-gradient-to-tr from-blue-500/90 to-indigo-600/90 backdrop-blur-sm 
                     text-white font-semibold text-xs sm:text-sm 
                     hover:from-blue-600/90 hover:to-indigo-700/90 
                     border border-white/30 shadow-lg hover:shadow-xl 
                     transition-all duration-200"
-                  aria-label="User menu"
-                >
-                  {initials}
-                </button>
+                    aria-label="User menu"
+                  >
+                    {initials}
+                  </button>
 
-                {/* User avatar - display only on desktop (not clickable) */}
-                <div
-                  className="hidden sm:flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
+                  {/* User avatar - display only on desktop (not clickable) */}
+                  <div
+                    className="hidden sm:flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full 
                     bg-gradient-to-tr from-blue-500/90 to-indigo-600/90 backdrop-blur-sm 
                     text-white font-semibold text-xs sm:text-sm 
                     border border-white/30 shadow-lg 
                     transition-all duration-200"
-                >
-                  {initials}
+                  >
+                    {initials}
+                  </div>
+
+                  {/* Dropdown arrow - clickable on desktop only */}
+                  <button
+                    onClick={() => {
+                      console.log(
+                        "Arrow clicked, current state:",
+                        isDropdownOpen
+                      );
+                      setIsDropdownOpen(!isDropdownOpen);
+                    }}
+                    className="hidden sm:block hover:text-gray-700 transition-colors"
+                    aria-label="User menu"
+                  >
+                    {isDropdownOpen ? (
+                      <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                    )}
+                  </button>
                 </div>
-
-                {/* Dropdown arrow - clickable on desktop only */}
-                <button
-                  onClick={() => {
-                    console.log(
-                      "Arrow clicked, current state:",
-                      isDropdownOpen
-                    );
-                    setIsDropdownOpen(!isDropdownOpen);
-                  }}
-                  className="hidden sm:block hover:text-gray-700 transition-colors"
-                  aria-label="User menu"
-                >
-                  {isDropdownOpen ? (
-                    <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
-                  ) : (
-                    <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
-                  )}
-                </button>
               </div>
-            </div>
 
-            {/* Compact dropdown menu */}
-            {isDropdownOpen && (
-              <div
-                className="
+              {/* Compact dropdown menu */}
+              {isDropdownOpen && (
+                <div
+                  className="
                   absolute right-0 mt-2 w-40 sm:w-48 bg-white/95 backdrop-blur-xl rounded-lg 
                   shadow-xl border border-white/30 py-1 z-[9999]
                 "
-              >
-                <div className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 border-b border-white/30 flex items-center bg-white/50 backdrop-blur-sm">
-                  <User className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                  <span className="truncate">{userName}</span>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="
+                >
+                  <div className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 border-b border-white/30 flex items-center bg-white/50 backdrop-blur-sm">
+                    <User className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                    <span className="truncate">{userName}</span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="
                     w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 
                     hover:bg-white/60 hover:backdrop-blur-sm flex items-center
                     transition-all duration-200
                   "
-                >
-                  <LogOut className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Link
-            to="/login"
-            className="text-[#024FA8] font-semibold hover:underline text-sm sm:text-base
+                  >
+                    <LogOut className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="text-[#024FA8] font-semibold hover:underline text-sm sm:text-base
               px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 
               border border-white/30 shadow-md transition-all duration-200"
-          >
-            Login
-          </Link>
-        )}
-      </div>
-    </nav>
+            >
+              Login
+            </Link>
+          )}
+        </div>
+      </nav>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998] animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
+            <div className="flex items-center gap-3 mb-4"></div>
+
+            <div className="mb-6">
+              <p className="text-gray-600 text-sm mb-4">
+                Are you sure you want to log out?
+              </p>
+              <p className="text-gray-500 text-xs">
+                You will need to sign in again to access your account.
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowLogoutConfirmation(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmedLogout}
+                className="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

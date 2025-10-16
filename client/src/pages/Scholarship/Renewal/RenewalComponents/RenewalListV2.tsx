@@ -14,6 +14,7 @@ import {
   History,
   SquareCheckBig,
   RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 import {
   type RenewalRow,
@@ -55,13 +56,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
     []
   );
-  const [isUnvalidatedConfirmOpen, setIsUnvalidatedConfirmOpen] =
-    useState(false);
-
-  const [pendingSaveData, setPendingSaveData] = useState<
-    RenewalDetailsClone[] | null
-  >(null);
-
   const [processInfo, setProcessInfo] = useState<ProcessInfo>({
     process_id: null,
     current_stage: "",
@@ -95,6 +89,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     Array<{ label: string; value: string }>
   >([]);
   const [showAuditLog, setShowAuditLog] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
   const itemsPerPage = 10;
   // Define which columns are editable when in Edit Mode
@@ -299,10 +294,26 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     return "Not Started";
   };
 
-  const submitSaveChanges = async (
-    tempRenewalData: RenewalDetailsClone[],
-    skipCheck = false
-  ) => {
+  const handleShowSaveConfirmation = () => {
+    if (!hasEdits) {
+      toast.info("No changes to save.", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      console.log(
+        "No edits detected. Edited rows:",
+        tempRenewalData.filter((row) => row.isEdited)
+      );
+      return;
+    }
+    console.log(
+      "Opening save confirmation. Edited rows:",
+      tempRenewalData.filter((row) => row.isEdited).length
+    );
+    setShowSaveConfirmation(true);
+  };
+
+  const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
     const editedRows = tempRenewalData.filter((row) => row.isEdited);
 
     const updateRows = editedRows.map((row: RenewalDetailsClone) => {
@@ -338,19 +349,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
     console.log("change", updateRows);
 
-    // 🧠 Check if there are unvalidated edited rows, unless skipCheck = true
-    if (!skipCheck) {
-      const unvalidatedEditedRows = editedRows.filter(
-        (row) => row.is_validated === false
-      );
-
-      if (unvalidatedEditedRows.length > 0) {
-        setPendingSaveData(tempRenewalData);
-        setIsUnvalidatedConfirmOpen(true);
-        return; // ⛔ Pause save until user confirms
-      }
-    }
-
     try {
       setIsLoading(true);
       console.log("update rows", updateRows);
@@ -368,31 +366,49 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         if (res.status === 200) {
           if (res.data?.totalUpdated && res.data?.message) {
             toast.success(
-              `${res.data.totalUpdated} row(s) ${res.data.message}`
+              `${res.data.totalUpdated} row(s) ${res.data.message}`,
+              {
+                position: "top-center",
+                autoClose: 3000,
+              }
             );
           } else {
-            toast.success("Changes saved successfully");
+            toast.success("Changes saved successfully", {
+              position: "top-center",
+              autoClose: 3000,
+            });
           }
         } else {
-          toast.warn("Update completed with unexpected response.");
+          toast.warn("Update completed with unexpected response.", {
+            position: "top-center",
+            autoClose: 3000,
+          });
         }
       } else {
-        toast.info("No changes to update.");
+        toast.info("No changes to update.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
       }
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error("Update failed:", error.response?.data || error.message);
         toast.error(
-          error.response?.data?.message || "Failed to update changes"
+          error.response?.data?.message || "Failed to update changes",
+          {
+            position: "top-center",
+            autoClose: 5000,
+          }
         );
       } else {
         console.error("Unexpected error:", error);
-        toast.error("Unexpected error occurred");
+        toast.error("Unexpected error occurred", {
+          position: "top-center",
+          autoClose: 5000,
+        });
       }
     } finally {
       setIsLoading(false);
-      setIsUnvalidatedConfirmOpen(false);
-      setPendingSaveData(null);
     }
   };
 
@@ -489,7 +505,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           // If trying to set to true (validated) and any field is Not Started, prevent it
           if (newValue === true && hasNotStarted) {
             toast.error(
-              "All validation fields must be set to Passed or Failed before validating."
+              "All validation fields must be set to Passed or Failed before validating.",
+              {
+                toastId: "validation-individual-error", // Prevents duplicate toasts
+              }
             );
             return r; // Return unchanged row to prevent update
           }
@@ -735,18 +754,61 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     }
   };
   const handleCheckModal = (type: string) => {
+    // Validation fields to check
+    const validationFields = Object.keys(validation).filter(
+      (k) =>
+        k !== "scholarship_status" &&
+        k !== "gpa_validation_stat" &&
+        k !== "is_validated"
+    );
+
+    // Pre-validation: Check if we're trying to validate (set to true) and if any records have "Not Started" fields
+    if (type === "Check All" || type === "Check Remaining") {
+      const recordsToUpdate = tempRenewalData.filter((r) => {
+        if (type === "Check All") return true;
+        if (type === "Check Remaining") return r.is_validated === null;
+        return false;
+      });
+
+      const recordsWithNotStarted = recordsToUpdate.filter((r) =>
+        validationFields.some(
+          (field) => r[field as keyof RenewalDetails] === "Not Started"
+        )
+      );
+
+      if (recordsWithNotStarted.length > 0) {
+        toast.error(
+          `Cannot validate ${recordsWithNotStarted.length} record(s). All validation fields must be set to Passed or Failed before validating.`,
+          {
+            toastId: "validation-check-error", // Prevents duplicate toasts
+          }
+        );
+        return; // Exit early without updating
+      }
+    }
+
+    // Proceed with the update if validation passed
     setTempRenewalData((prev) => {
       return prev.map((r) => {
         let shouldUpdate = false;
+        let newValidationValue: boolean | null = null;
 
         if (type === "Check All") {
           shouldUpdate = true;
+          newValidationValue = true;
         } else if (type === "Check Remaining") {
           shouldUpdate = r.is_validated === null;
+          newValidationValue = true;
+        } else if (type === "Uncheck All") {
+          shouldUpdate = true;
+          newValidationValue = false;
+        } else if (type === "Uncheck Remaining") {
+          shouldUpdate = r.is_validated === null;
+          newValidationValue = false;
         }
 
-        if (shouldUpdate) {
-          const updated = { ...r, is_validated: true };
+        if (shouldUpdate && newValidationValue !== null) {
+          const updated = { ...r, is_validated: newValidationValue };
           const scholarship_status = computeScholarshipStatus(updated);
 
           const isEdited = Object.keys(updated).some(
@@ -1255,7 +1317,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               {/* Save Changes Button (Edit Mode) */}
               {isEdit && (
                 <button
-                  onClick={() => submitSaveChanges(tempRenewalData)}
+                  onClick={handleShowSaveConfirmation}
                   disabled={!hasEdits}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
                     hasEdits
@@ -1268,20 +1330,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   <span className="xs:hidden">Save</span>
                 </button>
               )}
-
-              <ConfirmationDialog
-                isOpen={isUnvalidatedConfirmOpen}
-                message={`Some records you edited are not yet validated. All changes will be saved, but only validated records will be sent to HR. Do you want to continue? `}
-                onConfirm={() => {
-                  if (pendingSaveData) submitSaveChanges(pendingSaveData, true);
-                }}
-                onCancel={() => {
-                  setIsUnvalidatedConfirmOpen(false);
-                  setPendingSaveData(null);
-                }}
-                confirmText="Proceed Anyway"
-                cancelText="Cancel"
-              />
             </div>
           </div>
 
@@ -1400,9 +1448,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               </div>
 
               {/* Additional Filters Row */}
-              <div className="flex justify-between items-center">
-                {/* School Year & Semester Filter */}
-                <div className="flex flex-col lg:flex-row gap-3">
+              <div className="flex flex-col lg:flex-row gap-3">
+                {/* Left side: Filters */}
+                <div className="flex flex-col lg:flex-row gap-3 flex-1">
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
                       School Year & Semester:
@@ -1435,7 +1483,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                         onChange={(e) =>
                           setSelectedBranchFilter(e.target.value)
                         }
-                        className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed truncate"
                       >
                         <option value="All">All Branches</option>
                         {uniqueBranches.map((branch) => (
@@ -1467,7 +1515,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                       ))}
                     </select>
                   </div>
+                </div>
 
+                {/* Right side: Clear Filters & Audit Log */}
+                <div className="flex flex-col sm:flex-row gap-2 lg:items-end">
                   {/* Clear Filters Button */}
                   <button
                     onClick={() => {
@@ -1476,20 +1527,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                       setSelectedYearLevelFilter("All");
                       setSearchQuery("");
                     }}
-                    className="px-3 py-2 text-xs font-medium bg-white/100  text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
+                    className="px-3 py-2 text-xs font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
                   >
                     Clear Filters
                   </button>
-                </div>
 
-                <div className="items-end">
+                  {/* Audit Log Button */}
                   {role_id === 7 && (
                     <button
-                      className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50 cursor-pointer"
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-xs font-medium border border-white/50 cursor-pointer"
                       onClick={() => setShowAuditLog(true)}
                     >
                       <History className="w-4 h-4" />
-                      <span className="hidden xs:inline">Audit Log</span>
+                      <span>Audit Log</span>
                     </button>
                   )}
                 </div>
@@ -1608,6 +1658,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                     <CheckAllDropdown
                                       label={label.toUpperCase()}
                                       handleCheck={handleCheckModal}
+                                      isEditMode={true}
                                     />
                                   ) : (
                                     <span className="flex justify-center">
@@ -2188,6 +2239,110 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         cancelText="Discard Changes"
       />
       {showAuditLog && <AuditLog onClose={() => setShowAuditLog(false)} />}
+
+      {/* Save Confirmation Modal */}
+      {showSaveConfirmation &&
+        (() => {
+          const editedRows = tempRenewalData.filter((row) => row.isEdited);
+          const unvalidatedEditedRows = editedRows.filter(
+            (row) => row.is_validated === false
+          );
+          const hasUnvalidated = unvalidatedEditedRows.length > 0;
+
+          return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998] animate-fadeIn">
+              <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className={`w-12 h-12 ${
+                      hasUnvalidated ? "bg-amber-100" : "bg-green-100"
+                    } rounded-full flex items-center justify-center flex-shrink-0`}
+                  >
+                    <AlertCircle
+                      className={`w-6 h-6 ${
+                        hasUnvalidated ? "text-amber-600" : "text-green-600"
+                      }`}
+                    />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Confirm Save Changes
+                  </h3>
+                </div>
+
+                <div className="mb-6 space-y-2">
+                  {hasUnvalidated ? (
+                    <>
+                      <p className="text-gray-600 text-sm">
+                        Some records you edited are not yet validated. All
+                        changes will be saved, but only validated records will
+                        be sent to HR.
+                      </p>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium text-gray-700">
+                            Records Modified:
+                          </span>
+                          <span className="text-gray-900 font-semibold">
+                            {editedRows.length} student(s)
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium text-gray-700">
+                            Unvalidated Records:
+                          </span>
+                          <span className="text-amber-700 font-semibold">
+                            {unvalidatedEditedRows.length} student(s)
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 text-sm">
+                        You are about to save changes to student records.
+                      </p>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium text-gray-700">
+                            Records Modified:
+                          </span>
+                          <span className="text-gray-900 font-semibold">
+                            {editedRows.length} student(s)
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  <p className="text-gray-600 text-sm mt-3">
+                    Do you want to {hasUnvalidated ? "continue" : "proceed"}?
+                  </p>
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowSaveConfirmation(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      submitSaveChanges(tempRenewalData);
+                      setShowSaveConfirmation(false);
+                    }}
+                    className={`px-4 py-2 ${
+                      hasUnvalidated
+                        ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+                        : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                    } text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl`}
+                  >
+                    {hasUnvalidated ? "Proceed Anyway" : "Yes, Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </>
   );
 }

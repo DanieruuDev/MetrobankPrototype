@@ -425,7 +425,7 @@ const ROIandAnalytics: React.FC = () => {
 
             {/* COMPACT METRICS GRID */}
             <div className="mb-4 sm:mb-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mx-1 sm:mx-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-3 mx-1 sm:mx-0">
                 <MetricCard
                   title="Program ROI"
                   value={`${overallROI.toFixed(1)}%`}
@@ -510,7 +510,7 @@ const ROIandAnalytics: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center mb-3 sm:mb-0">
                   <TrendingUpIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-600" />
-                  AI Prediction
+                  Prediction
                 </h3>
 
                 {/* Year Selector */}

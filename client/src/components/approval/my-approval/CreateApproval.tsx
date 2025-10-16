@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, AlertCircle, Loader2 } from "lucide-react";
 import { useContext, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { AuthContext } from "../../../context/AuthContext";
@@ -18,7 +18,6 @@ interface CreateApproval2Props {
 
 //!Notes: Try to change the approval request decription into a checkbox of data for type of reques
 function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stepNum, setStepNum] = useState(1);
   const auth = useContext(AuthContext);
@@ -26,6 +25,9 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [approversValid, setApproversValid] = useState(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [showValidation, setShowValidation] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const loading = isCreating; // Alias for backward compatibility
 
   const isApproverValid = (): boolean => {
     if (!approversValid) {
@@ -127,16 +129,20 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     }
   };
 
-  // In CreateApproval.tsx, update the handleSubmit function:
-  const handleSubmit = async () => {
+  const handleShowConfirmation = () => {
     if (!formData.approvers || formData.approvers.length === 0) {
       toast.error("Please add at least one approver");
       return;
     }
+    setShowConfirmation(true);
+  };
 
+  // In CreateApproval.tsx, update the handleSubmit function:
+  const handleSubmit = async () => {
+    setShowConfirmation(false);
     console.log(formData.semester_code, formData.sy_code);
     setError(null);
-    setLoading(true);
+    setIsCreating(true);
 
     const sendData = new FormData();
     sendData.append("rq_title", formData.rq_title);
@@ -201,7 +207,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         toast.error("An unexpected error occurred");
       }
     } finally {
-      setLoading(false);
+      setIsCreating(false);
     }
   };
 
@@ -301,11 +307,11 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
 
             {stepNum === 3 ? (
               <button
-                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer"
-                onClick={handleSubmit}
-                disabled={loading}
+                className="p-2 bg-[#2563EB] rounded-sm text-white cursor-pointer disabled:opacity-50"
+                onClick={handleShowConfirmation}
+                disabled={loading || isCreating}
               >
-                {loading ? "Loading..." : "Create Workflow"}
+                Create Workflow
               </button>
             ) : (
               <button
@@ -318,6 +324,104 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && !isCreating && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Confirm Workflow Creation
+              </h3>
+            </div>
+
+            <div className="mb-6 space-y-2">
+              <p className="text-gray-600 text-sm">
+                You are about to create a new approval workflow:
+              </p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Title:</span>
+                  <span className="text-gray-900 font-semibold truncate ml-2">
+                    {formData.rq_title}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Type:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {formData.approval_req_type}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Approvers:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {formData.approvers.length} approver(s)
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Due Date:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {new Date(formData.due_date).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+              <p className="text-gray-600 text-sm mt-3">
+                This will start the approval process and send notifications to
+                all approvers. Do you want to proceed?
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirmation(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
+              >
+                Yes, Create Workflow
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Loading Overlay */}
+      {isCreating && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+                </div>
+                <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Creating Workflow
+              </h3>
+              <p className="text-gray-600 text-sm text-center mb-4">
+                Setting up approval process and notifying approvers...
+              </p>
+
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                This may take a few moments. Please do not close this window.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

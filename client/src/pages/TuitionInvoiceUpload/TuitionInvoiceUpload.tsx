@@ -10,6 +10,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Loading from "../../components/shared/Loading";
@@ -111,6 +112,9 @@ const TuitionInvoiceUpload: React.FC = () => {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showUploadConfirmation, setShowUploadConfirmation] = useState(false);
+  const [showUploadMatchedConfirmation, setShowUploadMatchedConfirmation] =
+    useState(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   // Filter states
@@ -180,12 +184,21 @@ const TuitionInvoiceUpload: React.FC = () => {
     }
   };
 
+  const handleShowUploadConfirmation = () => {
+    if (!selectedFile) {
+      toast.error("Please select a file.");
+      return;
+    }
+    setShowUploadConfirmation(true);
+  };
+
   const handleFileExtract = async (file: File) => {
     if (!file) {
       toast.error("Missing file to extract");
       return;
     }
 
+    setShowUploadConfirmation(false);
     setIsProcessing(true);
     try {
       const formData = new FormData();
@@ -284,10 +297,11 @@ const TuitionInvoiceUpload: React.FC = () => {
 
               allDocuments.push(...docsWithFile);
 
+              const isDone = processedFiles === pdfFiles.length;
+
               setJobStatus((prev) => ({
                 jobId: prev!.jobId,
-                status:
-                  processedFiles === pdfFiles.length ? "done" : "processing",
+                status: isDone ? "done" : "processing",
                 progress: Math.floor((processedFiles / pdfFiles.length) * 100),
                 result: {
                   ...prev!.result!,
@@ -295,8 +309,14 @@ const TuitionInvoiceUpload: React.FC = () => {
                   documents: allDocuments,
                 },
               }));
+
+              // ✅ Turn off loading when all files are processed
+              if (isDone) {
+                setIsProcessing(false);
+              }
             } else if (pdfJob.status === "error") {
               toast.error(`Error processing ${pdfFileName}`);
+              setIsProcessing(false);
             } else {
               setTimeout(pollPdfJobStatus, 1000);
             }
@@ -421,6 +441,9 @@ const TuitionInvoiceUpload: React.FC = () => {
                 }));
                 setUploadedFiles((prev) => [...prev, ...newUploadedFiles]);
               }
+
+              // ✅ Turn off loading when extraction is complete
+              setIsProcessing(false);
             } else if (job.status === "error") {
               toast.error("Upload processing failed");
               setJobStatus((prev) =>
@@ -428,10 +451,13 @@ const TuitionInvoiceUpload: React.FC = () => {
                   ? { jobId: prev.jobId, status: "error" }
                   : { jobId, status: "error" }
               );
+              // ✅ Turn off loading on error
+              setIsProcessing(false);
             }
           } catch (err) {
             console.error("Polling error:", err);
             toast.error("Error checking job status");
+            setIsProcessing(false);
           }
         };
 
@@ -440,9 +466,27 @@ const TuitionInvoiceUpload: React.FC = () => {
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Upload failed");
-    } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleShowUploadMatchedConfirmation = () => {
+    if (!jobStatus?.result?.documents) {
+      toast.error("No extracted documents found.");
+      return;
+    }
+
+    const matchedDocs = jobStatus.result.documents.filter((doc) => {
+      const studentId = parseInt(doc.extracted.studentNumber || "0");
+      return students.some((s) => s.student_id === studentId);
+    });
+
+    if (matchedDocs.length === 0) {
+      toast.error("No matching students found.");
+      return;
+    }
+
+    setShowUploadMatchedConfirmation(true);
   };
 
   const handleUploadToStudents = async () => {
@@ -461,44 +505,53 @@ const TuitionInvoiceUpload: React.FC = () => {
       return;
     }
 
-    toast.info(`Uploading ${matchedDocs.length} invoices...`);
+    setShowUploadMatchedConfirmation(false);
+    setIsUploading(true);
 
-    for (const doc of matchedDocs) {
-      const studentId = parseInt(doc.extracted.studentNumber || "0");
-      const student = students.find((s) => s.student_id === studentId);
+    try {
+      for (const doc of matchedDocs) {
+        const studentId = parseInt(doc.extracted.studentNumber || "0");
+        const student = students.find((s) => s.student_id === studentId);
 
-      if (!student || !doc.fileObject) continue;
+        if (!student || !doc.fileObject) continue;
 
-      const parsedAmount = parseFloat(
-        doc.extracted.totalBalance.replace(/[₱,]/g, "")
-      );
-
-      const formData = new FormData();
-      formData.append("file", doc.fileObject);
-      formData.append("disb_detail_id", String(student.disb_detail_id));
-      formData.append("disbursement_amount", String(parsedAmount || 0));
-
-      try {
-        setIsUploading(true);
-        const res = await axios.post(
-          `${VITE_BACKEND_URL}api/invoice/save-updates`,
-          formData,
-          { headers: { "Content-Type": "multipart/form-data" } }
+        const parsedAmount = parseFloat(
+          doc.extracted.totalBalance.replace(/[₱,]/g, "")
         );
 
-        console.log("✅ Uploaded for student:", student.student_id, res.data);
-      } catch (err) {
-        console.error("❌ Failed upload for student:", student.student_id, err);
-        toast.error(`Failed to upload for ${student.scholar_name}`);
-      } finally {
-        setIsUploading(false);
-      }
-    }
+        const formData = new FormData();
+        formData.append("file", doc.fileObject);
+        formData.append("disb_detail_id", String(student.disb_detail_id));
+        formData.append("disbursement_amount", String(parsedAmount || 0));
 
-    toast.success("All matching invoices uploaded successfully!");
-    fetchStudents();
-    setIsUploadOpen(false);
-    setJobStatus(null);
+        try {
+          const res = await axios.post(
+            `${VITE_BACKEND_URL}api/invoice/save-updates`,
+            formData,
+            { headers: { "Content-Type": "multipart/form-data" } }
+          );
+
+          console.log("✅ Uploaded for student:", student.student_id, res.data);
+        } catch (err) {
+          console.error(
+            "❌ Failed upload for student:",
+            student.student_id,
+            err
+          );
+          toast.error(`Failed to upload for ${student.scholar_name}`);
+        }
+      }
+
+      toast.success("All matching invoices uploaded successfully!");
+      fetchStudents();
+      setIsUploadOpen(false);
+      setJobStatus(null);
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload invoices");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handlePageChange = (newPage: number) => {
@@ -606,7 +659,7 @@ const TuitionInvoiceUpload: React.FC = () => {
           )}
 
           {/* Improved Upload Modal */}
-          {isUploadOpen && (
+          {isUploadOpen && !isProcessing && !jobStatus && (
             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6 relative transition-all max-h-[90vh] overflow-y-auto">
                 {/* Close Button */}
@@ -622,379 +675,301 @@ const TuitionInvoiceUpload: React.FC = () => {
                   ✕
                 </button>
 
-                {isUploading ? (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
-                    <h3 className="text-lg font-semibold text-gray-700">
-                      {jobStatus
-                        ? "Uploading matched invoices..."
-                        : "Extracting and processing your file..."}
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Please wait, this may take a few moments.
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    Upload Tuition Invoice
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Upload a single <b>PDF</b> or <b>ZIP</b> file (Max 100MB)
+                  </p>
+                </div>
+
+                {/* Upload State */}
+                <>
+                  <label
+                    htmlFor="file-upload"
+                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all mb-4"
+                  >
+                    <Upload className="w-10 h-10 text-gray-400 mb-3" />
+                    <p className="text-sm text-gray-600">
+                      <span className="font-semibold">Click to upload</span> or
+                      drag and drop
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Only one file allowed — PDF or ZIP
+                    </p>
+                  </label>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".pdf,.zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const isZip = file.name.toLowerCase().endsWith(".zip");
+                        const isPdf = file.type === "application/pdf";
+                        if (!isZip && !isPdf) {
+                          toast.error("Only PDF or ZIP files are allowed.");
+                          return;
+                        }
+                        if (file.size > 100 * 1024 * 1024) {
+                          toast.error("File size exceeds 100MB limit.");
+                          return;
+                        }
+                        setFileSize(file.size);
+                        setSelectedFile(file);
+                      } else {
+                        setSelectedFile(null);
+                        setFileSize(0);
+                      }
+                    }}
+                  />
+
+                  {selectedFile && (
+                    <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <FileText className="w-6 h-6 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            {selectedFile.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(fileSize / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setFileSize(0);
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setIsUploadOpen(false)}
+                      className="px-5 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleShowUploadConfirmation}
+                      disabled={!selectedFile || isProcessing}
+                      className="px-5 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {isProcessing ? "Processing..." : "Upload & Extract"}
+                    </button>
                   </div>
-                ) : (
-                  <>
-                    {/* Header */}
-                    <div className="text-center mb-6">
-                      <h3 className="text-xl font-semibold text-gray-800">
-                        Upload Tuition Invoice
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Upload a single <b>PDF</b> or <b>ZIP</b> file (Max
-                        100MB)
+                </>
+              </div>
+            </div>
+          )}
+
+          {/* Full-Screen Overlay for Review Modal */}
+          {jobStatus &&
+            jobStatus.status === "done" &&
+            jobStatus.result &&
+            !isUploading && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4 animate-fadeIn">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6 relative transition-all max-h-[90vh] overflow-y-auto">
+                  <div>
+                    {/* HEADER */}
+                    <div className="text-center mb-4">
+                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                      <h4 className="text-lg font-semibold text-gray-800">
+                        Review Extracted Invoices
+                      </h4>
+                      <p className="text-sm text-gray-500 max-w-lg mx-auto">
+                        Matches are based on <b>Student ID</b>. Only the{" "}
+                        <b>file</b> and <b>amount</b>
+                        will be uploaded for matched students. Please review
+                        carefully before confirming.
                       </p>
                     </div>
 
-                    {/* Upload State */}
-                    {!jobStatus && (
-                      <>
-                        <label
-                          htmlFor="file-upload"
-                          className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all mb-4"
-                        >
-                          <Upload className="w-10 h-10 text-gray-400 mb-3" />
-                          <p className="text-sm text-gray-600">
-                            <span className="font-semibold">
-                              Click to upload
-                            </span>{" "}
-                            or drag and drop
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Only one file allowed — PDF or ZIP
-                          </p>
+                    {/* FILTER CONTROL */}
+                    <div className="flex justify-between items-center mb-4">
+                      <h5 className="text-sm font-semibold text-gray-700">
+                        Showing extracted records
+                      </h5>
+                      <div className="flex items-center gap-2 text-sm">
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="filterView"
+                            value="all"
+                            checked={filter === "all"}
+                            onChange={() => setFilter("all")}
+                          />
+                          All
                         </label>
-                        <input
-                          id="file-upload"
-                          type="file"
-                          accept=".pdf,.zip"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const isZip = file.name
-                                .toLowerCase()
-                                .endsWith(".zip");
-                              const isPdf = file.type === "application/pdf";
-                              if (!isZip && !isPdf) {
-                                toast.error(
-                                  "Only PDF or ZIP files are allowed."
-                                );
-                                return;
-                              }
-                              if (file.size > 100 * 1024 * 1024) {
-                                toast.error("File size exceeds 100MB limit.");
-                                return;
-                              }
-                              setFileSize(file.size);
-                              setSelectedFile(file);
-                            } else {
-                              setSelectedFile(null);
-                              setFileSize(0);
-                            }
-                          }}
-                        />
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="filterView"
+                            value="matched"
+                            checked={filter === "matched"}
+                            onChange={() => setFilter("matched")}
+                          />
+                          Matched Only
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="filterView"
+                            value="unmatched"
+                            checked={filter === "unmatched"}
+                            onChange={() => setFilter("unmatched")}
+                          />
+                          Unmatched Only
+                        </label>
+                      </div>
+                    </div>
 
-                        {selectedFile && (
-                          <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-4">
-                              <FileText className="w-6 h-6 text-blue-600" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">
-                                  {selectedFile.name}
+                    {/* CONTENT */}
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                      {jobStatus.result.documents
+                        .filter((doc) => {
+                          const studentId = parseInt(
+                            doc.extracted.studentNumber || "0"
+                          );
+                          const matched = students.some(
+                            (s) => s.student_id === studentId
+                          );
+
+                          if (filter === "matched") return matched;
+                          if (filter === "unmatched") return !matched;
+                          return true;
+                        })
+                        .map((doc, idx) => {
+                          const studentId = parseInt(
+                            doc.extracted.studentNumber || "0"
+                          );
+                          const matchedStudent = students.find(
+                            (s) => s.student_id === studentId
+                          );
+                          const matched = !!matchedStudent;
+                          const amount = doc.extracted.totalBalance || "0.00";
+
+                          return (
+                            <div
+                              key={idx}
+                              className={`border rounded-lg shadow-sm p-4 transition-all ${
+                                matched
+                                  ? "border-green-300 bg-green-50/70 hover:bg-green-100/70"
+                                  : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                              }`}
+                            >
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h6 className="font-semibold text-gray-800 text-sm">
+                                    {doc.extracted.studentName ||
+                                      "Unknown Student"}
+                                  </h6>
+                                  <p className="text-xs text-gray-500">
+                                    ID: {doc.extracted.studentNumber || "—"} •{" "}
+                                    {matchedStudent?.campus || "—"}
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                    matched
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-gray-100 text-gray-600"
+                                  }`}
+                                >
+                                  {matched ? "✅ Matched" : "⚠️ Unmatched"}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-700">
+                                <p>
+                                  <span className="text-gray-500">
+                                    Program:
+                                  </span>{" "}
+                                  {doc.extracted.program || "—"}
                                 </p>
-                                <p className="text-xs text-gray-500">
-                                  {(fileSize / (1024 * 1024)).toFixed(2)} MB
+                                <p>
+                                  <span className="text-gray-500">
+                                    School Year:
+                                  </span>{" "}
+                                  {matchedStudent?.school_year ||
+                                    doc.extracted.schoolYearTerm ||
+                                    "—"}
+                                </p>
+                                <p>
+                                  <span className="text-gray-500">
+                                    Semester:
+                                  </span>{" "}
+                                  {matchedStudent?.semester || "—"}
+                                </p>
+                                <p>
+                                  <span className="text-gray-500">Amount:</span>{" "}
+                                  <span className="font-semibold text-gray-800">
+                                    ₱{amount}
+                                  </span>
+                                </p>
+                                <p className="col-span-2 truncate">
+                                  <span className="text-gray-500">File:</span>{" "}
+                                  <span className="text-blue-600 font-medium">
+                                    {doc.fileName}
+                                  </span>
                                 </p>
                               </div>
                             </div>
-                            <button
-                              onClick={() => {
-                                setSelectedFile(null);
-                                setFileSize(0);
-                              }}
-                              className="text-xs text-red-600 hover:text-red-800"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
+                          );
+                        })}
+                    </div>
 
-                        <div className="flex justify-end gap-3">
-                          <button
-                            onClick={() => setIsUploadOpen(false)}
-                            className="px-5 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() =>
-                              selectedFile
-                                ? handleFileExtract(selectedFile)
-                                : toast.error("Please select a file.")
-                            }
-                            disabled={!selectedFile || isProcessing}
-                            className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            {isProcessing
-                              ? "Processing..."
-                              : "Upload & Extract"}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    {/* FOOTER SUMMARY + ACTIONS */}
+                    <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-3 border-t pt-4">
+                      <p className="text-sm text-gray-600">
+                        <b>
+                          {
+                            jobStatus.result.documents.filter((doc) =>
+                              students.some(
+                                (s) =>
+                                  s.student_id ===
+                                  parseInt(doc.extracted.studentNumber || "0")
+                              )
+                            ).length
+                          }{" "}
+                          of {jobStatus.result.documents.length}
+                        </b>{" "}
+                        students matched successfully. Only matched records will
+                        be uploaded.
+                      </p>
 
-                    {/* Processing State */}
-                    {jobStatus && jobStatus.status === "processing" && (
-                      <div className="text-center py-8">
-                        <h4 className="font-semibold text-gray-800 mb-2">
-                          Processing your file...
-                        </h4>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-                          <div
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-                            style={{ width: `${jobStatus.progress || 0}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {jobStatus.result?.processedFiles || 0} /{" "}
-                          {jobStatus.result?.totalFiles || 0} files processed
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Done State with Extracted + Match Table */}
-                    {jobStatus &&
-                      jobStatus.status === "done" &&
-                      jobStatus.result && (
-                        <div>
-                          {/* HEADER */}
-                          <div className="text-center mb-4">
-                            <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                            <h4 className="text-lg font-semibold text-gray-800">
-                              Review Extracted Invoices
-                            </h4>
-                            <p className="text-sm text-gray-500 max-w-lg mx-auto">
-                              Matches are based on <b>Student ID</b>. Only the{" "}
-                              <b>file</b> and <b>amount</b>
-                              will be uploaded for matched students. Please
-                              review carefully before confirming.
-                            </p>
-                          </div>
-
-                          {/* FILTER CONTROL */}
-                          <div className="flex justify-between items-center mb-4">
-                            <h5 className="text-sm font-semibold text-gray-700">
-                              Showing extracted records
-                            </h5>
-                            <div className="flex items-center gap-2 text-sm">
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="filterView"
-                                  value="all"
-                                  checked={filter === "all"}
-                                  onChange={() => setFilter("all")}
-                                />
-                                All
-                              </label>
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="filterView"
-                                  value="matched"
-                                  checked={filter === "matched"}
-                                  onChange={() => setFilter("matched")}
-                                />
-                                Matched Only
-                              </label>
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="filterView"
-                                  value="unmatched"
-                                  checked={filter === "unmatched"}
-                                  onChange={() => setFilter("unmatched")}
-                                />
-                                Unmatched Only
-                              </label>
-                            </div>
-                          </div>
-
-                          {/* CONTENT */}
-                          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                            {jobStatus.result.documents
-                              .filter((doc) => {
-                                const studentId = parseInt(
-                                  doc.extracted.studentNumber || "0"
-                                );
-                                const matched = students.some(
-                                  (s) => s.student_id === studentId
-                                );
-
-                                if (filter === "matched") return matched;
-                                if (filter === "unmatched") return !matched;
-                                return true;
-                              })
-                              .map((doc, idx) => {
-                                const studentId = parseInt(
-                                  doc.extracted.studentNumber || "0"
-                                );
-                                const matchedStudent = students.find(
-                                  (s) => s.student_id === studentId
-                                );
-                                const matched = !!matchedStudent;
-                                const amount =
-                                  doc.extracted.totalBalance || "0.00";
-
-                                return (
-                                  <div
-                                    key={idx}
-                                    className={`border rounded-lg shadow-sm p-4 transition-all ${
-                                      matched
-                                        ? "border-green-300 bg-green-50/70 hover:bg-green-100/70"
-                                        : "border-gray-200 bg-gray-50 hover:bg-gray-100"
-                                    }`}
-                                  >
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div>
-                                        <h6 className="font-semibold text-gray-800 text-sm">
-                                          {doc.extracted.studentName ||
-                                            "Unknown Student"}
-                                        </h6>
-                                        <p className="text-xs text-gray-500">
-                                          ID:{" "}
-                                          {doc.extracted.studentNumber || "—"} •{" "}
-                                          {matchedStudent?.campus || "—"}
-                                        </p>
-                                      </div>
-                                      <span
-                                        className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                          matched
-                                            ? "bg-green-100 text-green-700"
-                                            : "bg-gray-100 text-gray-600"
-                                        }`}
-                                      >
-                                        {matched
-                                          ? "✅ Matched"
-                                          : "⚠️ Unmatched"}
-                                      </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-700">
-                                      <p>
-                                        <span className="text-gray-500">
-                                          Program:
-                                        </span>{" "}
-                                        {doc.extracted.program || "—"}
-                                      </p>
-                                      <p>
-                                        <span className="text-gray-500">
-                                          School Year:
-                                        </span>{" "}
-                                        {matchedStudent?.school_year ||
-                                          doc.extracted.schoolYearTerm ||
-                                          "—"}
-                                      </p>
-                                      <p>
-                                        <span className="text-gray-500">
-                                          Semester:
-                                        </span>{" "}
-                                        {matchedStudent?.semester || "—"}
-                                      </p>
-                                      <p>
-                                        <span className="text-gray-500">
-                                          Amount:
-                                        </span>{" "}
-                                        <span className="font-semibold text-gray-800">
-                                          ₱{amount}
-                                        </span>
-                                      </p>
-                                      <p className="col-span-2 truncate">
-                                        <span className="text-gray-500">
-                                          File:
-                                        </span>{" "}
-                                        <span className="text-blue-600 font-medium">
-                                          {doc.fileName}
-                                        </span>
-                                      </p>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-
-                          {/* FOOTER SUMMARY + ACTIONS */}
-                          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-3 border-t pt-4">
-                            <p className="text-sm text-gray-600">
-                              <b>
-                                {
-                                  jobStatus.result.documents.filter((doc) =>
-                                    students.some(
-                                      (s) =>
-                                        s.student_id ===
-                                        parseInt(
-                                          doc.extracted.studentNumber || "0"
-                                        )
-                                    )
-                                  ).length
-                                }{" "}
-                                of {jobStatus.result.documents.length}
-                              </b>{" "}
-                              students matched successfully. Only matched
-                              records will be uploaded.
-                            </p>
-
-                            <div className="flex gap-3">
-                              <button
-                                onClick={() => {
-                                  setJobStatus(null);
-                                  setSelectedFile(null);
-                                  setFileSize(0);
-                                }}
-                                className="px-5 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={handleUploadToStudents}
-                                className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                              >
-                                Upload Matched Only
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                    {/* Error State */}
-                    {jobStatus && jobStatus.status === "error" && (
-                      <div className="text-center py-8">
-                        <AlertCircle className="w-10 h-10 text-red-600 mx-auto mb-2" />
-                        <h4 className="font-semibold text-red-700">
-                          Processing Failed
-                        </h4>
-                        <p className="text-xs text-gray-500 mb-4">
-                          Something went wrong. Please try again.
-                        </p>
+                      <div className="flex gap-3">
                         <button
                           onClick={() => {
                             setJobStatus(null);
                             setSelectedFile(null);
                             setFileSize(0);
                           }}
-                          className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                          className="px-5 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
                         >
-                          Retry Upload
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleShowUploadMatchedConfirmation}
+                          className="px-5 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                        >
+                          Upload Matched Only
                         </button>
                       </div>
-                    )}
-                  </>
-                )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Filter Section */}
           {!isLoading && (
@@ -1758,6 +1733,200 @@ const TuitionInvoiceUpload: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Upload Confirmation Modal */}
+      {showUploadConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Confirm Upload & Extract
+              </h3>
+            </div>
+
+            <div className="mb-6 space-y-2">
+              <p className="text-gray-600 text-sm">
+                You are about to upload and extract the following file:
+              </p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">File:</span>
+                  <span className="text-gray-900 font-semibold truncate ml-2">
+                    {selectedFile?.name}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Size:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {selectedFile && (fileSize / (1024 * 1024)).toFixed(2)} MB
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Type:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {selectedFile?.name.toLowerCase().endsWith(".zip")
+                      ? "ZIP Archive"
+                      : "PDF Document"}
+                  </span>
+                </div>
+              </div>
+              <p className="text-gray-600 text-sm mt-3">
+                The system will extract student information from the invoice(s)
+                and match them with existing records. Do you want to proceed?
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowUploadConfirmation(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => selectedFile && handleFileExtract(selectedFile)}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
+              >
+                Yes, Upload & Extract
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Loading Overlay for Processing */}
+      {isProcessing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+                </div>
+                <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Processing Invoice
+              </h3>
+              <p className="text-gray-600 text-sm text-center mb-4">
+                Extracting student information from the file...
+              </p>
+
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                This may take a few moments. Please do not close this window.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Matched Confirmation Modal */}
+      {showUploadMatchedConfirmation &&
+        jobStatus?.result?.documents &&
+        !isUploading && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] animate-fadeIn">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Confirm Upload
+                </h3>
+              </div>
+
+              <div className="mb-6 space-y-2">
+                <p className="text-gray-600 text-sm">
+                  You are about to upload invoices for matched students.
+                </p>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-700">
+                      Matched Students:
+                    </span>
+                    <span className="text-gray-900 font-semibold">
+                      {
+                        jobStatus.result.documents.filter((doc) => {
+                          const studentId = parseInt(
+                            doc.extracted.studentNumber || "0"
+                          );
+                          return students.some(
+                            (s) => s.student_id === studentId
+                          );
+                        }).length
+                      }{" "}
+                      of {jobStatus.result.documents.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-700">Action:</span>
+                    <span className="text-gray-900 font-semibold">
+                      Upload Files & Amounts
+                    </span>
+                  </div>
+                </div>
+                <p className="text-gray-600 text-sm mt-3">
+                  Only matched student records will be updated with invoice
+                  files and disbursement amounts. Do you want to proceed?
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowUploadMatchedConfirmation(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUploadToStudents}
+                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
+                >
+                  Yes, Upload Invoices
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Full-Screen Loading Overlay for Uploading */}
+      {isUploading && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+                </div>
+                <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Uploading Invoices
+              </h3>
+              <p className="text-gray-600 text-sm text-center mb-4">
+                Uploading matched invoices to student records...
+              </p>
+
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                This may take a few moments. Please do not close this window.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

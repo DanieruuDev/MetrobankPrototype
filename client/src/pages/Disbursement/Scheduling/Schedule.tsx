@@ -146,6 +146,11 @@ function Schedule() {
     console.log(schedules);
   };
 
+  const handleRefreshSchedules = (date: Date) => {
+    fetchSchedules(date);
+    setSidebarRefreshKey((prev) => prev + 1);
+  };
+
   return (
     <div
       className={`${
@@ -252,7 +257,7 @@ function Schedule() {
                   setVisibleMonth={setVisibleMonth}
                   getBadgeColor={getBadgeColor}
                   removeScheduleById={removeScheduleById}
-                  fetchSchedules={fetchSchedules}
+                  fetchSchedules={handleRefreshSchedules}
                 />
               ) : (
                 <AgendaView getBadgeColor={getBadgeColor} />
@@ -343,7 +348,7 @@ function Schedule() {
                 setVisibleMonth={setVisibleMonth}
                 getBadgeColor={getBadgeColor}
                 removeScheduleById={removeScheduleById}
-                fetchSchedules={fetchSchedules}
+                fetchSchedules={handleRefreshSchedules}
               />
             ) : (
               <AgendaView getBadgeColor={getBadgeColor} />

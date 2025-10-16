@@ -126,20 +126,28 @@ const RenderDayCell: React.FC<DayCellProps> = ({
         `${VITE_BACKEND_URL}api/disbursement/schedule/${sched_id}/${requester}`
       );
 
-      toast.success(response.data.message || "Schedule deleted.");
+      toast.success(response.data.message || "Event deleted successfully", {
+        position: "top-center",
+        autoClose: 3000,
+      });
       removeScheduleById(sched_id);
+      fetchSchedules(new Date()); // Refresh calendar and sidebar
       closeModal();
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        toast.error(
-          error.response?.data?.message ?? "Failed to delete schedule."
-        );
+        toast.error(error.response?.data?.message ?? "Failed to delete event", {
+          position: "top-center",
+          autoClose: 5000,
+        });
       } else {
-        toast.error("An unexpected error occurred.");
+        toast.error("An unexpected error occurred", {
+          position: "top-center",
+          autoClose: 5000,
+        });
       }
       console.error("Delete Schedule Error:", error);
     } finally {
-      setDeleting(true);
+      setDeleting(false);
     }
   };
   const closeModal = (e?: React.MouseEvent<HTMLButtonElement>) => {
@@ -187,9 +195,60 @@ const RenderDayCell: React.FC<DayCellProps> = ({
   }, [activeSchedule]);
 
   return (
-    <div
-      key={day.toString()}
-      className={`min-h-[100px] border flex flex-col items-start justify-start cursor-pointer transition-all text-[15px]
+    <>
+      {/* Full-Screen Loading Overlay for Deleting */}
+      {deleting && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg
+                    className="animate-spin h-10 w-10 text-red-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                </div>
+                <div className="absolute inset-0 bg-red-400 rounded-full opacity-20 animate-ping"></div>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Deleting Event
+              </h3>
+              <p className="text-gray-600 text-sm text-center mb-4">
+                Please wait while we delete the event...
+              </p>
+
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-red-600 h-full rounded-full animate-progress"></div>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                Do not close this window
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        key={day.toString()}
+        className={`min-h-[100px] border flex flex-col items-start justify-start cursor-pointer transition-all text-[15px]
         ${
           isSelected && !isToday
             ? "border-2 border-blue-500"
@@ -201,194 +260,198 @@ const RenderDayCell: React.FC<DayCellProps> = ({
             : "text-gray-800 bg-white"
         }
       `}
-      onClick={() => handleDateSelect(day)}
-    >
-      <div
-        className={`text-sm font-medium flex items-center justify-center mx-2 mt-2 ${
-          isToday ? "bg-blue-500 text-white w-6 h-6 rounded-xl" : ""
-        }`}
+        onClick={() => handleDateSelect(day)}
       >
-        {format(day, "d")}
-      </div>
-
-      <div className="mt-1 overflow-hidden w-full">
-        {daySchedules.map((schedule) => (
-          <div
-            key={schedule.sched_id}
-            className="text-xs py-1 px-2 mb-1 rounded-xl text-white text-[10px] font-medium truncate relative cursor-pointer hover:opacity-90"
-            style={{
-              backgroundColor: getBadgeColor(schedule.disbursement_label),
-            }}
-            onClick={(e) => handleScheduleClick(e, schedule)}
-          >
-            {schedule.sched_title}
-          </div>
-        ))}
-      </div>
-
-      {activeSchedule && (
         <div
-          ref={modalRef}
-          className="fixed z-50 bg-[#F1F1F1] shadow-lg rounded-md border border-gray-200 w-80 transition-all duration-200 ease-out"
-          style={{
-            top: modalPosition?.top,
-            left: modalPosition?.left,
-          }}
-          onClick={(e) => e.stopPropagation()}
+          className={`text-sm font-medium flex items-center justify-center mx-2 mt-2 ${
+            isToday ? "bg-blue-500 text-white w-6 h-6 rounded-xl" : ""
+          }`}
         >
-          <ConfirmDialog
-            isOpen={confirmOpen}
-            message="Are you sure you want to delete this schedule?"
-            onCancel={() => setConfirmOpen(false)}
-            onConfirm={() => {
-              if (pendingDeleteId && userId) {
-                deleteSchedule(pendingDeleteId, userId);
-              }
-              setConfirmOpen(false);
-              setPendingDeleteId(null);
+          {format(day, "d")}
+        </div>
+
+        <div className="mt-1 overflow-hidden w-full">
+          {daySchedules.map((schedule) => (
+            <div
+              key={schedule.sched_id}
+              className="text-xs py-1 px-2 mb-1 rounded-xl text-white text-[10px] font-medium truncate relative cursor-pointer hover:opacity-90"
+              style={{
+                backgroundColor: getBadgeColor(schedule.disbursement_label),
+              }}
+              onClick={(e) => handleScheduleClick(e, schedule)}
+            >
+              {schedule.sched_title}
+            </div>
+          ))}
+        </div>
+
+        {activeSchedule && (
+          <div
+            ref={modalRef}
+            className="fixed z-50 bg-[#F1F1F1] shadow-lg rounded-md border border-gray-200 w-80 transition-all duration-200 ease-out"
+            style={{
+              top: modalPosition?.top,
+              left: modalPosition?.left,
             }}
-            confirmLabel="Delete"
-            loading={deleting}
-          />
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ConfirmDialog
+              isOpen={confirmOpen}
+              message="Are you sure you want to delete this schedule?"
+              onCancel={() => setConfirmOpen(false)}
+              onConfirm={() => {
+                if (pendingDeleteId && userId) {
+                  deleteSchedule(pendingDeleteId, userId);
+                }
+                setConfirmOpen(false);
+                setPendingDeleteId(null);
+              }}
+              confirmLabel="Delete"
+              loading={deleting}
+            />
 
-          <div className="p-4 pb-3">
-            <div className="flex justify-between items-start relative">
-              <p className="text-sm text-gray-600">
-                {formatDate(activeSchedule.schedule_due)}
-              </p>
+            <div className="p-4 pb-3">
+              <div className="flex justify-between items-start relative">
+                <p className="text-sm text-gray-600">
+                  {formatDate(activeSchedule.schedule_due)}
+                </p>
 
-              <div className="flex items-center gap-2">
-                <div className="relative">
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <button
+                      className="text-gray-600 hover:text-gray-800 p-2 rounded-full transition cursor-pointer"
+                      onClick={toggleOptions}
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+
+                    {showOptions && (
+                      <div className="absolute right-0 mt-2 w-36 bg-[#f4f4f4] border border-gray-200 rounded-xl shadow-md overflow-hidden z-10">
+                        <Link
+                          to={`/tracking/detailed/${activeSchedule.sched_id}`}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white transition"
+                          onClick={() => setShowOptions(false)}
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>View</span>
+                        </Link>
+
+                        {activeSchedule.admin_id === userId && (
+                          <>
+                            {console.log(activeSchedule.sched_id === userId)}
+                            <button
+                              className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
+                              onClick={() => {
+                                setShowOptions(false);
+                                handleEditClick(activeSchedule.sched_id);
+                              }}
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
+                              onClick={() => {
+                                setPendingDeleteId(activeSchedule.sched_id);
+                                setConfirmOpen(true);
+                                setShowOptions(false);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <button
-                    className="text-gray-600 hover:text-gray-800 p-2 rounded-full transition cursor-pointer"
-                    onClick={toggleOptions}
+                    className="text-gray-500 cursor-pointer hover:bg-gray-100 p-1 rounded-full"
+                    onClick={closeModal}
                   >
-                    <MoreHorizontal className="w-5 h-5" />
+                    <X className="w-5 h-5" />
                   </button>
-
-                  {showOptions && (
-                    <div className="absolute right-0 mt-2 w-36 bg-[#f4f4f4] border border-gray-200 rounded-xl shadow-md overflow-hidden z-10">
-                      <Link
-                        to={`/tracking/detailed/${activeSchedule.sched_id}`}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white transition"
-                        onClick={() => setShowOptions(false)}
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>View</span>
-                      </Link>
-
-                      {activeSchedule.admin_id === userId && (
-                        <>
-                          {console.log(activeSchedule.sched_id === userId)}
-                          <button
-                            className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
-                            onClick={() => {
-                              setShowOptions(false);
-                              handleEditClick(activeSchedule.sched_id);
-                            }}
-                          >
-                            <Pencil className="w-4 h-4" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
-                            onClick={() => {
-                              setPendingDeleteId(activeSchedule.sched_id);
-                              setConfirmOpen(true);
-                              setShowOptions(false);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>Delete</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
-
-                <button
-                  className="text-gray-500 cursor-pointer hover:bg-gray-100 p-1 rounded-full"
-                  onClick={closeModal}
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
-            </div>
 
-            {showUpdateModal && activeSchedule && (
-              <UpdateEvent
-                edittableData={edittableData}
-                closeModal={closeUpdateModal}
-                loading={loadingEdittable}
-                setEdittableData={setEdittableData}
-                fetchSchedules={fetchSchedules}
-              />
-            )}
+              {showUpdateModal && activeSchedule && (
+                <UpdateEvent
+                  edittableData={edittableData}
+                  closeModal={closeUpdateModal}
+                  loading={loadingEdittable}
+                  setEdittableData={setEdittableData}
+                  fetchSchedules={fetchSchedules}
+                />
+              )}
 
-            <div className="text-[20px] font-medium text-[#565656]">
-              {loading ? "Loading..." : activeSchedule.sched_title}
-            </div>
+              <div className="text-[20px] font-medium text-[#565656]">
+                {loading ? "Loading..." : activeSchedule.sched_title}
+              </div>
 
-            {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+              {error && (
+                <div className="text-red-500 text-sm mt-2">{error}</div>
+              )}
 
-            {!loading && !error && (
-              <>
-                <div className="flex items-center gap-1 mt-2">
-                  <div
-                    className="w-1 h-4 rounded-full"
-                    style={{
-                      backgroundColor: getBadgeColor(
-                        activeSchedule.disbursement_label
-                      ),
-                    }}
-                  ></div>
-                  <h3 className="text-[16px] font-medium text-[#565656]">
-                    {activeSchedule.disbursement_label}
-                  </h3>
-                </div>
+              {!loading && !error && (
+                <>
+                  <div className="flex items-center gap-1 mt-2">
+                    <div
+                      className="w-1 h-4 rounded-full"
+                      style={{
+                        backgroundColor: getBadgeColor(
+                          activeSchedule.disbursement_label
+                        ),
+                      }}
+                    ></div>
+                    <h3 className="text-[16px] font-medium text-[#565656]">
+                      {activeSchedule.disbursement_label}
+                    </h3>
+                  </div>
 
-                <div className="flex gap-1 items-center mt-2">
-                  <div
-                    className={`w-4 h-4 rounded-xl ${getStatusClass(
-                      activeSchedule.schedule_status
-                    )}`}
-                  ></div>
-                  <span className="text-[13px] font-medium">
-                    {activeSchedule.schedule_status}
-                  </span>
-                </div>
+                  <div className="flex gap-1 items-center mt-2">
+                    <div
+                      className={`w-4 h-4 rounded-xl ${getStatusClass(
+                        activeSchedule.schedule_status
+                      )}`}
+                    ></div>
+                    <span className="text-[13px] font-medium">
+                      {activeSchedule.schedule_status}
+                    </span>
+                  </div>
 
-                <div className="mt-4 text-[#565656] text-[13px]">
-                  <div className="mb-2">
-                    <div className="bg-gray-50 p-2 rounded text-sm space-y-1 text-[13px]">
-                      <div className="grid grid-cols-2">
-                        <span>Description:</span>
-                        <span className="font-medium">
-                          {activeSchedule.description || "No details provided"}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2">
-                        <span>Student count:</span>
-                        <span className="font-medium">
-                          {activeSchedule.student_count}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2">
-                        <span>Created By:</span>
-                        <span className="font-medium">
-                          {activeSchedule.admin_name}
-                        </span>
+                  <div className="mt-4 text-[#565656] text-[13px]">
+                    <div className="mb-2">
+                      <div className="bg-gray-50 p-2 rounded text-sm space-y-1 text-[13px]">
+                        <div className="grid grid-cols-2">
+                          <span>Description:</span>
+                          <span className="font-medium">
+                            {activeSchedule.description ||
+                              "No details provided"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span>Student count:</span>
+                          <span className="font-medium">
+                            {activeSchedule.student_count}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span>Created By:</span>
+                          <span className="font-medium">
+                            {activeSchedule.admin_name}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
