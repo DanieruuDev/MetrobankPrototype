@@ -202,7 +202,7 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
-      httpOnly: true,
+      secure: true,
       sameSite: "lax",
       domain: ".mbstrongwebapp.com",
     });

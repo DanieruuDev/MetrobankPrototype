@@ -92,6 +92,18 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
   const itemsPerPage = 10;
+  // Define which columns are editable when in Edit Mode
+  const editableFields = [
+    "gpa",
+    "delisting_root_cause",
+    "is_validated",
+    ...Object.keys(validation).filter(
+      (k) =>
+        k !== "scholarship_status" &&
+        k !== "gpa_validation_stat" &&
+        k !== "is_validated"
+    ),
+  ];
 
   // Custom page change handler to maintain scroll position
   const handlePageChange = (newPage: number) => {
@@ -408,8 +420,15 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setTempRenewalData((prev) => {
       const updatedRows = prev.map((r) => {
         if (r.renewal_id === renewalId) {
-          const updated = { ...r, [field]: newValue };
+          // ⛔ Skip if row is validated
+          if (r.is_validated === true) {
+            toast.warning(
+              "This record is already validated and cannot be edited."
+            );
+            return r;
+          }
 
+          const updated = { ...r, [field]: newValue };
           const scholarship_status = computeScholarshipStatus(updated);
 
           const isEdited = Object.keys(updated).some(
@@ -523,6 +542,14 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setTempRenewalData((prev) =>
       prev.map((r) => {
         if (r.renewal_id === renewalId) {
+          // ⛔ Prevent edit if validated
+          if (r.is_validated === true) {
+            toast.warning(
+              "This record is already validated and cannot be edited."
+            );
+            return r;
+          }
+
           const gpaStatus: "Not Started" | "Passed" | "Failed" =
             newGPA === null
               ? "Not Started"
@@ -535,9 +562,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             gpa: newGPA,
             gpa_validation_stat: gpaStatus,
           };
+
           const isEdited =
             updated.gpa !== r.original.gpa ||
             updated.gpa_validation_stat !== r.original.gpa_validation_stat;
+
           return {
             ...updated,
             scholarship_status: computeScholarshipStatus(updated),
@@ -1539,6 +1568,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                             key="blank"
                           ></th>
                         )}
+
                         {Object.entries(renewalTableHead)
                           .filter(([key]) => availableKeys.includes(key))
                           .map(([key, label]) => (
@@ -1547,27 +1577,32 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                 <th
                                   key={key}
                                   className={`px-2 sm:px-3 lg:px-5 py-2 sm:py-3 text-center border border-gray-300
-    ${
-      key === "scholar_name" &&
-      "sticky left-[-1px] bg-gray-100 z-10 shadow-md max-w-[150px] sm:max-w-[200px] min-w-[150px] sm:min-w-[200px]"
-    }
-    ${
-      key === "scholarship_status" &&
-      "sticky left-[149px] sm:left-[198px] bg-gray-100 z-10 shadow-md"
-    }
-    ${
-      key === "gpa" &&
-      "max-w-[60px] sm:max-w-[80px] min-w-[60px] sm:min-w-[80px]"
-    }
-    ${
-      key === "renewal_year_level_basis" &&
-      "min-w-[200px] sm:min-w-[250px] whitespace-normal break-words align-top"
-    }
-    ${
-      key === "year_level" &&
-      "min-w-[200px] sm:min-w-[250px] whitespace-normal break-words align-top"
-    }
-  `}
+                   ${
+                     isEdit && editableFields.includes(key)
+                       ? "bg-blue-50 text-blue-700 font-semibold"
+                       : ""
+                   }
+                   ${
+                     key === "scholar_name" &&
+                     "sticky left-[-1px] bg-gray-100 z-30 shadow-md max-w-[150px] sm:max-w-[200px] min-w-[150px] sm:min-w-[200px]"
+                   }
+                   ${
+                     key === "scholarship_status" &&
+                     "sticky left-[149px] sm:left-[198px] bg-gray-100 z-30 shadow-md"
+                   }
+                   ${
+                     key === "gpa" &&
+                     "max-w-[60px] sm:max-w-[80px] min-w-[60px] sm:min-w-[80px]"
+                   }
+                   ${
+                     key === "renewal_year_level_basis" &&
+                     "min-w-[200px] sm:min-w-[250px] whitespace-normal break-words align-top"
+                   }
+                   ${
+                     key === "year_level" &&
+                     "min-w-[200px] sm:min-w-[250px] whitespace-normal break-words align-top"
+                   }
+                `}
                                 >
                                   {key === "renewal_year_level_basis" ? (
                                     <>
@@ -1610,21 +1645,42 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                 </th>
                               ) : (
                                 <th
-                                  className="px-5 py-3 min-w-[200px] relative z-50"
+                                  className={`px-5 py-3 min-w-[200px] relative z-10 ${
+                                    isEdit
+                                      ? "bg-blue-50 text-blue-700 font-semibold"
+                                      : ""
+                                  }`}
                                   key={key}
                                 >
-                                  <CheckAllDropdown
-                                    label={label.toUpperCase()}
-                                    handleCheck={handleCheckModal}
-                                    isEditMode={isEdit}
-                                  />
+                                  {isEdit ? (
+                                    <CheckAllDropdown
+                                      label={label.toUpperCase()}
+                                      handleCheck={handleCheckModal}
+                                    />
+                                  ) : (
+                                    <span className="flex justify-center">
+                                      {label.toUpperCase()}
+                                    </span>
+                                  )}
                                 </th>
                               )}
                             </>
                           ))}
+
+                        {Number(role_id) === 3 || Number(role_id) === 9 ? (
+                          <>
+                            <th className="px-3 py-2 text-center border border-gray-300 font-semibold">
+                              HR VALIDATED
+                            </th>
+                            <th className="px-3 py-2 text-center border border-gray-300 font-semibold">
+                              HR COMPLETED
+                            </th>
+                          </>
+                        ) : null}
                       </tr>
                     </thead>
-                    <tbody className="bg-white/50  divide-y divide-slate-200 text-[12px] sm:text-[14px]">
+
+                    <tbody className="bg-white/50 divide-y divide-slate-200 text-[12px] sm:text-[14px]">
                       {tempRenewalData &&
                         tempRenewalData
                           .slice((page - 1) * itemsPerPage, page * itemsPerPage)
@@ -1649,6 +1705,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                   />
                                 </td>
                               )}
+
                               {Object.keys(renewalTableHead)
                                 .filter((key) => availableKeys.includes(key))
                                 .map((key) => {
@@ -1669,6 +1726,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                     key === "delisting_root_cause";
                                   const isValidatedField =
                                     key === "is_validated";
+
                                   return (
                                     <td
                                       key={key}
@@ -1680,26 +1738,36 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                           : "min-w-[120px] sm:min-w-[150px] max-w-[300px] sm:max-w-[400px] whitespace-nowrap overflow-hidden text-center"
                                       }`}
                                     >
+                                      {/* Editable fields (buttons, input, textareas, etc.) */}
                                       {isEdit && isValidatedField ? (
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            if (
+                                              renewal.is_hr_validated === true
+                                            ) {
+                                              toast.warning(
+                                                "This record cannot be changed because HR has already validated it."
+                                              );
+                                              return;
+                                            }
                                             handleIsValidatedChange(
                                               renewal,
                                               value as boolean | null
                                             );
                                           }}
-                                          className={`w-full h-full flex items-center justify-center font-semibold select-none cursor-pointer hover:ring-1 hover:ring-gray-300 rounded ${
+                                          className={`w-full h-full flex items-center justify-center font-semibold select-none cursor-pointer hover:ring-1 hover:ring-gray-300 rounded border 
+                                            ${
+                                              renewal.is_hr_validated
+                                                ? "cursor-not-allowed opacity-50 bg-gray-100"
+                                                : "cursor-pointer hover:scale-105 active:scale-95 shadow-sm"
+                                            } ${
                                             value === true
-                                              ? "text-green-600 text-2xl"
+                                              ? "text-green-600 bg-green-100 text-2xl"
                                               : value === false
-                                              ? "text-red-600 text-2xl"
+                                              ? "text-red-600 bg-red-100 text-2xl"
                                               : "text-gray-400 text-xs"
                                           }`}
-                                          style={{
-                                            background: "transparent",
-                                            border: "none",
-                                          }}
                                           title={
                                             value === true
                                               ? "Validated"
@@ -1717,6 +1785,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                       ) : isEdit && isGPAField ? (
                                         <input
                                           type="number"
+                                          disabled={
+                                            renewal.is_validated === true
+                                          }
                                           value={
                                             typeof value === "number" ||
                                             typeof value === "string"
@@ -1752,6 +1823,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                           "Delisted" ? (
                                         <textarea
                                           value={value as string}
+                                          disabled={
+                                            renewal.is_validated === true
+                                          }
                                           rows={1}
                                           onChange={(e) => {
                                             const newValue = e.target.value;
@@ -1770,6 +1844,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            if (renewal.is_validated === true) {
+                                              toast.warning(
+                                                "This record is already validated and cannot be edited."
+                                              );
+                                              return;
+                                            }
                                             const current = (
                                               (value as string) || "Not Started"
                                             ).trim();
@@ -1785,22 +1865,21 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                               next
                                             );
                                           }}
-                                          className={`w-full h-full flex items-center justify-center font-semibold select-none cursor-pointer hover:ring-1 hover:ring-gray-300 rounded ${
-                                            (
-                                              (value as string) || "Not Started"
-                                            ).trim() === "Passed"
-                                              ? "text-green-600 text-2xl"
-                                              : (
-                                                  (value as string) ||
-                                                  "Not Started"
-                                                ).trim() === "Failed"
-                                              ? "text-red-600 text-lg"
-                                              : "text-gray-400 text-xs py-2"
-                                          }`}
-                                          style={{
-                                            background: "transparent",
-                                            border: "none",
-                                          }}
+                                          className={`w-full h-full flex items-center justify-center font-semibold select-none rounded
+                          ${
+                            renewal.is_validated
+                              ? "cursor-not-allowed opacity-50 bg-gray-100"
+                              : "cursor-pointer hover:scale-105 active:scale-95 shadow-sm"
+                          }
+                          ${
+                            ((value as string) || "Not Started").trim() ===
+                            "Passed"
+                              ? "text-green-600 bg-green-100 text-2xl"
+                              : ((value as string) || "Not Started").trim() ===
+                                "Failed"
+                              ? "text-red-600 bg-red-100 text-lg"
+                              : "text-gray-400 text-xs py-2 bg-gray-50"
+                          }`}
                                           title={(
                                             (value as string) || "Not Started"
                                           ).trim()}
@@ -1842,6 +1921,32 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                     </td>
                                   );
                                 })}
+
+                              {/* ✅ HR Validation Data */}
+                              {(role_id === 3 || role_id === 9) && (
+                                <>
+                                  <td
+                                    className={`px-3 py-2 text-center border border-gray-300 font-semibold ${
+                                      renewal.is_hr_validated
+                                        ? "text-green-600 "
+                                        : "text-red-600 "
+                                    }`}
+                                  >
+                                    {renewal.is_hr_validated ? "✓" : "X"}
+                                  </td>
+
+                                  <td className="px-3 py-2 text-center border border-gray-300 text-xs text-gray-600">
+                                    {renewal.hr_completed_at
+                                      ? new Date(
+                                          renewal.hr_completed_at
+                                        ).toLocaleString("en-PH", {
+                                          dateStyle: "medium",
+                                          timeStyle: "short",
+                                        })
+                                      : "—"}
+                                  </td>
+                                </>
+                              )}
                             </tr>
                           ))}
                     </tbody>

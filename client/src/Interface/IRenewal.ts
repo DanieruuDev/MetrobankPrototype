@@ -35,6 +35,8 @@ export interface RenewalDetails {
   role_id: number;
 
   completed_at: string;
+  is_hr_validated: boolean;
+  hr_completed_at: string;
 }
 export interface RenewalDetailsClone extends RenewalDetails {
   isEdited: boolean;
@@ -65,6 +67,8 @@ export interface RenewalRow {
   school_year: string;
   delisted_date?: string | null;
   delisting_root_cause?: string | null;
+  is_hr_validated: boolean;
+  hr_completed_at: string;
 }
 
 export const tableHead = {
@@ -91,6 +95,8 @@ export const tableHead = {
   school_year: "Renewal School Year",
   delisted_date: "Delisted Date",
   delisting_root_cause: "Delisting Root Cause",
+  is_hr_validated: "HR Validate",
+  hr_completed_at: "HR Completed",
 };
 
 export const renewalTableHead = {
@@ -114,6 +120,8 @@ export const renewalTableHead = {
   year_level: "Renewal Year Level ",
   delisted_date: "Delisted Date",
   delisting_root_cause: "Delisting Root Cause",
+  is_hr_validated: "HR Validate",
+  hr_completed_at: "HR Completed",
 };
 
 export const validation = {

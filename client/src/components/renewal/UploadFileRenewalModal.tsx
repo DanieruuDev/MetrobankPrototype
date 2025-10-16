@@ -50,6 +50,8 @@ function UploadFileRenewalModal({
     delisted_date: r.delisted_date ?? null,
     delisting_root_cause: r.delisting_root_cause ?? null,
     is_validated: r.is_validated,
+    is_hr_validated: r.is_hr_validated,
+    hr_completed_at: r.hr_completed_at,
   }));
 
   const computeGPAValidationStat = (
