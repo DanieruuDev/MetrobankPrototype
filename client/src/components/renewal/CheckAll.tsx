@@ -16,7 +16,7 @@ interface CheckAllDropdownProps {
 function CheckAllDropdown({
   label,
   handleCheck,
-  isEditMode = false,
+  isEditMode,
 }: CheckAllDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

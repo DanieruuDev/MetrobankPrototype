@@ -1658,6 +1658,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                     <CheckAllDropdown
                                       label={label.toUpperCase()}
                                       handleCheck={handleCheckModal}
+                                      isEditMode={true}
                                     />
                                   ) : (
                                     <span className="flex justify-center">
