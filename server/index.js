@@ -46,7 +46,7 @@ app.use("/api/notification", notificationRouter);
 app.use("/api/approvals", approvalRouter);
 app.use("/api/jobs", uploadStatusRouter);
 app.use("/api/invoice", tuitionInvoiceRouter);
-app.use("api/process", processProgressRouter);
+app.use("/api/process", processProgressRouter);
 
 app.use("/", async (req, res) => {
   res.send("Hello World");

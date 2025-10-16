@@ -85,12 +85,28 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Incorrect credentials" });
     }
 
+    const branchRes = await client.query(
+      `SELECT branch_id, branch_name 
+       FROM administration_brancheads 
+       WHERE admin_id = $1`,
+      [user.admin_id]
+    );
+
+    const campus =
+      branchRes.rows.length > 0
+        ? {
+            branch_id: branchRes.rows[0].branch_id,
+            branch_name: branchRes.rows[0].branch_name,
+          }
+        : null;
+
     const accessToken = jwt.sign(
       {
         user_id: user.admin_id,
         email: user.admin_email,
         role_id: user.role_id,
         role_name: user.role_name,
+        campus,
       },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "15m" }
@@ -147,6 +163,20 @@ const refreshToken = async (req, res) => {
 
     const user = userCheck.rows[0];
 
+    const branchRes = await pool.query(
+      `SELECT branch_id, branch_name 
+       FROM administration_brancheads 
+       WHERE admin_id = $1`,
+      [user.admin_id]
+    );
+
+    const campus =
+      branchRes.rows.length > 0
+        ? {
+            branch_id: branchRes.rows[0].branch_id,
+            branch_name: branchRes.rows[0].branch_name,
+          }
+        : null;
     // Generate new access token
     const newAccessToken = jwt.sign(
       {
@@ -154,6 +184,7 @@ const refreshToken = async (req, res) => {
         email: user.admin_email,
         role_id: user.role_id,
         role_name: user.role_name,
+        campus,
       },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "15m" }

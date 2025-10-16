@@ -6,9 +6,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import * as XLSX from "xlsx";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Download, FileText, Users } from "lucide-react";
 import { toast } from "react-toastify";
 import SearchWithDropdownFilter from "../../../components/shared/SearchWithDropdownFilter";
+import {
+  extractDisbursementExcel,
+  ExtractedDisbursement,
+} from "../../../utils/ExcelExtractor";
 
 interface ITrackingStudent {
   student_id: number;
@@ -27,6 +31,7 @@ interface ITrackingStudent {
   required_hours: number | null;
   completed_at: string | null;
   disbursement_amount: number | null;
+  disb_detail_id: number | null;
 }
 
 interface ITrackingDisbursement {
@@ -42,7 +47,11 @@ interface ITrackingDetailed {
   sched_title: string;
   event_type: number;
   schedule_status: string;
+
   workflow_id: number;
+  approval_req_type: string;
+  doc_id: number;
+  doc_name: string;
 
   schedule_due: string;
   event_start_date: string;
@@ -73,12 +82,35 @@ function DetailedTracking() {
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
+  const [extractedData, setExtractedData] = useState<
+    ExtractedDisbursement[] | null
+  >(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const { collapsed } = useSidebar();
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
   console.log(sched_id);
+
+  const handleExtract = async () => {
+    try {
+      if (!trackingDetailed) {
+        console.error("No file to download");
+        return;
+      }
+      const filePath = encodeURIComponent(trackingDetailed[0]?.doc_name);
+      const fileUrl = `${
+        import.meta.env.VITE_BACKEND_URL
+      }api/workflow/download/${filePath}`;
+
+      const data = await extractDisbursementExcel(fileUrl);
+      console.log(data);
+      setExtractedData(data);
+      console.log("✅ Extracted Excel Data:", data);
+    } catch (err) {
+      console.error("❌ Failed to extract:", err);
+    }
+  };
   useEffect(() => {
     const fetchTrackingDetailed = async () => {
       try {
@@ -86,7 +118,7 @@ function DetailedTracking() {
         const response = await axios.get(
           `${VITE_BACKEND_URL}api/disbursement/tracking/${sched_id}`
         );
-        console.log(response.data);
+        console.log("Respons in detailed", response.data);
         setTrackingDetailed(response.data);
       } catch (error) {
         console.error(error);
@@ -97,25 +129,102 @@ function DetailedTracking() {
 
     fetchTrackingDetailed();
   }, [sched_id, VITE_BACKEND_URL]);
+  useEffect(() => {
+    handleExtract();
+  }, [trackingDetailed]);
 
   const handleComplete = async () => {
-    if (!trackingDetailed) return;
+    if (!trackingDetailed || !extractedData) {
+      toast.error("Missing extracted data or schedule info");
+      return;
+    }
+
+    const schedule = trackingDetailed[0];
+
+    // 🧩 Flatten all student + disbursement detail mappings from backend
+    const disbDetails = schedule.disbursement_schedules.flatMap((ds) =>
+      ds.students.map((s) => ({
+        student_id: s.student_id,
+        disb_detail_id: s.disb_detail_id,
+      }))
+    );
+
+    // 🧠 Match student_id between backend + Excel extraction
+    const updates = disbDetails
+      .map((d) => {
+        const match = extractedData.find(
+          (e) => String(e.student_id).trim() === String(d.student_id).trim()
+        );
+
+        if (!match || !match.amount) return null;
+
+        // 🧹 Clean the amount: remove peso signs, commas, spaces
+        const cleaned = String(match.amount)
+          .replace(/[₱,]/g, "") // remove peso sign and commas
+          .trim();
+
+        const amountValue = parseFloat(cleaned);
+
+        if (isNaN(amountValue)) {
+          console.warn(
+            `⚠️ Invalid amount for student ${d.student_id}:`,
+            match.amount
+          );
+          return null;
+        }
+
+        return {
+          disb_detail_id: d.disb_detail_id,
+          student_id: d.student_id,
+          amount: Number(amountValue),
+        };
+      })
+      .filter(
+        (
+          x
+        ): x is {
+          disb_detail_id: number;
+          student_id: number;
+          amount: number;
+        } => !!x
+      );
+
+    console.log("🧾 Prepared updates:", updates);
+
+    if (updates.length === 0) {
+      toast.error("No valid Excel data found for this schedule.");
+      return;
+    }
+
+    const missing = disbDetails.filter(
+      (d) => !updates.some((u) => u.student_id === d.student_id)
+    );
+    if (missing.length > 0) {
+      toast.warn(
+        `${missing.length} students missing in Excel — they will not be updated.`
+      );
+    }
+
     try {
       setIsCompleting(true);
+
       await axios.put(
         `${VITE_BACKEND_URL}api/disbursement/tracking/complete/${sched_id}`,
         {
-          workflow_id: trackingDetailed[0].workflow_id,
+          workflow_id: schedule.workflow_id,
+          updates,
         }
       );
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/disbursement/tracking/${sched_id}`
+
+      toast.success("✅ Disbursement amounts uploaded and schedule completed!");
+
+      const refreshed = await axios.get(
+        `${VITE_BACKEND_URL}api/disbursement/tracking/${schedule.sched_id}`
       );
-      toast.success("Disbursement completed");
-      setTrackingDetailed(response.data);
+      setTrackingDetailed(refreshed.data);
     } catch (error) {
-      console.error("Error completing disbursement:", error);
-      toast.error("Failed to complete");
+      console.error("❌ Error completing disbursement:", error);
+      toast.error("Failed to complete disbursement.");
     } finally {
       setIsCompleting(false);
     }
@@ -316,6 +425,20 @@ function DetailedTracking() {
     );
   };
 
+  const handleDownload = () => {
+    if (!trackingDetailed) {
+      console.error("No file to download");
+      return;
+    }
+    const filePath = encodeURIComponent(trackingDetailed[0]?.doc_name); // encode special chars
+    const link = document.createElement("a");
+    link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
+    link.setAttribute("download", trackingDetailed[0]?.doc_name); // filename for browser
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Keep layout scaffold (Navbar/Sidebar) visible; render loading/content inside
 
   const scheduleInfo = trackingDetailed?.[0];
@@ -364,6 +487,7 @@ function DetailedTracking() {
     return matchesSearch && yearLevelOk && branchOk;
   });
 
+  console.log(extractedData);
   return (
     <div className="min-h-screen relative">
       <Sidebar />
@@ -392,6 +516,7 @@ function DetailedTracking() {
               </p>
             </div>
           )}
+
           {!isLoading && trackingDetailed && (
             <div className="flex flex-row justify-between md:flex-row md:items-center md:justify-between mb-5 gap-3">
               <div className="flex items-center gap-3">
@@ -500,6 +625,30 @@ function DetailedTracking() {
                         {scheduleInfo.event_semester_code}
                       </p>
                     </div>
+                  </div>
+                  <div
+                    className="flex items-center justify-between w-full max-w-md p-3 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all cursor-pointer "
+                    onClick={handleDownload}
+                  >
+                    {/* Left side: Icon + Name */}
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                      <p className="truncate text-sm font-medium text-gray-800">
+                        {trackingDetailed[0].doc_name || "Untitled Document"}
+                      </p>
+                    </div>
+
+                    {/* Right side: Download button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload();
+                      }}
+                      className="p-2 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 transition cursor-pointer"
+                      title="Download file"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>

@@ -18,7 +18,7 @@ interface StudentDisbursement {
   student_semester: string;
   student_school_year: string;
   student_branch: string;
-  total_received: number;
+  total_disbursed_amount: number;
 }
 
 interface SchoolYear {
@@ -104,12 +104,23 @@ const DisbursementOverview = () => {
     });
   })();
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined | string) => {
+    // Handle string amounts from database
+    const safeAmount =
+      typeof amount === "string" ? parseFloat(amount) : Number(amount) || 0;
+
+    // Debug logging
+    if (amount && amount !== 0) {
+      console.log(
+        `💰 Formatting: ${amount} (type: ${typeof amount}) → ${safeAmount}`
+      );
+    }
+
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
       minimumFractionDigits: 2,
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   const fetchDisbursementSummary = async () => {
@@ -122,7 +133,7 @@ const DisbursementOverview = () => {
       setTotalPage(totalPages);
       setPage(currentPage);
       setStudentList(data);
-
+      console.log("Response", response.data);
       // Fetch all students for search functionality
       const allStudentsResponse = await axios.get(
         `${VITE_BACKEND_URL}api/disbursement/overview/scholar-list?page=1&limit=10000`
@@ -139,6 +150,7 @@ const DisbursementOverview = () => {
       }
 
       setAllStudents(allStudentsData);
+      console.log("All", allStudentsData);
 
       // Fetch total disbursed amount from backend
       const totalDisbursedResponse = await axios.get(
@@ -229,7 +241,7 @@ const DisbursementOverview = () => {
                     Total Scholars
                   </p>
                   <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">
-                    {summaryStats.totalStudents}
+                    17
                   </p>
                 </div>
               </div>
@@ -259,8 +271,8 @@ const DisbursementOverview = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6 min-h-[280px] sm:min-h-[320px]">
-              {!loading && schoolYears.length > 2 ? (
-                <DonutChart school_year={schoolYears[2].sy_code} />
+              {!loading && schoolYears.length > 1 ? (
+                <DonutChart school_year={schoolYears[1].sy_code} />
               ) : (
                 <div className="flex justify-center items-center h-full min-h-[200px]">
                   <Loading />
@@ -413,7 +425,7 @@ const DisbursementOverview = () => {
                           {student.student_branch}
                         </td>
                         <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                          {formatCurrency(student.total_received)}
+                          {formatCurrency(student.total_disbursed_amount)}
                         </td>
                       </tr>
                     ))

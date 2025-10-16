@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 import { useContext, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { AuthContext } from "../../../context/AuthContext";
-import Loading from "../../shared/Loading"; // Adjust path as needed
+import Loading from "../../shared/Loading";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import WorkflowDetails from "./WorkflowDetails";
@@ -173,9 +173,11 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         }
       );
 
+      toast.success("Approval request created successfully!");
+
       fetchWorkflows(1);
       setIsModal(false);
-      toast.success("Approval request created successfully!");
+
       console.log("Response:", res.data);
     } catch (error) {
       console.error("Error details:", error);
@@ -222,8 +224,11 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         >
           {/* Show loading spinner inside modal */}
           {loading && (
-            <div className="flex justify-center mb-4">
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-lg">
               <Loading />
+              <p className="mt-2 text-gray-600 text-sm font-medium">
+                Processing...
+              </p>
             </div>
           )}
 
@@ -300,7 +305,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
                 onClick={handleSubmit}
                 disabled={loading}
               >
-                Create Workflow
+                {loading ? "Loading..." : "Create Workflow"}
               </button>
             ) : (
               <button

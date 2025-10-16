@@ -4,22 +4,34 @@ const { v4: uuidv4 } = require("uuid");
 
 const fetchScholarForInvoice = async (req, res) => {
   const { schoolYear, semester } = req.params;
-
-  // Validate parameters
+  const { branch } = req.query; // ✅ optional branch filter
+  console.log("branch here", branch);
   if (!schoolYear || !semester) {
     return res
       .status(400)
-      .json({ error: "School year (sy) and semester are required" });
+      .json({ error: "School year and semester are required" });
   }
 
   try {
-    const result = await pool.query(
-      "SELECT * FROM vw_combined_eligible_scholar_invoice WHERE semester = $1 AND school_year = $2",
-      [semester, schoolYear]
-    );
+    // ✅ Use a flexible WHERE condition:
+    // - Filters by branch only if it’s provided.
+    // - Otherwise, shows all.
+    const query = `
+      SELECT *
+      FROM vw_combined_eligible_scholar_invoice
+      WHERE semester = $1
+        AND school_year = $2
+        AND ($3::varchar IS NULL OR campus = $3)
+      ORDER BY scholar_name ASC
+    `;
 
-    // Return the query results
-    return res.status(200).json(result.rows);
+    const { rows } = await pool.query(query, [
+      semester,
+      schoolYear,
+      branch || null,
+    ]);
+
+    return res.status(200).json(rows);
   } catch (error) {
     console.error("Error fetching renewed scholars:", error);
     return res.status(500).json({ error: "Internal server error" });

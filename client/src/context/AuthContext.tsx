@@ -14,6 +14,7 @@ interface JwtPayload {
   email: string;
   role_id: number;
   role_name: string;
+  campus: Branch | null;
   exp?: number;
 }
 
@@ -50,6 +51,7 @@ interface AuthContextType {
   info: Info | null;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
@@ -124,7 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email: decoded.email,
             role_id: decoded.role_id,
             role_name: decoded.role_name,
-            branch: null,
+            branch: decoded.campus,
           });
           await fetchUserInfo(newAccessToken);
         } else {
@@ -187,6 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

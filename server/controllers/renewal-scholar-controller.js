@@ -1044,8 +1044,8 @@ const getExcelRenewalReport = async (req, res) => {
 };
 
 const getInitialRenewalInfo = async (req, res) => {
-  const { school_year, semester } = req.query;
-  console.log(school_year, semester);
+  const { school_year, semester, branch } = req.query; // ✅ added optional branch
+  console.log("Params:", school_year, semester, branch);
 
   if (!school_year || !semester) {
     return res
@@ -1055,41 +1055,44 @@ const getInitialRenewalInfo = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT 
-         COUNT(*) AS count,
-         rs.renewal_school_year_basis,
-         sy.school_year AS renewal_school_year_basis_text,
-         rs.renewal_sem_basis,
-         sem.semester AS renewal_sem_basis_text,
-         rs.school_year,
-         sy2.school_year AS school_year_text,
-         rs.semester,
-         sem2.semester AS semester_text
-       FROM renewal_scholar rs
-       LEFT JOIN maintenance_sy sy 
-         ON rs.renewal_school_year_basis = sy.sy_code
-       LEFT JOIN maintenance_semester sem 
-         ON rs.renewal_sem_basis = sem.semester_code
-       LEFT JOIN maintenance_sy sy2
-         ON rs.school_year = sy2.sy_code
-       LEFT JOIN maintenance_semester sem2
-         ON rs.semester = sem2.semester_code
-       WHERE rs.school_year = $1 
-         AND rs.semester = $2 
-         AND rs.is_initial = false
-       GROUP BY 
-         rs.renewal_school_year_basis, sy.school_year,
-         rs.renewal_sem_basis, sem.semester,
-         rs.school_year, sy2.school_year,
-         rs.semester, sem2.semester
-       LIMIT 1`, // ensures only one row
-      [school_year, semester]
+      `
+      SELECT 
+        COUNT(*) AS count,
+        rs.renewal_school_year_basis,
+        sy.school_year AS renewal_school_year_basis_text,
+        rs.renewal_sem_basis,
+        sem.semester AS renewal_sem_basis_text,
+        rs.school_year,
+        sy2.school_year AS school_year_text,
+        rs.semester,
+        sem2.semester AS semester_text
+      FROM renewal_scholar rs
+      LEFT JOIN maintenance_sy sy 
+        ON rs.renewal_school_year_basis = sy.sy_code
+      LEFT JOIN maintenance_semester sem 
+        ON rs.renewal_sem_basis = sem.semester_code
+      LEFT JOIN maintenance_sy sy2
+        ON rs.school_year = sy2.sy_code
+      LEFT JOIN maintenance_semester sem2
+        ON rs.semester = sem2.semester_code
+      WHERE rs.school_year = $1 
+        AND rs.semester = $2
+        AND rs.is_initial = false
+        AND ($3::int IS NULL OR rs.campus_code = $3)  -- ✅ optional branch filter
+      GROUP BY 
+        rs.renewal_school_year_basis, sy.school_year,
+        rs.renewal_sem_basis, sem.semester,
+        rs.school_year, sy2.school_year,
+        rs.semester, sem2.semester
+      LIMIT 1
+      `,
+      [school_year, semester, branch || null]
     );
 
     if (result.rows.length > 0) {
       const row = result.rows[0];
       return res.status(200).json({
-        message: "Count fetch successfully",
+        message: "Count fetched successfully",
         data: {
           count: Number(row.count),
           renewal_school_year_basis: row.renewal_school_year_basis,
@@ -1109,7 +1112,7 @@ const getInitialRenewalInfo = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error(error);
+    console.error("getInitialRenewalInfo error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -1123,6 +1126,7 @@ const getRenewalAuditLog = async (req, res) => {
       validation_id,
       admin_id,
       role_id,
+      branch_id,
       change_category,
       start_date,
       end_date,
@@ -1162,6 +1166,12 @@ const getRenewalAuditLog = async (req, res) => {
     if (role_id) {
       query += ` AND role_id = $${paramIndex++}`;
       values.push(role_id);
+    }
+
+    // Filter by branch_id
+    if (branch_id) {
+      query += ` AND branch_id = $${paramIndex++}`;
+      values.push(branch_id);
     }
 
     // Filter by change category
@@ -1215,6 +1225,10 @@ const getRenewalAuditLog = async (req, res) => {
     if (role_id) {
       countQuery += ` AND role_id = $${countParamIndex++}`;
       countValues.push(role_id);
+    }
+    if (branch_id) {
+      countQuery += ` AND branch_id = $${countParamIndex++}`;
+      countValues.push(branch_id);
     }
     if (change_category) {
       countQuery += ` AND change_category = $${countParamIndex++}`;

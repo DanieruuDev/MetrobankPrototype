@@ -12,6 +12,8 @@ import {
   Eye,
   UserRoundPlus as UserRoundPen,
   History,
+  SquareCheckBig,
+  RotateCcw,
 } from "lucide-react";
 import {
   type RenewalRow,
@@ -37,6 +39,10 @@ import AuditLog from "./AuditLog";
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
 }
+interface ProcessInfo {
+  process_id: number | null;
+  current_stage: string;
+}
 
 function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const auth = useContext(AuthContext);
@@ -49,6 +55,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
     []
   );
+  const [processInfo, setProcessInfo] = useState<ProcessInfo>({
+    process_id: null,
+    current_stage: "",
+  });
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
@@ -153,7 +163,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         });
         return;
       }
-
+      console.log(school_year, semPart);
       try {
         console.log("Before count");
         const response = await axios.get(
@@ -171,6 +181,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         }
         console.log("Renewal count response:", response.data.data);
         setInitialRenewalInfo(response.data.data);
+
         console.log("After count");
       } catch (error) {
         console.error("Error fetching renewal count:", error);
@@ -609,6 +620,66 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     [renewalData, role_id, auth?.info?.branch?.branch_name]
   );
 
+  const handleFinalizeRenewal = async (action: string) => {
+    console.log("finalize");
+    if (!initialRenewalInfo) {
+      toast.error("No renewal information found.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const payload = {
+        sy_code: initialRenewalInfo.school_year,
+        semester_code: initialRenewalInfo.semester,
+        stage_name: "Renewal",
+        action: action,
+        user_id: userId,
+      };
+      console.log("finalize inside");
+      const res = await axios.put(
+        `${VITE_BACKEND_URL}api/process/update-renewal`,
+        payload
+      );
+
+      if (res.status === 200) {
+        toast.success("Renewal has been finalized successfully.");
+        getInitialRenewalInfo(sySemester);
+        getProcessInfo();
+      } else {
+        toast.warn("Something went wrong while finalizing renewal.");
+      }
+    } catch (err) {
+      console.error("❌ Error finalizing renewal:", err);
+      toast.error("Failed to finalize renewal.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const getProcessInfo = async () => {
+    // Optional: indicate loading state (if you have one)
+    // setIsLoading(true);
+    const [sy, semPart] = sySemester.split("_");
+    const school_year = sy.replace("-", "");
+    try {
+      const result = await axios.get(
+        `${VITE_BACKEND_URL}api/process/${school_year}/${semPart}`
+      );
+
+      if (!result || !result.data) {
+        toast.warn("No process information found.");
+        console.warn("⚠️ Empty response received:", result);
+        return;
+      }
+
+      // 4️⃣ Update state
+      setProcessInfo(result.data.data);
+      console.log("Process info fetched:", result.data.data);
+    } catch (error) {
+      toast.error(`Error fetching process info ${error}`);
+    }
+  };
   const handleCheckModal = (type: string) => {
     setTempRenewalData((prev) => {
       return prev.map((r) => {
@@ -662,6 +733,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     if (sySemester) {
       getRenewalData(sySemester);
       getInitialRenewalInfo(sySemester);
+      getProcessInfo();
     }
   }, [sySemester, getRenewalData, getInitialRenewalInfo]);
 
@@ -680,10 +752,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     setCountDelisted(delisted);
     setCountNotStarted(notStarted);
   }, [renewalData]);
-
-  useEffect(() => {
-    console.log("Parent sySemester updated:", sySemester);
-  }, [sySemester]);
 
   // Fetch SY Semester options
   useEffect(() => {
@@ -1018,14 +1086,53 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             {/* Modern Action Buttons Row */}
             <div className="flex flex-wrap items-center gap-2">
               {!isEdit && role_id === 7 && (
-                <button
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl"
-                  onClick={() => SetIsRenewalBtnOpen(true)}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden xs:inline">Initialize Renewal</span>
-                  <span className="xs:hidden">Initialize</span>
-                </button>
+                <>
+                  {tempRenewalData.length === initialRenewalInfo?.count && (
+                    <button
+                      className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl cursor-pointer
+    ${
+      processInfo.current_stage === "Renewal"
+        ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+        : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+    }`}
+                      onClick={() =>
+                        handleFinalizeRenewal(
+                          processInfo.current_stage === "Renewal"
+                            ? "complete"
+                            : "rollback"
+                        )
+                      }
+                    >
+                      {processInfo.current_stage === "Renewal" ? (
+                        <>
+                          <SquareCheckBig className="w-4 h-4" />
+                          <span className="hidden md:inline">
+                            Finalize Renewal
+                          </span>
+                          <span className="md:hidden">Finalize</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-4 h-4" />{" "}
+                          {/* Use rollback icon */}
+                          <span className="hidden md:inline">
+                            Revert Renewal
+                          </span>
+                          <span className="md:hidden">Revert</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl cursor-pointer"
+                    onClick={() => SetIsRenewalBtnOpen(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden md:inline">Initialize Renewal</span>
+                    <span className="md:hidden">Initialize</span>
+                  </button>
+                </>
               )}
 
               {/* Individual File Action Buttons */}
@@ -1072,16 +1179,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     <Download className="w-4 h-4" />
                     <span className="hidden xs:inline">Download</span>
                   </button>
-
-                  {role_id === 7 && (
-                    <button
-                      className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-700 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50"
-                      onClick={() => setShowAuditLog(true)}
-                    >
-                      <History className="w-4 h-4" />
-                      <span className="hidden xs:inline">Audit Log</span>
-                    </button>
-                  )}
                 </>
               )}
 
@@ -1235,81 +1332,99 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               </div>
 
               {/* Additional Filters Row */}
-              <div className="flex flex-col lg:flex-row gap-3">
+              <div className="flex justify-between items-center">
                 {/* School Year & Semester Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                    School Year & Semester:
-                  </label>
-                  <select
-                    value={sySemester}
-                    onChange={(e) => setSySemester(e.target.value)}
-                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
-                  >
-                    <option value="">Select SY-Semester</option>
-                    {sySemesterOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Branch Filter - Hidden when user has a specific assigned branch (Registrar/Instructor/DO) */}
-                {!(
-                  (role_id === 3 || role_id === 4 || role_id === 9) &&
-                  Boolean(auth?.info?.branch?.branch_name)
-                ) && (
+                <div className="flex flex-col lg:flex-row gap-3">
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                      Branch:
+                      School Year & Semester:
                     </label>
                     <select
-                      value={selectedBranchFilter}
-                      onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      value={sySemester}
+                      onChange={(e) => setSySemester(e.target.value)}
+                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
                     >
-                      <option value="All">All Branches</option>
-                      {uniqueBranches.map((branch) => (
-                        <option key={branch} value={branch}>
-                          {branch}
+                      <option value="">Select SY-Semester</option>
+                      {sySemesterOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
                         </option>
                       ))}
                     </select>
                   </div>
-                )}
 
-                {/* Year Level Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                  <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                    Year Level:
-                  </label>
-                  <select
-                    value={selectedYearLevelFilter}
-                    onChange={(e) => setSelectedYearLevelFilter(e.target.value)}
-                    className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                  {/* Branch Filter - Hidden when user has a specific assigned branch (Registrar/Instructor/DO) */}
+                  {!(
+                    (role_id === 3 || role_id === 4 || role_id === 9) &&
+                    Boolean(auth?.info?.branch?.branch_name)
+                  ) && (
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                      <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+                        Branch:
+                      </label>
+                      <select
+                        value={selectedBranchFilter}
+                        onChange={(e) =>
+                          setSelectedBranchFilter(e.target.value)
+                        }
+                        className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      >
+                        <option value="All">All Branches</option>
+                        {uniqueBranches.map((branch) => (
+                          <option key={branch} value={branch}>
+                            {branch}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Year Level Filter */}
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+                      Year Level:
+                    </label>
+                    <select
+                      value={selectedYearLevelFilter}
+                      onChange={(e) =>
+                        setSelectedYearLevelFilter(e.target.value)
+                      }
+                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                    >
+                      <option value="All">All Year Levels</option>
+                      {uniqueYearLevels.map((yearLevel) => (
+                        <option key={yearLevel} value={yearLevel}>
+                          {yearLevel}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  <button
+                    onClick={() => {
+                      setSelectedStatus("All");
+                      setSelectedBranchFilter("All");
+                      setSelectedYearLevelFilter("All");
+                      setSearchQuery("");
+                    }}
+                    className="px-3 py-2 text-xs font-medium bg-white/100  text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
                   >
-                    <option value="All">All Year Levels</option>
-                    {uniqueYearLevels.map((yearLevel) => (
-                      <option key={yearLevel} value={yearLevel}>
-                        {yearLevel}
-                      </option>
-                    ))}
-                  </select>
+                    Clear Filters
+                  </button>
                 </div>
 
-                {/* Clear Filters Button */}
-                <button
-                  onClick={() => {
-                    setSelectedStatus("All");
-                    setSelectedBranchFilter("All");
-                    setSelectedYearLevelFilter("All");
-                    setSearchQuery("");
-                  }}
-                  className="px-3 py-2 text-xs font-medium bg-white/100  text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
-                >
-                  Clear Filters
-                </button>
+                <div className="items-end">
+                  {role_id === 7 && (
+                    <button
+                      className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50 cursor-pointer"
+                      onClick={() => setShowAuditLog(true)}
+                    >
+                      <History className="w-4 h-4" />
+                      <span className="hidden xs:inline">Audit Log</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

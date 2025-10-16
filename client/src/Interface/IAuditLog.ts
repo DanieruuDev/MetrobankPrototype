@@ -44,6 +44,7 @@ export interface AuditLogFilters {
   validation_id?: number;
   admin_id?: number;
   role_id?: number;
+  branch_id?: number;
   change_category?: string;
   start_date?: string;
   end_date?: string;
