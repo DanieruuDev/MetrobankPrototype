@@ -64,6 +64,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
   );
+  const [isValidateConfirmOpen, setIsValidateConfirmOpen] = useState(false);
+  const [validateConfirmMessage, setValidateConfirmMessage] = useState("");
+  const [pendingValidationChange, setPendingValidationChange] = useState<{
+    renewal: RenewalDetailsClone;
+    newValue: boolean;
+  } | null>(null);
+  // For Check-All confirmation modal
+  const [isCheckConfirmOpen, setIsCheckConfirmOpen] = useState(false);
+  const [checkConfirmMessage, setCheckConfirmMessage] = useState("");
+  const [pendingCheckAction, setPendingCheckAction] = useState<string | null>(
+    null
+  );
+
   const [page, setPage] = useState<number>(1);
   const [totalPage, setTotalPage] = useState<number>(1);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -485,6 +498,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     renewal: RenewalDetailsClone,
     currentValue: boolean | null
   ) => {
+    const newValue = !currentValue;
+    const role = Number(role_id);
+
+    // Validation check
     const validationFields = Object.keys(validation).filter(
       (k) =>
         k !== "scholarship_status" &&
@@ -496,27 +513,42 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       (field) => renewal[field as keyof RenewalDetails] === "Not Started"
     );
 
+    // Prevent validating if there are unfinished fields
+    if (newValue === true && hasNotStarted) {
+      toast.error(
+        "All validation fields must be set to Passed or Failed before validating.",
+        { toastId: "validation-fields-error" }
+      );
+      return;
+    }
+
+    // Define confirmation message
+    let message = "";
+    if (role === 7) {
+      message = newValue
+        ? "Once you validate this record, other validators (Registrar/DO) will no longer be able to edit their validation. Continue?"
+        : "Unchecking this will allow other validators to edit their validation again. Continue?";
+    } else if (role === 3 || role === 9) {
+      message = newValue
+        ? "Validating this record will forward it to HR and you won’t be able to change your input. Continue?"
+        : "Unchecking this will pull the record back from HR. Continue?";
+    }
+
+    // Open confirmation modal
+    setValidateConfirmMessage(message);
+    setPendingValidationChange({ renewal, newValue });
+    setIsValidateConfirmOpen(true);
+  };
+  const handleConfirmValidationChange = () => {
+    if (!pendingValidationChange) return;
+
+    const { renewal, newValue } = pendingValidationChange;
+
     setTempRenewalData((prev) => {
       const updatedRows = prev.map((r) => {
         if (r.renewal_id === renewal.renewal_id) {
-          // Determine the new value for is_validated
-          const newValue = !currentValue;
-
-          // If trying to set to true (validated) and any field is Not Started, prevent it
-          if (newValue === true && hasNotStarted) {
-            toast.error(
-              "All validation fields must be set to Passed or Failed before validating.",
-              {
-                toastId: "validation-individual-error", // Prevents duplicate toasts
-              }
-            );
-            return r; // Return unchanged row to prevent update
-          }
-
           const updated = { ...r, is_validated: newValue };
-
           const scholarship_status = computeScholarshipStatus(updated);
-
           const isEdited = Object.keys(updated).some(
             (key) =>
               key !== "original" &&
@@ -524,7 +556,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               updated[key as keyof RenewalDetails] !==
                 r.original[key as keyof RenewalDetails]
           );
-
           return {
             ...updated,
             scholarship_status,
@@ -533,9 +564,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         }
         return r;
       });
-
       return updatedRows;
     });
+
+    // Close modal after confirming
+    setIsValidateConfirmOpen(false);
+    setPendingValidationChange(null);
   };
 
   const handleGPAChange = (renewalId: number, newGPA: number | null) => {
@@ -754,7 +788,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     }
   };
   const handleCheckModal = (type: string) => {
-    // Validation fields to check
     const validationFields = Object.keys(validation).filter(
       (k) =>
         k !== "scholarship_status" &&
@@ -762,55 +795,120 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         k !== "is_validated"
     );
 
-    // Pre-validation: Check if we're trying to validate (set to true) and if any records have "Not Started" fields
-    if (type === "Check All" || type === "Check Remaining") {
-      const recordsToUpdate = tempRenewalData.filter((r) => {
-        if (type === "Check All") return true;
-        if (type === "Check Remaining") return r.is_validated === null;
-        return false;
-      });
+    // Eligible = all required fields are not "Not Started"
+    const eligibleRecords = tempRenewalData.filter((r) =>
+      validationFields.every(
+        (field) => r[field as keyof RenewalDetails] !== "Not Started"
+      )
+    );
 
-      const recordsWithNotStarted = recordsToUpdate.filter((r) =>
-        validationFields.some(
-          (field) => r[field as keyof RenewalDetails] === "Not Started"
-        )
-      );
+    let affectedRecords: RenewalDetailsClone[] = [];
+    let actionWord = "";
 
-      if (recordsWithNotStarted.length > 0) {
-        toast.error(
-          `Cannot validate ${recordsWithNotStarted.length} record(s). All validation fields must be set to Passed or Failed before validating.`,
-          {
-            toastId: "validation-check-error", // Prevents duplicate toasts
-          }
+    switch (type) {
+      case "Check All":
+        affectedRecords = eligibleRecords.filter(
+          (r) => r.is_validated !== true
         );
-        return; // Exit early without updating
-      }
+        actionWord = "validate";
+        break;
+
+      case "Check Remaining":
+        affectedRecords = eligibleRecords.filter(
+          (r) => r.is_validated !== true
+        );
+        actionWord = "validate (remaining)";
+        break;
+
+      case "Uncheck All":
+        affectedRecords = eligibleRecords.filter(
+          (r) => r.is_validated === true
+        );
+        actionWord = "unvalidate";
+        break;
+
+      case "Uncheck Remaining":
+        affectedRecords = eligibleRecords.filter(
+          (r) => r.is_validated === true
+        );
+        actionWord = "unvalidate (remaining)";
+        break;
+
+      default:
+        break;
     }
 
-    // Proceed with the update if validation passed
-    setTempRenewalData((prev) => {
-      return prev.map((r) => {
+    const totalEligible = eligibleRecords.length;
+    const totalRecords = tempRenewalData.length;
+    const totalAffected = affectedRecords.length;
+
+    // 🧠 If no records are affected, don’t even show confirmation
+    if (totalAffected === 0) {
+      toast.info(`No eligible records to ${actionWord}.`, {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    // 🪄 Dynamic message
+    const confirmMessage = `${totalAffected} out of ${totalRecords} records are eligible to ${actionWord}. ${
+      totalAffected < totalEligible
+        ? `(${totalAffected} of ${totalEligible} fully eligible records will be updated.)`
+        : ""
+    } Continue?`;
+
+    // open confirmation modal
+    setCheckConfirmMessage(confirmMessage);
+    setPendingCheckAction(type);
+    setIsCheckConfirmOpen(true);
+  };
+
+  const handleConfirmCheckAction = () => {
+    if (!pendingCheckAction) return;
+
+    const type = pendingCheckAction;
+    const validationFields = Object.keys(validation).filter(
+      (k) =>
+        k !== "scholarship_status" &&
+        k !== "gpa_validation_stat" &&
+        k !== "is_validated"
+    );
+
+    setTempRenewalData((prev) =>
+      prev.map((r) => {
+        const isEligible = validationFields.every(
+          (field) => r[field as keyof RenewalDetails] !== "Not Started"
+        );
+
         let shouldUpdate = false;
         let newValidationValue: boolean | null = null;
 
         if (type === "Check All") {
-          shouldUpdate = true;
-          newValidationValue = true;
+          if (isEligible) {
+            shouldUpdate = true;
+            newValidationValue = true;
+          }
         } else if (type === "Check Remaining") {
-          shouldUpdate = r.is_validated === null;
-          newValidationValue = true;
+          if (isEligible && r.is_validated !== true) {
+            shouldUpdate = true;
+            newValidationValue = true;
+          }
         } else if (type === "Uncheck All") {
-          shouldUpdate = true;
-          newValidationValue = false;
+          if (isEligible) {
+            shouldUpdate = true;
+            newValidationValue = false;
+          }
         } else if (type === "Uncheck Remaining") {
-          shouldUpdate = r.is_validated === null;
-          newValidationValue = false;
+          if (isEligible && r.is_validated !== false) {
+            shouldUpdate = true;
+            newValidationValue = false;
+          }
         }
 
         if (shouldUpdate && newValidationValue !== null) {
           const updated = { ...r, is_validated: newValidationValue };
           const scholarship_status = computeScholarshipStatus(updated);
-
           const isEdited = Object.keys(updated).some(
             (key) =>
               key !== "original" &&
@@ -827,9 +925,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         }
 
         return r;
-      });
-    });
+      })
+    );
+
+    setIsCheckConfirmOpen(false);
+    setPendingCheckAction(null);
   };
+
   useEffect(() => {
     filterData(
       searchQuery,
@@ -1300,11 +1402,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
               {/* Edit Mode Button */}
               <button
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
-                  isEdit
-                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl"
-                    : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl cursor-pointer`}
                 onClick={toggleEditMode}
               >
                 <Pencil className="w-4 h-4" />
@@ -1575,7 +1673,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                           .filter(([key]) => availableKeys.includes(key))
                           .map(([key, label]) => (
                             <>
-                              {key !== "is_validated" ? (
+                              {key !== "is_validated" &&
+                              key !== "is_hr_validated" &&
+                              key !== "hr_completed_at" ? (
                                 <th
                                   key={key}
                                   className={`px-2 sm:px-3 lg:px-5 py-2 sm:py-3 text-center border border-gray-300
@@ -1645,7 +1745,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                     label.toUpperCase()
                                   )}
                                 </th>
-                              ) : (
+                              ) : key === "is_validated" ? (
                                 <th
                                   className={`px-5 py-3 min-w-[200px] relative z-10 ${
                                     isEdit
@@ -1666,6 +1766,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                                     </span>
                                   )}
                                 </th>
+                              ) : (
+                                ""
                               )}
                             </>
                           ))}
@@ -1710,7 +1812,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                               )}
 
                               {Object.keys(renewalTableHead)
-                                .filter((key) => availableKeys.includes(key))
+                                .filter(
+                                  (key) =>
+                                    availableKeys.includes(key) &&
+                                    key !== "is_hr_validated" &&
+                                    key !== "hr_completed_at"
+                                )
                                 .map((key) => {
                                   const value =
                                     renewal[key as keyof RenewalDetails];
@@ -2238,6 +2345,23 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         confirmText="Save"
         cancelText="Discard Changes"
       />
+      <ConfirmationDialog
+        isOpen={isValidateConfirmOpen}
+        message={validateConfirmMessage}
+        onConfirm={handleConfirmValidationChange}
+        onCancel={() => setIsValidateConfirmOpen(false)}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      />
+      <ConfirmationDialog
+        isOpen={isCheckConfirmOpen}
+        message={checkConfirmMessage}
+        onConfirm={handleConfirmCheckAction}
+        onCancel={() => setIsCheckConfirmOpen(false)}
+        confirmText="Yes, Continue"
+        cancelText="Cancel"
+      />
+
       {showAuditLog && <AuditLog onClose={() => setShowAuditLog(false)} />}
 
       {/* Save Confirmation Modal */}

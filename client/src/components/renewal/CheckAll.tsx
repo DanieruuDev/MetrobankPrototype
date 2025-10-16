@@ -68,7 +68,7 @@ function CheckAllDropdown({
             className="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
           >
             <CheckCheck size={18} />
-            <span>Check All</span>
+            <span>Validate Eligible</span> {/* Changed label */}
           </button>
           <button
             onClick={() => {
@@ -78,7 +78,7 @@ function CheckAllDropdown({
             className="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
           >
             <Clock3 size={18} />
-            <span>Check Remaining</span>
+            <span>Validate Remaining Eligible</span> {/* Changed label */}
           </button>
           <div className="border-t border-gray-200 my-1"></div>
           <button
@@ -89,7 +89,7 @@ function CheckAllDropdown({
             className="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer text-red-600"
           >
             <XCircle size={18} />
-            <span>Uncheck All</span>
+            <span>Unvalidate All Eligible</span> {/* Changed label */}
           </button>
           <button
             onClick={() => {
@@ -99,7 +99,7 @@ function CheckAllDropdown({
             className="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer text-orange-600"
           >
             <MinusCircle size={18} />
-            <span>Uncheck Remaining</span>
+            <span>Unvalidate Remaining Eligible</span> {/* Changed label */}
           </button>
         </div>
       )}
