@@ -341,26 +341,27 @@ const DisbursementOverview = () => {
 
           {/* Students Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Scholar Name
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Student ID
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Year Level
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Semester
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       School Year
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Branch
                     </th>
                     <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -402,26 +403,22 @@ const DisbursementOverview = () => {
                           <div className="text-sm font-medium text-gray-900">
                             {student.student_name}
                           </div>
-                          <div className="text-xs text-gray-500 sm:hidden">
-                            ID: {student.student_id} •{" "}
-                            {student.student_year_lvl}
-                          </div>
                         </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell">
+                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600">
                           {student.student_id}
                         </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {student.student_year_lvl}
                           </span>
                         </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell">
+                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600">
                           {student.student_semester}
                         </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell">
+                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600">
                           {student.student_school_year}
                         </td>
-                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-600">
                           {student.student_branch}
                         </td>
                         <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-semibold text-green-600">
@@ -432,6 +429,91 @@ const DisbursementOverview = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden">
+              {loading ? (
+                <div className="p-8 text-center">
+                  <Loading />
+                </div>
+              ) : filteredStudents?.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  No scholars found matching your criteria.
+                </div>
+              ) : (
+                <div className="space-y-3 p-4">
+                  {filteredStudents?.map((student, index) => (
+                    <div
+                      key={index}
+                      onClick={() =>
+                        navigate(
+                          `/financial-overview/detailed/${student.student_id}`
+                        )
+                      }
+                      className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    >
+                      {/* Header with Scholar Name and Total Received */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-sm truncate">
+                            {student.student_name}
+                          </h3>
+                          <p className="text-xs text-gray-600 mt-1">
+                            ID: {student.student_id}
+                          </p>
+                        </div>
+                        <div className="ml-3 text-right">
+                          <p className="text-sm font-semibold text-green-600">
+                            {formatCurrency(student.total_disbursed_amount)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Total Received
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Student Details Grid */}
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-gray-500 font-medium">
+                            Year Level:
+                          </span>
+                          <p className="text-gray-900 font-semibold">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {student.student_year_lvl}
+                            </span>
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 font-medium">
+                            Branch:
+                          </span>
+                          <p className="text-gray-900 font-semibold truncate">
+                            {student.student_branch}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 font-medium">
+                            Semester:
+                          </span>
+                          <p className="text-gray-900 font-semibold">
+                            {student.student_semester}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 font-medium">
+                            School Year:
+                          </span>
+                          <p className="text-gray-900 font-semibold">
+                            {student.student_school_year}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Pagination */}

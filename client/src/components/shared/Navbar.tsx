@@ -66,9 +66,7 @@ const Navbar = ({ pageName }: NavbarProps) => {
           {/* Hamburger menu - only visible on mobile */}
           <button
             onClick={() => setIsMobileOpen(true)}
-            className="lg:hidden p-1.5 rounded-md bg-white/20 backdrop-blur-sm 
-            hover:bg-white/30 border border-white/30 shadow-md 
-            transition-all duration-200 flex-shrink-0"
+            className="lg:hidden p-1.5"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5 text-[#024FA8]" />

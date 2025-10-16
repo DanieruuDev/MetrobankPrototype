@@ -1448,9 +1448,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               </div>
 
               {/* Additional Filters Row */}
-              <div className="flex justify-between items-center">
-                {/* School Year & Semester Filter */}
-                <div className="flex flex-col lg:flex-row gap-3">
+              <div className="flex flex-col lg:flex-row gap-3">
+                {/* Left side: Filters */}
+                <div className="flex flex-col lg:flex-row gap-3 flex-1">
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
                       School Year & Semester:
@@ -1483,7 +1483,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                         onChange={(e) =>
                           setSelectedBranchFilter(e.target.value)
                         }
-                        className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed truncate"
                       >
                         <option value="All">All Branches</option>
                         {uniqueBranches.map((branch) => (
@@ -1515,7 +1515,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                       ))}
                     </select>
                   </div>
+                </div>
 
+                {/* Right side: Clear Filters & Audit Log */}
+                <div className="flex flex-col sm:flex-row gap-2 lg:items-end">
                   {/* Clear Filters Button */}
                   <button
                     onClick={() => {
@@ -1524,20 +1527,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                       setSelectedYearLevelFilter("All");
                       setSearchQuery("");
                     }}
-                    className="px-3 py-2 text-xs font-medium bg-white/100  text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
+                    className="px-3 py-2 text-xs font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
                   >
                     Clear Filters
                   </button>
-                </div>
 
-                <div className="items-end">
+                  {/* Audit Log Button */}
                   {role_id === 7 && (
                     <button
-                      className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50 cursor-pointer"
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-xs font-medium border border-white/50 cursor-pointer"
                       onClick={() => setShowAuditLog(true)}
                     >
                       <History className="w-4 h-4" />
-                      <span className="hidden xs:inline">Audit Log</span>
+                      <span>Audit Log</span>
                     </button>
                   )}
                 </div>
