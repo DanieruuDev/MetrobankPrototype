@@ -122,7 +122,7 @@ function Approval() {
 
     try {
       const response = await axios.put(
-        `${import.meta.env.VITE_BACKEND_URL}/api/workflow/change-approval/${
+        `${import.meta.env.VITE_BACKEND_URL}api/workflow/change-approval/${
           workflow.requester_id
         }`,
         {
