@@ -6,7 +6,6 @@ import {
   AuditLogResponse,
 } from "../../../../Interface/IAuditLog";
 import {
-  Clock,
   User,
   Filter,
   ChevronLeft,
@@ -122,39 +121,50 @@ const AuditLog: React.FC<AuditLogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50  p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2">
+      <div className="bg-white rounded-md shadow-2xl w-full max-w-4xl max-h-[75vh] flex flex-col border border-gray-100">
         {/* Header */}
-        <div className="flex items-center justify-end px-6 pt-6 border-b border-gray-200">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-md">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 bg-blue-100 rounded-sm">
+              <FileText size={14} className="text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Audit Log</h2>
+              <p className="text-xs text-gray-600">
+                Track all changes and modifications
+              </p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-white/80 rounded-sm transition-colors"
           >
-            <X size={24} className="text-gray-600" />
+            <X size={14} className="text-gray-500" />
           </button>
         </div>
 
         {/* Filters Toggle */}
-        <div className="px-6 py-3 border-b border-gray-200">
+        <div className="px-3 py-1.5 border-b border-gray-100 bg-gray-50/30">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
           >
-            <Filter size={16} />
+            <Filter size={12} />
             {showFilters ? "Hide Filters" : "Show Filters"}
           </button>
         </div>
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="px-6  py-4 border-b border-gray-200 bg-gray-50">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/30">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-1.5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">
                   Role
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   value={filters.role_id || ""}
                   onChange={(e) =>
                     setFilters({
@@ -174,11 +184,11 @@ const AuditLog: React.FC<AuditLogProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">
                   Branch
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   value={filters.branch_id || ""}
                   onChange={(e) =>
                     setFilters({
@@ -197,11 +207,11 @@ const AuditLog: React.FC<AuditLogProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Change Category
+                <label className="block text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                  Category
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   value={filters.change_category || ""}
                   onChange={(e) =>
                     setFilters({
@@ -232,12 +242,12 @@ const AuditLog: React.FC<AuditLogProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">
                   Start Date
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   value={filters.start_date || ""}
                   onChange={(e) =>
                     setFilters({
@@ -250,12 +260,12 @@ const AuditLog: React.FC<AuditLogProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">
                   End Date
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   value={filters.end_date || ""}
                   onChange={(e) =>
                     setFilters({
@@ -268,13 +278,13 @@ const AuditLog: React.FC<AuditLogProps> = ({
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <button
                 onClick={() => {
                   setFilters({ ...filters, offset: 0 });
                   fetchAuditLogs();
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
               >
                 Apply Filters
               </button>
@@ -289,7 +299,7 @@ const AuditLog: React.FC<AuditLogProps> = ({
                   });
                   fetchAuditLogs();
                 }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
               >
                 Clear Filters
               </button>
@@ -300,92 +310,102 @@ const AuditLog: React.FC<AuditLogProps> = ({
         {/* Audit Log List */}
         <div className="flex-1 overflow-y-auto p-2">
           {loading ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-24">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading audit logs...</p>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-1.5 text-xs">
+                  Loading audit logs...
+                </p>
               </div>
             </div>
           ) : auditLogs.length === 0 ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-24">
               <div className="text-center">
-                <FileText size={48} className="text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg">No audit logs found</p>
-                <p className="text-gray-400 text-sm mt-2">
+                <div className="p-1.5 bg-gray-100 rounded-full w-10 h-10 mx-auto mb-2 flex items-center justify-center">
+                  <FileText size={16} className="text-gray-400" />
+                </div>
+                <p className="text-gray-600 font-medium text-xs">
+                  No audit logs found
+                </p>
+                <p className="text-gray-400 text-xs mt-0.5">
                   Try adjusting your filters
                 </p>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-1.5">
               {auditLogs.map((log) => (
                 <div
                   key={log.audit_id}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+                  className="border border-gray-100 rounded-sm p-2 hover:border-blue-200 hover:shadow-sm transition-all duration-200 bg-white"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getCategoryColor(
-                            log.change_category
-                          )}`}
-                        >
-                          {log.change_category}
-                        </span>
-                        <span className="text-[10px] md:text-xs text-gray-500">
-                          {log.scholar_name} ({log.campus})
-                        </span>
+                  {/* Header Row - More Compact */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`px-1.5 py-0.5 rounded-full text-xs font-semibold border ${getCategoryColor(
+                          log.change_category
+                        )}`}
+                      >
+                        {log.change_category}
+                      </span>
+                      <div className="text-xs text-gray-500">
+                        {log.scholar_name} • {log.campus}
                       </div>
-                      <div className="flex flex-col gap-1 text-xs md:text-sm text-gray-600">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <User size={12} className="md:w-[14px] md:h-[14px]" />
-                          <span className="font-medium">{log.changed_by}</span>
-                          <span className="text-gray-400">
-                            ({log.changed_by_role}
-                            {log.branch_name && ` - ${log.branch_name}`})
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock
-                            size={12}
-                            className="md:w-[14px] md:h-[14px]"
-                          />
-                          <span>{formatDateTime(log.changed_at)}</span>
-                        </div>
-                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {formatDateTime(log.changed_at)}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                    <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs md:text-sm">
-                      <div className="flex flex-col">
-                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
-                          Field Changed:
-                        </span>
-                        <span className="font-medium text-gray-900">
+                  {/* User Info - More Compact */}
+                  <div className="flex items-center gap-1.5 mb-1.5 text-xs">
+                    <div className="p-0.5 bg-blue-50 rounded-full">
+                      <User size={10} className="text-blue-600" />
+                    </div>
+                    <span className="font-semibold text-gray-900">
+                      {log.changed_by}
+                    </span>
+                    <span className="text-gray-500">
+                      {log.changed_by_role}
+                      {log.branch_name && ` • ${log.branch_name}`}
+                    </span>
+                  </div>
+
+                  {/* Details Grid - More Prominent */}
+                  <div className="bg-blue-50/30 rounded-sm p-2 border border-blue-100">
+                    <div className="grid grid-cols-2 gap-1.5 text-xs">
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                          Field Changed
+                        </div>
+                        <div className="font-semibold text-gray-900 text-sm">
                           {formatFieldName(log.field_name)}
-                        </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
-                          New Value:
-                        </span>
-                        <span className="font-medium text-gray-900">
-                          {log.new_value || "N/A"}
-                        </span>
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                          Student
+                        </div>
+                        <div className="font-semibold text-gray-900 text-sm">
+                          {log.scholar_name}
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
-                          School Year:
-                        </span>
-                        <span className="text-gray-900">{log.school_year}</span>
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                          School Year
+                        </div>
+                        <div className="text-gray-800 text-sm font-medium">
+                          {log.school_year}
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500 text-[10px] md:text-xs mb-0.5">
-                          Semester:
-                        </span>
-                        <span className="text-gray-900">{log.semester}</span>
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-blue-700 uppercase tracking-wide">
+                          Semester
+                        </div>
+                        <div className="text-gray-800 text-sm font-medium">
+                          {log.semester}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -397,33 +417,42 @@ const AuditLog: React.FC<AuditLogProps> = ({
 
         {/* Pagination */}
         {!loading && auditLogs.length > 0 && (
-          <div className="px-6 rounded-b-2xl py-4 border-t border-gray-200 bg-gray-50">
+          <div className="px-3 py-2 border-t border-gray-100 bg-gray-50/50 rounded-b-md">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Showing {filters.offset! + 1} to{" "}
-                {Math.min(
-                  filters.offset! + (filters.limit || 50),
-                  pagination.total
-                )}{" "}
-                of {pagination.total} entries
+              <div className="text-xs text-gray-600">
+                Showing{" "}
+                <span className="font-semibold">{filters.offset! + 1}</span> to{" "}
+                <span className="font-semibold">
+                  {Math.min(
+                    filters.offset! + (filters.limit || 50),
+                    pagination.total
+                  )}
+                </span>{" "}
+                of <span className="font-semibold">{pagination.total}</span>{" "}
+                entries
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => handlePageChange(pagination.currentPage - 1)}
                   disabled={pagination.currentPage === 1}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1 border border-gray-200 rounded-sm hover:bg-white hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={12} />
                 </button>
-                <span className="text-sm text-gray-600">
-                  Page {pagination.currentPage} of {pagination.totalPages}
+                <span className="text-xs text-gray-600 px-1.5">
+                  Page{" "}
+                  <span className="font-semibold">
+                    {pagination.currentPage}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold">{pagination.totalPages}</span>
                 </span>
                 <button
                   onClick={() => handlePageChange(pagination.currentPage + 1)}
                   disabled={pagination.currentPage === pagination.totalPages}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1 border border-gray-200 rounded-sm hover:bg-white hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={12} />
                 </button>
               </div>
             </div>

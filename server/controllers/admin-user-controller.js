@@ -125,9 +125,8 @@ const loginUser = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: true,
+      secure: false,
       sameSite: "lax",
-      domain: ".mbstrongwebapp.com",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -202,9 +201,8 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
-      secure: true,
+      secure: false,
       sameSite: "lax",
-      domain: ".mbstrongwebapp.com",
     });
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {
@@ -263,6 +261,7 @@ const fetchUserInfo = async (req, res) => {
     return res.status(500).json({ message: "Internal server error." });
   }
 };
+
 module.exports = {
   registerUser,
   loginUser,

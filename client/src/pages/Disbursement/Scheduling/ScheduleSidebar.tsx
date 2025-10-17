@@ -76,11 +76,7 @@ const ScheduleSidebar = ({
 
   useEffect(() => {
     fetchTwoWeeksSchedule();
-  }, [fetchTwoWeeksSchedule]);
-
-  useEffect(() => {
-    console.log("ScheduleSidebar refreshKey changed:", refreshKey);
-  }, [refreshKey]);
+  }, [fetchTwoWeeksSchedule, refreshKey]);
 
   return (
     <div

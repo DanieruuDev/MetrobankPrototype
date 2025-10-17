@@ -841,6 +841,48 @@ const emailFinder = async (req, res) => {
   }
 };
 
+const emailRoleFinder = async (req, res) => {
+  try {
+    const { query } = req.params;
+    console.log("Searching for:", query);
+
+    let result;
+
+    if (!query || query.trim() === "") {
+      // Return some default suggestions when query is empty
+      result = await pool.query(
+        `SELECT a.admin_email, r.role_name 
+         FROM administration_adminaccounts a 
+         JOIN roles r ON a.role_id = r.role_id 
+         WHERE a.deletiondate IS NULL
+         ORDER BY a.admin_email 
+         LIMIT 10`
+      );
+    } else {
+      result = await pool.query(
+        `SELECT a.admin_email, r.role_name 
+         FROM administration_adminaccounts a 
+         JOIN roles r ON a.role_id = r.role_id 
+         WHERE a.admin_email ILIKE $1 
+         AND a.deletiondate IS NULL
+         ORDER BY a.admin_email 
+         LIMIT 10`,
+        [`%${query}%`]
+      );
+    }
+
+    const suggestions = result.rows.map((row) => ({
+      email: row.admin_email,
+      role: row.role_name,
+    }));
+
+    res.json(suggestions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
 const downloadFile = async (req, res) => {
   const fileName = decodeURIComponent(req.params.file_path); // use same param
   if (!fileName) {
@@ -1189,6 +1231,7 @@ module.exports = {
   approveApproval,
   emailFinder,
   emailFinderWithRole,
+  emailRoleFinder,
   fetchEmailUsingRole,
   getApprovals,
   handleRequesterResponse,
