@@ -15,7 +15,6 @@ import {
   X,
   MessageSquare,
   Reply,
-  Loader2,
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -49,12 +48,10 @@ function SpecificRequest({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [comment, setComment] = useState("");
 
-  // Confirmation and loading states
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  // Loading states
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingAction, setPendingAction] = useState<
-    "approve" | "reject" | null
-  >(null);
+  const [approvalProgress, setApprovalProgress] = useState(0);
+  const [approvalStatus, setApprovalStatus] = useState("");
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -74,23 +71,39 @@ function SpecificRequest({
     document.body.removeChild(link);
   };
 
-  // Handle confirmation
-  const handleShowConfirmation = (action: "approve" | "reject") => {
-    if (!status) {
-      toast.error("Please select a response.");
-      return;
-    }
-    if (action === "reject" && comment.trim() === "") {
-      toast.error("Comment is required when rejecting.");
-      return;
-    }
-    setPendingAction(action);
-    setShowConfirmation(true);
-  };
-
   const handleApproval = useCallback(async () => {
-    setShowConfirmation(false);
+    setIsModalOpen(false);
     setIsProcessing(true);
+    setApprovalProgress(0);
+    setApprovalStatus("");
+
+    // Progress animation - same as save changes
+    const progressInterval = setInterval(() => {
+      setApprovalProgress((prev) => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+
+    // Status messages - same as save changes
+    const statusMessages = [
+      "Sending data to server...",
+      "Processing approval...",
+      "Updating workflow status...",
+    ];
+
+    let statusIndex = 0;
+    const statusInterval = setInterval(() => {
+      setApprovalStatus(statusMessages[statusIndex]);
+      statusIndex++;
+      if (statusIndex >= statusMessages.length) {
+        clearInterval(statusInterval);
+      }
+    }, 1000);
+
     try {
       const res = await axios.put(
         `${VITE_BACKEND_URL}api/workflow/approve-approval`,
@@ -105,15 +118,32 @@ function SpecificRequest({
           user_id: specificRequest?.user_id,
         }
       );
+
+      // Complete the progress
+      setApprovalProgress(100);
+      setApprovalStatus("Approval complete!");
+
       toast.success(res.data.message);
       setIsModalOpen(false);
       setComment("");
       setStatus("");
+
+      // Close modal after delay
+      setTimeout(() => {
+        setIsProcessing(false);
+        setApprovalProgress(0);
+        setApprovalStatus("");
+        clearInterval(progressInterval);
+        clearInterval(statusInterval);
+      }, 1500);
+
       await getSpecificRequestApproval();
       await getRequestApprovalList();
     } catch (error) {
       console.log(error);
       toast.error("Something went wrong. Please try again.");
+      clearInterval(progressInterval);
+      clearInterval(statusInterval);
     } finally {
       setLoading(false);
       setIsProcessing(false);
@@ -725,118 +755,33 @@ function SpecificRequest({
 
         {/* Confirmation Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.5)]">
-            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-              <div className="flex flex-col items-center text-center">
-                {status === "Reject" ? (
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                    <AlertCircle className="h-6 w-6 text-red-600" />
-                  </div>
-                ) : (
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                )}
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Confirm {status} this request?
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  {status === "Reject"
-                    ? "This action cannot be undone. Please provide a reason for rejection."
-                    : "You're approving this request. Are you sure?"}
-                </p>
-
-                {status === "Reject" && (
-                  <div className="w-full mb-4">
-                    <label
-                      htmlFor="reject-reason"
-                      className="block text-sm font-medium text-gray-700 text-left mb-1"
-                    >
-                      Reason for rejection{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      id="reject-reason"
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Enter your reason..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
-
-                <div className="w-full flex justify-end gap-3">
-                  <button
-                    type="button"
-                    className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    onClick={() => setIsModalOpen(false)}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className={`px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
-                      status === "Reject"
-                        ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                        : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
-                    } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                    onClick={() =>
-                      handleShowConfirmation(
-                        status === "Approved" ? "approve" : "reject"
-                      )
-                    }
-                    disabled={
-                      loading ||
-                      isProcessing ||
-                      (status === "Reject" && !comment.trim())
-                    }
-                  >
-                    {loading || isProcessing
-                      ? "Processing..."
-                      : `Confirm ${status}`}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Confirmation Modal */}
-        {showConfirmation && !isProcessing && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] animate-fadeIn">
             <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
               <div className="flex items-center gap-3 mb-4">
                 <div
                   className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    pendingAction === "approve" ? "bg-green-100" : "bg-red-100"
+                    status === "Approved" ? "bg-green-100" : "bg-red-100"
                   }`}
                 >
                   <AlertCircle
                     className={`w-6 h-6 ${
-                      pendingAction === "approve"
-                        ? "text-green-600"
-                        : "text-red-600"
+                      status === "Approved" ? "text-green-600" : "text-red-600"
                     }`}
                   />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Confirm{" "}
-                  {pendingAction === "approve" ? "Approval" : "Rejection"}
+                  Confirm {status === "Approved" ? "Approval" : "Rejection"}
                 </h3>
               </div>
 
               <div className="mb-6 space-y-2">
                 <p className="text-gray-600 text-sm">
                   You are about to{" "}
-                  {pendingAction === "approve" ? "approve" : "reject"} this
-                  request:
+                  {status === "Approved" ? "approve" : "reject"} this request:
                 </p>
                 <div
                   className={`border rounded-lg p-4 space-y-2 ${
-                    pendingAction === "approve"
+                    status === "Approved"
                       ? "bg-green-50 border-green-200"
                       : "bg-red-50 border-red-200"
                   }`}
@@ -855,19 +800,44 @@ function SpecificRequest({
                       {specificRequest.requester_name}
                     </span>
                   </div>
-                  {pendingAction === "reject" && comment && (
+                  {status === "Reject" && (
                     <div className="flex justify-between text-sm">
                       <span className="font-medium text-gray-700">
                         Comment:
                       </span>
                       <span className="text-gray-900 font-semibold truncate ml-2">
-                        {comment}
+                        {comment || "No comment provided"}
                       </span>
                     </div>
                   )}
                 </div>
+
+                {status === "Reject" && (
+                  <div className="mt-4">
+                    <label
+                      htmlFor="reject-comment"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Reason for rejection{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="reject-comment"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                      placeholder="Enter your reason for rejection..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Max 255 characters
+                    </p>
+                  </div>
+                )}
+
                 <p className="text-gray-600 text-sm mt-3">
-                  {pendingAction === "approve"
+                  {status === "Approved"
                     ? "This will approve the request and move it to the next approver. Do you want to proceed?"
                     : "This will reject the request and notify the requester. Do you want to proceed?"}
                 </p>
@@ -875,7 +845,7 @@ function SpecificRequest({
 
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => setShowConfirmation(false)}
+                  onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
@@ -883,71 +853,121 @@ function SpecificRequest({
                 <button
                   onClick={handleApproval}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl ${
-                    pendingAction === "approve"
+                    status === "Approved"
                       ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
                       : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
                   }`}
                 >
-                  Yes, {pendingAction === "approve" ? "Approve" : "Reject"}
+                  Yes, {status === "Approved" ? "Approve" : "Reject"}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Full-Screen Loading Overlay */}
+        {/* Full-Screen Loading Overlay with Circular Progress */}
         {isProcessing && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10001] animate-fadeIn">
             <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
               <div className="flex flex-col items-center">
-                <div className="relative">
-                  <div
-                    className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
-                      pendingAction === "approve"
-                        ? "bg-green-100"
-                        : "bg-red-100"
-                    }`}
+                {/* Circular Progress Indicator */}
+                <div className="relative w-32 h-32 mb-6">
+                  {/* Animated Background Circle */}
+                  <svg
+                    className="w-32 h-32 transform -rotate-90 animate-pulse"
+                    viewBox="0 0 120 120"
                   >
-                    <Loader2
-                      className={`w-10 h-10 animate-spin ${
-                        pendingAction === "approve"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="50"
+                      stroke="#e5e7eb"
+                      strokeWidth="8"
+                      fill="none"
+                      className="animate-pulse"
                     />
+                    {/* Progress Circle with Animation */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="50"
+                      stroke="url(#gradient)"
+                      strokeWidth="8"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 50}`}
+                      strokeDashoffset={`${
+                        2 * Math.PI * 50 * (1 - approvalProgress / 100)
+                      }`}
+                      className="transition-all duration-300 ease-out animate-pulse"
+                    />
+                    {/* Gradient Definition */}
+                    <defs>
+                      <linearGradient
+                        id="gradient"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={
+                            status === "Approved" ? "#10b981" : "#ef4444"
+                          }
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={
+                            status === "Approved" ? "#059669" : "#dc2626"
+                          }
+                        />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+
+                  {/* Percentage Text Inside Circle with Animation */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center animate-bounce">
+                      <div
+                        className={`text-3xl font-bold animate-pulse ${
+                          status === "Approved"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {Math.round(approvalProgress)}%
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 animate-pulse">
+                        {approvalProgress >= 100 ? "Complete" : "Progress"}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Rotating Ring Animation */}
                   <div
-                    className={`absolute inset-0 rounded-full opacity-20 animate-ping ${
-                      pendingAction === "approve"
-                        ? "bg-green-400"
-                        : "bg-red-400"
+                    className={`absolute inset-0 rounded-full border-4 border-transparent animate-spin opacity-30 ${
+                      status === "Approved"
+                        ? "border-t-green-300"
+                        : "border-t-red-300"
                     }`}
                   ></div>
                 </div>
 
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {pendingAction === "approve"
+                  {status === "Approved"
                     ? "Approving Request"
                     : "Rejecting Request"}
                 </h3>
                 <p className="text-gray-600 text-sm text-center mb-4">
-                  {pendingAction === "approve"
-                    ? "Processing approval and notifying next approver..."
-                    : "Processing rejection and notifying requester..."}
+                  {approvalStatus ||
+                    (status === "Approved"
+                      ? "Processing approval and notifying next approver..."
+                      : "Processing rejection and notifying requester...")}
                 </p>
 
-                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full animate-progress ${
-                      pendingAction === "approve"
-                        ? "bg-gradient-to-r from-green-500 to-green-600"
-                        : "bg-gradient-to-r from-red-500 to-red-600"
-                    }`}
-                  ></div>
-                </div>
-
-                <p className="text-xs text-gray-500 mt-4 text-center">
-                  This may take a few moments. Please do not close this window.
+                <p className="text-xs text-gray-500 text-center">
+                  Please do not close this window
                 </p>
               </div>
             </div>
