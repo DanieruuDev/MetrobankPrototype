@@ -17,7 +17,6 @@ import PrivateRoute from "./components/shared/PrivateRoute";
 import { SidebarProvider } from "./context/SidebarContext";
 import ROIandAnalytics from "./pages/ROI/ROIandAnalytics";
 import TuitionInvoiceUpload from "./pages/TuitionInvoiceUpload/TuitionInvoiceUpload";
-import Sample from "./pages/Dashboard/Sample";
 
 function App() {
   return (
@@ -186,7 +185,6 @@ function App() {
               </PrivateRoute>
             }
           />
-          <Route path="/sample" element={<Sample />} />
 
           <Route
             path="/tracking/detailed/:sched_id"
