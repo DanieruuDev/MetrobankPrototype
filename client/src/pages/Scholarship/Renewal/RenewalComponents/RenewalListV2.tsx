@@ -4,43 +4,38 @@ import {
   Pencil,
   Plus,
   Save,
-  Search,
-  Download,
   Upload,
-  ChevronDown,
-  ChevronUp,
-  Eye,
   UserRoundPlus as UserRoundPen,
-  History,
   SquareCheckBig,
   RotateCcw,
   AlertCircle,
 } from "lucide-react";
+import RenewalInfoSection from "../../../../components/renewal/RenewalInfoSection";
+import UploadGradesModal from "../../../../components/renewal/UploadGradesModal";
 import {
   type RenewalRow,
-  renewalTableHead,
   InitialRenewalInfo,
   type RenewalDetailsClone,
   type RenewalDetails,
   validation,
+  ScholarGradeDocument,
+  ZipScholarGradeResult,
+  ScholarGrade,
 } from "../../../../Interface/IRenewal";
 import { toast } from "react-toastify";
 import axios from "axios";
-
-// Helper function to get responsive toast position
-const getToastPosition = () => {
-  return window.innerWidth >= 768 ? "bottom-right" : "top-center";
-};
+import { socket } from "../../../../utils/socket";
 import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import GenerateReportModal from "../../../../components/renewal/GenerateReport";
-import { downloadExcel } from "../../../../utils/DownloadExcel";
+import ProcessingModal from "../../../../components/renewal/ProcessingModal";
 import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
 import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog";
-import Loading from "../../../../components/shared/Loading";
-import PaginationControl from "../../../../components/shared/PaginationControl";
 import { AuthContext } from "../../../../context/AuthContext";
-import CheckAllDropdown from "../../../../components/renewal/CheckAll";
+
 import AuditLog from "./AuditLog";
+import RenewalFilterControls from "../../../../components/renewal/RenewalFilterControls";
+import RenewalTable from "../../../../components/renewal/RenewalTable";
+import GradeModal from "../../../../components/renewal/GradeModal";
 
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
@@ -48,6 +43,15 @@ interface RenewalListV2Props {
 interface ProcessInfo {
   process_id: number | null;
   current_stage: string;
+}
+interface ChangedFields {
+  grades?: {
+    fileURL?: string;
+    fileName?: string;
+    fileObject?: File;
+    gradeList?: ScholarGrade[];
+  };
+  [key: string]: string | number | boolean | object | null | undefined;
 }
 
 function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
@@ -61,6 +65,20 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [renewalData, setRenewalData] = useState<RenewalDetailsClone[] | []>(
     []
   );
+  const [hasIncomingUpdate, setHasIncomingUpdate] = useState(false);
+
+  const [gradeState, setGradeState] = useState<
+    ScholarGradeDocument[] | ZipScholarGradeResult | null
+  >(null);
+  const [selectedGrades, setSelectedGrades] = useState<{
+    name: string;
+    gradeList: { course_code: string; final_grade: number }[];
+    fileURL?: string;
+  } | null>(null);
+
+  const [countValidated, setCountValidated] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [openUploadGrades, setIsOpenUploadGrades] = useState(false);
   const [processInfo, setProcessInfo] = useState<ProcessInfo>({
     process_id: null,
     current_stage: "",
@@ -97,6 +115,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [saveStatus, setSaveStatus] = useState("");
   const [initialRenewalInfo, setInitialRenewalInfo] =
     useState<InitialRenewalInfo | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+
   const [selectedStatus, setSelectedStatus] = useState<
     "All" | "Not Started" | "Passed" | "Delisted"
   >("All");
@@ -346,7 +367,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const submitSaveChanges = async (tempRenewalData: RenewalDetailsClone[]) => {
     const editedRows = tempRenewalData.filter((row) => row.isEdited);
 
-    const updateRows = editedRows.map((row: RenewalDetailsClone) => {
+    const updateRows = editedRows.map((row) => {
       const {
         renewal_id,
         validator_id,
@@ -358,13 +379,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         ...rest
       } = row;
 
-      const changedFields = Object.fromEntries(
-        Object.entries(rest).filter(
-          ([key, value]) =>
-            key !== "isEdited" &&
-            value !== original[key as keyof RenewalDetails]
-        )
-      );
+      const changedFields: ChangedFields = Object.fromEntries(
+        Object.entries(rest).filter(([key, value]) => {
+          if (key === "isEdited") return false;
+
+          const originalValue = original[key as keyof RenewalDetails];
+
+          if (typeof value === "object" && value !== null) {
+            return JSON.stringify(value) !== JSON.stringify(originalValue);
+          }
+
+          return value !== originalValue;
+        })
+      ) as ChangedFields;
 
       return {
         renewal_id,
@@ -377,14 +404,162 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       };
     });
 
-    console.log("change", updateRows);
-
     try {
       setIsSaving(true);
-      setSaveProgress(0);
-      setSaveStatus("Preparing data...");
-      console.log("update rows", updateRows);
 
+      // 🔹 Per-row upload tracking
+      const uploadStatuses: Record<number, string> = {};
+      const uploadProgresses: Record<number, number> = {};
+
+      // 🔹 Upload any new grade files before updating DB
+      // 🔹 Upload any new grade files before updating DB
+      for (const row of updateRows) {
+        const cf = row.changedFields as ChangedFields;
+        if (!cf.grades) continue;
+
+        // 🧩 Convert blob URLs to File objects if necessary
+        if (
+          !cf.grades.fileObject &&
+          cf.grades.fileURL &&
+          cf.grades.fileURL.startsWith("blob:")
+        ) {
+          try {
+            const blob = await fetch(cf.grades.fileURL).then((r) => r.blob());
+            const fileName =
+              cf.grades.fileName || `grades_${row.renewal_id}.pdf`;
+            cf.grades.fileObject = new File([blob], fileName, {
+              type: blob.type || "application/pdf",
+            });
+            console.log(
+              `✅ Reconstructed File from blob for renewal_id ${row.renewal_id}`
+            );
+          } catch (err) {
+            console.error("❌ Failed to reconstruct file from blob URL:", err);
+            toast.error(
+              `Could not prepare file for upload (renewal ID ${row.renewal_id})`
+            );
+            continue;
+          }
+        }
+
+        // 🔹 Upload file to Backblaze B2 via Redis job tracker
+        if (cf.grades.fileObject instanceof File) {
+          const formData = new FormData();
+          formData.append("file", cf.grades.fileObject);
+          formData.append("renewal_id", String(row.renewal_id));
+          try {
+            uploadStatuses[row.renewal_id] = "Starting upload...";
+            setUploadStatus(`Starting upload for ID ${row.renewal_id}`);
+
+            // Step 1️⃣: Start upload
+            const startUploadRes = await axios.post(
+              `${VITE_BACKEND_URL}api/document/upload-grade-file`,
+              formData,
+              { headers: { "Content-Type": "multipart/form-data" } }
+            );
+
+            const { jobId } = startUploadRes.data;
+            console.log(jobId);
+            if (!jobId) throw new Error("No jobId returned from upload start.");
+
+            uploadStatuses[row.renewal_id] = "Uploading...";
+            setUploadStatus(`Uploading grade file for ID ${row.renewal_id}...`);
+
+            // Step 2️⃣: Poll Redis job status
+            let jobStatus = null;
+            let retries = 0;
+            const maxRetries = 40; // ~80s total (40 × 2s)
+            let lastError: Error | null = null;
+
+            while (retries < maxRetries) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              try {
+                const statusRes = await axios.get(
+                  `${VITE_BACKEND_URL}api/jobs/${jobId}`,
+                  { timeout: 5000 } // Add timeout for individual requests
+                );
+                jobStatus = statusRes.data;
+
+                // 🧠 Handle empty or invalid job status
+                if (!jobStatus || Object.keys(jobStatus).length === 0) {
+                  console.warn(`⚠️ Job ${jobId} not found in Redis.`);
+                  throw new Error(`Job ${jobId} not found in Redis.`);
+                }
+
+                // Update progress
+                if (jobStatus.progress) {
+                  const progress = Number(jobStatus.progress);
+                  uploadProgresses[row.renewal_id] = progress;
+                  setUploadProgress(progress);
+                  setUploadStatus(
+                    `Uploading (ID ${row.renewal_id}) — ${progress}%`
+                  );
+                }
+
+                if (jobStatus.status === "completed") {
+                  cf.grades.fileURL =
+                    jobStatus.fileURL || jobStatus.result?.fileURL;
+                  cf.grades.fileName =
+                    jobStatus.fileName || jobStatus.result?.fileName;
+                  delete cf.grades.fileObject;
+
+                  uploadProgresses[row.renewal_id] = 100;
+                  uploadStatuses[row.renewal_id] = "Completed";
+                  setUploadStatus(`Upload complete for ID ${row.renewal_id}`);
+                  setUploadProgress(100);
+
+                  toast.success(`✅ Upload complete for ID ${row.renewal_id}`, {
+                    position: "top-center",
+                    autoClose: 2000,
+                  });
+                  break;
+                }
+
+                if (jobStatus.status === "failed") {
+                  uploadStatuses[row.renewal_id] = "Failed";
+                  throw new Error(jobStatus.message || "Upload failed");
+                }
+
+                retries++;
+              } catch (err) {
+                lastError = err as Error;
+                console.warn(
+                  `⚠️ Polling attempt ${retries + 1} failed for job ${jobId}:`,
+                  err
+                );
+                retries++;
+              }
+            }
+
+            // Handle timeout or persistent errors
+            if (!jobStatus || jobStatus.status !== "completed") {
+              uploadStatuses[row.renewal_id] = "Error";
+              const errorMessage = lastError
+                ? `Upload failed for ID ${row.renewal_id}: ${lastError.message}`
+                : `Upload timeout for ID ${row.renewal_id}`;
+              toast.error(errorMessage, {
+                position: "top-center",
+                autoClose: 3000,
+              });
+              throw new Error(errorMessage);
+            }
+          } catch (err) {
+            uploadStatuses[row.renewal_id] = "Error";
+            console.error("❌ Failed to upload grade file:", err);
+            toast.error(
+              `Failed to upload grade file for ID ${row.renewal_id}`,
+              {
+                position: "top-center",
+                autoClose: 3000,
+              }
+            );
+            throw err;
+          }
+        }
+      }
+
+      // 🔹 Update renewal data in PostgreSQL
       if (updateRows.length > 0) {
         // Start progress animation
         const progressInterval = setInterval(() => {
@@ -414,40 +589,17 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           `${VITE_BACKEND_URL}api/renewal/update-renewalV2`,
           updateRows
         );
-        console.log("Response:", res);
 
-        // Refresh data
-        await getRenewalData(sySemester);
-
-        // Clear all timeouts
-        clearTimeout(statusTimeout1);
-        clearTimeout(statusTimeout2);
-        clearTimeout(statusTimeout3);
-
-        // Now complete the operation - set to 100%
-        setSaveProgress(100);
-        setSaveStatus("Complete!");
+        getRenewalData(sySemester);
 
         if (res.status === 200) {
-          if (res.data?.totalUpdated && res.data?.message) {
-            toast.success(
-              `${res.data.totalUpdated} row(s) ${res.data.message}`,
-              {
-                position: getToastPosition(),
-                autoClose: 3000,
-                toastId: "save-success",
-              }
-            );
-          } else {
-            toast.success("Changes saved successfully", {
-              position: getToastPosition(),
-              autoClose: 3000,
-              toastId: "save-success",
-            });
-          }
+          toast.success("✅ Changes saved successfully", {
+            position: "top-center",
+            autoClose: 3000,
+          });
         } else {
-          toast.warn("Update completed with unexpected response.", {
-            position: getToastPosition(),
+          toast.warn("⚠️ Update completed with unexpected response.", {
+            position: "top-center",
             autoClose: 3000,
             toastId: "save-warning",
           });
@@ -472,33 +624,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         });
       }
     } catch (error) {
-      setSaveProgress(0);
-      setSaveStatus("Error occurred");
-      if (axios.isAxiosError(error)) {
-        console.error("Update failed:", error.response?.data || error.message);
-        toast.error(
-          error.response?.data?.message || "Failed to update changes",
-          {
-            position: getToastPosition(),
-            autoClose: 5000,
-            toastId: "save-error",
-          }
-        );
-      } else {
-        console.error("Unexpected error:", error);
-        toast.error("Unexpected error occurred", {
-          position: getToastPosition(),
-          autoClose: 5000,
-          toastId: "unexpected-error",
-        });
-      }
+      console.error("Update failed:", error);
+      toast.error("Failed to update changes.", {
+        position: "top-center",
+        autoClose: 5000,
+      });
     } finally {
-      // Add a small delay to show completion
-      setTimeout(() => {
-        setIsSaving(false);
-        setSaveProgress(0);
-        setSaveStatus("");
-      }, 1000);
+      setIsSaving(false);
+      setIsLoading(false);
+      setUploadStatus("");
+      setUploadProgress(0);
     }
   };
 
@@ -787,30 +922,53 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     (search: string, status: string, branch: string, yearLevel: string) => {
       let filtered = renewalData;
 
+      // ✅ Normalize the search term
+      const normalizedSearch = search.trim().toLowerCase();
+
+      // 1️⃣ Filter by status
       if (status !== "All") {
         filtered = filtered.filter(
           (item) => item.scholarship_status === status
         );
       }
 
-      // Auto-filter by assigned branch for Registrar/Instructor and Discipline Office
+      // 2️⃣ Auto-filter branch for certain roles
       if (role_id === 3 || role_id === 4 || role_id === 9) {
         const assignedBranch = auth?.info?.branch?.branch_name;
         if (assignedBranch) {
-          filtered = filtered.filter((item) => item.campus === assignedBranch);
+          filtered = filtered.filter(
+            (item) =>
+              item.campus?.toLowerCase() === assignedBranch.toLowerCase()
+          );
         }
       } else if (branch !== "All") {
-        filtered = filtered.filter((item) => item.campus === branch);
-      }
-
-      if (yearLevel !== "All") {
-        filtered = filtered.filter((item) => item.year_level === yearLevel);
-      }
-
-      if (search.trim() !== "") {
-        filtered = filtered.filter((item) =>
-          item.scholar_name.toLowerCase().includes(search)
+        filtered = filtered.filter(
+          (item) => item.campus?.toLowerCase() === branch.toLowerCase()
         );
+      }
+
+      // 3️⃣ Filter by year level
+      if (yearLevel !== "All") {
+        filtered = filtered.filter(
+          (item) => item.year_level?.toLowerCase() === yearLevel.toLowerCase()
+        );
+      }
+
+      // 4️⃣ Case-insensitive search by multiple fields (name, id, campus)
+      if (normalizedSearch !== "") {
+        filtered = filtered.filter((item) => {
+          const scholarName = item.scholar_name?.toLowerCase() || "";
+          const studentId = String(item.student_id || "").toLowerCase();
+          const campus = item.campus?.toLowerCase() || "";
+          const year = String(item.year_level || "").toLowerCase();
+
+          return (
+            scholarName.includes(normalizedSearch) ||
+            studentId.includes(normalizedSearch) ||
+            campus.includes(normalizedSearch) ||
+            year.includes(normalizedSearch)
+          );
+        });
       }
 
       setTempRenewalData(filtered);
@@ -871,7 +1029,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       setIsLoading(false);
     }
   };
-  const getProcessInfo = async () => {
+
+  const getProcessInfo = useCallback(async () => {
     // Optional: indicate loading state (if you have one)
     // setIsLoading(true);
     const [sy, semPart] = sySemester.split("_");
@@ -901,7 +1060,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         toastId: "process-info-error",
       });
     }
-  };
+  }, [VITE_BACKEND_URL, sySemester]);
   const handleCheckModal = (type: string) => {
     const validationFields = Object.keys(validation).filter(
       (k) =>
@@ -1064,6 +1223,50 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   ]);
 
   useEffect(() => {
+    socket.on("renewal_updated", (payload) => {
+      console.log("🔁 Real-time renewal update received:", payload);
+
+      // 🚫 Restriction: Block reload only if editing AND has unsaved changes
+      if (isEdit && hasEdits) {
+        console.warn(
+          "⏸️ Update ignored — user is editing with unsaved changes."
+        );
+
+        // Mark that new data exists, but do not auto-refresh
+        setHasIncomingUpdate(true);
+
+        toast.info(
+          "New updates are available. Save or cancel your edits to refresh.",
+          {
+            position: "top-center",
+            autoClose: 5000,
+          }
+        );
+
+        return; // 🛑 Stop here — don't trigger any reload
+      }
+
+      // ✅ Safe to refresh automatically if NOT editing or no unsaved changes
+      if (sySemester) {
+        getRenewalData(sySemester);
+        getInitialRenewalInfo(sySemester);
+        getProcessInfo();
+      }
+    });
+
+    return () => {
+      socket.off("renewal_updated");
+    };
+  }, [
+    sySemester,
+    isEdit,
+    hasEdits,
+    getRenewalData,
+    getInitialRenewalInfo,
+    getProcessInfo,
+  ]);
+
+  useEffect(() => {
     if (sySemester) {
       getRenewalData(sySemester);
       getInitialRenewalInfo(sySemester);
@@ -1081,10 +1284,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     const notStarted = renewalData.filter(
       (r) => r.scholarship_status === "Not Started"
     ).length;
+    const validated = renewalData.filter((r) => r.is_validated === true).length;
 
     setCountPassed(passed);
     setCountDelisted(delisted);
     setCountNotStarted(notStarted);
+    setCountValidated(validated);
   }, [renewalData]);
 
   // Fetch SY Semester options
@@ -1170,228 +1375,20 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     new Set(renewalData.map((item) => item.year_level))
   ).filter(Boolean);
 
+  console.log(gradeState);
   return (
     <>
       <div className="px-2 sm:px-4 mt-4 ">
         {/* Modern Renewal Information Section */}
-        <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-slate-200">
-          {/* Header with Modern Styling */}
-          <div className="flex justify-between mb-6 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold text-slate-800">
-                  Renewal Information
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-slate-800 hover:bg-white/50 rounded-lg transition-all duration-200 text-sm font-medium backdrop-blur-sm"
-                onClick={() => setIsRenewalInfoVisible(!isRenewalInfoVisible)}
-              >
-                {isRenewalInfoVisible ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-                <span className="hidden xs:inline">
-                  {isRenewalInfoVisible ? "Hide Details" : "Show Details"}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Collapsible Content */}
-          <div
-            className={`transition-all duration-500 ease-in-out overflow-hidden ${
-              isRenewalInfoVisible
-                ? "max-h-[2000px] opacity-100"
-                : "max-h-0 opacity-0"
-            }`}
-          >
-            {/* Modern Information Grid */}
-            <div
-              className={`grid grid-cols-1 xs:grid-cols-2 ${
-                role_id === 7
-                  ? "sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                  : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              } gap-4`}
-            >
-              {/* Branch Card */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                    Branch
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-800 mb-1">
-                  {role_id === 3 || role_id === 4 // Assuming STI roles are 3 and 4
-                    ? auth?.info?.branch?.branch_name || "Not Assigned"
-                    : selectedBranchFilter === "All"
-                    ? "All Branches"
-                    : selectedBranchFilter}
-                </p>
-                {auth?.info?.branch && (
-                  <p className="text-xs text-slate-500">
-                    Your branch: {auth.info.branch.branch_name}
-                  </p>
-                )}
-              </div>
-
-              {/* Pending Validation Card (Admin Only) */}
-              {role_id === 7 && (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                      <svg
-                        className="w-4 h-4 text-amber-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Pending
-                    </span>
-                  </div>
-                  <p className="text-sm font-bold text-slate-800 mb-1">
-                    {tempRenewalData.length} of {initialRenewalInfo?.count}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Awaiting Registrar & D.O. validation
-                  </p>
-                </div>
-              )}
-
-              {/* Renewal Date Card */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                    Renewal Date
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-800 mb-1">Not Set</p>
-                <p className="text-xs text-slate-500">
-                  Will be set upon completion
-                </p>
-              </div>
-
-              {/* Renewal Basis Card */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4 text-purple-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                    Basis
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-800 mb-1">
-                  {initialRenewalInfo?.renewal_school_year_basis_text ||
-                    "Not Started"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {initialRenewalInfo?.renewal_sem_basis_text ||
-                    "Semester not set"}
-                </p>
-              </div>
-
-              {/* Renewal For Card */}
-              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4 text-indigo-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                    Renewal For
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-800 mb-1">
-                  {initialRenewalInfo?.school_year_text || "None"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {initialRenewalInfo?.semester_text || "Semester not set"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RenewalInfoSection
+          role_id={role_id}
+          auth={auth}
+          selectedBranchFilter={selectedBranchFilter}
+          initialRenewalInfo={initialRenewalInfo}
+          renewalData={renewalData}
+          isRenewalInfoVisible={isRenewalInfoVisible}
+          setIsRenewalInfoVisible={setIsRenewalInfoVisible}
+        />
 
         {/* Modern Student Records Section */}
         <div className="bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-t-2xl p-4 sm:p-6 border border-slate-200">
@@ -1406,15 +1403,32 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   height={20}
                 />
               </div>
+
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-slate-800">
                   Student Records
                 </h2>
                 <p className="text-sm text-slate-600">
-                  {countPassed + countDelisted} of {renewalData.length} students
-                  processed
+                  {countValidated} of {renewalData.length} students validated
                 </p>
               </div>
+
+              {hasIncomingUpdate && !isEdit && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-md px-4 py-2 mb-4 flex items-center justify-between">
+                  <span>🔄 New updates are available.</span>
+                  <button
+                    onClick={() => {
+                      getRenewalData(sySemester);
+                      getInitialRenewalInfo(sySemester);
+                      getProcessInfo();
+                      setHasIncomingUpdate(false);
+                    }}
+                    className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-all"
+                  >
+                    Refresh Now
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Modern Action Buttons Row */}
@@ -1494,7 +1508,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     <span className="hidden xs:inline">Report</span>
                   </button>
 
-                  <button
+                  {/* <button
                     className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-700 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50"
                     onClick={() => {
                       const headers = Object.keys(renewalTableHead);
@@ -1512,7 +1526,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   >
                     <Download className="w-4 h-4" />
                     <span className="hidden xs:inline">Download</span>
-                  </button>
+                  </button> */}
                 </>
               )}
 
@@ -1530,924 +1544,197 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
               {/* Save Changes Button (Edit Mode) */}
               {isEdit && (
-                <button
-                  onClick={handleShowSaveConfirmation}
-                  disabled={!hasEdits}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
-                    hasEdits
-                      ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
-                >
-                  <Save className="w-4 h-4" />
-                  <span className="hidden xs:inline">Save Changes</span>
-                  <span className="xs:hidden">Save</span>
-                </button>
+                <>
+                  {role_id === 3 && (
+                    <button
+                      onClick={() => setIsOpenUploadGrades(true)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded"
+                    >
+                      Upload Grades
+                    </button>
+                  )}
+                  {openUploadGrades && (
+                    <UploadGradesModal
+                      onClose={() => setIsOpenUploadGrades(false)}
+                      onExtract={(grades) => {
+                        console.log("📘 Extracted Grades:", grades);
+                        setGradeState(grades);
+                      }}
+                      renewalData={tempRenewalData}
+                      onSaveToTempRenewals={(saved) => {
+                        console.log(
+                          "✅ Saving grades to tempRenewalData:",
+                          saved
+                        );
+
+                        setTempRenewalData((prev) =>
+                          prev.map((row) => {
+                            const normalizeId = (
+                              id: string | number | null | undefined
+                            ) =>
+                              String(id ?? "")
+                                .trim()
+                                .replace(/^0+/, "")
+                                .toLowerCase();
+
+                            const matched = saved.find(
+                              (s) =>
+                                normalizeId(s.student_id) ===
+                                normalizeId(row.student_id)
+                            );
+
+                            if (!matched) {
+                              console.log(
+                                `No match found for student_id: ${row.student_id}`
+                              );
+                              return row;
+                            }
+
+                            console.log(
+                              `Matched student_id: ${row.student_id}, GWA: ${matched.gwa}`
+                            );
+
+                            const gwa =
+                              matched.gradeList && matched.gradeList.length > 0
+                                ? Number(
+                                    (
+                                      matched.gradeList.reduce(
+                                        (sum, g) =>
+                                          sum + Number(g.final_grade || 0),
+                                        0
+                                      ) / matched.gradeList.length
+                                    ).toFixed(2)
+                                  )
+                                : matched.gwa ?? row.gpa;
+                            console.log("GWA ONSCVE", matched.gradeList);
+                            const noFailingGrades = (() => {
+                              const studentGrades =
+                                Array.isArray(gradeState) &&
+                                gradeState.length > 0
+                                  ? gradeState.find(
+                                      (g) =>
+                                        normalizeId(g.student_id) ===
+                                        normalizeId(row.student_id)
+                                    )
+                                  : null;
+
+                              const finalGradeList =
+                                matched.gradeList &&
+                                matched.gradeList.length > 0
+                                  ? matched.gradeList
+                                  : studentGrades?.grades ?? [];
+
+                              if (finalGradeList.length === 0)
+                                return "Not Started";
+
+                              const hasFailing = finalGradeList.some(
+                                (g) => Number(g.final_grade) > 2.0
+                              );
+
+                              return hasFailing ? "Failed" : "Passed";
+                            })();
+
+                            return {
+                              ...row,
+                              grades: {
+                                fileURL: matched.fileURL,
+                                gradeList: matched.gradeList,
+                                fileName: matched.fileName,
+                              },
+                              gpa: gwa,
+                              gpa_validation_stat: gwa
+                                ? gwa <= 2.0
+                                  ? "Passed"
+                                  : "Failed"
+                                : "Not Started",
+                              no_failing_grd_validation: noFailingGrades,
+                              isEdited: true,
+                            };
+                          })
+                        );
+
+                        toast.success(
+                          "Extracted grades successfully applied to Renewal table."
+                        );
+                      }}
+                    />
+                  )}
+                  <button
+                    onClick={handleShowSaveConfirmation}
+                    disabled={!hasEdits}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
+                      hasEdits
+                        ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                  >
+                    <Save className="w-4 h-4" />
+                    <span className="hidden xs:inline">Save Changes</span>
+                    <span className="xs:hidden">Save</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
 
           {/* Modern Controls Section */}
           <div className="">
-            <div className="flex flex-col gap-4">
-              {/* Status Filter Row */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                {/* Mobile-friendly status filter */}
-                <div className="flex flex-col sm:hidden gap-2">
-                  <div className="text-xs text-slate-600 font-medium">
-                    Filter by Status:
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setSelectedStatus("All")}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                        selectedStatus === "All"
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
-                          : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
-                      }`}
-                    >
-                      All ({renewalData.length})
-                    </button>
-                    <button
-                      onClick={() => setSelectedStatus("Not Started")}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                        selectedStatus === "Not Started"
-                          ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg"
-                          : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
-                      }`}
-                    >
-                      Not Started ({countNotStarted})
-                    </button>
-                    <button
-                      onClick={() => setSelectedStatus("Passed")}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                        selectedStatus === "Passed"
-                          ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
-                          : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
-                      }`}
-                    >
-                      Passed ({countPassed})
-                    </button>
-                    <button
-                      onClick={() => setSelectedStatus("Delisted")}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                        selectedStatus === "Delisted"
-                          ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg"
-                          : "bg-white/80 backdrop-blur-sm text-slate-700 hover:bg-white hover:shadow-md border border-white/50"
-                      }`}
-                    >
-                      Delisted ({countDelisted})
-                    </button>
-                  </div>
-                </div>
-
-                {/* Desktop status filter */}
-                <div className="hidden sm:flex items-center bg-white/50 backdrop-blur-sm rounded-lg border border-white/50 overflow-hidden">
-                  <button
-                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
-                      selectedStatus === "All"
-                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
-                        : "text-slate-600 hover:bg-white/80 hover:shadow-md"
-                    }`}
-                    onClick={() => setSelectedStatus("All")}
-                  >
-                    All ({renewalData.length})
-                  </button>
-                  <div className="w-px h-6 bg-white/50"></div>
-                  <button
-                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
-                      selectedStatus === "Not Started"
-                        ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg"
-                        : "text-slate-600 hover:bg-white/80 hover:shadow-md"
-                    }`}
-                    onClick={() => setSelectedStatus("Not Started")}
-                  >
-                    Not Started ({countNotStarted})
-                  </button>
-                  <div className="w-px h-6 bg-white/50"></div>
-                  <button
-                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
-                      selectedStatus === "Passed"
-                        ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
-                        : "text-slate-600 hover:bg-white/80 hover:shadow-md"
-                    }`}
-                    onClick={() => setSelectedStatus("Passed")}
-                  >
-                    Passed ({countPassed})
-                  </button>
-                  <div className="w-px h-6 bg-white/50"></div>
-                  <button
-                    className={`px-4 py-2 text-xs font-medium transition-all duration-200 ${
-                      selectedStatus === "Delisted"
-                        ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg"
-                        : "text-slate-600 hover:bg-white/80 hover:shadow-md"
-                    }`}
-                    onClick={() => setSelectedStatus("Delisted")}
-                  >
-                    Delisted ({countDelisted})
-                  </button>
-                </div>
-
-                {/* Search Input */}
-                <div className="flex items-center pl-3 pr-3 bg-white/100 backdrop-blur-sm rounded-lg border border-white/50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 flex-1 h-10">
-                  <Search className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" />
-                  <input
-                    type="text"
-                    placeholder="Search scholars..."
-                    className="w-full bg-transparent outline-none text-slate-700 placeholder-slate-400 text-sm min-w-0"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                  />
-                </div>
-              </div>
-
-              {/* Additional Filters Row */}
-              <div className="flex flex-col lg:flex-row gap-3">
-                {/* Left side: Filters */}
-                <div className="flex flex-col lg:flex-row gap-3 flex-1">
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                      School Year & Semester:
-                    </label>
-                    <select
-                      value={sySemester}
-                      onChange={(e) => setSySemester(e.target.value)}
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
-                    >
-                      <option value="">Select SY-Semester</option>
-                      {sySemesterOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Branch Filter - Hidden when user has a specific assigned branch (Registrar/Instructor/DO) */}
-                  {!(
-                    (role_id === 3 || role_id === 4 || role_id === 9) &&
-                    Boolean(auth?.info?.branch?.branch_name)
-                  ) && (
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                      <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                        Branch:
-                      </label>
-                      <select
-                        value={selectedBranchFilter}
-                        onChange={(e) =>
-                          setSelectedBranchFilter(e.target.value)
-                        }
-                        className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed truncate"
-                      >
-                        <option value="All">All Branches</option>
-                        {uniqueBranches.map((branch) => (
-                          <option key={branch} value={branch}>
-                            {branch}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Year Level Filter */}
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
-                      Year Level:
-                    </label>
-                    <select
-                      value={selectedYearLevelFilter}
-                      onChange={(e) =>
-                        setSelectedYearLevelFilter(e.target.value)
-                      }
-                      className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
-                    >
-                      <option value="All">All Year Levels</option>
-                      {uniqueYearLevels.map((yearLevel) => (
-                        <option key={yearLevel} value={yearLevel}>
-                          {yearLevel}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Right side: Clear Filters & Audit Log */}
-                <div className="flex flex-col sm:flex-row gap-2 lg:items-end">
-                  {/* Clear Filters Button */}
-                  <button
-                    onClick={() => {
-                      setSelectedStatus("All");
-                      setSelectedBranchFilter("All");
-                      setSelectedYearLevelFilter("All");
-                      setSearchQuery("");
-                    }}
-                    className="px-3 py-2 text-xs font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
-                  >
-                    Clear Filters
-                  </button>
-
-                  {/* Audit Log Button */}
-                  {role_id === 7 && (
-                    <button
-                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-xs font-medium border border-white/50 cursor-pointer"
-                      onClick={() => setShowAuditLog(true)}
-                    >
-                      <History className="w-4 h-4" />
-                      <span>Audit Log</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <RenewalFilterControls
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleSearch={handleSearch}
+              selectedStatus={selectedStatus}
+              setSelectedStatus={setSelectedStatus}
+              selectedBranchFilter={selectedBranchFilter}
+              setSelectedBranchFilter={setSelectedBranchFilter}
+              selectedYearLevelFilter={selectedYearLevelFilter}
+              setSelectedYearLevelFilter={setSelectedYearLevelFilter}
+              sySemester={sySemester}
+              setSySemester={setSySemester}
+              sySemesterOptions={sySemesterOptions}
+              role_id={role_id}
+              auth={auth}
+              uniqueBranches={uniqueBranches}
+              uniqueYearLevels={uniqueYearLevels}
+              countPassed={countPassed}
+              countDelisted={countDelisted}
+              countNotStarted={countNotStarted}
+              renewalDataLength={renewalData.length}
+              onClearFilters={() => {
+                setSelectedStatus("All");
+                setSelectedBranchFilter("All");
+                setSelectedYearLevelFilter("All");
+                setSearchQuery("");
+              }}
+              onShowAuditLog={() => setShowAuditLog(true)}
+            />
           </div>
         </div>
 
         {/* Modern Data Table Container */}
-        <div
-          ref={tableContainerRef}
-          className="bg-white/80 backdrop-blur-sm rounded-b-xl border border-white/50 shadow-sm"
-        >
-          {!isLoading ? (
-            tempRenewalData && tempRenewalData.length > 0 ? (
-              <>
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto scroll-smooth">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50/80 backdrop-blur-sm">
-                      <tr
-                        className="text-slate-700 text-xs sm:text-sm font-medium text-left"
-                        key={renewalData[0].renewal_id}
-                      >
-                        {!isEdit && (
-                          <th
-                            className="border border-gray-300"
-                            key="blank"
-                          ></th>
-                        )}
-
-                        {Object.entries(renewalTableHead)
-                          .filter(([key]) => availableKeys.includes(key))
-                          .map(([key, label]) => (
-                            <>
-                              {key !== "is_validated" &&
-                              key !== "is_hr_validated" &&
-                              key !== "hr_completed_at" ? (
-                                <th
-                                  key={key}
-                                  className={`px-2 sm:px-3 lg:px-5 py-2 sm:py-3 text-center border border-gray-300
-                   ${
-                     isEdit && editableFields.includes(key)
-                       ? "bg-blue-50 text-blue-700 font-semibold"
-                       : ""
-                   }
-                   ${
-                     key === "scholar_name" &&
-                     "sticky left-[-1px] bg-gray-100 z-30 shadow-md max-w-[150px] sm:max-w-[200px] min-w-[150px] sm:min-w-[200px]"
-                   }
-                   ${
-                     key === "scholarship_status" &&
-                     "sticky left-[149px] sm:left-[198px] bg-gray-100 z-30 shadow-md"
-                   }
-                   ${
-                     key === "gpa" &&
-                     "max-w-[60px] sm:max-w-[80px] min-w-[60px] sm:min-w-[80px]"
-                   }
-                   ${
-                     key === "renewal_year_level_basis" &&
-                     "min-w-[200px] sm:min-w-[250px] whitespace-normal break-words align-top"
-                   }
-                   ${
-                     key === "year_level" &&
-                     "min-w-[200px] sm:min-w-[250px] whitespace-normal break-words align-top"
-                   }
-                `}
-                                >
-                                  {key === "renewal_year_level_basis" ? (
-                                    <>
-                                      {label.toUpperCase()} <br />
-                                      {renewalData[0]
-                                        ?.renewal_school_year_basis &&
-                                      renewalData[0]?.renewal_semester_basis ? (
-                                        <>
-                                          SY{" "}
-                                          {
-                                            renewalData[0]
-                                              .renewal_school_year_basis
-                                          }
-                                          &nbsp;
-                                          {
-                                            renewalData[0]
-                                              .renewal_semester_basis
-                                          }
-                                        </>
-                                      ) : (
-                                        <>NONE</>
-                                      )}
-                                    </>
-                                  ) : key === "year_level" ? (
-                                    <>
-                                      {label.toUpperCase()} <br />
-                                      {renewalData[0]?.school_year &&
-                                      renewalData[0]?.semester ? (
-                                        <>
-                                          SY {renewalData[0].school_year}&nbsp;
-                                          {renewalData[0].semester}
-                                        </>
-                                      ) : (
-                                        <>NONE</>
-                                      )}
-                                    </>
-                                  ) : (
-                                    label.toUpperCase()
-                                  )}
-                                </th>
-                              ) : key === "is_validated" ? (
-                                <th
-                                  className={`px-5 py-3 min-w-[200px] relative z-10 ${
-                                    isEdit
-                                      ? "bg-blue-50 text-blue-700 font-semibold"
-                                      : ""
-                                  }`}
-                                  key={key}
-                                >
-                                  {isEdit ? (
-                                    <CheckAllDropdown
-                                      label={label.toUpperCase()}
-                                      handleCheck={handleCheckModal}
-                                      isEditMode={true}
-                                    />
-                                  ) : (
-                                    <span className="flex justify-center">
-                                      {label.toUpperCase()}
-                                    </span>
-                                  )}
-                                </th>
-                              ) : (
-                                ""
-                              )}
-                            </>
-                          ))}
-
-                        {Number(role_id) === 3 || Number(role_id) === 9 ? (
-                          <>
-                            <th className="px-3 py-2 text-center border border-gray-300 font-semibold">
-                              HR VALIDATED
-                            </th>
-                            <th className="px-3 py-2 text-center border border-gray-300 font-semibold">
-                              HR COMPLETED
-                            </th>
-                          </>
-                        ) : null}
-                      </tr>
-                    </thead>
-
-                    <tbody className="bg-white/50 divide-y divide-slate-200 text-[12px] sm:text-[14px]">
-                      {tempRenewalData &&
-                        tempRenewalData
-                          .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                          .map((renewal) => (
-                            <tr
-                              key={renewal.renewal_id}
-                              className="cursor-pointer group border border-gray-300"
-                            >
-                              {!isEdit && (
-                                <td
-                                  className="px-4 group-hover:bg-gray-100"
-                                  onClick={() =>
-                                    handleRowClick(
-                                      renewal.student_id,
-                                      renewal.renewal_id
-                                    )
-                                  }
-                                >
-                                  <Eye
-                                    strokeWidth={1}
-                                    className="hover:translate-y-[-1px] hover:text-blue-700"
-                                  />
-                                </td>
-                              )}
-
-                              {Object.keys(renewalTableHead)
-                                .filter(
-                                  (key) =>
-                                    availableKeys.includes(key) &&
-                                    key !== "is_hr_validated" &&
-                                    key !== "hr_completed_at"
-                                )
-                                .map((key) => {
-                                  const value =
-                                    renewal[key as keyof RenewalDetails];
-                                  const isValidationField = Object.keys(
-                                    validation
-                                  )
-                                    .filter(
-                                      (k) =>
-                                        k !== "scholarship_status" &&
-                                        k !== "gpa_validation_stat" &&
-                                        k !== "is_validated"
-                                    )
-                                    .includes(key);
-                                  const isGPAField = key === "gpa";
-                                  const isTextField =
-                                    key === "delisting_root_cause";
-                                  const isValidatedField =
-                                    key === "is_validated";
-
-                                  return (
-                                    <td
-                                      key={key}
-                                      className={`px-2 sm:px-3 lg:px-5 py-2 sm:py-3 border border-gray-300 group-hover:bg-gray-100 ${
-                                        key === "scholar_name"
-                                          ? "sticky left-[-1px] z-10 shadow-md bg-white max-w-[150px] sm:max-w-[200px] lg:max-w-[300px] overflow-hidden"
-                                          : key === "scholarship_status"
-                                          ? "sticky left-[149px] sm:left-[198px] bg-white z-10 shadow-md max-w-[120px] sm:max-w-[150px] whitespace-nowrap overflow-hidden text-center"
-                                          : "min-w-[120px] sm:min-w-[150px] max-w-[300px] sm:max-w-[400px] whitespace-nowrap overflow-hidden text-center"
-                                      }`}
-                                    >
-                                      {/* Editable fields (buttons, input, textareas, etc.) */}
-                                      {isEdit && isValidatedField ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            if (
-                                              renewal.is_hr_validated === true
-                                            ) {
-                                              toast.warning(
-                                                "This record cannot be changed because HR has already validated it.",
-                                                {
-                                                  position: getToastPosition(),
-                                                  autoClose: 3000,
-                                                  toastId:
-                                                    "hr-validation-warning",
-                                                }
-                                              );
-                                              return;
-                                            }
-                                            handleIsValidatedChange(
-                                              renewal,
-                                              value as boolean | null
-                                            );
-                                          }}
-                                          className={`w-full h-full flex items-center justify-center font-semibold select-none cursor-pointer hover:ring-1 hover:ring-gray-300 rounded border 
-                                            ${
-                                              renewal.is_hr_validated
-                                                ? "cursor-not-allowed opacity-50 bg-gray-100"
-                                                : "cursor-pointer hover:scale-105 active:scale-95 shadow-sm"
-                                            } ${
-                                            value === true
-                                              ? "text-green-600 bg-green-100 text-2xl"
-                                              : value === false
-                                              ? "text-red-600 bg-red-100 text-2xl"
-                                              : "text-gray-400 text-xs"
-                                          }`}
-                                          title={
-                                            value === true
-                                              ? "Validated"
-                                              : value === false
-                                              ? "Not Validated"
-                                              : ""
-                                          }
-                                        >
-                                          {value === true
-                                            ? "\u2713"
-                                            : value === false
-                                            ? "X"
-                                            : "Not Started"}
-                                        </button>
-                                      ) : isEdit && isGPAField ? (
-                                        <input
-                                          type="number"
-                                          disabled={
-                                            renewal.is_validated === true
-                                          }
-                                          value={
-                                            typeof value === "number" ||
-                                            typeof value === "string"
-                                              ? value
-                                              : ""
-                                          }
-                                          step="0.01"
-                                          min={0}
-                                          max={5}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (val === "") {
-                                              handleGPAChange(
-                                                renewal.renewal_id,
-                                                null
-                                              );
-                                              return;
-                                            }
-                                            let numVal = Number(val);
-                                            if (numVal > 5) numVal = 5;
-                                            numVal =
-                                              Math.floor(numVal * 100) / 100;
-                                            handleGPAChange(
-                                              renewal.renewal_id,
-                                              numVal
-                                            );
-                                          }}
-                                          className="border border-gray-300 px-1 sm:px-2 py-1 rounded-sm w-full text-xs sm:text-sm"
-                                        />
-                                      ) : isEdit &&
-                                        isTextField &&
-                                        renewal.scholarship_status ===
-                                          "Delisted" ? (
-                                        <textarea
-                                          value={value as string}
-                                          disabled={
-                                            renewal.is_validated === true
-                                          }
-                                          rows={1}
-                                          onChange={(e) => {
-                                            const newValue = e.target.value;
-                                            setTempRenewalData((prev) =>
-                                              prev.map((r) =>
-                                                r.renewal_id ===
-                                                renewal.renewal_id
-                                                  ? { ...r, [key]: newValue }
-                                                  : r
-                                              )
-                                            );
-                                          }}
-                                          className="border border-gray-300 px-1 sm:px-2 py-1 rounded-sm w-full resize-none text-xs sm:text-sm"
-                                        />
-                                      ) : isEdit && isValidationField ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            if (renewal.is_validated === true) {
-                                              toast.warning(
-                                                "This record is already validated and cannot be edited.",
-                                                {
-                                                  position: getToastPosition(),
-                                                  autoClose: 3000,
-                                                  toastId: "validation-warning",
-                                                }
-                                              );
-                                              return;
-                                            }
-                                            const current = (
-                                              (value as string) || "Not Started"
-                                            ).trim();
-                                            const next =
-                                              current === "Not Started"
-                                                ? "Passed"
-                                                : current === "Passed"
-                                                ? "Failed"
-                                                : "Not Started";
-                                            handleValidationChange(
-                                              renewal.renewal_id,
-                                              key as keyof RenewalDetails,
-                                              next
-                                            );
-                                          }}
-                                          className={`w-full h-full flex items-center justify-center font-semibold select-none rounded
-                          ${
-                            renewal.is_validated
-                              ? "cursor-not-allowed opacity-50 bg-gray-100"
-                              : "cursor-pointer hover:scale-105 active:scale-95 shadow-sm"
-                          }
-                          ${
-                            ((value as string) || "Not Started").trim() ===
-                            "Passed"
-                              ? "text-green-600 bg-green-100 text-2xl"
-                              : ((value as string) || "Not Started").trim() ===
-                                "Failed"
-                              ? "text-red-600 bg-red-100 text-lg"
-                              : "text-gray-400 text-xs py-2 bg-gray-50"
-                          }`}
-                                          title={(
-                                            (value as string) || "Not Started"
-                                          ).trim()}
-                                        >
-                                          {(
-                                            (value as string) || "Not Started"
-                                          ).trim() === "Passed"
-                                            ? "\u2713"
-                                            : (
-                                                (value as string) ||
-                                                "Not Started"
-                                              ).trim() === "Failed"
-                                            ? "X"
-                                            : "Not Started"}
-                                        </button>
-                                      ) : key === "scholarship_status" ? (
-                                        statusBadge(value as string)
-                                      ) : key === "is_validated" ? (
-                                        <span
-                                          className={`font-semibold ${
-                                            value === true
-                                              ? "text-green-600 text-lg"
-                                              : value === false
-                                              ? "text-red-600 text-lg"
-                                              : "text-gray-400 text-sm"
-                                          }`}
-                                        >
-                                          {value === true
-                                            ? "\u2713"
-                                            : value === false
-                                            ? "X"
-                                            : "Pending"}
-                                        </span>
-                                      ) : (
-                                        <span>
-                                          {statusBadge(value as string)}
-                                        </span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-
-                              {/* ✅ HR Validation Data */}
-                              {(role_id === 3 || role_id === 9) && (
-                                <>
-                                  <td
-                                    className={`px-3 py-2 text-center border border-gray-300 font-semibold ${
-                                      renewal.is_hr_validated
-                                        ? "text-green-600 "
-                                        : "text-red-600 "
-                                    }`}
-                                  >
-                                    {renewal.is_hr_validated ? "✓" : "X"}
-                                  </td>
-
-                                  <td className="px-3 py-2 text-center border border-gray-300 text-xs text-gray-600">
-                                    {renewal.hr_completed_at
-                                      ? new Date(
-                                          renewal.hr_completed_at
-                                        ).toLocaleString("en-PH", {
-                                          dateStyle: "medium",
-                                          timeStyle: "short",
-                                        })
-                                      : "—"}
-                                  </td>
-                                </>
-                              )}
-                            </tr>
-                          ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="lg:hidden space-y-3 p-4">
-                  {tempRenewalData
-                    .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                    .map((renewal) => (
-                      <div
-                        key={renewal.renewal_id}
-                        className="bg-white/90 backdrop-blur-sm border border-white/50 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
-                              {renewal.scholar_name}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-gray-600">
-                              ID: {renewal.student_id}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!isEdit && (
-                              <button
-                                onClick={() =>
-                                  handleRowClick(
-                                    renewal.student_id,
-                                    renewal.renewal_id
-                                  )
-                                }
-                                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                            )}
-                            <div className="text-right">
-                              {statusBadge(renewal.scholarship_status)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                          <div>
-                            <span className="text-gray-500">Campus:</span>
-                            <p className="font-medium">{renewal.campus}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Batch:</span>
-                            <p className="font-medium">{renewal.batch}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">GPA:</span>
-                            <p className="font-medium">
-                              {renewal.gpa || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Year Level:</span>
-                            <p className="font-medium">{renewal.year_level}</p>
-                          </div>
-                        </div>
-
-                        {isEdit && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="space-y-3">
-                              {/* GPA Input */}
-                              <div>
-                                <label className="text-xs text-gray-500 block mb-1">
-                                  GPA
-                                </label>
-                                <input
-                                  type="number"
-                                  value={
-                                    typeof renewal.gpa === "number" ||
-                                    typeof renewal.gpa === "string"
-                                      ? renewal.gpa
-                                      : ""
-                                  }
-                                  step="0.01"
-                                  min={0}
-                                  max={5}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === "") {
-                                      handleGPAChange(renewal.renewal_id, null);
-                                      return;
-                                    }
-                                    let numVal = Number(val);
-                                    if (numVal > 5) numVal = 5;
-                                    numVal = Math.floor(numVal * 100) / 100;
-                                    handleGPAChange(renewal.renewal_id, numVal);
-                                  }}
-                                  className="border border-gray-300 px-2 py-1 rounded-sm w-full text-xs"
-                                />
-                              </div>
-
-                              {/* Validation Status */}
-                              <div>
-                                <label className="text-xs text-gray-500 block mb-2">
-                                  Validation Status
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleIsValidatedChange(
-                                      renewal,
-                                      renewal.is_validated as boolean | null
-                                    );
-                                  }}
-                                  className={`w-full px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                                    renewal.is_validated === true
-                                      ? "bg-green-100 text-green-700 border border-green-300"
-                                      : renewal.is_validated === false
-                                      ? "bg-red-100 text-red-700 border border-red-300"
-                                      : "bg-gray-100 text-gray-600 border border-gray-300"
-                                  }`}
-                                >
-                                  {renewal.is_validated === true
-                                    ? "✓ Validated"
-                                    : renewal.is_validated === false
-                                    ? "✗ Not Validated"
-                                    : "Pending"}
-                                </button>
-                              </div>
-
-                              {/* Individual Validation Fields */}
-                              <div>
-                                <label className="text-xs text-gray-500 block mb-2">
-                                  Individual Validations
-                                </label>
-                                <div className="space-y-2">
-                                  {Object.keys(validation)
-                                    .filter(
-                                      (k) =>
-                                        k !== "scholarship_status" &&
-                                        k !== "gpa_validation_stat" &&
-                                        k !== "is_validated"
-                                    )
-                                    .map((key) => {
-                                      const value =
-                                        renewal[key as keyof RenewalDetails];
-                                      const current = (
-                                        (value as string) || "Not Started"
-                                      ).trim();
-                                      return (
-                                        <div
-                                          key={key}
-                                          className="flex items-center justify-between"
-                                        >
-                                          <span className="text-xs text-gray-600 capitalize">
-                                            {key.replace(/_/g, " ")}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const next =
-                                                current === "Not Started"
-                                                  ? "Passed"
-                                                  : current === "Passed"
-                                                  ? "Failed"
-                                                  : "Not Started";
-                                              handleValidationChange(
-                                                renewal.renewal_id,
-                                                key as keyof RenewalDetails,
-                                                next
-                                              );
-                                            }}
-                                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                                              current === "Passed"
-                                                ? "bg-green-100 text-green-700"
-                                                : current === "Failed"
-                                                ? "bg-red-100 text-red-700"
-                                                : "bg-gray-100 text-gray-600"
-                                            }`}
-                                          >
-                                            {current === "Passed"
-                                              ? "✓"
-                                              : current === "Failed"
-                                              ? "✗"
-                                              : "○"}
-                                          </button>
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              </div>
-
-                              {/* Delisting Root Cause */}
-                              {renewal.scholarship_status === "Delisted" && (
-                                <div>
-                                  <label className="text-xs text-gray-500 block mb-1">
-                                    Delisting Reason
-                                  </label>
-                                  <textarea
-                                    value={renewal.delisting_root_cause || ""}
-                                    rows={2}
-                                    onChange={(e) => {
-                                      const newValue = e.target.value;
-                                      setTempRenewalData((prev) =>
-                                        prev.map((r) =>
-                                          r.renewal_id === renewal.renewal_id
-                                            ? {
-                                                ...r,
-                                                delisting_root_cause: newValue,
-                                              }
-                                            : r
-                                        )
-                                      );
-                                    }}
-                                    className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none text-xs"
-                                    placeholder="Enter reason for delisting..."
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </>
-            ) : (
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-8 h-8 text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <p className="text-slate-600 text-sm">
-                  {initialRenewalInfo?.count === 0 ||
-                  initialRenewalInfo?.count === undefined
-                    ? "Renewal for this SY and Semester is not initialize yet"
-                    : role_id === 7
-                    ? `Here will show list of validated scholars for renewal by D.O and Registrar  ${renewalData.length}/${initialRenewalInfo?.count}`
-                    : ""}
-                </p>
-              </div>
-            )
-          ) : (
-            <Loading />
-          )}
-          <div className="px-3 sm:px-6 py-3 sm:py-4 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
-            {/* Mobile pagination info */}
-
-            <PaginationControl
-              currentPage={page}
-              totalPages={totalPage}
-              onPageChange={handlePageChange}
-            />
-          </div>
-        </div>
+        <RenewalTable
+          isEdit={isEdit}
+          role_id={role_id}
+          isLoading={isLoading}
+          renewalData={renewalData}
+          tempRenewalData={tempRenewalData}
+          page={page}
+          totalPage={totalPage}
+          itemsPerPage={itemsPerPage}
+          availableKeys={availableKeys}
+          editableFields={editableFields}
+          initialRenewalInfo={initialRenewalInfo}
+          tableContainerRef={tableContainerRef}
+          handleRowClick={handleRowClick}
+          handlePageChange={handlePageChange}
+          handleGPAChange={handleGPAChange}
+          handleValidationChange={handleValidationChange}
+          handleIsValidatedChange={handleIsValidatedChange}
+          handleCheckModal={handleCheckModal}
+          setTempRenewalData={setTempRenewalData}
+          statusBadge={statusBadge}
+          setSelectedGrades={setSelectedGrades}
+        />
       </div>
 
       <ScholarshipRenewalModal
@@ -2488,7 +1775,15 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         confirmText="Yes, Continue"
         cancelText="Cancel"
       />
-
+      <GradeModal
+        selectedGrades={selectedGrades}
+        onClose={() => setSelectedGrades(null)}
+      />
+      <ProcessingModal
+        isOpen={isSaving}
+        status={uploadStatus || "Saving changes..."}
+        progress={uploadProgress}
+      />
       {showAuditLog && <AuditLog onClose={() => setShowAuditLog(false)} />}
 
       {/* Save Confirmation Modal */}
