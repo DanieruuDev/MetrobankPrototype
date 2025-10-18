@@ -37,6 +37,13 @@ export interface RenewalDetails {
   completed_at: string;
   is_hr_validated: boolean;
   hr_completed_at: string;
+
+  grades?: RenewalGradesPayload | null;
+}
+export interface RenewalGradesPayload {
+  fileURL?: string; // where B2 stored the file
+  gradeList?: ScholarGrade[]; // actual grades list
+  fileName?: string; // original file name
 }
 export interface RenewalDetailsClone extends RenewalDetails {
   isEdited: boolean;
@@ -201,4 +208,57 @@ export interface InitialRenewalInfo {
   school_year_text: string;
   semester: number;
   semester_text: string;
+}
+
+//grades
+
+/** Represents one course grade */
+/** Represents one course grade */
+export interface ScholarGrade {
+  course_code: string;
+  final_grade: number;
+}
+
+/** Represents one student's full extracted record */
+export interface ScholarGradeDocument {
+  /** The name of the file (e.g. "Neo Grade.pdf") */
+  fileName?: string;
+
+  /** The actual PDF file object extracted from JSZip */
+  fileObject?: File;
+
+  /** Identifiers */
+  student_id: string;
+
+  /** Names may differ depending on extraction source */
+  student_name?: string; // From PDF backend
+  scholar_name?: string; // From Excel extraction
+
+  /** School info */
+  campus: string;
+  program: string;
+
+  /** Academic info */
+  sy: string | null; // e.g. "2024-2025"
+  semester: string | null; // e.g. "2nd Term"
+  gwa: number | null;
+  pageCount?: number; // From PDF backend
+
+  /** Year/level naming differences */
+  level?: string; // From PDF backend
+  year_level?: string; // From Excel extraction
+
+  /** The actual subject-grade breakdown */
+  grades: ScholarGrade[];
+}
+
+/** Response for single PDF extraction */
+export interface SingleScholarGradeResult extends ScholarGradeDocument {
+  fileName: string;
+}
+
+/** Response for ZIP extraction (multiple PDFs) */
+export interface ZipScholarGradeResult {
+  totalFiles: number;
+  results: ScholarGradeDocument[];
 }

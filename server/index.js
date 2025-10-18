@@ -38,7 +38,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://www.mbstrongwebapp.com"],
+    origin: ["https://www.mbstrongwebapp.com", "http://localhost:5173"],
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -46,9 +46,11 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("⚡ User connected:", socket.id);
+
   socket.on("register_user", (userId) => {
     socket.join(`user_${userId}`);
-    console.log(`✅ User ${userId} joined their room`);
+    socket.join("renewal_updates"); // 🟢 all users hear updates here
+    console.log(`✅ User ${userId} joined their rooms`);
   });
 
   socket.on("disconnect", () => {

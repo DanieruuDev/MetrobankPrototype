@@ -41,7 +41,7 @@ interface Info {
   branch: Branch | null;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   token: string | null;
   logout: () => Promise<void>;

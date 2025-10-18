@@ -2,6 +2,7 @@ const pool = require("../database/dbConnect.js");
 const { uploadBuffer } = require("../utils/b2");
 const { v4: uuidv4 } = require("uuid");
 
+//tuition-invoice only
 const fetchScholarForInvoice = async (req, res) => {
   const { schoolYear, semester } = req.params;
   const { branch } = req.query; // ✅ optional branch filter
@@ -38,6 +39,7 @@ const fetchScholarForInvoice = async (req, res) => {
   }
 };
 
+//tuition-invoice only
 const uploadFileToDB = async (req, res) => {
   console.log("Call this");
   const client = await pool.connect();
