@@ -870,13 +870,16 @@ const updateScholarRenewalV2 = async (req, res) => {
 
     // 🧩 Notify all connected users EXCEPT the one who made the update
     if (triggeredBy) {
+      // 🟢 Send update to everyone EXCEPT the one who triggered it
       req.io
-        .to("renewal_updates")
         .except(`user_${triggeredBy}`)
+        .to("renewal_updates")
         .emit("renewal_updated", payload);
+
       console.log(`📢 Update broadcasted (except user_${triggeredBy})`);
     } else {
-      req.io.to("renewal_updates").emit("renewal_updated", payload);
+      // fallback if no user ID
+      req.io.emit("renewal_updated", payload);
     }
 
     // ✅ Send HTTP response

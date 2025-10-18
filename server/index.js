@@ -48,9 +48,10 @@ io.on("connection", (socket) => {
   console.log("⚡ User connected:", socket.id);
 
   socket.on("register_user", (userId) => {
+    if (!userId) return;
     socket.join(`user_${userId}`);
-    socket.join("renewal_updates"); // 🟢 all users hear updates here
-    console.log(`✅ User ${userId} joined their rooms`);
+    socket.join("renewal_updates");
+    console.log(`✅ User ${userId} joined user_${userId} & renewal_updates`);
   });
 
   socket.on("disconnect", () => {

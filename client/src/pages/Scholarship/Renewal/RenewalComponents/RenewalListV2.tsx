@@ -393,7 +393,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     });
 
     try {
-      setIsLoading(true);
+      setIsSaving(true);
 
       // 🔹 Per-row upload tracking
       const uploadStatuses: Record<number, string> = {};
@@ -435,7 +435,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           const formData = new FormData();
           formData.append("file", cf.grades.fileObject);
           formData.append("renewal_id", String(row.renewal_id));
-          setIsSaving(true);
           try {
             uploadStatuses[row.renewal_id] = "Starting upload...";
             setUploadStatus(`Starting upload for ID ${row.renewal_id}`);
@@ -1315,6 +1314,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   height={20}
                 />
               </div>
+
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800">
+                  Student Records
+                </h2>
+                <p className="text-sm text-slate-600">
+                  {countValidated} of {renewalData.length} students validated
+                </p>
+              </div>
+
               {hasIncomingUpdate && !isEdit && (
                 <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-md px-4 py-2 mb-4 flex items-center justify-between">
                   <span>🔄 New updates are available.</span>
@@ -1331,15 +1340,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </button>
                 </div>
               )}
-
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-800">
-                  Student Records
-                </h2>
-                <p className="text-sm text-slate-600">
-                  {countValidated} of {renewalData.length} students validated
-                </p>
-              </div>
             </div>
 
             {/* Modern Action Buttons Row */}
