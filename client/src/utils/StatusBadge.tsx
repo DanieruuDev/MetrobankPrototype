@@ -3,7 +3,7 @@ export const workflowStatusBG = (status: string) => {
     case "Completed":
       return "bg-green-500";
     case "In Progress":
-      return "bg-yellow-400";
+      return "bg-blue-500";
     case "Failed":
       return "bg-red-500 text-red-800";
     case "Not Started":
@@ -16,7 +16,7 @@ export const workflowStatusText = (status: string) => {
     case "Completed":
       return "text-green-500";
     case "On Progress":
-      return "text-yellow-500";
+      return "text-blue-500";
     case "Not Started":
       return "text-gray-400";
   }
@@ -27,7 +27,7 @@ export const approverStatusBadge = (status: string) => {
     case "Current":
       return "bg-blue-100 text-blue-800";
     case "Pending":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-blue-100 text-blue-800";
     case "Completed":
       return "bg-green-100 text-green-800";
     case "Missed":

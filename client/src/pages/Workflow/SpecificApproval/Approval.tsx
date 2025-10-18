@@ -396,6 +396,8 @@ function Approval() {
                               a.response === "Returned")
                         )
                           ? "bg-gradient-to-b from-red-400 via-rose-300 to-red-300"
+                          : workflow?.status === "Pending"
+                          ? "bg-gradient-to-b from-blue-400 via-blue-300 to-blue-200"
                           : workflow?.status === "In Progress"
                           ? "bg-gradient-to-b from-blue-400 via-blue-300 to-blue-200"
                           : workflow?.status === "Completed"
@@ -407,7 +409,7 @@ function Approval() {
                           sortedApprovers.filter(
                             (a) => a.approver_status !== "Replaced"
                           ).length > 0
-                            ? "calc(100% - 60px)"
+                            ? "calc(100% - 80px)"
                             : "0",
                       }}
                     ></div>
@@ -426,6 +428,8 @@ function Approval() {
                                     a.response === "Returned")
                               )
                                 ? "bg-red-400/30"
+                                : workflow?.status === "Pending"
+                                ? "bg-blue-400/30"
                                 : workflow?.status === "In Progress"
                                 ? "bg-blue-400/30"
                                 : workflow?.status === "Completed"
@@ -442,6 +446,8 @@ function Approval() {
                                     a.response === "Returned")
                               )
                                 ? "bg-gradient-to-br from-red-400 to-red-600"
+                                : workflow?.status === "Pending"
+                                ? "bg-gradient-to-br from-blue-400 to-blue-600"
                                 : workflow?.status === "In Progress"
                                 ? "bg-gradient-to-br from-blue-400 to-blue-600"
                                 : workflow?.status === "Completed"
@@ -466,6 +472,8 @@ function Approval() {
                                   a.response === "Returned")
                             )
                               ? "border-red-200/50"
+                              : workflow?.status === "Pending"
+                              ? "border-blue-200/50"
                               : workflow?.status === "In Progress"
                               ? "border-blue-200/50"
                               : workflow?.status === "Completed"
@@ -482,6 +490,8 @@ function Approval() {
                                     a.response === "Returned")
                               )
                                 ? "bg-gradient-to-br from-red-50/90 via-rose-50/80 to-pink-50/90"
+                                : workflow?.status === "Pending"
+                                ? "bg-gradient-to-br from-blue-50/90 via-sky-50/80 to-cyan-50/90"
                                 : workflow?.status === "In Progress"
                                 ? "bg-gradient-to-br from-blue-50/90 via-sky-50/80 to-cyan-50/90"
                                 : workflow?.status === "Completed"
@@ -505,6 +515,8 @@ function Approval() {
                                             a.response === "Returned")
                                       )
                                         ? "text-red-600"
+                                        : workflow?.status === "Pending"
+                                        ? "text-blue-600"
                                         : workflow?.status === "In Progress"
                                         ? "text-blue-600"
                                         : workflow?.status === "Completed"
@@ -568,7 +580,7 @@ function Approval() {
                                   <div className="absolute w-10 h-10 rounded-full bg-emerald-400/30 blur-md"></div>
                                 )}
                                 {isCurrent && (
-                                  <div className="absolute w-10 h-10 rounded-full bg-blue-400/30 blur-md animate-pulse"></div>
+                                  <div className="absolute w-10 h-10 rounded-full bg-blue-400/30 blur-md animate-glow"></div>
                                 )}
                                 <div
                                   className={`relative w-10 h-10 rounded-full flex items-center justify-center shadow-lg ring-2 ring-white transition-all duration-300 ${
@@ -633,6 +645,8 @@ function Approval() {
                                             a.response === "Returned")
                                       )
                                         ? "bg-gradient-to-br from-red-50/90 via-rose-50/80 to-pink-50/90"
+                                        : workflow?.status === "Pending"
+                                        ? "bg-gradient-to-br from-blue-50/90 via-sky-50/80 to-cyan-50/90"
                                         : workflow?.status === "In Progress"
                                         ? "bg-gradient-to-br from-blue-50/90 via-sky-50/80 to-cyan-50/90"
                                         : workflow?.status === "Completed"
@@ -1036,6 +1050,8 @@ function Approval() {
                                       a.response === "Returned")
                                 )
                                   ? "bg-red-400/30"
+                                  : workflow?.status === "Pending"
+                                  ? "bg-blue-400/30"
                                   : workflow?.status === "In Progress"
                                   ? "bg-blue-400/30"
                                   : workflow?.status === "Completed"
@@ -1053,6 +1069,8 @@ function Approval() {
                                     a.response === "Returned")
                               )
                                 ? "bg-gradient-to-br from-red-400 to-red-600"
+                                : workflow?.status === "Pending"
+                                ? "bg-gradient-to-br from-blue-400 to-blue-600"
                                 : workflow?.status === "In Progress"
                                 ? "bg-gradient-to-br from-blue-400 to-blue-600"
                                 : workflow?.status === "Completed"
@@ -1076,6 +1094,8 @@ function Approval() {
                                   a.response === "Returned")
                             )
                               ? "border-red-200/50"
+                              : workflow?.status === "Pending"
+                              ? "border-blue-200/50"
                               : workflow?.status === "In Progress"
                               ? "border-blue-200/50"
                               : workflow?.status === "Completed"
@@ -1092,6 +1112,8 @@ function Approval() {
                                     a.response === "Returned")
                               )
                                 ? "bg-gradient-to-br from-red-50/90 via-rose-50/80 to-pink-50/90"
+                                : workflow?.status === "Pending"
+                                ? "bg-gradient-to-br from-blue-50/90 via-sky-50/80 to-cyan-50/90"
                                 : workflow?.status === "In Progress"
                                 ? "bg-gradient-to-br from-blue-50/90 via-sky-50/80 to-cyan-50/90"
                                 : workflow?.status === "Completed"
@@ -1105,13 +1127,21 @@ function Approval() {
                                 <h3 className="text-lg font-bold text-gray-900 mb-2">
                                   Ended
                                 </h3>
-                                {sortedApprovers
-                                  .filter(
-                                    (a) => a.approver_status !== "Replaced"
-                                  )
-                                  .every(
-                                    (a) => a.approver_status === "Completed"
-                                  ) && (
+                                {(workflow?.status === "Completed" ||
+                                  workflow?.status === "Failed" ||
+                                  sortedApprovers.some(
+                                    (a) =>
+                                      a.approver_status !== "Replaced" &&
+                                      (a.response === "Reject" ||
+                                        a.response === "Returned")
+                                  ) ||
+                                  sortedApprovers
+                                    .filter(
+                                      (a) => a.approver_status !== "Replaced"
+                                    )
+                                    .every(
+                                      (a) => a.approver_status === "Completed"
+                                    )) && (
                                   <div className="flex items-center gap-2">
                                     <svg
                                       className={`w-4 h-4 ${
@@ -1122,6 +1152,8 @@ function Approval() {
                                               a.response === "Returned")
                                         )
                                           ? "text-red-600"
+                                          : workflow?.status === "Pending"
+                                          ? "text-blue-600"
                                           : workflow?.status === "In Progress"
                                           ? "text-blue-600"
                                           : workflow?.status === "Completed"
@@ -1140,8 +1172,29 @@ function Approval() {
                                       />
                                     </svg>
                                     <p className="text-sm font-medium text-gray-700">
-                                      Completed on{" "}
-                                      {formatDate(workflow?.updated_at)}
+                                      {sortedApprovers.some(
+                                        (a) =>
+                                          a.approver_status !== "Replaced" &&
+                                          (a.response === "Reject" ||
+                                            a.response === "Returned")
+                                      )
+                                        ? "Rejected on"
+                                        : "Completed on"}{" "}
+                                      {(() => {
+                                        // Find the last approver's response time
+                                        const lastApprover = sortedApprovers
+                                          .filter(
+                                            (a) =>
+                                              a.approver_status !== "Replaced"
+                                          )
+                                          .reverse()
+                                          .find((a) => a.response_time);
+
+                                        return formatDate(
+                                          lastApprover?.response_time ||
+                                            workflow?.updated_at
+                                        );
+                                      })()}
                                     </p>
                                   </div>
                                 )}
