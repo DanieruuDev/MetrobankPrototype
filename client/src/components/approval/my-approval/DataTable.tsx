@@ -174,7 +174,8 @@ export default function DataTable({
         </h3>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -290,6 +291,109 @@ export default function DataTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden">
+        {paginatedData.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-500">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                {emptyState.icon}
+              </div>
+              <p className="text-sm font-medium text-gray-900 mb-1">
+                {emptyState.title}
+              </p>
+              <p className="text-sm text-gray-500">{emptyState.description}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 px-1 py-1">
+            {paginatedData.map((workflow) => (
+              <div
+                key={workflow.workflow_id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/workflow-approval/${workflow.workflow_id}`);
+                }}
+                className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+              >
+                {/* Header with Status and Actions */}
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <div className="flex items-center space-x-1.5 flex-1 min-w-0">
+                    {getStatusIcon(workflow.status)}
+                    <span className="text-xs sm:text-sm font-medium text-gray-900 capitalize truncate">
+                      {workflow.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {onEdit && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          editApproval(workflow.workflow_id);
+                          onEdit(workflow.workflow_id);
+                        }}
+                        className="text-blue-600 cursor-pointer hover:text-blue-900 p-1.5 rounded-md hover:bg-blue-50 transition-colors duration-150 touch-manipulation"
+                        title="Edit workflow"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onArchived(workflow.workflow_id);
+                      }}
+                      className="text-yellow-600 cursor-pointer hover:text-yellow-900 p-1.5 rounded-md hover:bg-yellow-50 transition-colors duration-150 touch-manipulation"
+                      title="Archive workflow"
+                    >
+                      <Archive size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Request Title */}
+                <div className="mb-2">
+                  <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1 line-clamp-2 leading-tight">
+                    {workflow.request_title}
+                  </h3>
+                  {workflow.doc_name && (
+                    <p className="text-xs text-gray-500 line-clamp-1">
+                      {workflow.approval_req_type
+                        ? `${workflow.approval_req_type}.xlsx`
+                        : "Request Type.xlsx"}
+                    </p>
+                  )}
+                </div>
+
+                {/* Details Grid */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 font-medium">Type:</span>
+                    <span className="text-gray-900 font-semibold text-right flex-1 ml-2 truncate">
+                      {workflow.approval_req_type || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 font-medium">Due Date:</span>
+                    <span className="text-gray-900 font-semibold text-right flex-1 ml-2 truncate">
+                      {formatDate(workflow.due_date)}
+                    </span>
+                  </div>
+                  {workflow.school_details && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 font-medium">School:</span>
+                      <span className="text-gray-900 font-semibold text-right flex-1 ml-2 truncate">
+                        {workflow.school_details}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {totalPages > 1 && (
