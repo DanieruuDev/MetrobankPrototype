@@ -76,6 +76,12 @@ interface Document {
     totalBalance: string;
   };
   fileObject?: File | null; // ✅ Added this to support the attached PDF file
+  isEditing?: boolean; // ✅ Added for edit mode
+  editedData?: {
+    // ✅ Added for edited values
+    studentName: string;
+    studentNumber: string;
+  };
 }
 
 interface JobStatus {
@@ -112,10 +118,25 @@ const TuitionInvoiceUpload: React.FC = () => {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadedFilesCount, setUploadedFilesCount] = useState(0);
+  const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
   const [showUploadConfirmation, setShowUploadConfirmation] = useState(false);
   const [showUploadMatchedConfirmation, setShowUploadMatchedConfirmation] =
     useState(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+  // ✅ Autocomplete states
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<{
+    [key: string]: Student[];
+  }>({});
+  const [showSuggestions, setShowSuggestions] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<{
+    [key: string]: number;
+  }>({});
 
   // Filter states
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
@@ -477,7 +498,10 @@ const TuitionInvoiceUpload: React.FC = () => {
     }
 
     const matchedDocs = jobStatus.result.documents.filter((doc) => {
-      const studentId = parseInt(doc.extracted.studentNumber || "0");
+      // Use edited data if available, otherwise use extracted data
+      const currentStudentNumber =
+        doc.editedData?.studentNumber || doc.extracted.studentNumber;
+      const studentId = parseInt(currentStudentNumber || "0");
       return students.some((s) => s.student_id === studentId);
     });
 
@@ -496,7 +520,10 @@ const TuitionInvoiceUpload: React.FC = () => {
     }
 
     const matchedDocs = jobStatus.result.documents.filter((doc) => {
-      const studentId = parseInt(doc.extracted.studentNumber || "0");
+      // Use edited data if available, otherwise use extracted data
+      const currentStudentNumber =
+        doc.editedData?.studentNumber || doc.extracted.studentNumber;
+      const studentId = parseInt(currentStudentNumber || "0");
       return students.some((s) => s.student_id === studentId);
     });
 
@@ -507,10 +534,26 @@ const TuitionInvoiceUpload: React.FC = () => {
 
     setShowUploadMatchedConfirmation(false);
     setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStatus("Preparing upload...");
+    setUploadedFilesCount(0);
+    setTotalFilesToUpload(matchedDocs.length);
 
     try {
-      for (const doc of matchedDocs) {
-        const studentId = parseInt(doc.extracted.studentNumber || "0");
+      for (let i = 0; i < matchedDocs.length; i++) {
+        const doc = matchedDocs[i];
+
+        // Update progress
+        setUploadStatus(
+          `Uploading invoice ${i + 1} of ${matchedDocs.length}...`
+        );
+        setUploadedFilesCount(i + 1);
+        setUploadProgress(Math.round(((i + 1) / matchedDocs.length) * 100));
+
+        // Use edited data if available, otherwise use extracted data
+        const currentStudentNumber =
+          doc.editedData?.studentNumber || doc.extracted.studentNumber;
+        const studentId = parseInt(currentStudentNumber || "0");
         const student = students.find((s) => s.student_id === studentId);
 
         if (!student || !doc.fileObject) continue;
@@ -542,20 +585,237 @@ const TuitionInvoiceUpload: React.FC = () => {
         }
       }
 
+      setUploadStatus("Upload completed successfully!");
+      setUploadProgress(100);
+      setUploadedFilesCount(matchedDocs.length);
+
       toast.success("All matching invoices uploaded successfully!");
       fetchStudents();
       setIsUploadOpen(false);
       setJobStatus(null);
     } catch (error) {
       console.error("Upload error:", error);
+      setUploadStatus("Upload failed");
       toast.error("Failed to upload invoices");
     } finally {
       setIsUploading(false);
+      // Reset progress states after a delay
+      setTimeout(() => {
+        setUploadProgress(0);
+        setUploadStatus("");
+        setUploadedFilesCount(0);
+        setTotalFilesToUpload(0);
+      }, 2000);
     }
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
+  };
+
+  // ✅ Edit functionality for documents
+  const handleEditDocument = (docIndex: number) => {
+    if (!jobStatus?.result?.documents) return;
+
+    const updatedDocuments = [...jobStatus.result.documents];
+    updatedDocuments[docIndex] = {
+      ...updatedDocuments[docIndex],
+      isEditing: true,
+      editedData: {
+        studentName: updatedDocuments[docIndex].extracted.studentName,
+        studentNumber: updatedDocuments[docIndex].extracted.studentNumber,
+      },
+    };
+
+    setJobStatus({
+      ...jobStatus,
+      result: {
+        ...jobStatus.result,
+        documents: updatedDocuments,
+      },
+    });
+  };
+
+  const handleSaveEdit = (docIndex: number) => {
+    if (!jobStatus?.result?.documents) return;
+
+    const updatedDocuments = [...jobStatus.result.documents];
+    const doc = updatedDocuments[docIndex];
+
+    if (!doc.editedData) return;
+
+    // Update the extracted data with edited values
+    updatedDocuments[docIndex] = {
+      ...doc,
+      extracted: {
+        ...doc.extracted,
+        studentName: doc.editedData.studentName,
+        studentNumber: doc.editedData.studentNumber,
+      },
+      isEditing: false,
+      editedData: undefined,
+    };
+
+    setJobStatus({
+      ...jobStatus,
+      result: {
+        ...jobStatus.result,
+        documents: updatedDocuments,
+      },
+    });
+  };
+
+  const handleCancelEdit = (docIndex: number) => {
+    if (!jobStatus?.result?.documents) return;
+
+    const updatedDocuments = [...jobStatus.result.documents];
+    updatedDocuments[docIndex] = {
+      ...updatedDocuments[docIndex],
+      isEditing: false,
+      editedData: undefined,
+    };
+
+    setJobStatus({
+      ...jobStatus,
+      result: {
+        ...jobStatus.result,
+        documents: updatedDocuments,
+      },
+    });
+  };
+
+  const handleEditFieldChange = (
+    docIndex: number,
+    field: "studentName" | "studentNumber",
+    value: string
+  ) => {
+    if (!jobStatus?.result?.documents) return;
+
+    const updatedDocuments = [...jobStatus.result.documents];
+    if (updatedDocuments[docIndex].editedData) {
+      updatedDocuments[docIndex].editedData[field] = value;
+    }
+
+    setJobStatus({
+      ...jobStatus,
+      result: {
+        ...jobStatus.result,
+        documents: updatedDocuments,
+      },
+    });
+
+    // ✅ Trigger autocomplete suggestions
+    const fieldKey = `${docIndex}-${field}`;
+    if (value.length >= 1) {
+      fetchAutocompleteSuggestions(fieldKey, value, field);
+    } else {
+      setAutocompleteSuggestions((prev) => ({ ...prev, [fieldKey]: [] }));
+      setShowSuggestions((prev) => ({ ...prev, [fieldKey]: false }));
+    }
+  };
+
+  // ✅ Autocomplete functionality
+  const fetchAutocompleteSuggestions = (
+    fieldKey: string,
+    query: string,
+    field: "studentName" | "studentNumber"
+  ) => {
+    if (!students.length) return;
+
+    let suggestions: Student[] = [];
+
+    if (field === "studentName") {
+      suggestions = students
+        .filter((student) =>
+          student.scholar_name.toLowerCase().includes(query.toLowerCase())
+        )
+        .slice(0, 5); // Limit to 5 suggestions
+    } else if (field === "studentNumber") {
+      suggestions = students
+        .filter((student) => student.student_id.toString().includes(query))
+        .slice(0, 5); // Limit to 5 suggestions
+    }
+
+    setAutocompleteSuggestions((prev) => ({
+      ...prev,
+      [fieldKey]: suggestions,
+    }));
+    setShowSuggestions((prev) => ({
+      ...prev,
+      [fieldKey]: suggestions.length > 0,
+    }));
+    setSelectedSuggestionIndex((prev) => ({ ...prev, [fieldKey]: -1 }));
+  };
+
+  const selectSuggestion = (
+    docIndex: number,
+    field: "studentName" | "studentNumber",
+    student: Student
+  ) => {
+    const fieldKey = `${docIndex}-${field}`;
+
+    if (!jobStatus?.result?.documents) return;
+
+    const updatedDocuments = [...jobStatus.result.documents];
+    if (updatedDocuments[docIndex].editedData) {
+      if (field === "studentName") {
+        updatedDocuments[docIndex].editedData.studentName =
+          student.scholar_name;
+        updatedDocuments[docIndex].editedData.studentNumber =
+          student.student_id.toString();
+      } else {
+        updatedDocuments[docIndex].editedData.studentNumber =
+          student.student_id.toString();
+        updatedDocuments[docIndex].editedData.studentName =
+          student.scholar_name;
+      }
+    }
+
+    setJobStatus({
+      ...jobStatus,
+      result: {
+        ...jobStatus.result,
+        documents: updatedDocuments,
+      },
+    });
+
+    // Hide suggestions
+    setShowSuggestions((prev) => ({ ...prev, [fieldKey]: false }));
+    setAutocompleteSuggestions((prev) => ({ ...prev, [fieldKey]: [] }));
+  };
+
+  const handleKeyDown = (
+    event: React.KeyboardEvent,
+    docIndex: number,
+    field: "studentName" | "studentNumber"
+  ) => {
+    const fieldKey = `${docIndex}-${field}`;
+    const suggestions = autocompleteSuggestions[fieldKey] || [];
+    const currentIndex = selectedSuggestionIndex[fieldKey] || -1;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      const nextIndex = Math.min(currentIndex + 1, suggestions.length - 1);
+      setSelectedSuggestionIndex((prev) => ({
+        ...prev,
+        [fieldKey]: nextIndex,
+      }));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      const prevIndex = Math.max(currentIndex - 1, -1);
+      setSelectedSuggestionIndex((prev) => ({
+        ...prev,
+        [fieldKey]: prevIndex,
+      }));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (currentIndex >= 0 && suggestions[currentIndex]) {
+        selectSuggestion(docIndex, field, suggestions[currentIndex]);
+      }
+    } else if (event.key === "Escape") {
+      setShowSuggestions((prev) => ({ ...prev, [fieldKey]: false }));
+      setSelectedSuggestionIndex((prev) => ({ ...prev, [fieldKey]: -1 }));
+    }
   };
 
   console.log(auth?.user?.branch);
@@ -614,6 +874,13 @@ const TuitionInvoiceUpload: React.FC = () => {
         !programRef.current.contains(event.target as Node)
       ) {
         setProgramOpen(false);
+      }
+
+      // ✅ Close autocomplete suggestions when clicking outside
+      const target = event.target as HTMLElement;
+      if (!target.closest(".autocomplete-container")) {
+        setShowSuggestions({});
+        setSelectedSuggestionIndex({});
       }
     };
 
@@ -837,8 +1104,12 @@ const TuitionInvoiceUpload: React.FC = () => {
                     <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                       {jobStatus.result.documents
                         .filter((doc) => {
+                          // Use edited data if available, otherwise use extracted data
+                          const currentStudentNumber =
+                            doc.editedData?.studentNumber ||
+                            doc.extracted.studentNumber;
                           const studentId = parseInt(
-                            doc.extracted.studentNumber || "0"
+                            currentStudentNumber || "0"
                           );
                           const matched = students.some(
                             (s) => s.student_id === studentId
@@ -849,8 +1120,12 @@ const TuitionInvoiceUpload: React.FC = () => {
                           return true;
                         })
                         .map((doc, idx) => {
+                          // Use edited data if available, otherwise use extracted data
+                          const currentStudentNumber =
+                            doc.editedData?.studentNumber ||
+                            doc.extracted.studentNumber;
                           const studentId = parseInt(
-                            doc.extracted.studentNumber || "0"
+                            currentStudentNumber || "0"
                           );
                           const matchedStudent = students.find(
                             (s) => s.student_id === studentId
@@ -867,26 +1142,240 @@ const TuitionInvoiceUpload: React.FC = () => {
                                   : "border-gray-200 bg-gray-50 hover:bg-gray-100"
                               }`}
                             >
-                              <div className="flex justify-between items-start mb-2">
-                                <div>
-                                  <h6 className="font-semibold text-gray-800 text-sm">
-                                    {doc.extracted.studentName ||
-                                      "Unknown Student"}
-                                  </h6>
-                                  <p className="text-xs text-gray-500">
-                                    ID: {doc.extracted.studentNumber || "—"} •{" "}
-                                    {matchedStudent?.campus || "—"}
-                                  </p>
+                              {/* Header with Student Info and Actions */}
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1 min-w-0">
+                                  {doc.isEditing ? (
+                                    <div className="space-y-3">
+                                      <div className="relative autocomplete-container">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                          Student Name
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={
+                                            doc.editedData?.studentName || ""
+                                          }
+                                          onChange={(e) =>
+                                            handleEditFieldChange(
+                                              idx,
+                                              "studentName",
+                                              e.target.value
+                                            )
+                                          }
+                                          onKeyDown={(e) =>
+                                            handleKeyDown(e, idx, "studentName")
+                                          }
+                                          onFocus={() => {
+                                            const fieldKey = `${idx}-studentName`;
+                                            if (
+                                              autocompleteSuggestions[fieldKey]
+                                                ?.length > 0
+                                            ) {
+                                              setShowSuggestions((prev) => ({
+                                                ...prev,
+                                                [fieldKey]: true,
+                                              }));
+                                            }
+                                          }}
+                                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          placeholder="Type to search students..."
+                                        />
+                                        {/* Autocomplete suggestions for student name */}
+                                        {showSuggestions[
+                                          `${idx}-studentName`
+                                        ] &&
+                                          autocompleteSuggestions[
+                                            `${idx}-studentName`
+                                          ]?.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-auto z-50">
+                                              {autocompleteSuggestions[
+                                                `${idx}-studentName`
+                                              ].map(
+                                                (student, suggestionIdx) => (
+                                                  <div
+                                                    key={student.student_id}
+                                                    className={`px-3 py-2 cursor-pointer text-sm hover:bg-blue-50 ${
+                                                      selectedSuggestionIndex[
+                                                        `${idx}-studentName`
+                                                      ] === suggestionIdx
+                                                        ? "bg-blue-100 text-blue-800"
+                                                        : "text-gray-700"
+                                                    }`}
+                                                    onClick={() =>
+                                                      selectSuggestion(
+                                                        idx,
+                                                        "studentName",
+                                                        student
+                                                      )
+                                                    }
+                                                  >
+                                                    <div className="font-medium">
+                                                      {student.scholar_name}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                      ID: {student.student_id} •{" "}
+                                                      {student.campus}
+                                                    </div>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+                                      </div>
+                                      <div className="relative autocomplete-container">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                          Student ID
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={
+                                            doc.editedData?.studentNumber || ""
+                                          }
+                                          onChange={(e) =>
+                                            handleEditFieldChange(
+                                              idx,
+                                              "studentNumber",
+                                              e.target.value
+                                            )
+                                          }
+                                          onKeyDown={(e) =>
+                                            handleKeyDown(
+                                              e,
+                                              idx,
+                                              "studentNumber"
+                                            )
+                                          }
+                                          onFocus={() => {
+                                            const fieldKey = `${idx}-studentNumber`;
+                                            if (
+                                              autocompleteSuggestions[fieldKey]
+                                                ?.length > 0
+                                            ) {
+                                              setShowSuggestions((prev) => ({
+                                                ...prev,
+                                                [fieldKey]: true,
+                                              }));
+                                            }
+                                          }}
+                                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          placeholder="Type to search by ID..."
+                                        />
+                                        {/* Autocomplete suggestions for student ID */}
+                                        {showSuggestions[
+                                          `${idx}-studentNumber`
+                                        ] &&
+                                          autocompleteSuggestions[
+                                            `${idx}-studentNumber`
+                                          ]?.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-auto z-50">
+                                              {autocompleteSuggestions[
+                                                `${idx}-studentNumber`
+                                              ].map(
+                                                (student, suggestionIdx) => (
+                                                  <div
+                                                    key={student.student_id}
+                                                    className={`px-3 py-2 cursor-pointer text-sm hover:bg-blue-50 ${
+                                                      selectedSuggestionIndex[
+                                                        `${idx}-studentNumber`
+                                                      ] === suggestionIdx
+                                                        ? "bg-blue-100 text-blue-800"
+                                                        : "text-gray-700"
+                                                    }`}
+                                                    onClick={() =>
+                                                      selectSuggestion(
+                                                        idx,
+                                                        "studentNumber",
+                                                        student
+                                                      )
+                                                    }
+                                                  >
+                                                    <div className="font-medium">
+                                                      ID: {student.student_id}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                      {student.scholar_name} •{" "}
+                                                      {student.campus}
+                                                    </div>
+                                                  </div>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <h6 className="font-semibold text-gray-800 text-sm mb-1">
+                                        {doc.extracted.studentName ||
+                                          "Unknown Student"}
+                                      </h6>
+                                      <p className="text-xs text-gray-500">
+                                        ID: {doc.extracted.studentNumber || "—"}{" "}
+                                        • {matchedStudent?.campus || "—"}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                    matched
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-gray-100 text-gray-600"
-                                  }`}
-                                >
-                                  {matched ? "✅ Matched" : "⚠️ Unmatched"}
-                                </span>
+
+                                {/* Status Badge and Action Buttons */}
+                                <div className="flex flex-col items-end gap-2 ml-4">
+                                  {/* Status Badge */}
+                                  <span
+                                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                      matched
+                                        ? "bg-green-100 text-green-700 border border-green-200"
+                                        : "bg-gray-100 text-gray-600 border border-gray-200"
+                                    }`}
+                                  >
+                                    {matched ? "✅ Matched" : "⚠️ Unmatched"}
+                                  </span>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex items-center gap-1">
+                                    {doc.isEditing ? (
+                                      <>
+                                        <button
+                                          onClick={() => handleSaveEdit(idx)}
+                                          className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                          title="Save changes"
+                                        >
+                                          ✓
+                                        </button>
+                                        <button
+                                          onClick={() => handleCancelEdit(idx)}
+                                          className="px-2 py-1 text-xs bg-gray-400 text-white rounded hover:bg-gray-500 transition-colors"
+                                          title="Cancel editing"
+                                        >
+                                          ✕
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleEditDocument(idx)}
+                                        className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
+                                        title="Edit student info"
+                                      >
+                                        <span className="flex items-center gap-1">
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                            />
+                                          </svg>
+                                          Edit
+                                        </span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-700">
@@ -913,13 +1402,17 @@ const TuitionInvoiceUpload: React.FC = () => {
                                 <p>
                                   <span className="text-gray-500">Amount:</span>{" "}
                                   <span className="font-semibold text-gray-800">
-                                    ₱{amount}
+                                    ₱
+                                    {parseFloat(
+                                      amount.replace(/[₱,]/g, "")
+                                    ).toLocaleString()}
                                   </span>
                                 </p>
                                 <p className="col-span-2 truncate">
                                   <span className="text-gray-500">File:</span>{" "}
                                   <span className="text-blue-600 font-medium">
-                                    {doc.fileName}
+                                    {doc.extracted.studentName ||
+                                      "Unknown Student"}
                                   </span>
                                 </p>
                               </div>
@@ -933,13 +1426,17 @@ const TuitionInvoiceUpload: React.FC = () => {
                       <p className="text-sm text-gray-600">
                         <b>
                           {
-                            jobStatus.result.documents.filter((doc) =>
-                              students.some(
+                            jobStatus.result.documents.filter((doc) => {
+                              // Use edited data if available, otherwise use extracted data
+                              const currentStudentNumber =
+                                doc.editedData?.studentNumber ||
+                                doc.extracted.studentNumber;
+                              return students.some(
                                 (s) =>
                                   s.student_id ===
-                                  parseInt(doc.extracted.studentNumber || "0")
-                              )
-                            ).length
+                                  parseInt(currentStudentNumber || "0")
+                              );
+                            }).length
                           }{" "}
                           of {jobStatus.result.documents.length}
                         </b>{" "}
@@ -1473,7 +1970,9 @@ const TuitionInvoiceUpload: React.FC = () => {
                             </td>
                             <td className="px-3 sm:px-4 py-3 border-r border-gray-200 font-semibold text-gray-800 text-right whitespace-nowrap">
                               {student.disbursement_amount ? (
-                                `₱${student.disbursement_amount.toLocaleString()}`
+                                `₱${Number(
+                                  student.disbursement_amount
+                                ).toLocaleString()}`
                               ) : (
                                 <span className="text-gray-400">N/A</span>
                               )}
@@ -1492,7 +1991,7 @@ const TuitionInvoiceUpload: React.FC = () => {
                                         className="block text-blue-600 hover:text-blue-800 hover:underline truncate"
                                         title={file.file_name}
                                       >
-                                        📄 {file.file_name}
+                                        📄 {student.scholar_name} - Invoice
                                       </a>
                                     )
                                   )}
@@ -1629,7 +2128,9 @@ const TuitionInvoiceUpload: React.FC = () => {
                             </span>
                             <span className="text-sm font-semibold text-gray-800">
                               {student.disbursement_amount ? (
-                                `₱${student.disbursement_amount.toLocaleString()}`
+                                `₱${Number(
+                                  student.disbursement_amount
+                                ).toLocaleString()}`
                               ) : (
                                 <span className="text-gray-400">N/A</span>
                               )}
@@ -1667,7 +2168,7 @@ const TuitionInvoiceUpload: React.FC = () => {
                                         />
                                       </svg>
                                       <span className="truncate">
-                                        {file.file_name}
+                                        {student.scholar_name} - Invoice
                                       </span>
                                     </a>
                                   )
@@ -1816,9 +2317,47 @@ const TuitionInvoiceUpload: React.FC = () => {
                 Extracting student information from the file...
               </p>
 
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
-              </div>
+              {/* File Progress Information */}
+              {jobStatus?.result && (
+                <div className="w-full bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-green-700 font-medium">
+                      Files Processed:
+                    </span>
+                    <span className="text-green-900 font-semibold">
+                      {jobStatus.result.processedFiles || 0} of{" "}
+                      {jobStatus.result.totalFiles || 1}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm mt-1">
+                    <span className="text-green-700 font-medium">
+                      Progress:
+                    </span>
+                    <span className="text-green-900 font-semibold">
+                      {Math.round(
+                        ((jobStatus.result.processedFiles || 0) /
+                          (jobStatus.result.totalFiles || 1)) *
+                          100
+                      )}
+                      %
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="w-full bg-green-200 rounded-full h-1.5">
+                      <div
+                        className="bg-green-600 h-1.5 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.round(
+                            ((jobStatus.result.processedFiles || 0) /
+                              (jobStatus.result.totalFiles || 1)) *
+                              100
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <p className="text-xs text-gray-500 mt-4 text-center">
                 This may take a few moments. Please do not close this window.
@@ -1855,8 +2394,12 @@ const TuitionInvoiceUpload: React.FC = () => {
                     <span className="text-gray-900 font-semibold">
                       {
                         jobStatus.result.documents.filter((doc) => {
+                          // Use edited data if available, otherwise use extracted data
+                          const currentStudentNumber =
+                            doc.editedData?.studentNumber ||
+                            doc.extracted.studentNumber;
                           const studentId = parseInt(
-                            doc.extracted.studentNumber || "0"
+                            currentStudentNumber || "0"
                           );
                           return students.some(
                             (s) => s.student_id === studentId
@@ -1913,12 +2456,41 @@ const TuitionInvoiceUpload: React.FC = () => {
                 Uploading Invoices
               </h3>
               <p className="text-gray-600 text-sm text-center mb-4">
-                Uploading matched invoices to student records...
+                {uploadStatus ||
+                  "Uploading matched invoices to student records..."}
               </p>
 
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
-              </div>
+              {/* File Progress Information */}
+              {totalFilesToUpload > 0 && (
+                <div className="w-full bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-green-700 font-medium">
+                      Files Processed:
+                    </span>
+                    <span className="text-green-900 font-semibold">
+                      {uploadedFilesCount} of {totalFilesToUpload}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm mt-1">
+                    <span className="text-green-700 font-medium">
+                      Progress:
+                    </span>
+                    <span className="text-green-900 font-semibold">
+                      {uploadProgress}%
+                    </span>
+                  </div>
+                  <div className="mt-2">
+                    <div className="w-full bg-green-200 rounded-full h-1.5">
+                      <div
+                        className="bg-green-600 h-1.5 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${uploadProgress}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <p className="text-xs text-gray-500 mt-4 text-center">
                 This may take a few moments. Please do not close this window.
