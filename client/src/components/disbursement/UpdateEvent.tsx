@@ -23,6 +23,8 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
 }) => {
   const todayDate = new Date().toISOString().split("T")[0];
   const [loading, setLoading] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateStatus, setUpdateStatus] = useState("");
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [tempData, setTempData] = useState<EdittableDisbursementData | null>(
     edittableData
@@ -72,6 +74,9 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setUpdateProgress(0);
+    setUpdateStatus("Preparing update...");
+
     if (!tempData) {
       toast.error("No data to update.", { position: "top-right" });
       setLoading(false);
@@ -79,15 +84,42 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
     }
     if (!hasChanges()) {
       toast.info("No changes detected.", { position: "top-right" });
+      setLoading(false);
       return;
     }
+
     const localDate = new Date(tempData.schedule_due);
     const scheduleDueUTC = new Date(
       localDate.getTime() - localDate.getTimezoneOffset() * 60000
     ).toISOString();
 
     console.log(localDate);
+
     try {
+      // Start progress animation
+      const progressInterval = setInterval(() => {
+        setUpdateProgress((prev) => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return 95; // Stop at 95% until operation completes
+          }
+          return prev + 1;
+        });
+      }, 30); // Update every 30ms for smooth animation
+
+      // Update status messages at different progress points
+      const statusTimeout1 = setTimeout(() => {
+        setUpdateStatus("Sending update to server...");
+      }, 500);
+
+      const statusTimeout2 = setTimeout(() => {
+        setUpdateStatus("Processing changes...");
+      }, 1500);
+
+      const statusTimeout3 = setTimeout(() => {
+        setUpdateStatus("Refreshing calendar...");
+      }, 2500);
+
       const response = await axios.put(
         `${VITE_BACKEND_URL}api/disbursement/schedule/${tempData?.sched_id}`,
         {
@@ -97,18 +129,35 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
           event_type: tempData?.event_type,
         }
       );
-      fetchSchedules(localDate);
+
+      // Refresh calendar data
+      await fetchSchedules(localDate);
+
+      // Clear all timeouts
+      clearTimeout(statusTimeout1);
+      clearTimeout(statusTimeout2);
+      clearTimeout(statusTimeout3);
+
+      // Complete the progress
+      setUpdateProgress(100);
+      setUpdateStatus("Update complete!");
+
       console.log("Schedule updated:", response.data);
       toast.success("Schedule updated successfully!", {
         position: "top-right",
       });
 
-      closeModal();
+      // Wait a moment to show completion, then close modal
+      setTimeout(() => {
+        closeModal();
+      }, 1000);
     } catch (error) {
+      clearInterval(progressInterval);
       console.log(error);
       toast.error("Failed to update schedule.", { position: "top-right" });
-    } finally {
       setLoading(false);
+      setUpdateProgress(0);
+      setUpdateStatus("");
     }
   };
   const formatDateForInput = (date: Date) => {
@@ -129,7 +178,7 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
   }, [edittableData]);
 
   console.log("temp", tempData);
-  if (!tempData || loading) {
+  if (!tempData) {
     return (
       <div className="fixed inset-0 z-50 flex justify-center items-center bg-[rgba(0,0,0,0.5)]">
         <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
@@ -145,6 +194,70 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
           }
         `}
         </style>
+      </div>
+    );
+  }
+
+  // Enhanced loading overlay for update process
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fadeIn">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+          <div className="flex flex-col items-center">
+            {/* Circular Progress Indicator */}
+            <div className="relative w-24 h-24 mb-6">
+              <svg
+                className="w-24 h-24 transform -rotate-90"
+                viewBox="0 0 100 100"
+              >
+                {/* Background circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  stroke="#e5e7eb"
+                  strokeWidth="8"
+                  fill="none"
+                />
+                {/* Progress circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  stroke="#3b82f6"
+                  strokeWidth="8"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 45}`}
+                  strokeDashoffset={`${
+                    2 * Math.PI * 45 * (1 - updateProgress / 100)
+                  }`}
+                  className="transition-all duration-300 ease-out"
+                />
+              </svg>
+              {/* Percentage text inside circle */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-blue-600">
+                  {updateProgress}%
+                </span>
+                <span className="text-xs text-gray-500">
+                  {updateProgress === 100 ? "Complete" : "Progress"}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Updating Schedule
+            </h3>
+            <p className="text-gray-600 text-sm text-center mb-4">
+              {updateStatus || "Please wait while we update the schedule..."}
+            </p>
+
+            <p className="text-xs text-gray-500 mt-4 text-center">
+              Do not close this window
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
