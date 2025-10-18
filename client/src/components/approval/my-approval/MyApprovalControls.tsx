@@ -16,7 +16,7 @@ export default function MyApprovalControl({
 }: MyApprovalControlProps) {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      {/* Search Bar */}
+      {/* Search Bar - Made longer on mobile */}
       <div className="relative flex-1 min-w-0">
         <input
           type="text"
@@ -27,7 +27,11 @@ export default function MyApprovalControl({
         />
         <Search className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 absolute left-2 sm:left-3 top-2 sm:top-2.5 pointer-events-none" />
       </div>
-      <div>
+      <div className="hidden sm:block">
+        <ExcelDisbursementDownload />
+      </div>
+      {/* Mobile Download Template Icon */}
+      <div className="sm:hidden">
         <ExcelDisbursementDownload />
       </div>
       {/* Create Approval Button */}

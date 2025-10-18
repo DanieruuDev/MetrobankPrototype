@@ -339,16 +339,18 @@ const RenderDayCell: React.FC<DayCellProps> = ({
                         {activeSchedule.admin_id === userId && (
                           <>
                             {console.log(activeSchedule.sched_id === userId)}
-                            <button
-                              className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
-                              onClick={() => {
-                                setShowOptions(false);
-                                handleEditClick(activeSchedule.sched_id);
-                              }}
-                            >
-                              <Pencil className="w-4 h-4" />
-                              <span>Edit</span>
-                            </button>
+                            {activeSchedule.schedule_status !== "Completed" && (
+                              <button
+                                className="flex items-center gap-2 px-4 py-2 w-full text-sm text-gray-700 hover:bg-white transition"
+                                onClick={() => {
+                                  setShowOptions(false);
+                                  handleEditClick(activeSchedule.sched_id);
+                                }}
+                              >
+                                <Pencil className="w-4 h-4" />
+                                <span>Edit</span>
+                              </button>
+                            )}
                             <button
                               className="flex items-center gap-2 px-4 py-2 w-full text-sm text-red-500 hover:bg-red-100 transition"
                               onClick={() => {
