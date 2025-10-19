@@ -78,7 +78,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   } | null>(null);
 
   const [countValidated, setCountValidated] = useState<number>(0);
-  const [isSaving, setIsSaving] = useState(false);
   const [openUploadGrades, setIsOpenUploadGrades] = useState(false);
   const [processInfo, setProcessInfo] = useState<ProcessInfo>({
     process_id: null,
@@ -111,6 +110,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveStatus, setSaveStatus] = useState("");
   const [initialRenewalInfo, setInitialRenewalInfo] =
     useState<InitialRenewalInfo | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>("");
@@ -132,6 +134,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
   const itemsPerPage = 10;
+
+  // Helper function to get toast position based on screen size
+  const getToastPosition = () => {
+    return window.innerWidth < 768 ? "top-center" : "top-right";
+  };
+
   // Define which columns are editable when in Edit Mode
   const editableFields = [
     "gpa",
@@ -239,7 +247,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         console.log("After count");
       } catch (error) {
         console.error("Error fetching renewal count:", error);
-        toast.error("Failed to fetch renewal count");
+        toast.error("Failed to fetch renewal count", {
+          position: getToastPosition(),
+          autoClose: 3000,
+          toastId: "fetch-count-error",
+        });
       }
     },
     [VITE_BACKEND_URL]
@@ -283,7 +295,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         setPage(1);
       } catch (error) {
         console.error("Error fetching renewal data:", error);
-        toast.error("Failed to fetch renewal data");
+        toast.error("Failed to fetch renewal data", {
+          position: getToastPosition(),
+          autoClose: 3000,
+          toastId: "fetch-data-error",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -337,8 +353,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const handleShowSaveConfirmation = () => {
     if (!hasEdits) {
       toast.info("No changes to save.", {
-        position: "top-center",
+        position: getToastPosition(),
         autoClose: 3000,
+        toastId: "no-changes-info",
       });
       console.log(
         "No edits detected. Edited rows:",
@@ -550,10 +567,39 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
       // 🔹 Update renewal data in PostgreSQL
       if (updateRows.length > 0) {
+        // Start progress animation
+        const progressInterval = setInterval(() => {
+          setSaveProgress((prev) => {
+            if (prev >= 95) {
+              clearInterval(progressInterval);
+              return 95; // Stop at 95% until operation completes
+            }
+            return prev + 1;
+          });
+        }, 30); // Update every 30ms for smooth animation
+
+        // Update status messages at different progress points
+        const statusTimeout1 = setTimeout(() => {
+          setSaveStatus("Sending data to server...");
+        }, 500);
+
+        const statusTimeout2 = setTimeout(() => {
+          setSaveStatus("Processing response...");
+        }, 1500);
+
+        const statusTimeout3 = setTimeout(() => {
+          setSaveStatus("Refreshing data...");
+        }, 2500);
+
         const res = await axios.put(
           `${VITE_BACKEND_URL}api/renewal/update-renewalV2`,
           updateRows
         );
+
+        // Clear timeouts after successful request
+        clearTimeout(statusTimeout1);
+        clearTimeout(statusTimeout2);
+        clearTimeout(statusTimeout3);
 
         getRenewalData(sySemester);
 
@@ -566,12 +612,26 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           toast.warn("⚠️ Update completed with unexpected response.", {
             position: "top-center",
             autoClose: 3000,
+            toastId: "save-warning",
           });
         }
       } else {
+        // For no changes, show quick progress
+        const quickProgress = setInterval(() => {
+          setSaveProgress((prev) => {
+            if (prev >= 100) {
+              clearInterval(quickProgress);
+              setSaveStatus("No changes to save");
+              return 100;
+            }
+            return prev + 5; // Faster for no changes
+          });
+        }, 50);
+
         toast.info("No changes to update.", {
-          position: "top-center",
+          position: getToastPosition(),
           autoClose: 3000,
+          toastId: "no-changes-update",
         });
       }
     } catch (error) {
@@ -599,7 +659,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           // ⛔ Skip if row is validated
           if (r.is_validated === true) {
             toast.warning(
-              "This record is already validated and cannot be edited."
+              "This record is already validated and cannot be edited.",
+              {
+                position: getToastPosition(),
+                autoClose: 3000,
+                toastId: "validation-warning",
+              }
             );
             return r;
           }
@@ -680,7 +745,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     if (newValue === true && hasNotStarted) {
       toast.error(
         "All validation fields must be set to Passed or Failed before validating.",
-        { toastId: "validation-fields-error" }
+        {
+          toastId: "validation-fields-error",
+          position: getToastPosition(),
+          autoClose: 5000,
+        }
       );
       return;
     }
@@ -742,7 +811,12 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           // ⛔ Prevent edit if validated
           if (r.is_validated === true) {
             toast.warning(
-              "This record is already validated and cannot be edited."
+              "This record is already validated and cannot be edited.",
+              {
+                position: getToastPosition(),
+                autoClose: 3000,
+                toastId: "validation-warning",
+              }
             );
             return r;
           }
@@ -916,7 +990,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const handleFinalizeRenewal = async (action: string) => {
     console.log("finalize");
     if (!initialRenewalInfo) {
-      toast.error("No renewal information found.");
+      toast.error("No renewal information found.", {
+        position: getToastPosition(),
+        autoClose: 3000,
+        toastId: "no-renewal-info",
+      });
       return;
     }
 
@@ -937,15 +1015,27 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       );
 
       if (res.status === 200) {
-        toast.success("Renewal has been finalized successfully.");
+        toast.success("Renewal has been finalized successfully.", {
+          position: getToastPosition(),
+          autoClose: 3000,
+          toastId: "finalize-success",
+        });
         getInitialRenewalInfo(sySemester);
         getProcessInfo();
       } else {
-        toast.warn("Something went wrong while finalizing renewal.");
+        toast.warn("Something went wrong while finalizing renewal.", {
+          position: getToastPosition(),
+          autoClose: 3000,
+          toastId: "finalize-warning",
+        });
       }
     } catch (err) {
       console.error("❌ Error finalizing renewal:", err);
-      toast.error("Failed to finalize renewal.");
+      toast.error("Failed to finalize renewal.", {
+        position: getToastPosition(),
+        autoClose: 3000,
+        toastId: "finalize-error",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -962,7 +1052,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       );
 
       if (!result || !result.data) {
-        toast.warn("No process information found.");
+        toast.warn("No process information found.", {
+          position: getToastPosition(),
+          autoClose: 3000,
+          toastId: "no-process-info",
+        });
         console.warn("⚠️ Empty response received:", result);
         return;
       }
@@ -971,7 +1065,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       setProcessInfo(result.data.data);
       console.log("Process info fetched:", result.data.data);
     } catch (error) {
-      toast.error(`Error fetching process info ${error}`);
+      toast.error(`Error fetching process info ${error}`, {
+        position: getToastPosition(),
+        autoClose: 3000,
+        toastId: "process-info-error",
+      });
     }
   }, [VITE_BACKEND_URL, sySemester]);
   const handleCheckModal = (type: string) => {
@@ -1032,8 +1130,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     // 🧠 If no records are affected, don’t even show confirmation
     if (totalAffected === 0) {
       toast.info(`No eligible records to ${actionWord}.`, {
-        position: "top-center",
+        position: getToastPosition(),
         autoClose: 3000,
+        toastId: "no-eligible-records",
       });
       return;
     }
@@ -1184,7 +1283,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       getInitialRenewalInfo(sySemester);
       getProcessInfo();
     }
-  }, [sySemester, getRenewalData, getInitialRenewalInfo]);
+  }, [sySemester, getRenewalData, getInitialRenewalInfo, getProcessInfo]);
 
   useEffect(() => {
     const passed = renewalData.filter(
@@ -1460,9 +1559,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   {role_id === 3 && (
                     <button
                       onClick={() => setIsOpenUploadGrades(true)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded"
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl cursor-pointer"
                     >
-                      Upload Grades
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Grades</span>
                     </button>
                   )}
                   {openUploadGrades && (
@@ -1785,8 +1885,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   </button>
                   <button
                     onClick={() => {
-                      submitSaveChanges(tempRenewalData);
                       setShowSaveConfirmation(false);
+                      submitSaveChanges(tempRenewalData);
                     }}
                     className={`px-4 py-2 ${
                       hasUnvalidated
@@ -1801,6 +1901,88 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             </div>
           );
         })()}
+
+      {/* Save Progress Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+            <div className="flex flex-col items-center">
+              {/* Circular Progress Indicator */}
+              <div className="relative w-32 h-32 mb-6">
+                {/* Animated Background Circle */}
+                <svg
+                  className="w-32 h-32 transform -rotate-90 animate-pulse"
+                  viewBox="0 0 120 120"
+                >
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="#e5e7eb"
+                    strokeWidth="8"
+                    fill="none"
+                    className="animate-pulse"
+                  />
+                  {/* Progress Circle with Animation */}
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="url(#gradient)"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 50}`}
+                    strokeDashoffset={`${
+                      2 * Math.PI * 50 * (1 - saveProgress / 100)
+                    }`}
+                    className="transition-all duration-300 ease-out animate-pulse"
+                  />
+                  {/* Gradient Definition */}
+                  <defs>
+                    <linearGradient
+                      id="gradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="0%"
+                    >
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* Percentage Text Inside Circle with Animation */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center animate-bounce">
+                    <div className="text-3xl font-bold text-green-600 animate-pulse">
+                      {saveProgress}%
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 animate-pulse">
+                      Complete
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rotating Ring Animation */}
+                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-300 animate-spin opacity-30"></div>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Saving Changes
+              </h3>
+              <p className="text-gray-600 text-sm text-center mb-4">
+                {saveStatus}
+              </p>
+
+              <p className="text-xs text-gray-500 text-center">
+                Please do not close this window
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
