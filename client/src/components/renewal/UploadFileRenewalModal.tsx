@@ -4,7 +4,7 @@ import { RenewalRow } from "../../Interface/IRenewal";
 import * as XLSX from "xlsx";
 import { RenewalDetails } from "../../Interface/IRenewal";
 import { toast } from "react-toastify";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface UploadFileRenewalModalProps {
   isOpen: boolean;
@@ -188,10 +188,10 @@ function UploadFileRenewalModal({
     setUploadProgress(0);
     setUploadStatus("Preparing upload...");
 
-    let progressInterval: NodeJS.Timeout;
-    let statusTimeout1: NodeJS.Timeout;
-    let statusTimeout2: NodeJS.Timeout;
-    let statusTimeout3: NodeJS.Timeout;
+    let progressInterval: number | undefined;
+    let statusTimeout1: number | undefined;
+    let statusTimeout2: number | undefined;
+    let statusTimeout3: number | undefined;
 
     try {
       // Start progress animation
@@ -244,10 +244,10 @@ function UploadFileRenewalModal({
         handleClose();
       }, 1000);
     } catch (error) {
-      clearInterval(progressInterval);
-      clearTimeout(statusTimeout1);
-      clearTimeout(statusTimeout2);
-      clearTimeout(statusTimeout3);
+      if (progressInterval !== undefined) clearInterval(progressInterval);
+      if (statusTimeout1 !== undefined) clearTimeout(statusTimeout1);
+      if (statusTimeout2 !== undefined) clearTimeout(statusTimeout2);
+      if (statusTimeout3 !== undefined) clearTimeout(statusTimeout3);
       console.error("Upload error:", error);
       toast.error("Failed to upload file. Please try again.");
       setIsUploading(false);

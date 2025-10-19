@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface ScholarshipRenewalModalProps {
   isOpen: boolean;
@@ -100,10 +100,10 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     setShowConfirmation(false);
     setError("");
 
-    let progressInterval: NodeJS.Timeout;
-    let statusTimeout1: NodeJS.Timeout;
-    let statusTimeout2: NodeJS.Timeout;
-    let statusTimeout3: NodeJS.Timeout;
+    let progressInterval: number | undefined;
+    let statusTimeout1: number | undefined;
+    let statusTimeout2: number | undefined;
+    let statusTimeout3: number | undefined;
 
     try {
       // Start progress animation
@@ -177,10 +177,10 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
         onClose();
       }, 1000);
     } catch (error) {
-      clearInterval(progressInterval);
-      clearTimeout(statusTimeout1);
-      clearTimeout(statusTimeout2);
-      clearTimeout(statusTimeout3);
+      if (progressInterval !== undefined) clearInterval(progressInterval);
+      if (statusTimeout1 !== undefined) clearTimeout(statusTimeout1);
+      if (statusTimeout2 !== undefined) clearTimeout(statusTimeout2);
+      if (statusTimeout3 !== undefined) clearTimeout(statusTimeout3);
       console.error("Error fetching renewal data:", error);
 
       if (axios.isAxiosError(error)) {

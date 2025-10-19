@@ -95,9 +95,11 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
 
     console.log(localDate);
 
+    let progressInterval: number | undefined;
+
     try {
       // Start progress animation
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setUpdateProgress((prev) => {
           if (prev >= 95) {
             clearInterval(progressInterval);
@@ -152,7 +154,7 @@ const UpdateEvent: React.FC<UpdateEventProps> = ({
         closeModal();
       }, 1000);
     } catch (error) {
-      clearInterval(progressInterval);
+      if (progressInterval !== undefined) clearInterval(progressInterval);
       console.log(error);
       toast.error("Failed to update schedule.", { position: "top-right" });
       setLoading(false);
