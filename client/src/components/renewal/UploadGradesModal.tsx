@@ -1,13 +1,19 @@
 import React, { useState } from "react";
 import JSZip from "jszip";
 import axios from "axios";
-import { extractGradesExcel } from "../../utils/ExtractGradesExcel";
 import {
   ScholarGrade,
   ScholarGradeDocument,
   ZipScholarGradeResult,
 } from "../../Interface/IRenewal";
-import { Loader2, Upload, X, FileCheck, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  X,
+  FileCheck,
+  AlertTriangle,
+  AlertCircle,
+} from "lucide-react";
 
 interface Props {
   onClose: () => void;
@@ -32,7 +38,6 @@ const UploadGradesModal: React.FC<Props> = ({
   renewalData,
   onSaveToTempRenewals,
 }) => {
-  const [mode, setMode] = useState<"excel" | "pdf" | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number>(0);
   const [status, setStatus] = useState<
@@ -42,84 +47,74 @@ const UploadGradesModal: React.FC<Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ZipScholarGradeResult | null>(null);
   const [isUploadingToRenewal, setIsUploadingToRenewal] = useState(false);
+  const [totalFilesToProcess, setTotalFilesToProcess] = useState<number>(0);
+  const [processedFilesCount, setProcessedFilesCount] = useState<number>(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // console.log("🔍 UploadGradesModal rendered. showConfirmModal state:", showConfirmModal);
 
   // 🔹 Validate file
+  const validateFile = (selectedFile: File) => {
+    if (selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setError(`File must be smaller than ${MAX_FILE_SIZE_MB}MB.`);
+      return false;
+    }
+
+    if (!/\.(pdf|zip)$/i.test(selectedFile.name)) {
+      setError("Invalid file type. Please upload a PDF or ZIP file.");
+      return false;
+    }
+
+    setError(null);
+    return true;
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    if (selected.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      setError(`File must be smaller than ${MAX_FILE_SIZE_MB}MB.`);
-      return;
+    if (validateFile(selected)) {
+      setFile(selected);
     }
+  };
 
-    if (
-      (mode === "excel" && !/\.(xlsx|xls)$/i.test(selected.name)) ||
-      (mode === "pdf" && !/\.(pdf|zip)$/i.test(selected.name))
-    ) {
-      setError(
-        `Invalid file type. Please upload a ${
-          mode === "excel" ? "Excel (.xlsx/.xls)" : "PDF or ZIP"
-        } file.`
-      );
-      return;
+  // 🔹 Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const selectedFile = files[0];
+      if (validateFile(selectedFile)) {
+        setFile(selectedFile);
+      }
     }
-
-    setError(null);
-    setFile(selected);
   };
 
   // 🔹 Extract file logic
   const handleExtract = async () => {
-    if (!file || !mode) return;
+    if (!file) return;
     setStatus("processing");
     setProgress(0);
+    setProcessedFilesCount(0);
     setError(null);
     setMessage("Starting extraction...");
 
     try {
-      // ✅ Excel extraction
-      if (mode === "excel") {
-        const data = await extractGradesExcel(file);
-        const total = data.length;
-        let uploaded = 0;
-
-        setMessage(
-          `Extracted ${total} scholar records. Uploading to server...`
-        );
-
-        // attach Excel file reference to each record
-        const enrichedData = data.map((record) => ({
-          ...record,
-          fileName: file.name,
-          fileObject: file,
-        }));
-
-        // upload each scholar record
-        for (const scholar of enrichedData) {
-          await axios.post(
-            `${
-              import.meta.env.VITE_BACKEND_URL
-            }api/renewal/upload-scholar-grades`,
-            scholar
-          );
-          uploaded++;
-          setProgress(Math.floor((uploaded / total) * 100));
-          setMessage(`Uploaded ${uploaded}/${total} scholars...`);
-        }
-
-        const resultData: ZipScholarGradeResult = {
-          totalFiles: enrichedData.length,
-          results: enrichedData,
-        };
-
-        setResult(resultData);
-        onExtract(resultData);
-        setStatus("completed");
-        setMessage("Excel extraction and upload complete!");
-        return;
-      }
-
       // ✅ ZIP upload with job tracker
       if (file.name.toLowerCase().endsWith(".zip")) {
         const zip = await JSZip.loadAsync(file);
@@ -131,9 +126,14 @@ const UploadGradesModal: React.FC<Props> = ({
           throw new Error("No PDF files found in ZIP.");
 
         const total = pdfEntries.length;
-        let processed = 0;
+        setTotalFilesToProcess(total);
         const jobMap: Record<string, { jobId: string; fileObject: File }> = {};
 
+        setMessage(`Found ${total} PDF files. Starting upload...`);
+        setProgress(0);
+        setProcessedFilesCount(0);
+
+        // Upload all files first (no progress updates during upload)
         await Promise.all(
           pdfEntries.map(async (entry) => {
             const pdfBlob = await entry.async("blob");
@@ -151,11 +151,10 @@ const UploadGradesModal: React.FC<Props> = ({
             );
 
             jobMap[entry.name] = { jobId: data.jobId, fileObject: pdfFile };
-            processed++;
-            setProgress(Math.floor((processed / total) * 30));
-            setMessage(`Uploaded ${processed}/${total} PDFs for extraction...`);
           })
         );
+
+        setMessage(`Uploaded ${total} PDFs. Now processing...`);
 
         const pollJob = async (jobId: string) => {
           return new Promise<ScholarGradeDocument>((resolve, reject) => {
@@ -181,11 +180,14 @@ const UploadGradesModal: React.FC<Props> = ({
         };
 
         const results: ScholarGradeDocument[] = [];
+        let processedCount = 0;
 
         for (const [fileName, { jobId, fileObject }] of Object.entries(
           jobMap
         )) {
-          setMessage(`Processing ${fileName}...`);
+          setMessage(
+            `Processing ${fileName}... (${processedCount + 1}/${total})`
+          );
           const extracted = await pollJob(jobId);
 
           const safeExtracted: ScholarGradeDocument = {
@@ -209,7 +211,14 @@ const UploadGradesModal: React.FC<Props> = ({
           };
 
           results.push(safeExtracted);
-          setProgress((p) => Math.min(p + 70 / total, 100));
+          processedCount++;
+
+          // Calculate progress based on actual files processed
+          const progressPercentage = Math.round((processedCount / total) * 100);
+
+          setProgress(progressPercentage);
+          setProcessedFilesCount(processedCount);
+          setMessage(`Completed ${processedCount}/${total} files`);
         }
 
         const resultData: ZipScholarGradeResult = {
@@ -239,7 +248,9 @@ const UploadGradesModal: React.FC<Props> = ({
         if (!jobId) throw new Error("No jobId returned from backend.");
 
         setMessage("Processing PDF extraction...");
-        setProgress(30);
+        setProgress(0);
+        setTotalFilesToProcess(1);
+        setProcessedFilesCount(0);
 
         // 🔹 Step 2: Poll the job tracker for completion
         const pollJob = async (jobId: string) => {
@@ -269,6 +280,10 @@ const UploadGradesModal: React.FC<Props> = ({
         // 🔹 Step 3: Wait for completion and normalize fields
         const extracted = await pollJob(jobId);
 
+        // Update progress to 100% when processing is complete
+        setProgress(100);
+        setProcessedFilesCount(1);
+
         const safeData: ScholarGradeDocument = {
           fileName: file.name,
           fileObject: file,
@@ -286,44 +301,8 @@ const UploadGradesModal: React.FC<Props> = ({
               : extracted.gwa
               ? Number(extracted.gwa)
               : null,
-          grades: Array.isArray(extracted.grades)
-            ? extracted.grades
-            : Array.isArray(extracted.grades)
-            ? extracted.grades
-            : [],
+          grades: Array.isArray(extracted.grades) ? extracted.grades : [],
         };
-
-        // 🔹 Step 4: Save and show results
-        // 🔹 Step 5: Upload extracted record to backend (same as Excel logic)
-        try {
-          setMessage("Uploading extracted grade to server...");
-          await axios.post(
-            `${
-              import.meta.env.VITE_BACKEND_URL
-            }api/renewal/upload-scholar-grades`,
-            {
-              student_id: safeData.student_id,
-              fileName: safeData.fileName,
-              gradeList: safeData.grades ?? [],
-              gwa: safeData.gwa,
-              scholar_name: safeData.scholar_name,
-              program: safeData.program,
-              year_level: safeData.year_level,
-              semester: safeData.semester,
-              sy: safeData.sy,
-              campus: safeData.campus,
-            }
-          );
-
-          setMessage("Uploaded extracted grade successfully.");
-        } catch (uploadErr) {
-          console.error("❌ Failed to upload extracted PDF grade:", uploadErr);
-          setError(
-            "Extraction succeeded but failed to upload grade to server."
-          );
-          setStatus("failed");
-          return;
-        }
 
         const resultData: ZipScholarGradeResult = {
           totalFiles: 1,
@@ -334,7 +313,7 @@ const UploadGradesModal: React.FC<Props> = ({
         onExtract(resultData);
         setProgress(100);
         setStatus("completed");
-        setMessage("Single PDF extracted and uploaded successfully!");
+        setMessage("Single PDF extracted successfully!");
         return;
       }
     } catch (err) {
@@ -345,16 +324,24 @@ const UploadGradesModal: React.FC<Props> = ({
   };
 
   const reset = () => {
-    setMode(null);
     setFile(null);
     setResult(null);
     setError(null);
     setProgress(0);
     setStatus("idle");
     setMessage("");
+    setTotalFilesToProcess(0);
+    setProcessedFilesCount(0);
   };
+
+  const handleUploadClick = () => {
+    setShowConfirmModal(true);
+  };
+
   const saveAllExtractedToRenewal = async () => {
     if (!result || !onSaveToTempRenewals) return;
+
+    setShowConfirmModal(false);
 
     try {
       setIsUploadingToRenewal(true); // start loading
@@ -382,21 +369,60 @@ const UploadGradesModal: React.FC<Props> = ({
     }
   };
 
-  // 🌀 Processing UI
+  // 🌀 Processing UI - Upload Invoice Style Loading
   if (status === "processing") {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm z-50">
-        <div className="bg-white rounded-xl p-6 shadow-2xl text-center w-full max-w-sm">
-          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mx-auto mb-3" />
-          <h2 className="text-xl font-bold text-gray-800">Processing</h2>
-          <p className="text-xs text-gray-600 mt-1">{message}</p>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mt-4 overflow-hidden">
-            <div
-              className="h-2.5 bg-indigo-600 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+          <div className="flex flex-col items-center">
+            <div className="relative">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+              </div>
+              <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Uploading Grades
+            </h3>
+            <p className="text-gray-600 text-sm text-center mb-4">
+              {message || "Processing grade files..."}
+            </p>
+
+            {/* File Progress Information */}
+            {totalFilesToProcess > 0 && (
+              <div className="w-full bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-green-700 font-medium">
+                    Files Processed:
+                  </span>
+                  <span className="text-green-900 font-semibold">
+                    {processedFilesCount} of {totalFilesToProcess}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm mt-1">
+                  <span className="text-green-700 font-medium">Progress:</span>
+                  <span className="text-green-900 font-semibold">
+                    {progress}%
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <div className="w-full bg-green-200 rounded-full h-1.5">
+                    <div
+                      className="bg-green-600 h-1.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${progress}%`,
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mt-4 text-center">
+              This may take a few moments. Please do not close this window.
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-2">{progress.toFixed(0)}%</p>
         </div>
       </div>
     );
@@ -432,171 +458,238 @@ const UploadGradesModal: React.FC<Props> = ({
     ).length;
 
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm z-50">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6 relative max-h-[85vh] overflow-y-auto">
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-          >
-            <X size={20} />
-          </button>
+      <>
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex-shrink-0 p-4 sm:p-6 border-b border-gray-200">
+              <div className="flex flex-col items-center text-center">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                  Review Extraction
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {message || "All files processed successfully!"}
+                </p>
+                {/* ✅ Match Summary */}
+                <p className="text-sm text-gray-800 font-medium mt-2">
+                  ✅ Matched: {matchedCount} / {result.results.length}
+                </p>
+              </div>
+            </div>
 
-          <div className="flex flex-col items-center text-center mb-6">
-            <FileCheck className="w-12 h-12 text-green-600 mb-2 animate-bounce" />
-            <h2 className="text-xl font-bold text-gray-900">
-              Extraction Complete
-            </h2>
-            <p className="text-xs text-gray-600 mt-1">
-              {message || "All files processed successfully!"}
-            </p>
+            {/* ✅ Results - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="space-y-3 sm:space-y-4">
+                {sortedResults.map((r, i) => {
+                  const grades = r.grades ?? [];
+                  const isMatched = renewalData.some(
+                    (student) =>
+                      normalizeId(student.student_id) ===
+                      normalizeId(r.student_id)
+                  );
 
-            {/* ✅ Match Summary */}
-            <p className="text-sm text-gray-800 font-medium mt-2">
-              ✅ Matched: {matchedCount} / {result.results.length}
-            </p>
-          </div>
+                  return (
+                    <div
+                      key={i}
+                      className={`border rounded-lg shadow-sm hover:shadow-md p-4 sm:p-5 transition-all duration-300 ${
+                        isMatched
+                          ? "border-green-300 bg-green-50"
+                          : "border-red-300 bg-red-50"
+                      }`}
+                    >
+                      {/* Student Info */}
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                              {r.scholar_name ||
+                                r.student_name ||
+                                "Unknown Student"}
+                            </h3>
+                            <p className="text-sm text-gray-600 truncate mt-1">
+                              {r.program} • {r.year_level || "N/A"} • {r.campus}
+                            </p>
+                          </div>
 
-          {/* ✅ Results */}
-          <div className="space-y-4">
-            {sortedResults.map((r, i) => {
-              const grades = r.grades ?? [];
-              const isMatched = renewalData.some(
-                (student) =>
-                  normalizeId(student.student_id) === normalizeId(r.student_id)
-              );
-
-              return (
-                <div
-                  key={i}
-                  className={`flex flex-col md:flex-row justify-between items-start gap-4 border rounded-lg shadow-sm hover:shadow-md p-4 transition-all duration-300 ${
-                    isMatched
-                      ? "border-green-300 bg-green-50"
-                      : "border-red-300 bg-red-50"
-                  }`}
-                >
-                  <div className="flex-1 space-y-2">
-                    <h3 className="text-base font-semibold text-gray-900 truncate">
-                      {r.scholar_name || r.student_name || "Unknown Student"}
-                    </h3>
-                    <p className="text-xs text-gray-600 truncate">
-                      {r.program} • {r.year_level || "N/A"} • {r.campus}
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <p>ID: {r.student_id}</p>
-                      <p>GWA: {r.gwa ?? "N/A"}</p>
-                      <p>Semester: {r.semester ?? "N/A"}</p>
-                      <p>Year: {r.sy ?? "N/A"}</p>
-                      <p>Pages: {r.pageCount ?? "N/A"}</p>
-                    </div>
-
-                    {/* ✅ Match badge */}
-                    <div className="mt-2">
-                      {isMatched ? (
-                        <span className="text-green-700 bg-green-100 px-2 py-1 rounded-full text-xs font-medium">
-                          ✅ Matched with Renewal List
-                        </span>
-                      ) : (
-                        <span className="text-red-700 bg-red-100 px-2 py-1 rounded-full text-xs font-medium">
-                          ❌ No Match Found
-                        </span>
-                      )}
-                    </div>
-
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-indigo-600 font-medium text-xs">
-                        Grades ({grades.length})
-                      </summary>
-                      <div className="mt-2 border border-gray-200 rounded overflow-hidden">
-                        <table className="w-full text-xs">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="text-left px-3 py-1.5 font-semibold text-gray-700">
-                                Course
-                              </th>
-                              <th className="text-left px-3 py-1.5 font-semibold text-gray-700">
-                                Grade
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {grades.map((g, idx) => (
-                              <tr
-                                key={idx}
-                                className="border-t hover:bg-gray-50 transition"
+                          {/* Preview Button */}
+                          <div className="flex-shrink-0">
+                            {r.fileObject ? (
+                              <button
+                                onClick={() => {
+                                  const url = URL.createObjectURL(
+                                    r.fileObject!
+                                  );
+                                  window.open(url, "_blank");
+                                }}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium w-full sm:w-auto transition-colors"
                               >
-                                <td className="px-3 py-1.5 text-gray-800 font-medium">
-                                  {g.course_code}
-                                </td>
-                                <td
-                                  className={`px-3 py-1.5 font-semibold ${
-                                    g.final_grade > 3
-                                      ? "text-red-600"
-                                      : "text-gray-700"
-                                  }`}
-                                >
-                                  {g.final_grade}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                Preview
+                              </button>
+                            ) : (
+                              <span className="text-sm text-gray-500 italic">
+                                No File
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Student Details - Dynamic Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                          <div className="bg-white/50 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-500 text-xs font-medium">
+                              ID:
+                            </span>
+                            <p className="font-semibold text-sm">
+                              {r.student_id}
+                            </p>
+                          </div>
+                          <div className="bg-white/50 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-500 text-xs font-medium">
+                              GWA:
+                            </span>
+                            <p className="font-semibold text-sm">
+                              {r.gwa ?? "N/A"}
+                            </p>
+                          </div>
+                          <div className="bg-white/50 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-500 text-xs font-medium">
+                              Semester:
+                            </span>
+                            <p className="font-semibold text-sm">
+                              {r.semester ?? "N/A"}
+                            </p>
+                          </div>
+                          <div className="bg-white/50 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-500 text-xs font-medium">
+                              Year:
+                            </span>
+                            <p className="font-semibold text-sm">
+                              {r.sy ?? "N/A"}
+                            </p>
+                          </div>
+                          <div className="bg-white/50 rounded-lg p-2 sm:p-3">
+                            <span className="text-gray-500 text-xs font-medium">
+                              Pages:
+                            </span>
+                            <p className="font-semibold text-sm">
+                              {r.pageCount ?? "N/A"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Match Badge */}
+                        <div className="mt-3">
+                          {isMatched ? (
+                            <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 px-3 py-1.5 rounded-full text-sm font-medium">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              Matched with Renewal List
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-red-700 bg-red-100 px-3 py-1.5 rounded-full text-sm font-medium">
+                              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                              No Match Found
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Grades Details - Dynamic */}
+                        <details className="mt-4">
+                          <summary className="cursor-pointer text-indigo-600 font-medium text-sm hover:text-indigo-800 flex items-center gap-2">
+                            <span>📚</span>
+                            <span>
+                              Grades ({grades.length}) - Click to expand
+                            </span>
+                          </summary>
+                          <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead className="bg-gray-100">
+                                  <tr>
+                                    <th className="text-left px-3 py-2 font-semibold text-gray-700">
+                                      Course
+                                    </th>
+                                    <th className="text-left px-3 py-2 font-semibold text-gray-700">
+                                      Grade
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {grades.map((g, idx) => (
+                                    <tr
+                                      key={idx}
+                                      className="border-t hover:bg-gray-50 transition"
+                                    >
+                                      <td className="px-3 py-2 text-gray-800 font-medium">
+                                        {g.course_code}
+                                      </td>
+                                      <td
+                                        className={`px-3 py-2 font-semibold ${
+                                          g.final_grade > 3
+                                            ? "text-red-600"
+                                            : "text-gray-700"
+                                        }`}
+                                      >
+                                        {g.final_grade}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </details>
                       </div>
-                    </details>
-                  </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                  <div className="md:self-center mt-3 md:mt-0">
-                    {r.fileObject ? (
-                      <button
-                        onClick={() => {
-                          const url = URL.createObjectURL(r.fileObject!);
-                          window.open(url, "_blank");
-                        }}
-                        className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium"
-                      >
-                        Preview
-                      </button>
-                    ) : (
-                      <span className="text-xs text-gray-500 italic">
-                        No File
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-6 flex justify-center gap-3">
-            <button
-              onClick={saveAllExtractedToRenewal}
-              disabled={isUploadingToRenewal}
-              className={`flex items-center justify-center gap-2 px-6 py-2 rounded text-sm font-semibold text-white transition-all duration-200
-    ${
-      isUploadingToRenewal
-        ? "bg-indigo-400 cursor-not-allowed"
-        : "bg-indigo-600 hover:bg-indigo-700"
-    }`}
-            >
-              {isUploadingToRenewal ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Uploading...</span>
-                </>
-              ) : (
-                "Upload to Renewal Table"
-              )}
-            </button>
-
-            <button
-              onClick={onClose}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded text-sm font-semibold"
-            >
-              Close
-            </button>
+            {/* Footer - Fixed */}
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
+              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                <button
+                  onClick={onClose}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg text-sm font-semibold w-full sm:w-auto transition-colors shadow-md hover:shadow-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUploadClick}
+                  disabled={isUploadingToRenewal}
+                  className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-all duration-200 w-full sm:w-auto shadow-lg hover:shadow-xl
+      ${
+        isUploadingToRenewal
+          ? "bg-indigo-400 cursor-not-allowed"
+          : "bg-indigo-600 hover:bg-indigo-700"
+      }`}
+                >
+                  {isUploadingToRenewal ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📤</span>
+                      <span>Upload to Renewal Table</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Upload Confirmation Modal - Always rendered at component level */}
+        <UploadConfirmationModal
+          showConfirmModal={showConfirmModal}
+          setShowConfirmModal={setShowConfirmModal}
+          result={result}
+          renewalData={renewalData}
+          saveAllExtractedToRenewal={saveAllExtractedToRenewal}
+        />
+      </>
     );
   }
 
@@ -619,68 +712,63 @@ const UploadGradesModal: React.FC<Props> = ({
     );
   }
 
-  // 🧩 Default UI
+  // 🧩 Default UI - Only drag & drop for Excel files
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-        >
-          <X size={20} />
-        </button>
+    <>
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm z-50">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 relative">
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+          >
+            <X size={20} />
+          </button>
 
-        <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
-          Upload Grades
-        </h2>
-        <p className="text-xs text-gray-600 text-center mb-4">
-          Select a file type to upload
-        </p>
+          <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+            Upload Grades
+          </h2>
+          <p className="text-xs text-gray-600 text-center mb-4">
+            Upload PDF files or ZIP containing PDF files
+          </p>
 
-        {!mode ? (
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => setMode("excel")}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded font-semibold text-sm"
-            >
-              Excel (.xlsx / .xls)
-            </button>
-            <button
-              onClick={() => setMode("pdf")}
-              className="bg-green-600 hover:bg-green-700 text-white py-2.5 rounded font-semibold text-sm"
-            >
-              PDF / ZIP
-            </button>
-            <button
-              onClick={onClose}
-              className="text-gray-600 text-xs hover:text-gray-800 underline"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
           <div className="space-y-4">
-            <label
-              htmlFor="fileInput"
-              className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-indigo-500 hover:bg-indigo-50 cursor-pointer"
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
+                isDragOver
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-gray-300 hover:border-indigo-500 hover:bg-indigo-50"
+              }`}
+              onClick={() => document.getElementById("fileInput")?.click()}
             >
-              <Upload className="w-10 h-10 text-indigo-600 mb-2" />
+              <Upload
+                className={`w-10 h-10 mb-2 transition-colors ${
+                  isDragOver ? "text-indigo-600" : "text-indigo-600"
+                }`}
+              />
               <span className="text-sm font-semibold text-gray-800">
-                Upload or drag and drop
-              </span>
-              <span className="text-xs text-gray-600 mt-1">
-                {mode === "excel"
-                  ? "Excel (.xlsx, .xls)"
-                  : "PDF or ZIP (Max 100MB)"}
+                Drag & drop a PDF or ZIP file here, or click to browse
               </span>
               <input
                 id="fileInput"
                 type="file"
-                accept={mode === "excel" ? ".xlsx,.xls" : ".pdf,.zip"}
+                accept=".pdf,.zip"
                 onChange={handleFileUpload}
                 className="hidden"
               />
-            </label>
+            </div>
+
+            {/* Warning Note */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-800">
+                <strong>Note:</strong> Uploading a file may update or overwrite
+                some rows in the renewal table based on the changes inside your
+                ZIP and PDF files.
+              </p>
+            </div>
 
             {file && (
               <div className="flex items-center justify-center gap-2 text-xs text-gray-800 bg-green-50 p-2 rounded">
@@ -709,14 +797,104 @@ const UploadGradesModal: React.FC<Props> = ({
                 Upload & Extract
               </button>
               <button
-                onClick={reset}
+                onClick={onClose}
                 className="flex-1 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold text-sm"
               >
-                Back
+                Cancel
               </button>
             </div>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Upload Confirmation Modal - Always rendered at component level */}
+      <UploadConfirmationModal
+        showConfirmModal={showConfirmModal}
+        setShowConfirmModal={setShowConfirmModal}
+        result={result}
+        renewalData={renewalData}
+        saveAllExtractedToRenewal={saveAllExtractedToRenewal}
+      />
+    </>
+  );
+};
+
+// 🔥 Upload Confirmation Modal - Rendered at component level
+const UploadConfirmationModal = ({
+  showConfirmModal,
+  setShowConfirmModal,
+  result,
+  renewalData,
+  saveAllExtractedToRenewal,
+}: {
+  showConfirmModal: boolean;
+  setShowConfirmModal: (show: boolean) => void;
+  result: ZipScholarGradeResult | null;
+  renewalData: { student_id: string | number }[];
+  saveAllExtractedToRenewal: () => void;
+}) => {
+  if (!showConfirmModal) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] animate-fadeIn">
+      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <AlertCircle className="w-6 h-6 text-green-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Confirm Upload
+          </h3>
+        </div>
+
+        <div className="mb-6 space-y-2">
+          <p className="text-gray-600 text-sm">
+            You are about to upload and apply changes from:
+          </p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700">
+                Records to Upload:
+              </span>
+              <span className="text-gray-900 font-semibold">
+                {result?.results.length || 0} student(s)
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700">
+                Matched Records:
+              </span>
+              <span className="text-green-600 font-semibold">
+                {result?.results.filter((r) =>
+                  renewalData.some(
+                    (student) =>
+                      String(student.student_id).replace(/^0+/, "") ===
+                      String(r.student_id).replace(/^0+/, "")
+                  )
+                ).length || 0}{" "}
+                matched
+              </span>
+            </div>
+          </div>
+          <p className="text-gray-600 text-sm mt-3">
+            This action will update student records. Do you want to proceed?
+          </p>
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={() => setShowConfirmModal(false)}
+            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={saveAllExtractedToRenewal}
+            className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl"
+          >
+            Upload
+          </button>
+        </div>
       </div>
     </div>
   );

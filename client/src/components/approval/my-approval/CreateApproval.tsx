@@ -1,4 +1,4 @@
-import { X, AlertCircle, Loader2 } from "lucide-react";
+import { X, AlertCircle } from "lucide-react";
 import { useContext, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { AuthContext } from "../../../context/AuthContext";
@@ -18,7 +18,6 @@ interface CreateApproval2Props {
 
 //!Notes: Try to change the approval request decription into a checkbox of data for type of reques
 function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
-  const [error, setError] = useState<string | null>(null);
   const [stepNum, setStepNum] = useState(1);
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
@@ -27,6 +26,8 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
   const [showValidation, setShowValidation] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const loading = isCreating; // Alias for backward compatibility
 
   const isApproverValid = (): boolean => {
@@ -143,6 +144,18 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     console.log(formData.semester_code, formData.sy_code);
     setError(null);
     setIsCreating(true);
+    setProgress(0);
+
+    // Start progress animation (like RenewalListV2)
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95; // Stop at 95% until operation completes
+        }
+        return prev + 1;
+      });
+    }, 30); // Update every 30ms for smooth animation
 
     const sendData = new FormData();
     sendData.append("rq_title", formData.rq_title);
@@ -179,13 +192,20 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         }
       );
 
+      // Complete the progress
+      setProgress(100);
+
       toast.success("Approval request created successfully!");
 
-      fetchWorkflows(1);
-      setIsModal(false);
+      // Wait longer to show 100% completion
+      setTimeout(() => {
+        fetchWorkflows(1);
+        setIsModal(false);
+      }, 1500);
 
       console.log("Response:", res.data);
     } catch (error) {
+      clearInterval(progressInterval);
       console.error("Error details:", error);
 
       if (axios.isAxiosError(error)) {
@@ -208,6 +228,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       }
     } finally {
       setIsCreating(false);
+      setProgress(0);
     }
   };
 
@@ -392,31 +413,82 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
         </div>
       )}
 
-      {/* Full-Screen Loading Overlay */}
+      {/* Full-Screen Loading Overlay with Circular Progress */}
       {isCreating && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10001] animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
             <div className="flex flex-col items-center">
-              <div className="relative">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+              {/* Circular Progress Indicator */}
+              <div className="relative w-32 h-32 mb-6">
+                {/* Animated Background Circle */}
+                <svg
+                  className="w-32 h-32 transform -rotate-90 animate-pulse"
+                  viewBox="0 0 120 120"
+                >
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="#e5e7eb"
+                    strokeWidth="8"
+                    fill="none"
+                    className="animate-pulse"
+                  />
+                  {/* Progress Circle with Animation */}
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="url(#gradient)"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 50}`}
+                    strokeDashoffset={`${
+                      2 * Math.PI * 50 * (1 - progress / 100)
+                    }`}
+                    className="transition-all duration-300 ease-out animate-pulse"
+                  />
+                  {/* Gradient Definition */}
+                  <defs>
+                    <linearGradient
+                      id="gradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="0%"
+                    >
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* Percentage Text Inside Circle with Animation */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center animate-bounce">
+                    <div className="text-3xl font-bold text-green-600 animate-pulse">
+                      {Math.round(progress)}%
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 animate-pulse">
+                      Complete
+                    </div>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
+
+                {/* Rotating Ring Animation */}
+                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-300 animate-spin opacity-30"></div>
               </div>
 
               <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Creating Workflow
+                Creating Approval
               </h3>
               <p className="text-gray-600 text-sm text-center mb-4">
-                Setting up approval process and notifying approvers...
+                Sending data to server...
               </p>
 
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
-              </div>
-
-              <p className="text-xs text-gray-500 mt-4 text-center">
-                This may take a few moments. Please do not close this window.
+              <p className="text-xs text-gray-500 text-center">
+                Please do not close this window
               </p>
             </div>
           </div>

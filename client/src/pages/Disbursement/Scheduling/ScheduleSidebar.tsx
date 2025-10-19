@@ -81,22 +81,42 @@ const ScheduleSidebar = ({
   return (
     <div
       className={`
-        /* Desktop Styles - Original */
-        w-full overflow-y-auto h-full pb-4 overflow-x-hidden bg-white
-        lg:border-[#EBEBEB] lg:border-r-3 lg:pt-2 lg:pr-3
-        transition-all duration-300
+        w-full overflow-y-auto h-full pb-6 overflow-x-hidden 
+        bg-white
+        lg:border-r lg:border-gray-200 lg:pt-2 lg:pr-6
+        
       `}
     >
-      {/* Mobile Header */}
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800">Today's Events</h2>
+      {/* Professional Minimalist Mobile Header */}
+      <div className="lg:hidden flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50">
+        <div className="flex items-center space-x-3">
+          <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
+            <svg
+              className="w-4 h-4 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Events</h2>
+            <p className="text-xs text-gray-500">Schedule Overview</p>
+          </div>
+        </div>
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-700 p-1"
+          className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100 transition-colors"
           aria-label="Close sidebar"
         >
           <svg
-            className="w-6 h-6"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -111,32 +131,41 @@ const ScheduleSidebar = ({
         </button>
       </div>
 
-      {/* Content */}
-      <div className="p-2 sm:p-4 lg:p-0 lg:mt-0">
+      {/* Professional Minimalist Content */}
+      <div className="p-5 lg:p-0">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-3 sm:px-4 py-2 rounded relative text-sm mt-3 mx-2">
-            <strong>Error:</strong> {error}
-            <button
-              onClick={fetchTwoWeeksSchedule}
-              className="ml-2 text-blue-700 underline"
-            >
-              Retry
-            </button>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-5">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{error}</span>
+              <button
+                onClick={fetchTwoWeeksSchedule}
+                className="text-red-600 hover:text-red-800 font-medium text-xs underline hover:no-underline transition-colors"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Today's Events - Hidden on mobile */}
-        <div className="hidden sm:block">
+        {/* Professional Minimalist Today's Events */}
+        <div className="hidden sm:block mb-8">
           {loading ? (
-            <div className="text-sm text-gray-500 px-3 sm:px-4 py-2 animate-pulse">
-              Loading Today&apos;s Events...
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-300 rounded w-16 animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-300 rounded w-full animate-pulse"></div>
+                <div className="h-3 bg-gray-300 rounded w-3/4 animate-pulse"></div>
+              </div>
             </div>
           ) : (
             <ScheduleSection
-              title="All Events Today"
+              title="Today's Events"
               schedules={twoWeekSched || []}
               getBadgeColor={getBadgeColor}
-              emptyMessage="No schedule for today."
+              emptyMessage="No events scheduled for today"
               filterFn={(sched) => {
                 const schedDate = new Date(sched.schedule_due);
                 const today = new Date();
@@ -146,18 +175,25 @@ const ScheduleSidebar = ({
           )}
         </div>
 
-        {/* Upcoming Events - Hidden on mobile */}
+        {/* Professional Minimalist Upcoming Events */}
         <div className="hidden sm:block">
           {loading ? (
-            <div className="text-sm text-gray-500 px-3 sm:px-4 py-2 animate-pulse">
-              Loading Upcoming Events...
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-300 rounded w-full animate-pulse"></div>
+                <div className="h-3 bg-gray-300 rounded w-2/3 animate-pulse"></div>
+              </div>
             </div>
           ) : (
             <ScheduleSection
-              title="Upcoming"
+              title="Upcoming Events"
               schedules={twoWeekSched || []}
               getBadgeColor={getBadgeColor}
-              emptyMessage="No upcoming schedules."
+              emptyMessage="No upcoming events scheduled"
               filterFn={(sched) => {
                 const schedDate = new Date(sched.schedule_due);
                 const today = new Date();
