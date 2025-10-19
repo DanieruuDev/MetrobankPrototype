@@ -1,10 +1,18 @@
-// src/Interface/ITuitionInvoice.ts
+interface StudentFile {
+  file_id: number;
+  file_name: string;
+  file_type: string;
+  size: number;
+  upload_at: string;
+  file?: File | null; // ✅ Added this so TypeScript knows we store a File object here
+}
+
 export interface Student {
-  program: string;
   renewal_id: number;
   student_id: number;
   scholar_name: string;
   campus: string;
+  program: string;
   batch: string;
   renewal_date: string;
   is_initial: boolean;
@@ -25,15 +33,7 @@ export interface Student {
   disbursement_label: string;
   disbursement_status: string;
   disbursement_amount: number | null;
-  disbursement_files:
-    | {
-        file_id: number;
-        file_name: string;
-        file_type: string;
-        size: number;
-        upload_at: string;
-      }[]
-    | null;
+  disbursement_files: StudentFile[] | null;
 }
 
 export interface UploadedFile {
@@ -43,7 +43,7 @@ export interface UploadedFile {
   uploadedAt: string;
 }
 
-export interface ExtractedDocument {
+export interface Document {
   fileName: string;
   extracted: {
     studentName: string;
@@ -52,9 +52,10 @@ export interface ExtractedDocument {
     schoolYearTerm: string;
     totalBalance: string;
   };
-  fileObject?: File | null;
-  isEditing?: boolean;
+  fileObject?: File | null; // ✅ Added this to support the attached PDF file
+  isEditing?: boolean; // ✅ Added for edit mode
   editedData?: {
+    // ✅ Added for edited values
     studentName: string;
     studentNumber: string;
   };
@@ -70,6 +71,6 @@ export interface JobStatus {
     status: string;
     progress: number;
     totalFiles: number;
-    documents: ExtractedDocument[];
+    documents: Document[];
   };
 }

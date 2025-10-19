@@ -271,9 +271,9 @@ const uploadGradeFileController = async (req, res) => {
     const result = await uploadBuffer(fileBuffer, fileName, bucketId);
 
     // Build public URL
-    const fileURL = `https://f002.backblazeb2.com/file/${bucketName}/${encodeURIComponent(
+    const fileURL = `https://f002.backblazeb2.com/file/${bucketName}/${
       result.fileName || fileName
-    )}`;
+    }`;
 
     console.log(`✅ Uploaded grade file: ${fileName}`);
 

@@ -74,6 +74,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     name: string;
     gradeList: { course_code: string; final_grade: number }[];
     fileURL?: string;
+    fileName?: string;
   } | null>(null);
 
   const [countValidated, setCountValidated] = useState<number>(0);

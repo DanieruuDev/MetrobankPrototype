@@ -35,8 +35,8 @@ const Sidebar = () => {
       ],
     },
     {
-      to: "/tuition-invoice",
-      label: "Tuition Invoice Upload",
+      to: "/disbursement-upload",
+      label: "Disbursement Invoice Upload",
       Icon: FileSpreadsheet,
       allowedRoles: ["mb hr", "mbs head", "system_admin", "sti registrar"],
     },
