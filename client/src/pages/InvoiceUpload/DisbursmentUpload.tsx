@@ -212,7 +212,24 @@ const DisbursementUploadPage: React.FC = () => {
           />
         );
       case "thesis":
-        return <ThesisFeeUpload />;
+        return (
+          <ThesisFeeUpload
+            students={students}
+            filteredStudents={filteredStudents}
+            fetchStudents={() => fetchStudents(activeTabId)}
+            schoolYear={schoolYear}
+            semester={semester}
+            role={role}
+            isLoading={isLoading}
+            setSelectedBranch={setSelectedBranch}
+            setSelectedYearLevel={setSelectedYearLevel}
+            setSelectedProgram={setSelectedProgram}
+            page={page}
+            itemsPerPage={itemsPerPage}
+            handlePageChange={handlePageChange}
+            totalPages={totalPages}
+          />
+        );
       case "internship":
         return <InternshipAllowanceUpload />;
       case "award":
