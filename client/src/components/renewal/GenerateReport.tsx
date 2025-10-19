@@ -23,6 +23,8 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
     useState<boolean>(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [loading, setLoading] = useState<boolean>(false);
+  const [generateProgress, setGenerateProgress] = useState<number>(0);
+  const [generateStatus, setGenerateStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const schoolYearOptions = [
@@ -77,15 +79,56 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
     setShowConfirmation(false);
     console.log(schoolYear, yearLevel, semester);
     setLoading(true);
+    setGenerateProgress(0);
+    setGenerateStatus("Preparing report generation...");
     setError("");
 
+    let progressInterval: NodeJS.Timeout;
+    let statusTimeout1: NodeJS.Timeout;
+    let statusTimeout2: NodeJS.Timeout;
+    let statusTimeout3: NodeJS.Timeout;
+
     try {
+      // Start progress animation
+      progressInterval = setInterval(() => {
+        setGenerateProgress((prev) => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return 95; // Stop at 95% until operation completes
+          }
+          return prev + 1;
+        });
+      }, 30); // Update every 30ms for smooth animation
+
+      // Update status messages at different progress points
+      statusTimeout1 = setTimeout(() => {
+        setGenerateStatus("Fetching renewal data...");
+      }, 500);
+
+      statusTimeout2 = setTimeout(() => {
+        setGenerateStatus("Compiling report data...");
+      }, 1500);
+
+      statusTimeout3 = setTimeout(() => {
+        setGenerateStatus("Preparing download...");
+      }, 2500);
+
       const response = await axios.get(
         `${VITE_BACKEND_URL}api/renewal/get-renewal-report/${encodeURIComponent(
           yearLevel
         )}/${encodeURIComponent(schoolYear)}/${encodeURIComponent(semester)}`,
         { responseType: "blob" }
       );
+
+      // Clear all timeouts
+      clearTimeout(statusTimeout1);
+      clearTimeout(statusTimeout2);
+      clearTimeout(statusTimeout3);
+      clearInterval(progressInterval); // Ensure interval is cleared
+
+      // Complete the progress
+      setGenerateProgress(100);
+      setGenerateStatus("Report complete!");
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement("a");
@@ -94,9 +137,21 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+
       toast.success("Report generated successfully!");
-      handleClose();
+
+      // Wait a moment to show completion, then close
+      setTimeout(() => {
+        setLoading(false);
+        setGenerateProgress(0);
+        setGenerateStatus("");
+        handleClose();
+      }, 1000);
     } catch (error) {
+      clearInterval(progressInterval);
+      clearTimeout(statusTimeout1);
+      clearTimeout(statusTimeout2);
+      clearTimeout(statusTimeout3);
       console.error("Error downloading the report:", error);
 
       if (axios.isAxiosError(error)) {
@@ -119,8 +174,9 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
         setError(errorMsg);
         toast.error(errorMsg);
       }
-    } finally {
       setLoading(false);
+      setGenerateProgress(0);
+      setGenerateStatus("");
     }
   };
 
@@ -384,28 +440,60 @@ const GenerateReportModal: React.FC<GenerateReportModalProps> = ({
         </div>
       )}
 
-      {/* Full-Screen Loading Overlay */}
+      {/* Full-Screen Loading Overlay for Report Generation */}
       {loading && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] animate-fadeIn">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
             <div className="flex flex-col items-center">
-              <div className="relative">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+              {/* Circular Progress Indicator */}
+              <div className="relative w-24 h-24 mb-6">
+                <svg
+                  className="w-24 h-24 transform -rotate-90"
+                  viewBox="0 0 100 100"
+                >
+                  {/* Background circle */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    stroke="#e5e7eb"
+                    strokeWidth="8"
+                    fill="none"
+                  />
+                  {/* Progress circle */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    stroke="#10b981" // Green color for report generation
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 45}`}
+                    strokeDashoffset={`${
+                      2 * Math.PI * 45 * (1 - generateProgress / 100)
+                    }`}
+                    className="transition-all duration-300 ease-out"
+                  />
+                </svg>
+                {/* Percentage text inside circle */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold text-green-600">
+                    {generateProgress}%
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {generateProgress === 100 ? "Complete" : "Progress"}
+                  </span>
                 </div>
-                <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
               </div>
 
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Generating Report
               </h3>
               <p className="text-gray-600 text-sm text-center mb-4">
-                Please wait while we compile the renewal data...
+                {generateStatus ||
+                  "Please wait while we compile the renewal data..."}
               </p>
-
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full animate-progress"></div>
-              </div>
 
               <p className="text-xs text-gray-500 mt-4 text-center">
                 This may take a few moments. Please do not close this window.

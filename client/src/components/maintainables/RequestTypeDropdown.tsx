@@ -56,16 +56,21 @@ const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
 
   return (
     <div ref={dropdownRef} className="relative w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="block mb-1 text-xs sm:text-sm font-medium text-gray-700">
         Request Type
       </label>
 
       <div
-        className="p-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center"
+        className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 
+                  appearance-none text-xs sm:text-sm relative"
         onClick={() => setOpen(!open)}
       >
-        <span>{selectedRequestType?.rq_title || "Select Request Type"}</span>
-        <span className="ml-2">&#9662;</span>
+        <span className="text-xs sm:text-sm">
+          {selectedRequestType?.rq_title || "Select Request Type"}
+        </span>
+        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm">
+          &#9662;
+        </span>
       </div>
 
       {open && (

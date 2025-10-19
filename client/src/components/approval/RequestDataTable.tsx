@@ -159,8 +159,8 @@ export default function RequestDataTable({
         </h3>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -174,7 +174,7 @@ export default function RequestDataTable({
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Requester
+                Due Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Additional Info
@@ -240,6 +240,74 @@ export default function RequestDataTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden">
+        {paginatedData.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-500">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                {emptyState.icon}
+              </div>
+              <p className="text-sm font-medium text-gray-900 mb-1">
+                {emptyState.title}
+              </p>
+              <p className="text-sm text-gray-500">{emptyState.description}</p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="space-y-3 p-2
+          "
+          >
+            {paginatedData.map((request) => (
+              <div
+                key={request.approver.approver_id}
+                onClick={() => onRowClick(request.approver.approver_id)}
+                className="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+              >
+                {/* Header with Status */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-2 flex-1 min-w-0">
+                    {getStatusIcon(request.approver.approver_status)}
+                    <span className="text-sm font-medium text-gray-900 capitalize truncate">
+                      {request.approver.approver_status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 ml-2">
+                    {formatDate
+                      ? formatDate(request.approver.approver_due_date)
+                      : request.approver.approver_due_date}
+                  </div>
+                </div>
+
+                {/* Request Title */}
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">
+                    {request.workflow_title}
+                  </h3>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 gap-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Type:</span>
+                    <span className="text-gray-900 font-medium">
+                      {request.approval_req_type || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">School Year:</span>
+                    <span className="text-gray-900 font-medium">
+                      {request.school_year}-{request.semester}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {totalPages > 1 && (

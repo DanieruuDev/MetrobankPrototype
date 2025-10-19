@@ -120,10 +120,11 @@ const ExcelDisbursementTemplateStandalone: React.FC = () => {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white  rounded-lg text-[12px] font-medium shadow transition-all duration-200"
+        className="flex items-center gap-2 px-2 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[12px] font-medium shadow transition-all duration-200"
+        title="Download Template"
       >
         <FileDown className="w-4 h-4" />
-        <span>Download Template</span>
+        <span className="hidden sm:inline">Download Template</span>
       </button>
 
       {isOpen && (
