@@ -2,10 +2,10 @@ const pool = require("../database/dbConnect.js");
 const { uploadBuffer } = require("../utils/b2");
 const { v4: uuidv4 } = require("uuid");
 
-//tuition-invoice only
-const fetchScholarForInvoice = async (req, res) => {
+//Eligible for disbursement
+const fetchEligibleScholar = async (req, res) => {
   const { schoolYear, semester } = req.params;
-  const { branch } = req.query; // ✅ optional branch filter
+  const { branch, disbursement_type_id } = req.query; // ✅ optional branch filter
   console.log("branch here", branch);
   if (!schoolYear || !semester) {
     return res
@@ -23,6 +23,7 @@ const fetchScholarForInvoice = async (req, res) => {
       WHERE semester = $1
         AND school_year = $2
         AND ($3::varchar IS NULL OR campus = $3)
+        AND disbursement_type_id = $4
       ORDER BY scholar_name ASC
     `;
 
@@ -30,6 +31,7 @@ const fetchScholarForInvoice = async (req, res) => {
       semester,
       schoolYear,
       branch || null,
+      disbursement_type_id,
     ]);
 
     return res.status(200).json(rows);
@@ -123,6 +125,6 @@ const uploadFileToDB = async (req, res) => {
 };
 
 module.exports = {
-  fetchScholarForInvoice,
+  fetchEligibleScholar,
   uploadFileToDB,
 };

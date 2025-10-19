@@ -47,6 +47,7 @@ interface RenewalTableProps {
       name: string;
       gradeList: { course_code: string; final_grade: number }[];
       fileURL?: string;
+      fileName?: string;
     } | null>
   >;
 }
@@ -285,7 +286,7 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
 
                                         const gradeList =
                                           parsedGrades?.gradeList || [];
-                                        const fileURL = parsedGrades?.fileURL;
+                                        const fileName = parsedGrades?.fileName;
 
                                         if (
                                           Array.isArray(gradeList) &&
@@ -294,7 +295,7 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                           setSelectedGrades({
                                             name: renewal.scholar_name,
                                             gradeList,
-                                            fileURL,
+                                            fileName,
                                           });
                                         } else {
                                           toast.info(

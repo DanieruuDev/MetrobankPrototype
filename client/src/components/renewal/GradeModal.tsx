@@ -6,13 +6,17 @@ interface GradeModalProps {
     name: string;
     gradeList: { course_code: string; final_grade: number }[];
     fileURL?: string;
+    fileName?: string;
   } | null;
   onClose: () => void;
 }
 
 const GradeModal: React.FC<GradeModalProps> = ({ selectedGrades, onClose }) => {
   if (!selectedGrades) return null;
+  console.log(selectedGrades.fileName);
 
+  console.log(selectedGrades);
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative bg-white rounded-2xl shadow-xl w-[95%] max-w-md p-6 animate-fadeIn border border-gray-100">
@@ -85,10 +89,12 @@ const GradeModal: React.FC<GradeModalProps> = ({ selectedGrades, onClose }) => {
         </div>
 
         {/* File Download */}
-        {selectedGrades.fileURL && (
+        {selectedGrades.fileName && (
           <div className="flex justify-center mt-5">
             <a
-              href={selectedGrades.fileURL}
+              href={`${VITE_BACKEND_URL}api/document/download/${encodeURIComponent(
+                selectedGrades.fileName!
+              )}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium transition"
