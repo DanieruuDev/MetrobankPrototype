@@ -1459,9 +1459,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                   {role_id === 3 && (
                     <button
                       onClick={() => setIsOpenUploadGrades(true)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded"
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl cursor-pointer"
                     >
-                      Upload Grades
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Grades</span>
                     </button>
                   )}
                   {openUploadGrades && (
