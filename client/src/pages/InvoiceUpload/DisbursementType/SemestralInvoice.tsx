@@ -38,6 +38,8 @@ function SemestralInvoice({
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   return (
     <div className="px-4 sm:px-6">
+      <div>Hey</div>
+
       <DisbursementTable
         students={students}
         filteredStudents={filteredStudents}
