@@ -724,6 +724,29 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                     k !== "gpa_validation_stat" &&
                                     k !== "is_validated"
                                 )
+                                .filter((key) => {
+                                  // Role-based field filtering for mobile view
+                                  const role = Number(role_id);
+
+                                  // Discipline Office (role_id 9) - only sees goodmoral and derogatory
+                                  if (role === 9) {
+                                    return (
+                                      key === "goodmoral_validation" ||
+                                      key === "no_derogatory_record"
+                                    );
+                                  }
+
+                                  // Registrar (role_id 3) - sees all except goodmoral and derogatory
+                                  if (role === 3) {
+                                    return (
+                                      key !== "goodmoral_validation" &&
+                                      key !== "no_derogatory_record"
+                                    );
+                                  }
+
+                                  // HR (role_id 7) and other roles - see all fields
+                                  return true;
+                                })
                                 .map((key) => {
                                   const value =
                                     renewal[key as keyof RenewalDetails];
