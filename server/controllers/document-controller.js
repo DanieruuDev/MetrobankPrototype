@@ -120,14 +120,29 @@ const downloadFile = async (req, res) => {
   }
 
   try {
-    // Get the readable stream from B2
+    // Get readable stream from B2
     const stream = await getDownloadStream(fileName);
 
-    // Set headers for the browser to handle the PDF properly
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+    // Detect file extension
+    const ext = path.extname(fileName).toLowerCase();
 
-    // Pipe the B2 stream directly to the response
+    if (ext === ".pdf") {
+      // Allow browser to view PDF inline
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${encodeURIComponent(fileName)}"`
+      );
+    } else {
+      // Force download for non-PDF files (e.g., Excel, Word)
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${encodeURIComponent(fileName)}"`
+      );
+    }
+
+    // Stream the file to the client
     stream.pipe(res);
   } catch (err) {
     console.error("Error downloading file:", err);

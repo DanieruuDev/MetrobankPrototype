@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PaginationControl from "../shared/PaginationControl";
 import { Student } from "../../Interface/ITuitionInvoice";
 
@@ -9,13 +9,10 @@ interface DisbursementTableProps {
   schoolYear: string;
   semester: string;
   VITE_BACKEND_URL: string;
-  page: number;
-  itemsPerPage: number;
-  totalPages: number;
-  handlePageChange: (newPage: number) => void;
   setSelectedBranch: (val: string) => void;
   setSelectedYearLevel: (val: string) => void;
   setSelectedProgram: (val: string) => void;
+  type?: string;
 }
 
 const DisbursementTable: React.FC<DisbursementTableProps> = ({
@@ -25,21 +22,33 @@ const DisbursementTable: React.FC<DisbursementTableProps> = ({
   schoolYear,
   semester,
   VITE_BACKEND_URL,
-  page,
-  itemsPerPage,
-  totalPages,
-  handlePageChange,
   setSelectedBranch,
   setSelectedYearLevel,
   setSelectedProgram,
+  type,
 }) => {
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
+
+  const handlePageChange = (newPage: number) => setPage(newPage);
   // ⏳ Loading
+
+  useEffect(() => {
+    setTotalPages(Math.ceil(filteredStudents.length / itemsPerPage) || 1);
+    // Ensure current page doesn't exceed the new total
+    if (page > Math.ceil(filteredStudents.length / itemsPerPage)) {
+      setPage(1);
+    }
+  }, [filteredStudents, itemsPerPage]);
+
   if (isLoading) {
     return (
       <div className="text-center py-12 text-gray-500">Loading data...</div>
     );
   }
 
+  console.log(type);
   // 🧍‍♂️ Empty State
   if (!isLoading && students.length === 0) {
     return (
@@ -54,7 +63,8 @@ const DisbursementTable: React.FC<DisbursementTableProps> = ({
     );
   }
 
-  // 📋 Table Rendering
+  const showFiles = type !== "semestral_allowance";
+
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-lg overflow-hidden relative z-0">
       {/* Header */}
@@ -91,26 +101,27 @@ const DisbursementTable: React.FC<DisbursementTableProps> = ({
         </div>
       </div>
 
-      {/* Desktop View */}
+      {/* Desktop Table */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50/90 backdrop-blur-sm">
-            <tr className="text-slate-700 text-xs sm:text-sm font-semibold text-left">
-              <th className="px-4 py-3 border-r">Student ID</th>
-              <th className="px-4 py-3 border-r">Scholar Name</th>
-              <th className="px-4 py-3 border-r">Campus</th>
-              <th className="px-4 py-3 border-r">Year Level</th>
-              <th className="px-4 py-3 border-r">Disbursement Label</th>
-              <th className="px-4 py-3 border-r">Status</th>
-              <th className="px-4 py-3 border-r text-right">Amount</th>
-              <th className="px-4 py-3">Files</th>
+        <table className="min-w-full border-collapse">
+          <thead className="bg-gray-50 text-gray-700 text-xs sm:text-sm font-semibold border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left">Student ID</th>
+              <th className="px-4 py-3 text-left">Scholar Name</th>
+              <th className="px-4 py-3 text-left">Campus</th>
+              <th className="px-4 py-3 text-left">Year Level</th>
+              <th className="px-4 py-3 text-left">Disbursement Label</th>
+              <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-right">Amount</th>
+              {showFiles && <th className="px-4 py-3 text-left">Files</th>}
             </tr>
           </thead>
-          <tbody className="bg-white/50 divide-y divide-slate-200 text-xs sm:text-sm">
+
+          <tbody className="text-gray-700 text-xs sm:text-sm">
             {filteredStudents.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={showFiles ? 8 : 7}
                   className="px-4 py-10 text-center text-gray-500"
                 >
                   No matching students.
@@ -129,61 +140,78 @@ const DisbursementTable: React.FC<DisbursementTableProps> = ({
             ) : (
               filteredStudents
                 .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                .map((s) => (
-                  <tr
-                    key={s.renewal_id}
-                    className={`hover:bg-gray-50 transition-colors ${
-                      !s.disbursement_files?.length ? "bg-red-50/70" : ""
-                    }`}
-                  >
-                    <td className="px-4 py-3 border-r font-mono">
-                      {s.student_id}
-                    </td>
-                    <td className="px-4 py-3 border-r">{s.scholar_name}</td>
-                    <td className="px-4 py-3 border-r">{s.campus}</td>
-                    <td className="px-4 py-3 border-r text-center">
-                      {s.year_level}
-                    </td>
-                    <td className="px-4 py-3 border-r">
-                      {s.disbursement_label}
-                    </td>
-                    <td className="px-4 py-3 border-r">
-                      <span
-                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                          s.disbursement_status === "Completed"
-                            ? "bg-green-100 text-green-700"
-                            : s.disbursement_status === "Pending"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {s.disbursement_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 border-r text-right font-semibold">
-                      {s.disbursement_amount
-                        ? `₱${Number(s.disbursement_amount).toLocaleString()}`
-                        : "N/A"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {s.disbursement_files?.length ? (
-                        s.disbursement_files.map((file, i) => (
-                          <a
-                            key={i}
-                            href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-blue-600 hover:underline truncate"
-                          >
-                            📄 {s.scholar_name} - Invoice
-                          </a>
-                        ))
-                      ) : (
-                        <span className="text-gray-400 italic">No files</span>
+                .map((s, i) => {
+                  const hasNoFile =
+                    !s.disbursement_files || s.disbursement_files.length === 0;
+
+                  return (
+                    <tr
+                      key={s.renewal_id}
+                      className={`${
+                        hasNoFile
+                          ? "bg-red-50/40 hover:bg-red-50" // 🩶 soft tint only
+                          : i % 2 === 0
+                          ? "bg-white hover:bg-blue-50/40"
+                          : "bg-gray-50 hover:bg-blue-50/40"
+                      } transition-colors duration-150`}
+                    >
+                      <td className="px-4 py-3 font-mono">{s.student_id}</td>
+                      <td className="px-4 py-3">{s.scholar_name}</td>
+                      <td className="px-4 py-3">{s.campus}</td>
+                      <td className="px-4 py-3 text-center">{s.year_level}</td>
+                      <td className="px-4 py-3">{s.disbursement_label}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            s.disbursement_status === "Completed"
+                              ? "bg-green-100 text-green-700"
+                              : s.disbursement_status === "Pending"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {s.disbursement_status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        {s.disbursement_amount
+                          ? `₱${Number(s.disbursement_amount).toLocaleString()}`
+                          : "N/A"}
+                      </td>
+
+                      {showFiles && (
+                        <td className="px-4 py-3">
+                          {s.disbursement_files?.length ? (
+                            s.disbursement_files.map((file, i) => {
+                              const fileUrl = `${VITE_BACKEND_URL}api/document/download/${file.file_name}`;
+                              const isThesisFee = type === "thesis_fee";
+
+                              return (
+                                <a
+                                  key={i}
+                                  href={fileUrl}
+                                  {...(isThesisFee
+                                    ? { download: file.file_name } // force download
+                                    : {
+                                        target: "_blank",
+                                        rel: "noopener noreferrer",
+                                      })} // normal view
+                                  className="block text-blue-600 hover:underline truncate"
+                                >
+                                  📄 {s.scholar_name} - Invoice
+                                </a>
+                              );
+                            })
+                          ) : (
+                            <span className="text-gray-400 italic">
+                              No files
+                            </span>
+                          )}
+                        </td>
                       )}
-                    </td>
-                  </tr>
-                ))
+                    </tr>
+                  );
+                })
             )}
           </tbody>
         </table>
