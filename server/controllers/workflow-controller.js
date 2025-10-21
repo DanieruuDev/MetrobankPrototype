@@ -746,32 +746,6 @@ const approveApproval = async (req, res) => {
         comment,
         workflowDetailsForEmail,
         requester_id,
-<<<<<<< HEAD
-        approver_id
-      ); // Update approver's status and response (Completed/Approved)
-      await updateApproverAndResponse(client, approver_id, response, comment);
-    } else if (response === "Reject") {
-      // 1. Log rejection, create notification, and send email (handled inside utility)
-      await handleReturnedCase(
-        client,
-        response_id,
-        comment,
-        user_id,
-        workflow_id,
-        requester_id,
-        approver_id
-      ); // 2. Update approver's status and response (Completed/Rejected)
-
-      await updateApproverAndResponse(client, approver_id, response, comment); // 3. Set the overall workflow status to Failed
-      await client.query(
-        `
-      UPDATE workflow
-      SET status = 'Failed'
-      WHERE workflow_id = $1
-      `,
-        [workflow_id]
-      );
-=======
         approver_id,
         io
       );
@@ -815,7 +789,6 @@ const approveApproval = async (req, res) => {
         console.error("🚨 Error in Returned flow:", err);
         throw err; // just bubble it up
       }
->>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
     }
 
     await client.query("COMMIT"); // Main COMMIT

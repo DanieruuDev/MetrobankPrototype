@@ -125,14 +125,8 @@ const loginUser = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-<<<<<<< HEAD
       secure: false,
       sameSite: "lax",
-=======
-      secure: true,
-      sameSite: "lax",
-      domain: ".mbstrongwebapp.com",
->>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -207,15 +201,9 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
-<<<<<<< HEAD
       httpOnly: true,
       secure: false,
       sameSite: "lax",
-=======
-      secure: false,
-      sameSite: "true",
-      domain: ".mbstrongwebapp.com",
->>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
     });
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {
