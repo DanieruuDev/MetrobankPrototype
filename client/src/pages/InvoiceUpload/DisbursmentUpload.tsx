@@ -29,16 +29,11 @@ const tabMap: Record<number, DisbursementTab> = {
   5: "award",
 };
 
-const tabLabels = [
-  { id: 1, label: "Tuition Fee" },
-  { id: 2, label: "Semestral Allowance" },
-  { id: 3, label: "Thesis Fee" },
-  { id: 4, label: "Internship Allowance" },
-  { id: 5, label: "Academic Excellence Award" },
-];
-
 const DisbursementUploadPage: React.FC = () => {
-  const [activeTabId, setActiveTabId] = useState<number>(1);
+  // ✅ Load active tab from localStorage or default to 1
+  const savedTab = Number(localStorage.getItem("activeTabId")) || 1;
+  const [activeTabId, setActiveTabId] = useState<number>(savedTab);
+
   const activeTab = tabMap[activeTabId];
 
   const [schoolYear, setSchoolYear] = useState("2025-2026");
@@ -58,15 +53,26 @@ const DisbursementUploadPage: React.FC = () => {
   const [yearLevelOpen, setYearLevelOpen] = useState(false);
   const [programOpen, setProgramOpen] = useState(false);
   const [, setInitialRenewalInfo] = useState<InitialRenewalInfo | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages] = useState(1);
-  const itemsPerPage = 10;
 
   const [isLoading, setIsLoading] = useState(true);
   const { collapsed } = useSidebar();
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const auth = useAuth();
   const role = auth?.user?.role_id;
+  console.log(role);
+  // ✅ Save active tab to localStorage when it changes
+
+  const tabLabels = [
+    { id: 1, label: "Tuition Fee" },
+    { id: 2, label: "Semestral Allowance" },
+    { id: 3, label: "Thesis Fee" },
+    { id: 4, label: "Internship Allowance" },
+    { id: 5, label: "Academic Excellence Award" },
+  ];
+
+  useEffect(() => {
+    localStorage.setItem("activeTabId", activeTabId.toString());
+  }, [activeTabId]);
 
   // ✅ Fetch students based on tab
   const fetchStudents = async (tabId = activeTabId) => {
@@ -77,14 +83,11 @@ const DisbursementUploadPage: React.FC = () => {
         {
           params: {
             branch: auth?.user?.branch?.branch_name,
-            disbursement_type_id: tabId, // 👈 now tied to tab ID
+            disbursement_type_id: tabId,
           },
         }
       );
-
-      const data = response.data;
-      console.log(`Fetched data for tab ${tabId}:`, data);
-      setStudents(data);
+      setStudents(response.data);
     } catch (error) {
       console.error("Error fetching students:", error);
       toast.error("Failed to load student data");
@@ -109,36 +112,46 @@ const DisbursementUploadPage: React.FC = () => {
         }
       );
 
-      if (response.data?.data) {
-        setInitialRenewalInfo(response.data.data);
-      } else {
-        setInitialRenewalInfo(null);
-      }
+      setInitialRenewalInfo(response.data?.data || null);
     } catch (error) {
       console.error("Error fetching renewal info:", error);
       toast.error("Failed to load renewal info");
     }
   };
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
-  // ✅ Refetch when tab, semester, or school year changes
+
   useEffect(() => {
     fetchStudents(activeTabId);
     fetchRenewalInfo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolYear, semester, activeTabId]);
 
-  // ✅ Filter logic
-  const filteredStudents = students.filter((student) => {
-    const branchMatch =
-      selectedBranch === "all" || student.campus === selectedBranch;
-    const yearLevelMatch =
-      selectedYearLevel === "all" || student.year_level === selectedYearLevel;
-    const programMatch =
-      selectedProgram === "all" || student.program === selectedProgram;
-    return branchMatch && yearLevelMatch && programMatch;
-  });
+  const filteredStudents = [...students]
+    .filter((student) => {
+      const branchMatch =
+        selectedBranch === "all" || student.campus === selectedBranch;
+      const yearLevelMatch =
+        selectedYearLevel === "all" || student.year_level === selectedYearLevel;
+      const programMatch =
+        selectedProgram === "all" || student.program === selectedProgram;
+      return branchMatch && yearLevelMatch && programMatch;
+    })
+    .sort((a, b) => {
+      const aHasFileOrAmount =
+        (a.disbursement_files && a.disbursement_files.length > 0) ||
+        (a.disbursement_amount && a.disbursement_amount > 0);
+      const bHasFileOrAmount =
+        (b.disbursement_files && b.disbursement_files.length > 0) ||
+        (b.disbursement_amount && b.disbursement_amount > 0);
+
+      // Incomplete first (those without file or amount)
+      if (aHasFileOrAmount !== bHasFileOrAmount) {
+        return aHasFileOrAmount ? 1 : -1;
+      }
+
+      // Alphabetical by name
+      return a.scholar_name.localeCompare(b.scholar_name, "en", {
+        sensitivity: "base",
+      });
+    });
 
   const uniqueBranches = Array.from(
     new Set(students.map((s) => s.campus))
@@ -150,7 +163,7 @@ const DisbursementUploadPage: React.FC = () => {
     new Set(students.map((s) => s.program))
   ).sort();
 
-  // ✅ Click outside handler
+  // ✅ Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -174,8 +187,16 @@ const DisbursementUploadPage: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Render active tab content
   const renderActiveTab = () => {
+    // Prevent unauthorized roles from seeing restricted tabs
+    if (role !== 7 && (activeTabId === 2 || activeTabId === 4)) {
+      return (
+        <div className="text-center text-gray-500 py-10">
+          You don’t have permission to access this section.
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case "tuition":
         return (
@@ -190,6 +211,7 @@ const DisbursementUploadPage: React.FC = () => {
             setSelectedBranch={setSelectedBranch}
             setSelectedYearLevel={setSelectedYearLevel}
             setSelectedProgram={setSelectedProgram}
+            type={"tuition"}
           />
         );
       case "allowance":
@@ -205,10 +227,7 @@ const DisbursementUploadPage: React.FC = () => {
             setSelectedBranch={setSelectedBranch}
             setSelectedYearLevel={setSelectedYearLevel}
             setSelectedProgram={setSelectedProgram}
-            page={page}
-            itemsPerPage={itemsPerPage}
-            handlePageChange={handlePageChange}
-            totalPages={totalPages}
+            type={"semestral_allowance"}
           />
         );
       case "thesis":
@@ -224,22 +243,45 @@ const DisbursementUploadPage: React.FC = () => {
             setSelectedBranch={setSelectedBranch}
             setSelectedYearLevel={setSelectedYearLevel}
             setSelectedProgram={setSelectedProgram}
-            page={page}
-            itemsPerPage={itemsPerPage}
-            handlePageChange={handlePageChange}
-            totalPages={totalPages}
+            type={"thesis_fee"}
           />
         );
       case "internship":
-        return <InternshipAllowanceUpload />;
+        return (
+          <InternshipAllowanceUpload
+            students={students}
+            filteredStudents={filteredStudents}
+            fetchStudents={() => fetchStudents(activeTabId)}
+            schoolYear={schoolYear}
+            semester={semester}
+            role={role}
+            isLoading={isLoading}
+            setSelectedBranch={setSelectedBranch}
+            setSelectedYearLevel={setSelectedYearLevel}
+            setSelectedProgram={setSelectedProgram}
+            type={"intership"}
+          />
+        );
       case "award":
-        return <AcademicAwardUpload />;
+        return (
+          <AcademicAwardUpload
+            students={students}
+            filteredStudents={filteredStudents}
+            fetchStudents={() => fetchStudents(activeTabId)}
+            schoolYear={schoolYear}
+            semester={semester}
+            role={role}
+            isLoading={isLoading}
+            setSelectedBranch={setSelectedBranch}
+            setSelectedYearLevel={setSelectedYearLevel}
+            setSelectedProgram={setSelectedProgram}
+            type={"academic_award"}
+          />
+        );
       default:
         return null;
     }
   };
-
-  console.log("Student:", students);
 
   return (
     <div className="min-h-screen relative">
@@ -253,19 +295,25 @@ const DisbursementUploadPage: React.FC = () => {
 
         {/* ✅ Tab Navigation */}
         <div className="flex flex-wrap gap-2 px-6 pt-4 border-b border-gray-200 bg-white sticky top-0 z-20">
-          {tabLabels.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTabId(id)}
-              className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-all ${
-                activeTabId === id
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          {tabLabels
+            .filter(({ id }) => {
+              // Only role 7 can see Semestral Allowance (id=2) and Internship Allowance (id=4)
+              if (role !== 7 && (id === 2 || id === 4)) return false;
+              return true;
+            })
+            .map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTabId(id)}
+                className={`px-4 py-2 rounded-t-lg font-medium text-sm transition-all ${
+                  activeTabId === id
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
         </div>
 
         {/* ✅ Filter + Upload Section */}
@@ -302,7 +350,6 @@ const DisbursementUploadPage: React.FC = () => {
             />
           </div>
 
-          {/* ✅ Active Upload Component */}
           <div>{renderActiveTab()}</div>
         </div>
       </div>

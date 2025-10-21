@@ -59,6 +59,7 @@ interface TuitionUploadProps {
   setSelectedBranch: React.Dispatch<React.SetStateAction<string>>;
   setSelectedYearLevel: React.Dispatch<React.SetStateAction<string>>;
   setSelectedProgram: React.Dispatch<React.SetStateAction<string>>;
+  type: string;
 }
 
 const TuitionUpload = ({
