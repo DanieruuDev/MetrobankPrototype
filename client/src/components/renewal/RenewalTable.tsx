@@ -11,6 +11,7 @@ import {
   validation,
   InitialRenewalInfo,
 } from "../../Interface/IRenewal";
+import { formatDate } from "../../utils/DateConvertionFormat";
 
 interface RenewalTableProps {
   isEdit: boolean;
@@ -541,6 +542,8 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                         </span>
                                       )}
                                     </div>
+                                  ) : key === "renewal_date" ? (
+                                    <span>{formatDate(value as string)}</span>
                                   ) : (
                                     <span>{statusBadge(value as string)}</span>
                                   )}

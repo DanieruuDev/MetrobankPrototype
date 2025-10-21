@@ -3,6 +3,7 @@ import React from "react";
 import { InitialRenewalInfo } from "../../Interface/IRenewal";
 import { AuthContextType } from "../../context/AuthContext";
 import { RenewalDetailsClone } from "../../Interface/IRenewal";
+import { formatDate } from "../../utils/DateConvertionFormat";
 interface RenewalInfoSectionProps {
   role_id?: number;
   auth: AuthContextType | undefined;
@@ -146,7 +147,7 @@ const RenewalInfoSection: React.FC<RenewalInfoSectionProps> = ({
                   ? `${renewalData.length || 0} out of ${
                       initialRenewalInfo.count ?? 0
                     }`
-                  : "Loading..."}
+                  : "Not initialize yet"}
               </p>
 
               <p className="text-xs text-slate-500">
@@ -177,10 +178,10 @@ const RenewalInfoSection: React.FC<RenewalInfoSectionProps> = ({
                 Renewal Date
               </span>
             </div>
-            <p className="text-sm font-bold text-slate-800 mb-1">Not Set</p>
-            <p className="text-xs text-slate-500">
-              Will be set upon completion
+            <p className="text-sm font-bold text-slate-800 mb-1">
+              {formatDate(initialRenewalInfo?.renewal_date)}
             </p>
+            <p className="text-xs text-slate-500">Designated due date</p>
           </div>
 
           {/* Renewal Basis Card */}
