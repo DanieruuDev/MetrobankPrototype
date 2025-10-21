@@ -127,7 +127,6 @@ const loginUser = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
-      domain: ".mbstrongwebapp.com",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

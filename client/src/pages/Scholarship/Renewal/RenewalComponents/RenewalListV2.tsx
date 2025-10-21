@@ -9,6 +9,7 @@ import {
   SquareCheckBig,
   RotateCcw,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import RenewalInfoSection from "../../../../components/renewal/RenewalInfoSection";
 import UploadGradesModal from "../../../../components/renewal/UploadGradesModal";
@@ -22,12 +23,12 @@ import {
   ZipScholarGradeResult,
   ScholarGrade,
 } from "../../../../Interface/IRenewal";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import { socket } from "../../../../utils/socket";
 import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import GenerateReportModal from "../../../../components/renewal/GenerateReport";
-import ProcessingModal from "../../../../components/renewal/ProcessingModal";
 import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
 import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog";
 import { AuthContext } from "../../../../context/AuthContext";
@@ -113,10 +114,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
   const [saveStatus, setSaveStatus] = useState("");
+  const [currentProgressCount, setCurrentProgressCount] = useState<{
+    current: number;
+    total: number;
+  }>({ current: 0, total: 0 });
+  const [currentStudentId, setCurrentStudentId] = useState<string>("");
   const [initialRenewalInfo, setInitialRenewalInfo] =
     useState<InitialRenewalInfo | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<string>("");
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const [selectedStatus, setSelectedStatus] = useState<
     "All" | "Not Started" | "Passed" | "Delisted"
@@ -417,11 +421,22 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       const uploadStatuses: Record<number, string> = {};
       const uploadProgresses: Record<number, number> = {};
 
+      // Count rows with grade files for progress display
+      const rowsWithGrades = updateRows.filter(
+        (row) => row.changedFields.grades
+      );
+      const totalRows = rowsWithGrades.length;
+      setCurrentProgressCount({ current: 0, total: totalRows });
+
       // 🔹 Upload any new grade files before updating DB
       // 🔹 Upload any new grade files before updating DB
+      let processedCount = 0;
       for (const row of updateRows) {
         const cf = row.changedFields as ChangedFields;
         if (!cf.grades) continue;
+
+        // Set current student ID being processed (only for grade files)
+        setCurrentStudentId(`Student ID: ${row.renewal_id}`);
 
         // 🧩 Convert blob URLs to File objects if necessary
         if (
@@ -455,7 +470,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           formData.append("renewal_id", String(row.renewal_id));
           try {
             uploadStatuses[row.renewal_id] = "Starting upload...";
-            setUploadStatus(`Starting upload for ID ${row.renewal_id}`);
 
             // Step 1️⃣: Start upload
             const startUploadRes = await axios.post(
@@ -469,7 +483,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             if (!jobId) throw new Error("No jobId returned from upload start.");
 
             uploadStatuses[row.renewal_id] = "Uploading...";
-            setUploadStatus(`Uploading grade file for ID ${row.renewal_id}...`);
 
             // Step 2️⃣: Poll Redis job status
             let jobStatus = null;
@@ -497,10 +510,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                 if (jobStatus.progress) {
                   const progress = Number(jobStatus.progress);
                   uploadProgresses[row.renewal_id] = progress;
-                  setUploadProgress(progress);
-                  setUploadStatus(
-                    `Uploading (ID ${row.renewal_id}) — ${progress}%`
-                  );
                 }
 
                 if (jobStatus.status === "completed") {
@@ -512,8 +521,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
                   uploadProgresses[row.renewal_id] = 100;
                   uploadStatuses[row.renewal_id] = "Completed";
-                  setUploadStatus(`Upload complete for ID ${row.renewal_id}`);
-                  setUploadProgress(100);
 
                   toast.success(`✅ Upload complete for ID ${row.renewal_id}`, {
                     position: "top-center",
@@ -563,6 +570,10 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             throw err;
           }
         }
+
+        // Increment processed count
+        processedCount++;
+        setCurrentProgressCount({ current: processedCount, total: totalRows });
       }
 
       // 🔹 Update renewal data in PostgreSQL
@@ -596,12 +607,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           updateRows
         );
 
-        // Clear timeouts after successful request
+        // Clear timeouts and interval after successful request
         clearTimeout(statusTimeout1);
         clearTimeout(statusTimeout2);
         clearTimeout(statusTimeout3);
+        clearInterval(progressInterval);
 
         getRenewalData(sySemester);
+
+        // Complete the progress animation
+        setSaveProgress(100);
 
         if (res.status === 200) {
           toast.success("✅ Changes saved successfully", {
@@ -615,6 +630,9 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             toastId: "save-warning",
           });
         }
+
+        // Add a small delay to show 100% completion before closing
+        await new Promise((resolve) => setTimeout(resolve, 500));
       } else {
         // For no changes, show quick progress
         const quickProgress = setInterval(() => {
@@ -641,10 +659,14 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         autoClose: 5000,
       });
     } finally {
-      setIsSaving(false);
-      setIsLoading(false);
-      setUploadStatus("");
-      setUploadProgress(0);
+      // Add a small delay before closing to show completion
+      setTimeout(() => {
+        setIsSaving(false);
+        setIsLoading(false);
+        setCurrentProgressCount({ current: 0, total: 0 });
+        setCurrentStudentId("");
+        setSaveProgress(0);
+      }, 1000);
     }
   };
 
@@ -682,12 +704,18 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
           const delisting_root_cause =
             scholarship_status === "Delisted"
-              ? Object.keys(validation)
-                  .filter((k) => k !== "scholarship_status")
-                  .filter(
-                    (k) => updated[k as keyof RenewalDetails] === "Failed"
-                  )
-                  .join(", ")
+              ? (() => {
+                  const failedFields = Object.keys(validation)
+                    .filter((k) => k !== "scholarship_status")
+                    .filter(
+                      (k) => updated[k as keyof RenewalDetails] === "Failed"
+                    );
+                  const mappedFields = failedFields.map(
+                    (k) => validation[k as keyof typeof validation]
+                  );
+                  const result = mappedFields.join(", ");
+                  return result;
+                })()
               : scholarship_status === "Passed"
               ? null
               : r.delisting_root_cause;
@@ -860,10 +888,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
       const delisting_root_cause =
         scholarship_status === "Delisted"
-          ? Object.keys(validation)
-              .filter((k) => k !== "scholarship_status")
-              .filter((k) => updated[k as keyof RenewalDetails] === "Failed")
-              .join(", ")
+          ? (() => {
+              const failedFields = Object.keys(validation)
+                .filter((k) => k !== "scholarship_status")
+                .filter((k) => updated[k as keyof RenewalDetails] === "Failed");
+              const mappedFields = failedFields.map(
+                (k) => validation[k as keyof typeof validation]
+              );
+              const result = mappedFields.join(", ");
+              return result;
+            })()
           : scholarship_status === "Passed"
           ? null
           : row.delisting_root_cause;
@@ -1265,8 +1299,52 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       }
     });
 
+    // Listen for toastify notifications
+    socket.on("toast_notification", (notification) => {
+      console.log("🍞 Toast notification received:", notification);
+
+      if (notification.type === "success") {
+        toast.success(notification.message, {
+          position: notification.position || "top-right",
+          autoClose: notification.duration || 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else if (notification.type === "info") {
+        toast.info(notification.message, {
+          position: notification.position || "top-right",
+          autoClose: notification.duration || 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else if (notification.type === "warning") {
+        toast.warning(notification.message, {
+          position: notification.position || "top-right",
+          autoClose: notification.duration || 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else if (notification.type === "error") {
+        toast.error(notification.message, {
+          position: notification.position || "top-right",
+          autoClose: notification.duration || 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      }
+    });
+
     return () => {
       socket.off("renewal_updated");
+      socket.off("toast_notification");
     };
   }, [
     sySemester,
@@ -1791,11 +1869,6 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         selectedGrades={selectedGrades}
         onClose={() => setSelectedGrades(null)}
       />
-      <ProcessingModal
-        isOpen={isSaving}
-        status={uploadStatus || "Saving changes..."}
-        progress={uploadProgress}
-      />
       {showAuditLog && <AuditLog onClose={() => setShowAuditLog(false)} />}
 
       {/* Save Confirmation Modal */}
@@ -1902,87 +1975,185 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           );
         })()}
 
-      {/* Save Progress Overlay */}
+      {/* Save Progress Overlay - Different styles based on content */}
       {isSaving && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fadeIn">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
             <div className="flex flex-col items-center">
-              {/* Circular Progress Indicator */}
-              <div className="relative w-32 h-32 mb-6">
-                {/* Animated Background Circle */}
-                <svg
-                  className="w-32 h-32 transform -rotate-90 animate-pulse"
-                  viewBox="0 0 120 120"
-                >
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="50"
-                    stroke="#e5e7eb"
-                    strokeWidth="8"
-                    fill="none"
-                    className="animate-pulse"
-                  />
-                  {/* Progress Circle with Animation */}
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="50"
-                    stroke="url(#gradient)"
-                    strokeWidth="8"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 50}`}
-                    strokeDashoffset={`${
-                      2 * Math.PI * 50 * (1 - saveProgress / 100)
-                    }`}
-                    className="transition-all duration-300 ease-out animate-pulse"
-                  />
-                  {/* Gradient Definition */}
-                  <defs>
-                    <linearGradient
-                      id="gradient"
-                      x1="0%"
-                      y1="0%"
-                      x2="100%"
-                      y2="0%"
-                    >
-                      <stop offset="0%" stopColor="#10b981" />
-                      <stop offset="100%" stopColor="#059669" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-
-                {/* Percentage Text Inside Circle with Animation */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center animate-bounce">
-                    <div className="text-3xl font-bold text-green-600 animate-pulse">
-                      {saveProgress}%
+              {/* Show detailed progress for grade file uploads */}
+              {currentProgressCount.total > 0 ? (
+                <>
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                      <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 animate-pulse">
-                      Complete
+                    <div className="absolute inset-0 bg-green-400 rounded-full opacity-20 animate-ping"></div>
+                  </div>
+
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Saving Changes
+                  </h3>
+                  <p className="text-gray-600 text-sm text-center mb-4">
+                    {saveStatus || "Processing your changes..."}
+                  </p>
+
+                  {/* Progress Count - Only show when processing grade files */}
+                  <div className="w-full bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-green-700 font-medium">
+                        ID Processed:
+                      </span>
+                      <span className="text-green-900 font-semibold">
+                        {currentProgressCount.current} of{" "}
+                        {currentProgressCount.total}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-green-700 font-medium">
+                        Progress:
+                      </span>
+                      <span className="text-green-900 font-semibold">
+                        {currentProgressCount.total > 0
+                          ? Math.round(
+                              (currentProgressCount.current /
+                                currentProgressCount.total) *
+                                100
+                            )
+                          : saveProgress}
+                        %
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <div className="w-full bg-green-200 rounded-full h-1.5">
+                        <div
+                          className="bg-green-600 h-1.5 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${
+                              currentProgressCount.total > 0
+                                ? Math.round(
+                                    (currentProgressCount.current /
+                                      currentProgressCount.total) *
+                                      100
+                                  )
+                                : saveProgress
+                            }%`,
+                          }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Rotating Ring Animation */}
-                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-300 animate-spin opacity-30"></div>
-              </div>
+                  {/* Current Student ID Being Processed - Only for grade file uploads */}
+                  {currentStudentId && (
+                    <div className="w-full  p-3">
+                      <div className="flex items-center justify-center text-sm">
+                        <span className="text-blue-700 font-medium">
+                          Processing {currentStudentId}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Saving Changes
-              </h3>
-              <p className="text-gray-600 text-sm text-center mb-4">
-                {saveStatus}
-              </p>
+                  <p className="text-xs text-gray-500 mt-4 text-center">
+                    This may take a few moments. Please do not close this
+                    window.
+                  </p>
+                </>
+              ) : (
+                /* Show circular progress for regular save changes (approval request style) */
+                <>
+                  {/* Circular Progress Indicator */}
+                  <div className="relative w-32 h-32 mb-6">
+                    {/* Animated Background Circle */}
+                    <svg
+                      className="w-32 h-32 transform -rotate-90 animate-pulse"
+                      viewBox="0 0 120 120"
+                    >
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="50"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                        fill="none"
+                        className="animate-pulse"
+                      />
+                      {/* Progress Circle with Animation */}
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="50"
+                        stroke="url(#gradient)"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 50}`}
+                        strokeDashoffset={`${
+                          2 * Math.PI * 50 * (1 - saveProgress / 100)
+                        }`}
+                        className="transition-all duration-300 ease-out animate-pulse"
+                      />
+                      {/* Gradient Definition */}
+                      <defs>
+                        <linearGradient
+                          id="gradient"
+                          x1="0%"
+                          y1="0%"
+                          x2="100%"
+                          y2="0%"
+                        >
+                          <stop offset="0%" stopColor="#10b981" />
+                          <stop offset="100%" stopColor="#059669" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
 
-              <p className="text-xs text-gray-500 text-center">
-                Please do not close this window
-              </p>
+                    {/* Percentage Text Inside Circle with Animation */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center animate-bounce">
+                        <div className="text-3xl font-bold text-green-600 animate-pulse">
+                          {Math.round(saveProgress)}%
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 animate-pulse">
+                          Complete
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rotating Ring Animation */}
+                    <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-300 animate-spin opacity-30"></div>
+                  </div>
+
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Saving Changes
+                  </h3>
+                  <p className="text-gray-600 text-sm text-center mb-4">
+                    {saveStatus || "Processing your changes..."}
+                  </p>
+
+                  <p className="text-xs text-gray-500 text-center">
+                    Please do not close this window
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Toast Container for notifications */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </>
   );
 }

@@ -23,6 +23,7 @@ export default function MyApprovalControl({
           placeholder="Search..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          maxLength={100}
           className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f61c0] focus:border-transparent transition-all"
         />
         <Search className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 absolute left-2 sm:left-3 top-2 sm:top-2.5 pointer-events-none" />
