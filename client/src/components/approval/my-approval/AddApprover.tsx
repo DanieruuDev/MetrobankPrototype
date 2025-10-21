@@ -26,6 +26,11 @@ interface ApproverInput {
   due_date?: string; // yyyy-mm-dd per-approver due date
 }
 
+interface EmailSuggestion {
+  email: string;
+  role: string;
+}
+
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email.trim());
@@ -82,6 +87,7 @@ function AddApprover({
     );
   };
   const mouseDownOnInteractiveRef = useRef(false);
+
   const [approvers, setApprovers] = useState<ApproverInput[]>(() => {
     if (formData.approvers && formData.approvers.length > 0) {
       return formData.approvers.map((a, index) => ({
@@ -95,6 +101,17 @@ function AddApprover({
   });
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<EmailSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<{
+    [key: string]: number;
+  }>({});
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const debounceTimeoutRef = useRef<{ [key: string]: number }>({});
 
   const addApprover = () => {
     const newId = (approvers.length + 1).toString();
@@ -122,6 +139,115 @@ function AddApprover({
           : approver
       )
     );
+  };
+
+  const fetchEmailSuggestions = async (query: string, approverId: string) => {
+    // Only show suggestions if user has typed at least one character
+    if (query.length < 1) {
+      setSuggestions([]);
+      setShowSuggestions((prev) => ({ ...prev, [approverId]: false }));
+      return;
+    }
+
+    setIsLoadingSuggestions((prev) => ({ ...prev, [approverId]: true }));
+
+    try {
+      const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const url =
+        query.trim() === ""
+          ? `${VITE_BACKEND_URL}api/workflow/search-email-role`
+          : `${VITE_BACKEND_URL}api/workflow/search-email-role/${encodeURIComponent(
+              query
+            )}`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON");
+      }
+
+      const data = await response.json();
+      setSuggestions(data);
+      setShowSuggestions((prev) => ({ ...prev, [approverId]: true }));
+      setSelectedSuggestionIndex((prev) => ({ ...prev, [approverId]: -1 }));
+    } catch (error) {
+      console.error("Error fetching email suggestions:", error);
+      setSuggestions([]);
+      setShowSuggestions((prev) => ({ ...prev, [approverId]: false }));
+    } finally {
+      setIsLoadingSuggestions((prev) => ({ ...prev, [approverId]: false }));
+    }
+  };
+
+  const selectSuggestion = (
+    suggestion: EmailSuggestion,
+    approverId: string
+  ) => {
+    setApprovers(
+      approvers.map((approver) =>
+        approver.id === approverId
+          ? ({
+              ...approver,
+              email: suggestion.email,
+              role: suggestion.role,
+            } as ApproverInput)
+          : approver
+      )
+    );
+    setShowSuggestions((prev) => ({ ...prev, [approverId]: false }));
+    setSelectedSuggestionIndex((prev) => ({ ...prev, [approverId]: -1 }));
+  };
+
+  const handleEmailChange = (approverId: string, value: string) => {
+    updateApprover(approverId, "email", value);
+
+    // Clear existing timeout
+    if (debounceTimeoutRef.current[approverId]) {
+      clearTimeout(debounceTimeoutRef.current[approverId]);
+    }
+
+    // Set new timeout for debounced search - reduced from 300ms to 150ms
+    debounceTimeoutRef.current[approverId] = window.setTimeout(() => {
+      fetchEmailSuggestions(value, approverId);
+    }, 150);
+  };
+
+  const handleEmailKeyDown = (e: React.KeyboardEvent, approverId: string) => {
+    if (!showSuggestions[approverId] || suggestions.length === 0) return;
+
+    const currentIndex = selectedSuggestionIndex[approverId] || -1;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSelectedSuggestionIndex((prev) => ({
+          ...prev,
+          [approverId]: Math.min(currentIndex + 1, suggestions.length - 1),
+        }));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSelectedSuggestionIndex((prev) => ({
+          ...prev,
+          [approverId]: Math.max(currentIndex - 1, -1),
+        }));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (currentIndex >= 0 && currentIndex < suggestions.length) {
+          selectSuggestion(suggestions[currentIndex], approverId);
+        }
+        break;
+      case "Escape":
+        setShowSuggestions((prev) => ({ ...prev, [approverId]: false }));
+        setSelectedSuggestionIndex((prev) => ({ ...prev, [approverId]: -1 }));
+        break;
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -163,7 +289,7 @@ function AddApprover({
         isValidEmail(approver.email.trim()) &&
         isValidFutureOrToday(approver.due_date)
     );
-  }, [approvers, formData.due_date]);
+  }, [approvers]);
 
   const hasDuplicates = useCallback((): boolean => {
     const emails = approvers
@@ -207,7 +333,7 @@ function AddApprover({
       const minIso = maxIsoDate(todayIso, prevChosenMax);
       return !isWithinRange(current.due_date, minIso, workflowDueIso);
     });
-  }, [approvers]);
+  }, [approvers, formData.due_date]);
 
   const formatApproversForBackend = useCallback(() => {
     if (!isApproverFilled()) {
@@ -254,7 +380,14 @@ function AddApprover({
         return prev; // no change, prevents re-render
       });
     }
-  }, [approvers, formData.due_date, setFormData]); // keep deps minimal
+  }, [
+    approvers,
+    formData.due_date,
+    setFormData,
+    isApproverFilled,
+    hasDuplicates,
+    formatApproversForBackend,
+  ]);
 
   useEffect(() => {
     if (formData.approvers && formData.approvers.length > 0) {
@@ -267,7 +400,7 @@ function AddApprover({
         }))
       );
     }
-  }, []);
+  }, [formData.approvers]);
 
   useEffect(() => {
     if (onValidateApprovers) {
@@ -295,6 +428,16 @@ function AddApprover({
     hasInvalidDueDates,
     onValidateApprovers,
   ]);
+
+  // Cleanup debounce timeouts on unmount
+  useEffect(() => {
+    const timeouts = debounceTimeoutRef.current;
+    return () => {
+      Object.values(timeouts).forEach((timeout) => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
+  }, []);
 
   return (
     <div>
@@ -456,25 +599,88 @@ function AddApprover({
                     )}
                   </div>
 
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Email Address
                     </label>
-                    <input
-                      type="email"
-                      value={approver.email}
-                      onChange={(e) =>
-                        updateApprover(approver.id, "email", e.target.value)
-                      }
-                      className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        hasValidEmail && !isDuplicate
-                          ? "border-green-300 bg-green-50"
-                          : showValidation && (!hasValidEmail || isDuplicate)
-                          ? "border-red-300 bg-red-50"
-                          : "border-gray-300"
-                      }`}
-                      placeholder="Enter email address"
-                    />
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={approver.email}
+                        onChange={(e) =>
+                          handleEmailChange(approver.id, e.target.value)
+                        }
+                        onKeyDown={(e) => handleEmailKeyDown(e, approver.id)}
+                        onFocus={() => {
+                          // Only show suggestions if user has already typed something
+                          if (approver.email.length >= 1) {
+                            fetchEmailSuggestions(approver.email, approver.id);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay hiding suggestions to allow for click selection
+                          setTimeout(() => {
+                            setShowSuggestions((prev) => ({
+                              ...prev,
+                              [approver.id]: false,
+                            }));
+                          }, 200);
+                        }}
+                        className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                          hasValidEmail && !isDuplicate
+                            ? "border-green-300 bg-green-50"
+                            : showValidation && (!hasValidEmail || isDuplicate)
+                            ? "border-red-300 bg-red-50"
+                            : "border-gray-300"
+                        }`}
+                        placeholder="Type to search emails..."
+                        autoComplete="off"
+                      />
+                      {isLoadingSuggestions[approver.id] && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Suggestions Dropdown - positioned absolutely */}
+                    {showSuggestions[approver.id] && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto z-50">
+                        {suggestions.length > 0 ? (
+                          suggestions.map((suggestion, index) => (
+                            <div
+                              key={`${suggestion.email}-${index}`}
+                              className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
+                                selectedSuggestionIndex[approver.id] === index
+                                  ? "bg-blue-100"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                selectSuggestion(suggestion, approver.id)
+                              }
+                              onMouseEnter={() =>
+                                setSelectedSuggestionIndex((prev) => ({
+                                  ...prev,
+                                  [approver.id]: index,
+                                }))
+                              }
+                            >
+                              <div className="font-medium text-gray-900">
+                                {suggestion.email}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {suggestion.role}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-gray-500 text-sm">
+                            No matching accounts found
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {showValidation &&
                       trimmedEmail &&
                       !isValidEmail(trimmedEmail) && (

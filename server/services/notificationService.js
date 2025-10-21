@@ -1,40 +1,34 @@
 const pool = require("../database/dbConnect.js");
 
 // CREATE TYPE notification_type AS ENUM (
-//   'WORKFLOW_REQUESTED',
-//   'WORKFLOW_PARTICIPATION',
-//   'WORKFLOW_APPROVER_TURN',
-//   'WORKFLOW_APPROVED',
-//   'WORKFLOW_REJECTED',
-//   'WORKFLOW_COMPLETED',
-//   'DISBURSEMENT_SUGGESTION',
-//   'DISBURSEMENT_CREATED',
-//   'DISBURSEMENT_NEAR',
-//   'DISBURSEMENT_MISSED',
-//   'DISBURSEMENT_COMPLETED'
+// 'SCHOLARSHIP_RENEWAL',
+// 'INVOICE_UPLOAD',
+// 'CALENDAR',
+// 'DISBURSEMENT_OVERVIEW',
+// 'SCHOLARSHIP_ANALYTICS'
 // );
 
 // CREATE TYPE notification_action_type AS ENUM (
-//   'VIEW_ONLY',
-//   'VISIT_PAGE',
-//   'APPROVE',
-//   'REJECT',
-//   'ACCEPT_SUGGESTION',
-//   'DECLINE_SUGGESTION'
+// 'VIEW',
+// 'VISIT',
+// 'SUGGESTION'
 // );
 
 // Create a notification event and assign recipients
-const createNotification = async ({
-  type,
-  title,
-  message,
-  relatedId = null,
-  actorId = null,
-  actionRequired = false,
-  actionType = null,
-  actionPayload = null,
-  recipients = [],
-}) => {
+const createNotification = async (
+  {
+    type,
+    title,
+    message,
+    relatedId = null,
+    actorId = null,
+    actionRequired = false,
+    actionType = null,
+    actionPayload = null,
+    recipients = [],
+  },
+  io
+) => {
   const client = await pool.connect();
   console.log(recipients);
 
@@ -48,13 +42,13 @@ const createNotification = async ({
       RETURNING *;
     `;
     const eventValues = [
-      type, // must match ENUM (e.g. 'WORKFLOW_APPROVER_TURN')
+      type,
       title,
       message,
       relatedId,
       actorId,
       actionRequired,
-      actionType, // must match ENUM (e.g. 'APPROVE')
+      actionType,
       actionPayload ? JSON.stringify(actionPayload) : null,
     ];
     const { rows } = await client.query(eventQuery, eventValues);
@@ -79,6 +73,17 @@ const createNotification = async ({
       console.log("User ID:", userId);
 
       await client.query(recipientQuery, [event.id, userId, event.id]);
+
+      if (io) {
+        io.to(`user_${userId}`).emit("new_notification", {
+          id: event.id,
+          title: event.title,
+          message: event.message,
+          type: event.type,
+          created_at: new Date(),
+        });
+        console.log(`📡 Emitted new_notification to user_${userId}`);
+      }
     }
 
     await client.query("COMMIT");

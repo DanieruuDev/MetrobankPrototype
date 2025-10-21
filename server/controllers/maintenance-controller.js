@@ -89,6 +89,23 @@ const getWfRequestType = async (req, res) => {
   }
 };
 
+const getSYSemProgress = async (req, res) => {
+  try {
+    const response = await pool.query(
+      "SELECT process_id, school_year, semester, renewal_status FROM public.vw_disbursement_progress_summary WHERE renewal_status = 'Completed'"
+    );
+
+    return res.status(200).json(response.rows);
+  } catch (error) {
+    console.error("Error fetching Sy semester from process Request:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch Sy semester from process",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getSchoolYear,
   getYearLevel,
@@ -96,4 +113,5 @@ module.exports = {
   getSemester,
   getValidSYSem,
   getWfRequestType,
+  getSYSemProgress,
 };

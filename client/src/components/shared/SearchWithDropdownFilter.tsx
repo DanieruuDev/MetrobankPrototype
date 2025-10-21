@@ -89,7 +89,7 @@ const SearchWithDropdownFilter: React.FC<SearchWithDropdownFilterProps> = ({
 
           {/* Filter Dropdown Content */}
           {showFilters && (
-            <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] w-[280px] sm:w-auto sm:min-w-[280px]">
+            <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-[280px] sm:w-auto sm:min-w-[280px]">
               <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                 {/* Filter Options */}
                 {Object.entries(filters).map(([key, filter]) => (

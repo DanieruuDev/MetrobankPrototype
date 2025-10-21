@@ -13,11 +13,13 @@ const {
   approveApproval,
   emailFinder,
   emailFinderWithRole,
+  emailRoleFinder,
   fetchEmailUsingRole,
   getApprovals,
   handleRequesterResponse,
   archiveApproval,
   getDataToEdit,
+  getEligibleListDisbursement,
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 
@@ -52,6 +54,8 @@ workflowRouter.get("/get-request/:user_id", fetchApproverApprovalList);
 
 workflowRouter.get("/download/:file_path", downloadFile);
 workflowRouter.get("/search-approvers/:query", emailFinder);
+workflowRouter.get("/search-email-role/:query", emailRoleFinder);
+workflowRouter.get("/search-email-role", emailRoleFinder);
 workflowRouter.get("/find-email/:email", emailFinderWithRole);
 workflowRouter.get("/fetch-email/:role", fetchEmailUsingRole);
 
@@ -61,6 +65,11 @@ workflowRouter.post(
   "/requester-response",
   upload.single("file"),
   handleRequesterResponse
+);
+
+workflowRouter.get(
+  "/list/:disbursement_type_id/:school_year/:semester",
+  getEligibleListDisbursement
 );
 
 module.exports = workflowRouter;

@@ -1,7 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
 import Login from "./pages/Login";
 import Workflow from "./pages/Workflow/Workflow";
 import NotFound from "./pages/NotFound";
@@ -16,7 +15,7 @@ import DetailedTracking from "./pages/Disbursement/Tracking/DetailedTracking";
 import PrivateRoute from "./components/shared/PrivateRoute";
 import { SidebarProvider } from "./context/SidebarContext";
 import ROIandAnalytics from "./pages/ROI/ROIandAnalytics";
-import TuitionInvoiceUpload from "./pages/TuitionInvoiceUpload/TuitionInvoiceUpload";
+import DisbursementUpload from "./pages/InvoiceUpload/DisbursmentUpload";
 
 function App() {
   return (
@@ -105,7 +104,7 @@ function App() {
             }
           />
           <Route
-            path="/tuition-invoice"
+            path="/disbursement-upload"
             element={
               <PrivateRoute
                 allowedRoles={[
@@ -115,7 +114,7 @@ function App() {
                   "STI Registrar",
                 ]}
               >
-                <TuitionInvoiceUpload />
+                <DisbursementUpload />
               </PrivateRoute>
             }
           />
@@ -124,7 +123,13 @@ function App() {
             path="/schedule"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "Discipline Office",
+                ]}
               >
                 <Schedule />
               </PrivateRoute>
@@ -135,7 +140,13 @@ function App() {
             path="/tracking"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "Discipline Office",
+                ]}
               >
                 <ScheduleTracking />
               </PrivateRoute>
@@ -178,7 +189,13 @@ function App() {
             path="/tracking/detailed/:sched_id"
             element={
               <PrivateRoute
-                allowedRoles={["MB HR", "MBS HEAD", "SYSTEM_ADMIN"]}
+                allowedRoles={[
+                  "MB HR",
+                  "MBS HEAD",
+                  "SYSTEM_ADMIN",
+                  "STI Registrar",
+                  "Discipline Office",
+                ]}
               >
                 <DetailedTracking />
               </PrivateRoute>

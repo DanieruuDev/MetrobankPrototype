@@ -28,7 +28,7 @@ const registerUser = async (req, res) => {
       `SELECT admin_email FROM public.administration_adminaccounts WHERE admin_email = $1`,
       [email]
     );
-    console.log(existingUser);
+
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ message: "Account already exists" });
     }
@@ -123,14 +123,19 @@ const loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    console.log("Setting refreshToken:", refreshToken);
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
+<<<<<<< HEAD
       secure: false,
       sameSite: "lax",
+=======
+      secure: true,
+      sameSite: "lax",
+      domain: ".mbstrongwebapp.com",
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    console.log("Cookie set successfully");
+
     return res.status(200).json({ email: user.admin_email, accessToken });
   } catch (error) {
     console.error("Login error:", error);
@@ -142,7 +147,7 @@ const loginUser = async (req, res) => {
 
 const refreshToken = async (req, res) => {
   const token = req.cookies.refreshToken;
-  console.log("Refresh", token);
+
   if (!token) {
     return res.status(401).json({ message: "No refresh token provided" });
   }
@@ -202,9 +207,15 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
+<<<<<<< HEAD
       httpOnly: true,
       secure: false,
       sameSite: "lax",
+=======
+      secure: false,
+      sameSite: "true",
+      domain: ".mbstrongwebapp.com",
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
     });
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {
@@ -215,7 +226,7 @@ const logout = async (req, res) => {
 
 const fetchUserInfo = async (req, res) => {
   const user_id = req.user?.user_id; // from auth middleware
-  console.log("Fetch User: ", user_id);
+
   if (!user_id || isNaN(Number(user_id))) {
     return res
       .status(400)
@@ -263,6 +274,7 @@ const fetchUserInfo = async (req, res) => {
     return res.status(500).json({ message: "Internal server error." });
   }
 };
+
 module.exports = {
   registerUser,
   loginUser,

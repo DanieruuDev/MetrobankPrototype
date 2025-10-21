@@ -16,7 +16,7 @@ export interface RenewalDetails {
   no_failing_grd_validation: "Not Started" | "Passed" | "Failed";
   no_other_scholar_validation: "Not Started" | "Passed" | "Failed";
   goodmoral_validation: "Not Started" | "Passed" | "Failed";
-  no_criminal_charges_validation: "Not Started" | "Passed" | "Failed";
+  no_derogatory_record: "Not Started" | "Passed" | "Failed";
   full_load_validation: "Not Started" | "Passed" | "Failed";
   withdrawal_change_course_validation: "Not Started" | "Passed" | "Failed";
   enrollment_validation: "Not Started" | "Passed" | "Failed";
@@ -35,6 +35,15 @@ export interface RenewalDetails {
   role_id: number;
 
   completed_at: string;
+  is_hr_validated: boolean;
+  hr_completed_at: string;
+
+  grades?: RenewalGradesPayload | null;
+}
+export interface RenewalGradesPayload {
+  fileURL?: string; // where B2 stored the file
+  gradeList?: ScholarGrade[]; // actual grades list
+  fileName?: string; // original file name
 }
 export interface RenewalDetailsClone extends RenewalDetails {
   isEdited: boolean;
@@ -55,7 +64,7 @@ export interface RenewalRow {
   no_failing_grd_validation: "Not Started" | "Passed" | "Failed";
   no_other_scholar_validation: "Not Started" | "Passed" | "Failed";
   goodmoral_validation: "Not Started" | "Passed" | "Failed";
-  no_criminal_charges_validation: "Not Started" | "Passed" | "Failed";
+  no_derogatory_record: "Not Started" | "Passed" | "Failed";
   full_load_validation: "Not Started" | "Passed" | "Failed";
   withdrawal_change_course_validation: "Not Started" | "Passed" | "Failed";
   enrollment_validation: "Not Started" | "Passed" | "Failed";
@@ -65,6 +74,8 @@ export interface RenewalRow {
   school_year: string;
   delisted_date?: string | null;
   delisting_root_cause?: string | null;
+  is_hr_validated: boolean;
+  hr_completed_at: string;
 }
 
 export const tableHead = {
@@ -81,7 +92,7 @@ export const tableHead = {
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_criminal_charges_validation: "No Criminal Charges",
+  no_derogatory_record: "No Derogatory Record",
   full_load_validation: "With Full Load",
   withdrawal_change_course_validation: "Withdrawal/Change of Program",
   enrollment_validation: "Enrollment Validation",
@@ -91,6 +102,8 @@ export const tableHead = {
   school_year: "Renewal School Year",
   delisted_date: "Delisted Date",
   delisting_root_cause: "Delisting Root Cause",
+  is_hr_validated: "HR Validate",
+  hr_completed_at: "HR Completed",
 };
 
 export const renewalTableHead = {
@@ -106,7 +119,7 @@ export const renewalTableHead = {
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_criminal_charges_validation: "No Criminal Charges",
+  no_derogatory_record: "No Derogatory Record",
   full_load_validation: "Full Load",
   withdrawal_change_course_validation: "Withdrawal/Change of Program",
   enrollment_validation: "Enrollment Validation",
@@ -114,6 +127,8 @@ export const renewalTableHead = {
   year_level: "Renewal Year Level ",
   delisted_date: "Delisted Date",
   delisting_root_cause: "Delisting Root Cause",
+  is_hr_validated: "HR Validate",
+  hr_completed_at: "HR Completed",
 };
 
 export const validation = {
@@ -121,7 +136,7 @@ export const validation = {
   no_failing_grd_validation: "No Failing Grades",
   no_other_scholar_validation: "No Other Scholarship",
   goodmoral_validation: "Good Moral",
-  no_criminal_charges_validation: "No Criminal Charges",
+  no_derogatory_record: "No Derogatory Record",
   full_load_validation: "Full Load",
   withdrawal_change_course_validation: "Withdrawal/Change of Program",
   enrollment_validation: "Enrollment Validation",
@@ -154,7 +169,7 @@ export interface ScholarshipSummary {
   full_load_validation: string | null;
   enrollment_validation: string | null;
   no_other_scholar_validation: string | null;
-  no_criminal_charges_validation: string | null;
+  no_derogatory_record: string | null;
   withdrawal_change_course_validation: string | null;
   validation_scholarship_status: string | null;
 
@@ -177,7 +192,7 @@ export interface ScholarRenewalResponse extends ScholarshipSummary {
     | "full_load_validation"
     | "enrollment_validation"
     | "no_other_scholar_validation"
-    | "no_criminal_charges_validation"
+    | "no_derogatory_record"
     | "withdrawal_change_course_validation"
     | "validation_scholarship_status"
   >[];
@@ -193,4 +208,57 @@ export interface InitialRenewalInfo {
   school_year_text: string;
   semester: number;
   semester_text: string;
+}
+
+//grades
+
+/** Represents one course grade */
+/** Represents one course grade */
+export interface ScholarGrade {
+  course_code: string;
+  final_grade: number;
+}
+
+/** Represents one student's full extracted record */
+export interface ScholarGradeDocument {
+  /** The name of the file (e.g. "Neo Grade.pdf") */
+  fileName?: string;
+
+  /** The actual PDF file object extracted from JSZip */
+  fileObject?: File;
+
+  /** Identifiers */
+  student_id: string;
+
+  /** Names may differ depending on extraction source */
+  student_name?: string; // From PDF backend
+  scholar_name?: string; // From Excel extraction
+
+  /** School info */
+  campus: string;
+  program: string;
+
+  /** Academic info */
+  sy: string | null; // e.g. "2024-2025"
+  semester: string | null; // e.g. "2nd Term"
+  gwa: number | null;
+  pageCount?: number; // From PDF backend
+
+  /** Year/level naming differences */
+  level?: string; // From PDF backend
+  year_level?: string; // From Excel extraction
+
+  /** The actual subject-grade breakdown */
+  grades: ScholarGrade[];
+}
+
+/** Response for single PDF extraction */
+export interface SingleScholarGradeResult extends ScholarGradeDocument {
+  fileName: string;
+}
+
+/** Response for ZIP extraction (multiple PDFs) */
+export interface ZipScholarGradeResult {
+  totalFiles: number;
+  results: ScholarGradeDocument[];
 }

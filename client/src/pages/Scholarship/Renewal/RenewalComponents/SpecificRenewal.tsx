@@ -20,8 +20,8 @@ const statuses = [
   { key: "enrollment_validation", label: "Enrollment Validation Status" },
   { key: "no_other_scholar_validation", label: "No Other Scholarship Status" },
   {
-    key: "no_criminal_charges_validation",
-    label: "No Criminal Charges Status",
+    key: "No Derogatory Record",
+    label: "No Derogatory Record",
   },
   {
     key: "withdrawal_change_course_validation",
@@ -81,8 +81,8 @@ function SpecificRenewal({
           renewalDetails.enrollment_validation || "Not Started",
         no_other_scholar_validation:
           renewalDetails.no_other_scholar_validation || "Not Started",
-        no_criminal_charges_validation:
-          renewalDetails.no_criminal_charges_validation || "Not Started",
+        no_derogatory_record:
+          renewalDetails.no_derogatory_record || "Not Started",
         withdrawal_change_course_validation:
           renewalDetails.withdrawal_change_course_validation || "Not Started",
       });
@@ -149,9 +149,9 @@ function SpecificRenewal({
       no_other_scholar_validation:
         selectedStatus["no_other_scholar_validation"] ||
         renewalDetails.no_other_scholar_validation,
-      no_criminal_charges_validation:
-        selectedStatus["no_criminal_charges_validation"] ||
-        renewalDetails.no_criminal_charges_validation,
+      no_derogatory_record:
+        selectedStatus["no_derogatory_record"] ||
+        renewalDetails.no_derogatory_record,
       withdrawal_change_course_validation:
         selectedStatus["withdrawal_change_course_validation"] ||
         renewalDetails.withdrawal_change_course_validation,

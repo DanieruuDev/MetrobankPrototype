@@ -179,4 +179,90 @@ const parseDocument = (document) => {
   return { extracted };
 };
 
-module.exports = { parseDocument, normalizeText };
+function normalizeDecimal(value) {
+  if (!value) return null;
+  return Number(String(value).trim().replace(",", "."));
+}
+
+function parseGradesDocument(document) {
+  const text = (document?.text || "").replace(/\r/g, "");
+  const pageCount = document?.pages?.length || 1;
+
+  // 🎓 Extract general info
+  const campus = text.match(/^.*STI.*$/m)?.[0]?.trim() || null;
+  const student_id =
+    text.match(/Student\s*(?:No|Number)\s*[:\-]?\s*([0-9A-Za-z\-_.]+)/i)?.[1] ||
+    null;
+  const student_name =
+    text.match(/Student\s*Name\s*[:\-]?\s*([A-Z ,.'-]+)/i)?.[1]?.trim() || null;
+  const program =
+    text.match(/Program\s*[:\-]?\s*([A-Z0-9 &\/\-]+)/i)?.[1]?.trim() || null;
+  const level =
+    text.match(/Level\s*[:\-]?\s*([A-Za-z0-9\- ]+)/i)?.[1]?.trim() || null;
+  const gwa = normalizeDecimal(
+    text.match(/GWA\s*[:\-]?\s*([0-9]{1,2}[.,][0-9]{1,2})/i)?.[1]
+  );
+
+  // 📊 Extract grade table text
+  // 📋 Grade Table Extraction
+  const tableStart = text.search(/COURSE\s*CODE/i);
+  const tableEnd = text.search(/(?:GWA|Cumulative\s*GWA|GRADING\s*SYSTEM)/i);
+  const tableBlock =
+    tableStart >= 0
+      ? text.slice(tableStart, tableEnd > tableStart ? tableEnd : undefined)
+      : text;
+
+  // --- NEW JOIN LOGIC HERE ---
+  const rawLines = tableBlock
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const lines = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    if (/\b[A-Z]{2,6}\d{3,4}[A-Z]?\b/.test(line)) {
+      const merged = [line];
+      if (rawLines[i + 1]) merged.push(rawLines[i + 1]);
+      if (rawLines[i + 2]) merged.push(rawLines[i + 2]);
+      lines.push(merged.join(" "));
+    } else {
+      lines.push(line);
+    }
+  }
+
+  // --- existing extraction loop ---
+  const extractedGrades = [];
+
+  for (const line of lines) {
+    const codeMatch = line.match(/\b[A-Z]{2,6}\d{3,4}[A-Z]?\b/);
+    if (!codeMatch) continue;
+
+    const course_code = codeMatch[0];
+    const numbers = [...line.matchAll(/(\d{1,2}[.,]\d{1,2})/g)].map((m) =>
+      normalizeDecimal(m[1])
+    );
+
+    if (!numbers.length) continue;
+    const final_grade =
+      numbers.length === 1 ? numbers[0] : numbers[numbers.length - 1];
+
+    extractedGrades.push({
+      course_code,
+      final_grade: Number(final_grade.toFixed(2)),
+    });
+  }
+
+  return {
+    campus,
+    student_id,
+    student_name,
+    program,
+    level,
+    gwa,
+    pageCount,
+    extractedGrades,
+  };
+}
+
+module.exports = { parseDocument, normalizeText, parseGradesDocument };

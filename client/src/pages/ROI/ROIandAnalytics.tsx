@@ -425,7 +425,7 @@ const ROIandAnalytics: React.FC = () => {
 
             {/* COMPACT METRICS GRID */}
             <div className="mb-4 sm:mb-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mx-1 sm:mx-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2 sm:gap-3 mx-1 sm:mx-0">
                 <MetricCard
                   title="Initial Program ROI"
                   value={`${overallROI.toFixed(1)}%`}

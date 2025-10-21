@@ -27,9 +27,7 @@ const createDisbursementSchedule = async (req, res) => {
   } = req.body;
 
   const client = await pool.connect();
-  console.log(branch_code);
 
-  console.log("Sample ID: ", workflow_id);
   try {
     await client.query("BEGIN");
 
@@ -56,7 +54,6 @@ const createDisbursementSchedule = async (req, res) => {
       [branch_code]
     );
     let branchId = branchIdResult.rows[0].campus_id;
-    console.log("BRANCH ID KO", branchId);
 
     const sched_id = await createEventSchedule(client, {
       event_type,
@@ -123,7 +120,6 @@ const getEligibleScholarCount = async (req, res) => {
     const { yr_lvl_code, semester_code, sy_code } = req.params;
     const { disbursement_type, disbursement_id, branch } = req.query;
 
-    console.log(yr_lvl_code, semester_code, sy_code, disbursement_id, branch);
     if (!yr_lvl_code || !semester_code || !sy_code || !branch) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
@@ -132,15 +128,6 @@ const getEligibleScholarCount = async (req, res) => {
         .status(400)
         .json({ message: "Missing disbursement_type or disbursement_id." });
     }
-
-    console.log(
-      yr_lvl_code,
-      semester_code,
-      sy_code,
-      disbursement_type,
-      disbursement_id,
-      branch
-    );
 
     let query = `
       SELECT COUNT(*) 
@@ -161,7 +148,7 @@ const getEligibleScholarCount = async (req, res) => {
     values.push(branch); // always $5
 
     const result = await pool.query(query, values);
-    console.log(result.rows[0]);
+
     if (result.rows.length > 0) {
       return res.status(200).json({ count: result.rows[0] });
     } else {
@@ -175,7 +162,7 @@ const getEligibleScholarCount = async (req, res) => {
 
 const fetchDisbursementSchedules = async (req, res) => {
   const client = await pool.connect();
-  console.log("disburse");
+
   const { year, month } = req.params;
   if (!year || !month) {
     return res.status(400).json({ error: "Year and month are required" });
@@ -194,7 +181,7 @@ const fetchDisbursementSchedules = async (req, res) => {
       `,
       [start.toISOString(), end.toISOString()]
     );
-    console.log(result.rows);
+
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching disbursement schedules:", error);
@@ -224,7 +211,7 @@ const fetchDisbursementSchedulesByRange = async (req, res) => {
       `,
       [start, end]
     );
-    console.log("Range query result:", result.rows);
+
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching disbursement schedules by range:", error);
@@ -279,7 +266,7 @@ const getTwoWeeksDisbursementSchedules = async (req, res) => {
 
 const fetchDetailSchedule = async (req, res) => {
   const { sched_id } = req.params;
-  console.log("fetch detailed");
+
   if (!sched_id) {
     return res
       .status(400)
@@ -351,7 +338,6 @@ const deleteDisbursementSchedule = async (req, res) => {
   const { sched_id, requester } = req.params;
   const client = await pool.connect();
 
-  console.log(sched_id, requester);
   try {
     await client.query("BEGIN");
 
@@ -433,7 +419,7 @@ const updateDisbursementSchedule = async (req, res) => {
        RETURNING *`,
       [schedule_due, description, sched_title, sched_id]
     );
-    console.log("✅ Event schedule updated:", updatedSchedule[0]);
+
     //title, description, due and start
 
     await client.query("COMMIT");

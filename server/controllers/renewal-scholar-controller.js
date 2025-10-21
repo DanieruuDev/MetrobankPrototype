@@ -1,6 +1,9 @@
 const pool = require("../database/dbConnect.js");
 const ExcelJS = require("exceljs");
+const { uploadBuffer, getUniqueFileName } = require("../utils/b2.js");
+
 const { startProcess } = require("../services/processProgressService.js");
+const { computeScholarshipStatus } = require("../services/renewalService.js");
 
 //MASS UPLOAD INITIAL LIST AFTER IDENTIFYING SCHOLAR APPLICANTS
 //Functionality to update masterlist scholarship
@@ -9,7 +12,6 @@ const { startProcess } = require("../services/processProgressService.js");
 const uploadScholarRenewals = async (req, res) => {
   const { school_year, year_level, semester, user_id } = req.body;
 
-  console.log(school_year, semester);
   if (!school_year || !year_level || !semester) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -48,7 +50,7 @@ const uploadScholarRenewals = async (req, res) => {
       "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [previousSchoolYear]
     );
-    console.log(currentSchoolYear, previousSchoolYear);
+
     const result = await startProcess(currentSY.rows[0].sy_code, semester);
 
     if (result.success === false) {
@@ -149,7 +151,7 @@ const uploadScholarRenewals = async (req, res) => {
         message: "Partial insert detected. All actions rolled back.",
       });
     }
-    console.log(renewalResult.rows);
+
     const renewalIds = renewalResult.rows.map((r) => r.renewal_id);
 
     const insertValidationQuery = `INSERT INTO renewal_validation (renewal_id) SELECT * FROM UNNEST ($1::int[])`;
@@ -164,14 +166,14 @@ const uploadScholarRenewals = async (req, res) => {
 `);
 
     const validatorInserts = [];
-    console.log("Renewal Campus", renewalResult.rows[0]);
+
     for (let i = 0; i < renewalResult.rows.length; i++) {
       const renewal = renewalResult.rows[i];
       const validationIdRes = await client.query(
         `SELECT validation_id FROM renewal_validation WHERE renewal_id = $1`,
         [renewal.renewal_id]
       );
-      console.log("ValidationIdRes  Result", validationIdRes.rows);
+
       if (!validationIdRes.rows[0]) {
         throw new Error(
           `No validation record found for renewal_id ${renewal.renewal_id}`
@@ -195,7 +197,6 @@ const uploadScholarRenewals = async (req, res) => {
           validationId,
           admin.role_id,
           admin.branch_id,
-          null,
           admin.admin_id,
           null,
         ]);
@@ -205,7 +206,6 @@ const uploadScholarRenewals = async (req, res) => {
         validationId,
         7,
         renewal.campus_code,
-        null,
         user_id,
         null,
       ]);
@@ -214,8 +214,8 @@ const uploadScholarRenewals = async (req, res) => {
     if (validatorInserts.length > 0) {
       const insertValidatorResult = await client.query(
         `
-    INSERT INTO renewal_validator (validation_id, role_id, branch_code, is_validated, user_id, completed_at)
-    SELECT * FROM UNNEST($1::int[], $2::int[], $3::int[], $4::bool[], $5::int[], $6::timestamptz[])
+    INSERT INTO renewal_validator (validation_id, role_id, branch_code, user_id, completed_at)
+    SELECT * FROM UNNEST($1::int[], $2::int[], $3::int[],  $4::int[], $5::timestamptz[])
   `,
         [
           validatorInserts.map((v) => v[0]),
@@ -223,7 +223,6 @@ const uploadScholarRenewals = async (req, res) => {
           validatorInserts.map((v) => v[2]),
           validatorInserts.map((v) => v[3]),
           validatorInserts.map((v) => v[4]),
-          validatorInserts.map((v) => v[5]),
         ]
       );
 
@@ -314,7 +313,7 @@ const filteredScholarRenewal = async (req, res) => {
     let query = `SELECT * FROM vw_renewal_details WHERE 1=1`;
     const values = [];
     let index = 1;
-    console.log(school_year, year_level, semester, campus);
+
     if (school_year) {
       query += ` AND school_year = $${index++}`;
       values.push(`${school_year.trim()}`);
@@ -337,13 +336,13 @@ const filteredScholarRenewal = async (req, res) => {
     }
 
     const result = await client.query(query, values);
-    console.log(values);
+
     if (result.rows.length === 0) {
       return res
         .status(404)
         .json({ message: "No matching renewal records found." });
     }
-    console.log(result.rows);
+
     res.status(200).json({
       message: "Filtered renewal records retrieved successfully.",
       data: result.rows,
@@ -358,7 +357,7 @@ const filteredScholarRenewal = async (req, res) => {
 
 const getScholarRenewal = async (req, res) => {
   const { student_id, renewal_id } = req.params;
-  console.log(student_id, renewal_id);
+
   const client = await pool.connect();
   try {
     //scholarship_summary LOCALHOST
@@ -370,7 +369,6 @@ const getScholarRenewal = async (req, res) => {
       student_id,
       renewal_id,
     ]);
-    console.log(studentResult.rows[0]);
 
     if (studentResult.rows.length === 0) {
       return res.status(404).json({ message: "Scholar renewal not found" });
@@ -593,7 +591,6 @@ const updateScholarRenewal = async (req, res) => {
 
 const updateScholarRenewalV2 = async (req, res) => {
   const updates = req.body; // expects array of { renewal_id, validator_id?, changedFields }
-  console.log("Update here", updates);
 
   if (!Array.isArray(updates) || updates.length === 0) {
     return res
@@ -626,6 +623,60 @@ const updateScholarRenewalV2 = async (req, res) => {
 
       let updatedSomething = false;
       let role_id = null;
+
+      // ✅ STEP 0: Handle grade uploads (if present)
+      if (changedFields.grades && typeof changedFields.grades === "object") {
+        const gradePayload = changedFields.grades; // { fileName, fileURL?, gradeList, fileBuffer? }
+        let finalGradeData = { ...gradePayload };
+
+        try {
+          // If front-end sends file buffer or file base64 (convert it)
+          if (gradePayload.fileBuffer || gradePayload.fileBase64) {
+            const fileBuffer = gradePayload.fileBuffer
+              ? Buffer.from(gradePayload.fileBuffer)
+              : Buffer.from(gradePayload.fileBase64, "base64");
+
+            const uniqueFileName = await getUniqueFileName(
+              process.env.B2_BUCKET_ID,
+              gradePayload.fileName || `grades_${renewal_id}.pdf`
+            );
+
+            const uploaded = await uploadBuffer(
+              fileBuffer,
+              uniqueFileName,
+              process.env.B2_BUCKET_ID
+            );
+
+            // Construct public URL (Backblaze public format)
+            const fileURL = `https://f002.backblazeb2.com/file/${process.env.B2_BUCKET_NAME}/${uploaded.fileName}`;
+            finalGradeData.fileURL = fileURL;
+
+            console.log(
+              `✅ Uploaded ${finalGradeData.fileName} for renewal_id ${renewal_id}`
+            );
+          }
+
+          // Update the renewal_validation.grades JSONB
+          await client.query(
+            `
+      UPDATE renewal_validation
+      SET grades = $1
+      WHERE renewal_id = $2
+      `,
+            [JSON.stringify(finalGradeData), renewal_id]
+          );
+
+          updatedSomething = true;
+        } catch (uploadErr) {
+          console.error(
+            `❌ Failed to upload grades for renewal_id ${renewal_id}:`,
+            uploadErr
+          );
+        }
+
+        // Remove grades field from other updates so it won’t conflict later
+        delete changedFields.grades;
+      }
 
       // ✅ Retrieve role_id if validator_id is provided
       if (validator_id) {
@@ -674,31 +725,35 @@ const updateScholarRenewalV2 = async (req, res) => {
         const result = await client.query(query, [...values, renewal_id]);
 
         if (result.rowCount > 0) {
-          updatedSomething = true;
-
-          const auditEntries = Object.entries(validationFields).map(
-            ([field_name, value]) => [
-              validation_id,
-              field_name,
-              value !== null ? value.toString() : null,
-              user_id,
-              role_id,
-            ]
+          const { rows } = await client.query(
+            `SELECT * FROM renewal_validation WHERE renewal_id = $1`,
+            [renewal_id]
           );
 
-          if (auditEntries.length > 0) {
+          if (rows.length > 0) {
+            const validationRow = rows[0];
+            const newStatus = computeScholarshipStatus(validationRow);
+            console.log(newStatus);
+            let delistingRootCause = null;
+            let delistedDate = null;
+
+            if (newStatus === "Delisted") {
+              const failedFields = Object.keys(validationRow)
+                .filter((k) => validationRow[k] === "Failed")
+                .join(", ");
+              delistingRootCause = failedFields;
+              delistedDate = new Date().toISOString();
+            }
+
             await client.query(
-              `INSERT INTO public.field_validation 
-                (validation_id, field_name, value, validated_by, role_id, validated_at)
-               SELECT unnest($1::int[]), unnest($2::varchar[]), unnest($3::varchar[]), 
-                      unnest($4::int[]), unnest($5::int[]), NOW()`,
-              [
-                auditEntries.map((e) => e[0]),
-                auditEntries.map((e) => e[1]),
-                auditEntries.map((e) => e[2]),
-                auditEntries.map((e) => e[3]),
-                auditEntries.map((e) => e[4]),
-              ]
+              `
+        UPDATE renewal_validation
+        SET scholarship_status = $1,
+            delisting_root_cause = $2,
+            delisted_date = $3
+        WHERE renewal_id = $4
+        `,
+              [newStatus, delistingRootCause, delistedDate, renewal_id]
             );
           }
         }
@@ -804,6 +859,30 @@ const updateScholarRenewalV2 = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // ✅ SOCKET.IO BROADCAST — real-time update notification
+    const triggeredBy = updates[0]?.user_id || null;
+    const payload = {
+      renewalIds: Array.from(updatedRows),
+      totalUpdated: updatedRows.size,
+      triggeredBy,
+      timestamp: new Date().toISOString(),
+    };
+
+    // 🧩 Notify all connected users EXCEPT the one who made the update
+    if (triggeredBy) {
+      // 🟢 Send update to everyone EXCEPT the one who triggered it
+      req.io
+        .except(`user_${triggeredBy}`)
+        .to("renewal_updates")
+        .emit("renewal_updated", payload);
+
+      console.log(`📢 Update broadcasted (except user_${triggeredBy})`);
+    } else {
+      // fallback if no user ID
+      req.io.emit("renewal_updated", payload);
+    }
+
+    // ✅ Send HTTP response
     res.status(200).json({
       message: "Updated successfully",
       updatedRows: Array.from(updatedRows),
@@ -829,7 +908,7 @@ const getExcelRenewalReport = async (req, res) => {
         error: "Please provide year level, school year, and semester",
       });
     }
-    console.log(yr_lvl, school_year, semester);
+
     const query = `
       SELECT * FROM vw_renewal_details
       WHERE year_level ILIKE $1
@@ -1045,7 +1124,6 @@ const getExcelRenewalReport = async (req, res) => {
 
 const getInitialRenewalInfo = async (req, res) => {
   const { school_year, semester, branch } = req.query; // ✅ added optional branch
-  console.log("Params:", school_year, semester, branch);
 
   if (!school_year || !semester) {
     return res
@@ -1126,6 +1204,7 @@ const getRenewalAuditLog = async (req, res) => {
       validation_id,
       admin_id,
       role_id,
+      branch_id,
       change_category,
       start_date,
       end_date,
@@ -1165,6 +1244,12 @@ const getRenewalAuditLog = async (req, res) => {
     if (role_id) {
       query += ` AND role_id = $${paramIndex++}`;
       values.push(role_id);
+    }
+
+    // Filter by branch_id
+    if (branch_id) {
+      query += ` AND branch_id = $${paramIndex++}`;
+      values.push(branch_id);
     }
 
     // Filter by change category
@@ -1218,6 +1303,10 @@ const getRenewalAuditLog = async (req, res) => {
     if (role_id) {
       countQuery += ` AND role_id = $${countParamIndex++}`;
       countValues.push(role_id);
+    }
+    if (branch_id) {
+      countQuery += ` AND branch_id = $${countParamIndex++}`;
+      countValues.push(branch_id);
     }
     if (change_category) {
       countQuery += ` AND change_category = $${countParamIndex++}`;

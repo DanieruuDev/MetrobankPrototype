@@ -1,9 +1,5 @@
 const { createNotification } = require("../services/notificationService");
 const {
-  readXlsx,
-  UploadFileToDisbursement,
-} = require("../services/ExcelFileReader");
-const {
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
   sendWorkflowCompletedEmail,
@@ -174,6 +170,7 @@ const insertWorkflowLog = async (
   ]);
 };
 
+<<<<<<< HEAD
 const checkReject = async (client, workflowId, workflowDetailsForEmail) => {
   try {
     const rejectResult = await client.query("SELECT * FROM check_reject($1)", [
@@ -222,6 +219,8 @@ const checkReject = async (client, workflowId, workflowDetailsForEmail) => {
   }
 };
 
+=======
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
 const updateApproverAndResponse = async (
   client,
   approver_id,
@@ -291,7 +290,8 @@ const handleApprovedCase = async (
   comment,
   workflowDetailsForEmail,
   requester_id,
-  approver_id
+  approver_id,
+  io
 ) => {
   let nextApproverFound = false;
   let nextApproverEmail = null;
@@ -401,6 +401,99 @@ const handleApprovedCase = async (
       }
     }
 
+    if (nextApproverFound) {
+      // try {
+      //   await sendItsYourTurnEmail(nextApproverEmail, workflowDetailsForEmail);
+      // } catch (err) {
+      //   console.error("sendItsYourTurnEmail failed:", {
+      //     nextUserId,
+      //     nextApproverEmail,
+      //     err,
+      //   });
+      // }
+
+      try {
+        await createNotification(
+          {
+            type: "APPROVAL",
+            title: "It's Your Turn to Approve",
+            message: `Your turn to approve "${workflowDetailsForEmail.request_title}".`,
+            relatedId: workflow_id,
+            actorId: requester_id,
+            actionRequired: true,
+            actionType: "VISIT",
+            recipients: [{ approvers: { user_id: nextUserId } }],
+          },
+          io
+        );
+      } catch (err) {
+        console.error("createNotification (approver turn) failed:", {
+          workflow_id,
+          nextUserId,
+          err,
+        });
+      }
+
+      try {
+        await createNotification(
+          {
+            type: "APPROVAL",
+            title: "Workflow Progressed",
+            message: `Request "${workflowDetailsForEmail.request_title}" has been moved to the next approver.`,
+            relatedId: workflow_id,
+            actorId: user_id,
+            actionRequired: false,
+            recipients: [{ approvers: { user_id: requester_id } }],
+          },
+          io
+        );
+      } catch (err) {
+        console.error("createNotification (participation) failed:", {
+          workflow_id,
+          requester_id,
+          err,
+        });
+      }
+    }
+
+    // If workflow completed -> notify requester and email
+    if (workflowCompleted) {
+      try {
+        await createNotification(
+          {
+            type: "APPROVAL",
+            title: "Workflow is Completed",
+            message: `Request "${workflowDetailsForEmail.request_title}" has been completed successfully.`,
+            relatedId: workflow_id,
+            actorId: null,
+            actionRequired: false,
+            recipients: [{ approvers: { user_id: requester_id } }],
+          },
+          io
+        );
+      } catch (err) {
+        console.error("createNotification (completed) failed:", {
+          workflow_id,
+          requester_id,
+          err,
+        });
+      }
+
+      try {
+        console.log("email", workflowDetailsForEmail.requesterEmail);
+        await sendWorkflowCompletedEmail(
+          workflowDetailsForEmail.requesterEmail,
+          workflowDetailsForEmail
+        );
+      } catch (err) {
+        console.error("sendWorkflowCompletedEmail failed:", {
+          workflow_id,
+          requester_id,
+          err,
+        });
+      }
+    }
+
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -412,6 +505,7 @@ const handleApprovedCase = async (
       stack: err.stack,
     });
     throw err; // re-throw so callers can handle HTTP response / retries
+<<<<<<< HEAD
   } // ========== Side effects (run after commit so emails/notifs don't rollback DB) ==========
   // If we moved to next approver -> send email & notifications (non-fatal if fail)
 
@@ -516,6 +610,9 @@ const handleApprovedCase = async (
       });
     }
   } // success
+=======
+  }
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
 
   return {
     movedToNext: nextApproverFound,
@@ -524,6 +621,7 @@ const handleApprovedCase = async (
   };
 };
 
+<<<<<<< HEAD
 // const handleRejectCase = async (
 //   client,
 //   workflow_id,
@@ -595,6 +693,8 @@ const handleApprovedCase = async (
 //   }
 // };
 
+=======
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
 const handleReturnedCase = async (
   client,
   response_id,
@@ -602,7 +702,8 @@ const handleReturnedCase = async (
   created_by,
   workflow_id,
   requester_id,
-  approver_id
+  approver_id,
+  io
 ) => {
   try {
     console.log("appr", approver_id);
@@ -633,6 +734,7 @@ const handleReturnedCase = async (
       comment
     ); // 3. Notification
 
+<<<<<<< HEAD
     await createNotification({
       type: "WORKFLOW_REJECTED",
       title: "Workflow Rejected",
@@ -657,6 +759,23 @@ const handleReturnedCase = async (
         err,
       });
     }
+=======
+    // 3. Notification
+    await createNotification(
+      {
+        type: "APPROVAL",
+        title: "Workflow Rejected",
+        message: `Your workflow has been rejected. Reason: ${comment}, see workflow for more info`,
+        relatedId: workflow_id,
+        actorId: created_by,
+        actionRequired: true,
+        actionType: "VISIT",
+        actionPayload: { return_id, response_id },
+        recipients: [{ approvers: { user_id: requester_id } }],
+      },
+      io
+    );
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
     console.log("Handle returned works");
     await client.query("COMMIT");
     return return_id;
@@ -673,9 +792,13 @@ module.exports = {
   fetchRequester,
   insertApprovers, // Exporting the corrected function
   insertWorkflowLog,
-  checkReject,
+
   updateApproverAndResponse,
   getRequesterAndWorkflowDetails,
   handleApprovedCase,
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9815b6c36296ac9a30f8fa1cc7c16d074f942b9e
   handleReturnedCase,
 };

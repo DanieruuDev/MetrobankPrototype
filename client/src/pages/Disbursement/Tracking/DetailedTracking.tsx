@@ -6,9 +6,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import * as XLSX from "xlsx";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Download, FileText, Users } from "lucide-react";
 import { toast } from "react-toastify";
 import SearchWithDropdownFilter from "../../../components/shared/SearchWithDropdownFilter";
+import {
+  extractDisbursementExcel,
+  ExtractedDisbursement,
+} from "../../../utils/ExcelExtractor";
 
 interface ITrackingStudent {
   student_id: number;
@@ -27,6 +31,7 @@ interface ITrackingStudent {
   required_hours: number | null;
   completed_at: string | null;
   disbursement_amount: number | null;
+  disb_detail_id: number | null;
 }
 
 interface ITrackingDisbursement {
@@ -42,7 +47,11 @@ interface ITrackingDetailed {
   sched_title: string;
   event_type: number;
   schedule_status: string;
+
   workflow_id: number;
+  approval_req_type: string;
+  doc_id: number;
+  doc_name: string;
 
   schedule_due: string;
   event_start_date: string;
@@ -73,12 +82,35 @@ function DetailedTracking() {
   const [trackingDetailed, setTrackingDetailed] = useState<
     ITrackingDetailed[] | null
   >(null);
+  const [extractedData, setExtractedData] = useState<
+    ExtractedDisbursement[] | null
+  >(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const { collapsed } = useSidebar();
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const navigate = useNavigate();
   console.log(sched_id);
+
+  const handleExtract = async () => {
+    try {
+      if (!trackingDetailed) {
+        console.error("No file to download");
+        return;
+      }
+      const filePath = encodeURIComponent(trackingDetailed[0]?.doc_name);
+      const fileUrl = `${
+        import.meta.env.VITE_BACKEND_URL
+      }api/workflow/download/${filePath}`;
+
+      const data = await extractDisbursementExcel(fileUrl);
+      console.log(data);
+      setExtractedData(data);
+      console.log("✅ Extracted Excel Data:", data);
+    } catch (err) {
+      console.error("❌ Failed to extract:", err);
+    }
+  };
   useEffect(() => {
     const fetchTrackingDetailed = async () => {
       try {
@@ -86,7 +118,7 @@ function DetailedTracking() {
         const response = await axios.get(
           `${VITE_BACKEND_URL}api/disbursement/tracking/${sched_id}`
         );
-        console.log(response.data);
+        console.log("Respons in detailed", response.data);
         setTrackingDetailed(response.data);
       } catch (error) {
         console.error(error);
@@ -97,25 +129,102 @@ function DetailedTracking() {
 
     fetchTrackingDetailed();
   }, [sched_id, VITE_BACKEND_URL]);
+  useEffect(() => {
+    handleExtract();
+  }, [trackingDetailed]);
 
   const handleComplete = async () => {
-    if (!trackingDetailed) return;
+    if (!trackingDetailed || !extractedData) {
+      toast.error("Missing extracted data or schedule info");
+      return;
+    }
+
+    const schedule = trackingDetailed[0];
+
+    // 🧩 Flatten all student + disbursement detail mappings from backend
+    const disbDetails = schedule.disbursement_schedules.flatMap((ds) =>
+      ds.students.map((s) => ({
+        student_id: s.student_id,
+        disb_detail_id: s.disb_detail_id,
+      }))
+    );
+
+    // 🧠 Match student_id between backend + Excel extraction
+    const updates = disbDetails
+      .map((d) => {
+        const match = extractedData.find(
+          (e) => String(e.student_id).trim() === String(d.student_id).trim()
+        );
+
+        if (!match || !match.amount) return null;
+
+        // 🧹 Clean the amount: remove peso signs, commas, spaces
+        const cleaned = String(match.amount)
+          .replace(/[₱,]/g, "") // remove peso sign and commas
+          .trim();
+
+        const amountValue = parseFloat(cleaned);
+
+        if (isNaN(amountValue)) {
+          console.warn(
+            `⚠️ Invalid amount for student ${d.student_id}:`,
+            match.amount
+          );
+          return null;
+        }
+
+        return {
+          disb_detail_id: d.disb_detail_id,
+          student_id: d.student_id,
+          amount: Number(amountValue),
+        };
+      })
+      .filter(
+        (
+          x
+        ): x is {
+          disb_detail_id: number;
+          student_id: number;
+          amount: number;
+        } => !!x
+      );
+
+    console.log("🧾 Prepared updates:", updates);
+
+    if (updates.length === 0) {
+      toast.error("No valid Excel data found for this schedule.");
+      return;
+    }
+
+    const missing = disbDetails.filter(
+      (d) => !updates.some((u) => u.student_id === d.student_id)
+    );
+    if (missing.length > 0) {
+      toast.warn(
+        `${missing.length} students missing in Excel — they will not be updated.`
+      );
+    }
+
     try {
       setIsCompleting(true);
+
       await axios.put(
         `${VITE_BACKEND_URL}api/disbursement/tracking/complete/${sched_id}`,
         {
-          workflow_id: trackingDetailed[0].workflow_id,
+          workflow_id: schedule.workflow_id,
+          updates,
         }
       );
-      const response = await axios.get(
-        `${VITE_BACKEND_URL}api/disbursement/tracking/${sched_id}`
+
+      toast.success("✅ Disbursement amounts uploaded and schedule completed!");
+
+      const refreshed = await axios.get(
+        `${VITE_BACKEND_URL}api/disbursement/tracking/${schedule.sched_id}`
       );
-      toast.success("Disbursement completed");
-      setTrackingDetailed(response.data);
+      setTrackingDetailed(refreshed.data);
     } catch (error) {
-      console.error("Error completing disbursement:", error);
-      toast.error("Failed to complete");
+      console.error("❌ Error completing disbursement:", error);
+      toast.error("Failed to complete disbursement.");
     } finally {
       setIsCompleting(false);
     }
@@ -316,6 +425,20 @@ function DetailedTracking() {
     );
   };
 
+  const handleDownload = () => {
+    if (!trackingDetailed) {
+      console.error("No file to download");
+      return;
+    }
+    const filePath = encodeURIComponent(trackingDetailed[0]?.doc_name); // encode special chars
+    const link = document.createElement("a");
+    link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
+    link.setAttribute("download", trackingDetailed[0]?.doc_name); // filename for browser
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Keep layout scaffold (Navbar/Sidebar) visible; render loading/content inside
 
   const scheduleInfo = trackingDetailed?.[0];
@@ -323,6 +446,9 @@ function DetailedTracking() {
   const [selectedYearLevel, setSelectedYearLevel] = useState<string>("All");
   const [selectedBranch, setSelectedBranch] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Debug logging for selected branch changes
+  console.log("Selected Branch:", selectedBranch);
 
   const allStudentRows = scheduleInfo
     ? scheduleInfo.disbursement_schedules.flatMap((s) =>
@@ -338,10 +464,21 @@ function DetailedTracking() {
   const uniqueBranches = Array.from(
     new Set(
       scheduleInfo
-        ? scheduleInfo.disbursement_schedules.map((s) => s.branch_code)
+        ? scheduleInfo.disbursement_schedules.map((s) => String(s.branch_code))
         : []
     )
   ).sort();
+
+  // Debug logging for branches
+  console.log("Available Branches:", uniqueBranches);
+  console.log(
+    "All Student Rows Sample:",
+    allStudentRows.slice(0, 3).map(({ schedule, student }) => ({
+      studentName: student.scholar_name,
+      branchCode: schedule.branch_code,
+      scheduleId: schedule.disb_sched_id,
+    }))
+  );
 
   const filteredRows = allStudentRows.filter(({ schedule, student }) => {
     // Search filter
@@ -355,15 +492,42 @@ function DetailedTracking() {
       selectedYearLevel === "All" ||
       String(student.yr_lvl) === String(selectedYearLevel);
 
-    // Branch filter
+    // Branch filter - handle both string and number comparisons
     const branchOk =
       selectedBranch === "All" ||
       selectedBranch === "" ||
-      schedule.branch_code === selectedBranch;
+      String(schedule.branch_code).trim() === String(selectedBranch).trim();
+
+    // Debug logging for branch filter
+    if (selectedBranch !== "All" && selectedBranch !== "") {
+      console.log("Branch Filter Debug:", {
+        selectedBranch,
+        selectedBranchType: typeof selectedBranch,
+        scheduleBranchCode: schedule.branch_code,
+        scheduleBranchCodeType: typeof schedule.branch_code,
+        stringComparison:
+          String(schedule.branch_code) === String(selectedBranch),
+        directComparison: schedule.branch_code === selectedBranch,
+        branchMatch: branchOk,
+        studentName: student.scholar_name,
+      });
+    }
 
     return matchesSearch && yearLevelOk && branchOk;
   });
 
+  // Debug logging for filtered results
+  console.log("Filtered Rows Count:", filteredRows.length);
+  console.log("Total Rows Count:", allStudentRows.length);
+  console.log(
+    "Filtered Rows Sample:",
+    filteredRows.slice(0, 3).map(({ schedule, student }) => ({
+      studentName: student.scholar_name,
+      branchCode: schedule.branch_code,
+    }))
+  );
+
+  console.log(extractedData);
   return (
     <div className="min-h-screen relative">
       <Sidebar />
@@ -374,7 +538,7 @@ function DetailedTracking() {
         `}
       >
         <Navbar pageName="Disbursement Tracking" />
-        <div className="p-6 max-w-6xl mx-auto">
+        <div className="lg:px-6 xs:px-4 py-6 max-w-8xl mx-auto pt-5 sm:pt-6">
           {isLoading && (
             <div className="min-h-[220px] bg-white border border-gray-100 rounded-lg flex items-center justify-center shadow-sm">
               <div className="text-center py-8">
@@ -392,6 +556,7 @@ function DetailedTracking() {
               </p>
             </div>
           )}
+
           {!isLoading && trackingDetailed && (
             <div className="flex flex-row justify-between md:flex-row md:items-center md:justify-between mb-5 gap-3">
               <div className="flex items-center gap-3">
@@ -501,6 +666,30 @@ function DetailedTracking() {
                       </p>
                     </div>
                   </div>
+                  <div
+                    className="flex items-center justify-between w-full max-w-md p-3 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all cursor-pointer "
+                    onClick={handleDownload}
+                  >
+                    {/* Left side: Icon + Name */}
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                      <p className="truncate text-sm font-medium text-gray-800">
+                        {trackingDetailed[0].doc_name || "Untitled Document"}
+                      </p>
+                    </div>
+
+                    {/* Right side: Download button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload();
+                      }}
+                      className="p-2 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 transition cursor-pointer"
+                      title="Download file"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -508,7 +697,7 @@ function DetailedTracking() {
 
           {scheduleInfo && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-              <div className="px-4 py-4 border-b border-gray-100 relative">
+              <div className="px-4 py-4 border-b border-gray-100">
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-50 rounded-md">
@@ -521,7 +710,7 @@ function DetailedTracking() {
                   </div>
 
                   {/* Search and Filter Component */}
-                  <div className="relative z-50">
+                  <div className="relative">
                     <SearchWithDropdownFilter
                       searchValue={searchTerm}
                       onSearchChange={setSearchTerm}
@@ -573,73 +762,151 @@ function DetailedTracking() {
                     </div>
                   </div>
                 ) : (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0 z-[1]">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Student ID
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Year Level
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Semester / SY
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Branch
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Scholarship Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Disbursement Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {filteredRows.map(({ schedule, student }, idx) => (
-                        <tr
-                          key={`${schedule.disb_sched_id}-${student.student_id}`}
-                          className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                        >
-                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {student.student_id}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {student.scholar_name}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {student.yr_lvl}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {student.semester} - {student.school_year}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {schedule.branch_code}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm">
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                student.scholarship_status === "ACTIVE"
-                                  ? "bg-green-100 text-green-800"
-                                  : student.scholarship_status === "PENDING"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50 sticky top-0 z-[1]">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Student ID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Name
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Year Level
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Semester / SY
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Branch
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Scholarship Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Disbursement Status
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {filteredRows.map(({ schedule, student }, idx) => (
+                            <tr
+                              key={`${schedule.disb_sched_id}-${student.student_id}`}
+                              className={
+                                idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                              }
                             >
-                              {student.scholarship_status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {getStatusBadge(student.disbursement_status)}
-                          </td>
-                        </tr>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {student.student_id}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                                {student.scholar_name}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                {student.yr_lvl}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                {student.semester} - {student.school_year}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                {schedule.branch_code}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs ${
+                                    student.scholarship_status === "ACTIVE"
+                                      ? "bg-green-100 text-green-800"
+                                      : student.scholarship_status === "PENDING"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {student.scholarship_status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                {getStatusBadge(student.disbursement_status)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="lg:hidden space-y-3 p-4">
+                      {filteredRows.map(({ schedule, student }) => (
+                        <div
+                          key={`${schedule.disb_sched_id}-${student.student_id}`}
+                          className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          {/* Header with Student ID and Name */}
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 text-sm truncate">
+                                {student.scholar_name}
+                              </h3>
+                              <p className="text-xs text-gray-600 mt-1">
+                                ID: {student.student_id}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-1 ml-3">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  student.scholarship_status === "ACTIVE"
+                                    ? "bg-green-100 text-green-800"
+                                    : student.scholarship_status === "PENDING"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {student.scholarship_status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Student Details Grid */}
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <span className="text-gray-500 font-medium">
+                                Year Level:
+                              </span>
+                              <p className="text-gray-900 font-semibold">
+                                {student.yr_lvl}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-500 font-medium">
+                                Branch:
+                              </span>
+                              <p className="text-gray-900 font-semibold truncate">
+                                {schedule.branch_code}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-500 font-medium">
+                                Disbursement:
+                              </span>
+                              <div className="mt-1">
+                                {getStatusBadge(student.disbursement_status)}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-gray-500 font-medium">
+                                Semester / SY:
+                              </span>
+                              <p className="text-gray-900 font-semibold">
+                                {student.semester} - {student.school_year}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

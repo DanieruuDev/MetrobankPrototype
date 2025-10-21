@@ -1,4 +1,6 @@
+// src/Interface/ITuitionInvoice.ts
 export interface Student {
+  program: string;
   renewal_id: number;
   student_id: number;
   scholar_name: string;
@@ -41,7 +43,7 @@ export interface UploadedFile {
   uploadedAt: string;
 }
 
-export interface Document {
+export interface ExtractedDocument {
   fileName: string;
   extracted: {
     studentName: string;
@@ -49,6 +51,12 @@ export interface Document {
     program: string;
     schoolYearTerm: string;
     totalBalance: string;
+  };
+  fileObject?: File | null;
+  isEditing?: boolean;
+  editedData?: {
+    studentName: string;
+    studentNumber: string;
   };
 }
 
@@ -62,6 +70,6 @@ export interface JobStatus {
     status: string;
     progress: number;
     totalFiles: number;
-    documents: Document[];
+    documents: ExtractedDocument[];
   };
 }

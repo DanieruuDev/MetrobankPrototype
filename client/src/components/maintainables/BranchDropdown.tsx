@@ -59,7 +59,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
 
   return (
     <div ref={dropdownRef} className="relative w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
         Branch
       </label>
       <div
@@ -68,19 +68,25 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
         }`}
         onClick={() => !disabled && setOpen(!open)}
       >
-        <span>{selectedBranch?.campus_name || "Select Branch"}</span>
-        {!disabled && <span className="ml-2">&#9662;</span>}
+        <span
+          className="truncate flex-1 mr-2"
+          title={selectedBranch?.campus_name || "Select Branch"}
+        >
+          {selectedBranch?.campus_name || "Select Branch"}
+        </span>
+        {!disabled && <span className="flex-shrink-0">&#9662;</span>}
       </div>
       {open && !disabled && (
         <div className="absolute w-full border border-gray-300 rounded-md max-h-40 overflow-y-auto bg-white z-50 mt-1 shadow-lg">
           {branches.map((branch) => (
             <div
               key={branch.campus_id}
-              className="p-2 hover:bg-gray-200 cursor-pointer"
+              className="p-2 hover:bg-gray-200 cursor-pointer truncate"
               onClick={() => {
                 handleInputChange(branch.campus_name);
                 setOpen(false);
               }}
+              title={branch.campus_name}
             >
               {branch.campus_name}
             </div>
