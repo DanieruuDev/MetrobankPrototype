@@ -1,5 +1,7 @@
 const pool = require("../database/dbConnect.js");
 const ExcelJS = require("exceljs");
+const { uploadBuffer, getUniqueFileName } = require("../utils/b2.js");
+
 const { startProcess } = require("../services/processProgressService.js");
 const { computeScholarshipStatus } = require("../services/renewalService.js");
 
@@ -622,6 +624,60 @@ const updateScholarRenewalV2 = async (req, res) => {
       let updatedSomething = false;
       let role_id = null;
 
+      // ✅ STEP 0: Handle grade uploads (if present)
+      if (changedFields.grades && typeof changedFields.grades === "object") {
+        const gradePayload = changedFields.grades; // { fileName, fileURL?, gradeList, fileBuffer? }
+        let finalGradeData = { ...gradePayload };
+
+        try {
+          // If front-end sends file buffer or file base64 (convert it)
+          if (gradePayload.fileBuffer || gradePayload.fileBase64) {
+            const fileBuffer = gradePayload.fileBuffer
+              ? Buffer.from(gradePayload.fileBuffer)
+              : Buffer.from(gradePayload.fileBase64, "base64");
+
+            const uniqueFileName = await getUniqueFileName(
+              process.env.B2_BUCKET_ID,
+              gradePayload.fileName || `grades_${renewal_id}.pdf`
+            );
+
+            const uploaded = await uploadBuffer(
+              fileBuffer,
+              uniqueFileName,
+              process.env.B2_BUCKET_ID
+            );
+
+            // Construct public URL (Backblaze public format)
+            const fileURL = `https://f002.backblazeb2.com/file/${process.env.B2_BUCKET_NAME}/${uploaded.fileName}`;
+            finalGradeData.fileURL = fileURL;
+
+            console.log(
+              `✅ Uploaded ${finalGradeData.fileName} for renewal_id ${renewal_id}`
+            );
+          }
+
+          // Update the renewal_validation.grades JSONB
+          await client.query(
+            `
+      UPDATE renewal_validation
+      SET grades = $1
+      WHERE renewal_id = $2
+      `,
+            [JSON.stringify(finalGradeData), renewal_id]
+          );
+
+          updatedSomething = true;
+        } catch (uploadErr) {
+          console.error(
+            `❌ Failed to upload grades for renewal_id ${renewal_id}:`,
+            uploadErr
+          );
+        }
+
+        // Remove grades field from other updates so it won’t conflict later
+        delete changedFields.grades;
+      }
+
       // ✅ Retrieve role_id if validator_id is provided
       if (validator_id) {
         const { rows: validatorRows } = await client.query(
@@ -803,6 +859,30 @@ const updateScholarRenewalV2 = async (req, res) => {
 
     await client.query("COMMIT");
 
+    // ✅ SOCKET.IO BROADCAST — real-time update notification
+    const triggeredBy = updates[0]?.user_id || null;
+    const payload = {
+      renewalIds: Array.from(updatedRows),
+      totalUpdated: updatedRows.size,
+      triggeredBy,
+      timestamp: new Date().toISOString(),
+    };
+
+    // 🧩 Notify all connected users EXCEPT the one who made the update
+    if (triggeredBy) {
+      // 🟢 Send update to everyone EXCEPT the one who triggered it
+      req.io
+        .except(`user_${triggeredBy}`)
+        .to("renewal_updates")
+        .emit("renewal_updated", payload);
+
+      console.log(`📢 Update broadcasted (except user_${triggeredBy})`);
+    } else {
+      // fallback if no user ID
+      req.io.emit("renewal_updated", payload);
+    }
+
+    // ✅ Send HTTP response
     res.status(200).json({
       message: "Updated successfully",
       updatedRows: Array.from(updatedRows),

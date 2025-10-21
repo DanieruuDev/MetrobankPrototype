@@ -16,7 +16,7 @@ const notificationRouter = require("./routes/notification-router.js");
 const approvalRouter = require("./routes/approval-routes.js");
 const documentRouter = require("./routes/document-router");
 const uploadStatusRouter = require("./routes/upload-status.js");
-const tuitionInvoiceRouter = require("./routes/tuition-invoice-router.js");
+const invoiceRouter = require("./routes/invoice-router.js");
 require("./utils/scheduler.js");
 const processProgressRouter = require("./routes/process-progress-controller.js");
 require("dotenv").config();
@@ -38,7 +38,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://www.mbstrongwebapp.com"],
+    origin: ["https://www.mbstrongwebapp.com", "http://localhost:5173"],
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -46,9 +46,12 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("⚡ User connected:", socket.id);
+
   socket.on("register_user", (userId) => {
+    if (!userId) return;
     socket.join(`user_${userId}`);
-    console.log(`✅ User ${userId} joined their room`);
+    socket.join("renewal_updates");
+    console.log(`✅ User ${userId} joined user_${userId} & renewal_updates`);
   });
 
   socket.on("disconnect", () => {
@@ -72,7 +75,7 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/api/notification", notificationRouter);
 app.use("/api/approvals", approvalRouter);
 app.use("/api/jobs", uploadStatusRouter);
-app.use("/api/invoice", tuitionInvoiceRouter);
+app.use("/api/invoice", invoiceRouter);
 app.use("/api/process", processProgressRouter);
 
 app.use("/", async (req, res) => {

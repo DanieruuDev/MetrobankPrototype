@@ -29,9 +29,10 @@ const getScholarDisbursementSummary = async (req, res) => {
     const countQuery = await pool.query(
       `SELECT COUNT(*) FROM vw_disbursement_overview`
     );
+
     const totalCount = parseInt(countQuery.rows[0].count);
     const totalPages = Math.ceil(totalCount / limit);
-
+    console.log(totalCount);
     // Return paginated results and pagination info
     res.status(200).json({
       success: true,

@@ -19,6 +19,7 @@ interface StudentDisbursement {
   student_school_year: string;
   student_branch: string;
   total_disbursed_amount: number;
+  totalCount: number;
 }
 
 interface SchoolYear {
@@ -47,6 +48,7 @@ const DisbursementOverview = () => {
   const [page, setPage] = useState<number>(1);
   const [totalPage, setTotalPage] = useState<number>(1);
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [years, setYears] = useState<YearLevel[]>([]);
   const [summaryStats, setSummaryStats] = useState<SummaryStats>({
     totalStudents: 0,
@@ -109,13 +111,6 @@ const DisbursementOverview = () => {
     const safeAmount =
       typeof amount === "string" ? parseFloat(amount) : Number(amount) || 0;
 
-    // Debug logging
-    if (amount && amount !== 0) {
-      console.log(
-        `💰 Formatting: ${amount} (type: ${typeof amount}) → ${safeAmount}`
-      );
-    }
-
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
@@ -133,7 +128,8 @@ const DisbursementOverview = () => {
       setTotalPage(totalPages);
       setPage(currentPage);
       setStudentList(data);
-      console.log("Response", response.data);
+      setTotalCount(response.data.totalCount);
+      console.log("Response overv", response.data.totalCount);
       // Fetch all students for search functionality
       const allStudentsResponse = await axios.get(
         `${VITE_BACKEND_URL}api/disbursement/overview/scholar-list?page=1&limit=10000`
@@ -216,6 +212,7 @@ const DisbursementOverview = () => {
     }
   }, [searchTerm, filters.schoolYear, filters.branch, filters.year]);
 
+  console.log(studentList);
   return (
     <div className="flex min-h-screen ">
       <Sidebar />
@@ -241,7 +238,7 @@ const DisbursementOverview = () => {
                     Total Scholars
                   </p>
                   <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">
-                    17
+                    {totalCount}
                   </p>
                 </div>
               </div>
