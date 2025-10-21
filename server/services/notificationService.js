@@ -75,6 +75,9 @@ const createNotification = async (
       await client.query(recipientQuery, [event.id, userId, event.id]);
 
       if (io) {
+        console.log(
+          `📡 Attempting to emit new_notification to user_${userId} in room user_${userId}`
+        );
         io.to(`user_${userId}`).emit("new_notification", {
           id: event.id,
           title: event.title,
@@ -83,6 +86,8 @@ const createNotification = async (
           created_at: new Date(),
         });
         console.log(`📡 Emitted new_notification to user_${userId}`);
+      } else {
+        console.log("❌ Socket.io not available for notification");
       }
     }
 

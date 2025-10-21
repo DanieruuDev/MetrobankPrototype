@@ -4,6 +4,8 @@ const { uploadBuffer, getUniqueFileName } = require("../utils/b2.js");
 
 const { startProcess } = require("../services/processProgressService.js");
 const { computeScholarshipStatus } = require("../services/renewalService.js");
+const { createNotification } = require("../services/notificationService.js");
+const { sendEmail } = require("../utils/emailing.js");
 
 //MASS UPLOAD INITIAL LIST AFTER IDENTIFYING SCHOLAR APPLICANTS
 //Functionality to update masterlist scholarship
@@ -231,7 +233,29 @@ const uploadScholarRenewals = async (req, res) => {
       }
     }
 
-    //Email function??
+    // Notify about renewal initialization
+    const io = req.io;
+    console.log("🔌 Socket.io instance:", io ? "Available" : "Not available");
+    await notifyRenewalInitialization(
+      client,
+      io,
+      school_year,
+      semester,
+      user_id
+    );
+
+    // Send real-time updates to Registrar and DO
+    if (io) {
+      const renewalIds = renewalResult.rows.map((r) => r.renewal_id);
+      io.to("renewal_updates").emit("renewal_updated", {
+        renewalIds: renewalIds,
+        totalUpdated: renewalResult.rowCount,
+        triggeredBy: user_id,
+        timestamp: new Date().toISOString(),
+      });
+      console.log("📡 Real-time update sent to Registrar and DO");
+    }
+
     await client.query("COMMIT");
 
     res.status(201).json({
@@ -738,9 +762,24 @@ const updateScholarRenewalV2 = async (req, res) => {
             let delistedDate = null;
 
             if (newStatus === "Delisted") {
+              // Map field names to human-readable labels
+              const validationLabels = {
+                gpa_validation_stat: "GPA Validation",
+                no_failing_grd_validation: "No Failing Grades",
+                no_other_scholar_validation: "No Other Scholarship",
+                goodmoral_validation: "Good Moral",
+                no_derogatory_record: "No Derogatory Record",
+                full_load_validation: "Full Load",
+                withdrawal_change_course_validation:
+                  "Withdrawal/Change of Program",
+                enrollment_validation: "Enrollment Validation",
+              };
+
               const failedFields = Object.keys(validationRow)
                 .filter((k) => validationRow[k] === "Failed")
+                .map((k) => validationLabels[k] || k) // Convert to human-readable labels
                 .join(", ");
+
               delistingRootCause = failedFields;
               delistedDate = new Date().toISOString();
             }
@@ -881,6 +920,13 @@ const updateScholarRenewalV2 = async (req, res) => {
       // fallback if no user ID
       req.io.emit("renewal_updated", payload);
     }
+
+    // Check if validation is complete for any branch and notify HR
+    console.log("🔄 ===== ABOUT TO CHECK VALIDATION COMPLETION =====");
+    console.log("🔄 Triggered by user:", triggeredBy);
+    console.log("🔄 Calling checkAndNotifyHRValidationComplete...");
+    await checkAndNotifyHRValidationComplete(client, req.io, triggeredBy);
+    console.log("✅ ===== VALIDATION COMPLETION CHECK FINISHED =====");
 
     // ✅ Send HTTP response
     res.status(200).json({
@@ -1346,6 +1392,468 @@ const getRenewalAuditLog = async (req, res) => {
   }
 };
 
+// Helper function to check and notify HR when both Registrar and DO complete validation for a specific branch
+const checkAndNotifyHRValidationComplete = async (client, io, triggeredBy) => {
+  try {
+    console.log(
+      "🔍 ===== CHECKING VALIDATION COMPLETION FOR HR NOTIFICATION ====="
+    );
+    console.log("🔍 Triggered by user:", triggeredBy);
+    console.log("🔍 Function called successfully");
+
+    // Get current renewal info
+    const { rows: currentRenewal } = await client.query(
+      `SELECT school_year, semester FROM renewal_scholar LIMIT 1`
+    );
+
+    if (currentRenewal.length === 0) {
+      console.log("❌ No current renewal found");
+      return;
+    }
+
+    const { school_year, semester } = currentRenewal[0];
+    console.log(
+      `📅 Checking validation for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester`
+    );
+
+    // Get the user who triggered the validation to determine their branch
+    const { rows: userInfo } = await client.query(
+      `SELECT admin_id, role_id FROM administration_adminaccounts WHERE admin_id = $1`,
+      [triggeredBy]
+    );
+
+    if (userInfo.length === 0) {
+      console.log("❌ User not found");
+      return;
+    }
+
+    const { role_id } = userInfo[0];
+    console.log("👤 User role_id:", role_id);
+
+    // Only check validation completion for Registrar (role_id = 3) and DO (role_id = 9)
+    console.log("🔍 Checking user role:", role_id);
+    if (role_id !== 3 && role_id !== 9) {
+      console.log(
+        "⏭️ Skipping validation check - user is not Registrar or DO (role_id:",
+        role_id,
+        ")"
+      );
+      console.log("⏭️ Function will return early - no validation check");
+      return;
+    }
+
+    console.log(
+      "✅ User is Registrar or DO, proceeding with validation check..."
+    );
+
+    // Get the branch of the user who triggered the validation
+    const { rows: userBranch } = await client.query(
+      `SELECT branch_id FROM administration_brancheads WHERE admin_id = $1`,
+      [triggeredBy]
+    );
+
+    if (userBranch.length === 0) {
+      console.log("❌ User branch not found");
+      return;
+    }
+
+    const userBranchId = userBranch[0].branch_id;
+    console.log(`🏢 User's branch_id: ${userBranchId}`);
+
+    // Debug: Let's also see what branch information we have
+    const { rows: branchInfo } = await client.query(
+      `SELECT campus_name, campus_id FROM maintenance_campus WHERE campus_id = $1`,
+      [userBranchId]
+    );
+    console.log("🏢 Branch info from maintenance_campus:", branchInfo);
+
+    // Debug: Let's see what campus codes exist in renewal_scholar
+    const { rows: allCampuses } = await client.query(
+      `SELECT DISTINCT campus_name, campus_code FROM renewal_scholar WHERE school_year = $1 AND semester = $2`,
+      [school_year, semester]
+    );
+    console.log("🏢 All campuses in renewal_scholar:", allCampuses);
+
+    // Get validation status for the specific branch
+    // First get the campus name from the branch_id
+    const { rows: campusName } = await client.query(
+      `SELECT campus_name FROM maintenance_campus WHERE campus_id = $1`,
+      [userBranchId]
+    );
+
+    if (campusName.length === 0) {
+      console.log("❌ Campus name not found for branch_id:", userBranchId);
+      return;
+    }
+
+    const targetCampusName = campusName[0].campus_name;
+    console.log("🎯 Looking for campus:", targetCampusName);
+
+    const { rows: branchValidation } = await client.query(
+      `
+      SELECT
+        r.campus_name,
+        r.campus_code,
+        COUNT(DISTINCT r.renewal_id) as total_students,
+        COUNT(CASE WHEN rv.scholarship_status IN ('Passed', 'Delisted') THEN 1 END) as validated_students
+      FROM renewal_scholar r
+      INNER JOIN renewal_validation rv ON r.renewal_id = rv.renewal_id
+      WHERE r.school_year = $1 AND r.semester = $2 AND r.campus_name = $3
+      GROUP BY r.campus_name, r.campus_code
+      `,
+      [school_year, semester, targetCampusName]
+    );
+
+    console.log("🏢 Branch validation status:", branchValidation);
+    console.log("🔍 Query parameters:", {
+      school_year,
+      semester,
+      userBranchId,
+      targetCampusName,
+    });
+
+    if (branchValidation.length === 0) {
+      console.log("❌ No students found for this branch");
+      return;
+    }
+
+    const branch = branchValidation[0];
+
+    // Check if this specific branch is fully validated
+    if (branch.validated_students == branch.total_students) {
+      console.log(
+        `✅ Branch ${branch.campus_name} is fully validated! Checking if both Registrar and DO completed...`
+      );
+
+      // Check if both Registrar and DO have completed validation for this branch
+      console.log("🔍 Debugging role completion query...");
+      console.log("🔍 Query parameters:", {
+        school_year,
+        semester,
+        userBranchId,
+        targetCampusName,
+      });
+
+      // First, let's see what field_validation records exist for this branch
+      const { rows: fieldValidationDebug } = await client.query(
+        `
+        SELECT 
+          fv.role_id,
+          fv.validated_by,
+          rv.scholarship_status,
+          r.campus_name
+        FROM renewal_validation rv
+        INNER JOIN renewal_scholar r ON rv.renewal_id = r.renewal_id
+        INNER JOIN field_validation fv ON rv.validation_id = fv.validation_id
+        WHERE r.school_year = $1 
+          AND r.semester = $2 
+          AND r.campus_name = $3
+        LIMIT 10
+        `,
+        [school_year, semester, targetCampusName]
+      );
+      console.log("🔍 Field validation records found:", fieldValidationDebug);
+
+      // Let's also check renewal_validator table
+      const { rows: validatorDebug } = await client.query(
+        `
+        SELECT 
+          rval.role_id,
+          rval.is_validated,
+          rval.user_id,
+          r.campus_name
+        FROM renewal_validation rv
+        INNER JOIN renewal_scholar r ON rv.renewal_id = r.renewal_id
+        INNER JOIN renewal_validator rval ON rv.validation_id = rval.validation_id
+        WHERE r.school_year = $1 
+          AND r.semester = $2 
+          AND r.campus_name = $3
+        LIMIT 10
+        `,
+        [school_year, semester, targetCampusName]
+      );
+      console.log("🔍 Renewal validator records found:", validatorDebug);
+
+      const { rows: roleCompletion } = await client.query(
+        `
+        SELECT 
+          rval.role_id,
+          COUNT(DISTINCT rv.renewal_id) as completed_count
+        FROM renewal_validation rv
+        INNER JOIN renewal_scholar r ON rv.renewal_id = r.renewal_id
+        INNER JOIN renewal_validator rval ON rv.validation_id = rval.validation_id
+        WHERE r.school_year = $1 
+          AND r.semester = $2 
+          AND r.campus_name = $3
+          AND rv.scholarship_status IN ('Passed', 'Delisted')
+          AND rval.is_validated = true
+        GROUP BY rval.role_id
+        `,
+        [school_year, semester, targetCampusName]
+      );
+
+      console.log("📊 Role completion status:", roleCompletion);
+
+      // Debug: Let's also check what scholarship_status values exist
+      const { rows: statusDebug } = await client.query(
+        `
+        SELECT 
+          rv.scholarship_status,
+          COUNT(*) as count
+        FROM renewal_validation rv
+        INNER JOIN renewal_scholar r ON rv.renewal_id = r.renewal_id
+        WHERE r.school_year = $1 
+          AND r.semester = $2 
+          AND r.campus_name = $3
+        GROUP BY rv.scholarship_status
+        `,
+        [school_year, semester, targetCampusName]
+      );
+      console.log("🔍 Scholarship status breakdown:", statusDebug);
+
+      // Check if both Registrar (role_id = 3) and DO (role_id = 9) have completed validation for ALL students
+      const registrarCompletion = roleCompletion.find((r) => r.role_id === 3);
+      const doCompletion = roleCompletion.find((r) => r.role_id === 9);
+
+      const registrarCompleted =
+        registrarCompletion &&
+        registrarCompletion.completed_count >= branch.total_students;
+      const doCompleted =
+        doCompletion && doCompletion.completed_count >= branch.total_students;
+
+      console.log("📋 Registrar completion:", registrarCompletion);
+      console.log("📋 DO completion:", doCompletion);
+      console.log("📋 Total students in branch:", branch.total_students);
+      console.log("📋 Registrar completed:", registrarCompleted);
+      console.log("📋 DO completed:", doCompleted);
+
+      if (registrarCompleted && doCompleted) {
+        console.log(
+          "🎉 Both Registrar and DO have completed validation for this branch! Notifying HR..."
+        );
+        console.log(
+          "🎉 Validation completion check passed - proceeding to notify HR"
+        );
+
+        // Get specific HR user (User 7)
+        const { rows: hrUsers } = await client.query(
+          `SELECT admin_id, admin_name, admin_email, role_id FROM administration_adminaccounts WHERE admin_id = 7`
+        );
+
+        if (hrUsers.length > 0) {
+          console.log(
+            "📧 Creating notification for HR user:",
+            hrUsers[0].admin_id
+          );
+
+          // Get the year level from the renewal records
+          console.log("🔍 Getting year level for:", {
+            school_year,
+            semester,
+            targetCampusName,
+          });
+          const { rows: yearLevelInfo } = await client.query(
+            `SELECT DISTINCT yr_lvl FROM renewal_scholar WHERE school_year = $1 AND semester = $2 AND campus_name = $3 LIMIT 1`,
+            [school_year, semester, targetCampusName]
+          );
+          console.log("🔍 Year level query result:", yearLevelInfo);
+
+          const year_level =
+            yearLevelInfo.length > 0 ? yearLevelInfo[0].yr_lvl : "Unknown";
+          console.log("🔍 Final year level:", year_level);
+
+          console.log(
+            "📧 About to create notification with message:",
+            `DO and Registrar have completed validation for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester, Year Level ${year_level}, ${branch.campus_name}. Records are ready for HR review.`
+          );
+
+          await createNotification(
+            {
+              type: "SCHOLARSHIP_RENEWAL",
+              title: "Branch Validation Complete",
+              message: `DO and Registrar have completed validation for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester, Year Level ${year_level}, ${branch.campus_name}. Records are ready for HR review.`,
+              actorId: triggeredBy,
+              recipients: [{ approvers: { user_id: hrUsers[0].admin_id } }],
+            },
+            io
+          );
+
+          console.log("✅ Notification created successfully");
+
+          try {
+            await sendEmail(
+              hrUsers[0].admin_email,
+              "Branch Validation Complete",
+              `${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester, Year Level ${year_level}, ${branch.campus_name} is All validated and ready for review.`
+            );
+          } catch (emailError) {
+            console.error("❌ Email sending failed:", emailError);
+          }
+
+          if (io) {
+            io.to(`user_${hrUsers[0].admin_id}`).emit("renewal_updated", {
+              renewalIds: [],
+              totalUpdated: 0,
+              triggeredBy: triggeredBy,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        } else {
+          console.log("❌ No HR user found to notify");
+        }
+      } else {
+        console.log(
+          "⏳ Not all roles have completed validation for this branch yet"
+        );
+      }
+    } else {
+      console.log("⏳ Branch is not fully validated yet");
+    }
+  } catch (error) {
+    console.error("❌ Error checking validation completion:", error);
+  }
+};
+
+// Helper function to notify about renewal initialization
+const notifyRenewalInitialization = async (
+  client,
+  io,
+  school_year,
+  semester,
+  user_id
+) => {
+  try {
+    console.log("📢 Notifying about renewal initialization...");
+    console.log("🔌 Socket.io available:", io ? "Yes" : "No");
+
+    // Get the user who initialized the renewal
+    const { rows: initiator } = await client.query(
+      `SELECT admin_name FROM administration_adminaccounts WHERE admin_id = $1`,
+      [user_id]
+    );
+    const initiatorName = initiator.length > 0 ? initiator[0].admin_name : "HR";
+
+    // Get specific HR user (User 7)
+    const { rows: hrUsers } = await client.query(
+      `SELECT admin_id, admin_name, admin_email FROM administration_adminaccounts WHERE admin_id = 7`
+    );
+
+    if (hrUsers.length > 0) {
+      const hrUser = hrUsers[0];
+
+      // Notify HR (only if they're not the one who initialized)
+      if (hrUser.admin_id !== user_id) {
+        await createNotification(
+          {
+            type: "SCHOLARSHIP_RENEWAL",
+            title: "Renewal Initialized",
+            message: `${initiatorName} has initialized the renewal process for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester.`,
+            actorId: user_id,
+            recipients: [{ approvers: { user_id: hrUser.admin_id } }],
+          },
+          io
+        );
+
+        // Send email to HR
+        try {
+          await sendEmail(
+            hrUser.admin_email,
+            "Renewal Process Initialized",
+            `${initiatorName} has initialized the renewal process for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester.`
+          );
+        } catch (emailError) {
+          console.error("❌ Email sending failed:", emailError);
+        }
+      }
+    }
+
+    // Get specific DO user (User 23)
+    const { rows: doUsers } = await client.query(
+      `SELECT admin_id, admin_name, admin_email FROM administration_adminaccounts WHERE admin_id = 23`
+    );
+
+    if (doUsers.length > 0) {
+      const doUser = doUsers[0];
+      await createNotification(
+        {
+          type: "SCHOLARSHIP_RENEWAL",
+          title: "New Renewal Process",
+          message: `${initiatorName} has initialized a new renewal process for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester.`,
+          actorId: user_id,
+          recipients: [{ approvers: { user_id: doUser.admin_id } }],
+        },
+        io
+      );
+    }
+
+    // Get specific Registrar user (User 21)
+    const { rows: registrarUsers } = await client.query(
+      `SELECT admin_id, admin_name, admin_email FROM administration_adminaccounts WHERE admin_id = 21`
+    );
+
+    if (registrarUsers.length > 0) {
+      const registrarUser = registrarUsers[0];
+      await createNotification(
+        {
+          type: "SCHOLARSHIP_RENEWAL",
+          title: "New Renewal Process",
+          message: `${initiatorName} has initialized a new renewal process for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester.`,
+          actorId: user_id,
+          recipients: [{ approvers: { user_id: registrarUser.admin_id } }],
+        },
+        io
+      );
+    }
+
+    console.log("✅ Initialization notifications sent successfully");
+  } catch (error) {
+    console.error("❌ Error sending initialization notifications:", error);
+  }
+};
+
+// Get all renewal students with branch information
+const checkAllRenewalStudents = async (req, res) => {
+  try {
+    const { school_year, semester } = req.query;
+
+    if (!school_year || !semester) {
+      return res
+        .status(400)
+        .json({ message: "School year and semester are required" });
+    }
+
+    const { rows } = await client.query(
+      `
+      SELECT 
+        r.renewal_id,
+        r.student_id,
+        r.campus_name,
+        r.campus_code,
+        rv.scholarship_status,
+        CASE 
+          WHEN m.scholarship_status = 'Active' THEN 'Active'
+          ELSE 'Inactive'
+        END as student_status
+      FROM renewal_scholar r
+      LEFT JOIN renewal_validation rv ON r.renewal_id = rv.renewal_id
+      LEFT JOIN masterlist m ON r.student_id = m.student_id
+      WHERE r.school_year = $1 AND r.semester = $2
+      ORDER BY r.campus_name, r.student_id
+      `,
+      [school_year, semester]
+    );
+
+    res.status(200).json({
+      message: "Renewal students retrieved successfully",
+      data: rows,
+      totalCount: rows.length,
+    });
+  } catch (error) {
+    console.error("Error fetching renewal students:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 //Delete scholar renewal
 
 module.exports = {
@@ -1358,4 +1866,5 @@ module.exports = {
   updateScholarRenewalV2,
   getInitialRenewalInfo,
   getRenewalAuditLog,
+  checkAllRenewalStudents,
 };
