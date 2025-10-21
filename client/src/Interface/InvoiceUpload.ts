@@ -1,4 +1,4 @@
-interface StudentFile {
+export interface StudentFile {
   file_id: number;
   file_name: string;
   file_type: string;
