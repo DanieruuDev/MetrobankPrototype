@@ -12,20 +12,18 @@ const { sendEmail } = require("../utils/emailing.js");
 
 //Upload new renewal
 const uploadScholarRenewals = async (req, res) => {
-  const { school_year, year_level, semester, user_id } = req.body;
+  const { school_year, semester, user_id, renewal_date } = req.body;
 
-  if (!school_year || !year_level || !semester) {
+  if (!school_year || !semester) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   let previousSemester = semester === 1 ? 2 : 1;
-  let previousYearLevel = year_level;
   let previousSY = school_year;
 
   if (semester === 1) {
     const [startYear, endYear] = school_year.split("-").map(Number);
     previousSY = `${startYear - 1}-${endYear - 1}`;
-    previousYearLevel = year_level - 1;
   }
 
   let previousSchoolYear = previousSY.replace("-", "");
@@ -34,10 +32,8 @@ const uploadScholarRenewals = async (req, res) => {
   let currentSchoolYear = school_year.replace("-", "");
   currentSchoolYear = parseInt(currentSchoolYear, 10);
 
-  if (previousYearLevel < 1 || previousSemester < 1) {
-    return res
-      .status(400)
-      .json({ message: "Invalid previous year level or semester." });
+  if (previousSemester < 1) {
+    return res.status(400).json({ message: "Invalid previous semester." });
   }
 
   const client = await pool.connect();
@@ -48,19 +44,14 @@ const uploadScholarRenewals = async (req, res) => {
       "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
       [currentSchoolYear]
     );
-    const prevSY = await client.query(
-      "SELECT sy_code FROM maintenance_sy WHERE sy_code = $1",
-      [previousSchoolYear]
-    );
 
-    const result = await startProcess(currentSY.rows[0].sy_code, semester);
-
-    if (result.success === false) {
-      return res.status(400).json({ message: "Starting process failed" });
-    }
     const studentsResult = await client.query(
-      "SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus FROM masterlist WHERE yr_lvl_code = $1 AND semester_code =$2 AND school_year_code = $3 AND scholarship_status != 'Delisted'",
-      [previousYearLevel, previousSemester, previousSchoolYear]
+      `SELECT student_id, scholar_name, yr_lvl_code, school_year_code, semester_code, batch_code, course, campus
+   FROM masterlist
+   WHERE semester_code = $1
+   AND school_year_code = $2
+   AND scholarship_status != 'Delisted'`,
+      [previousSemester, previousSchoolYear]
     );
 
     if (studentsResult.rows.length === 0) {
@@ -71,11 +62,10 @@ const uploadScholarRenewals = async (req, res) => {
     }
 
     const existingRenewalsQuery = `
-    SELECT student_id FROM renewal_scholar
-    WHERE yr_lvl = $1 AND semester = $2 AND school_year = $3
-  `;
+  SELECT student_id FROM renewal_scholar
+  WHERE semester = $1 AND school_year = $2
+`;
     const existingRenewalsResult = await client.query(existingRenewalsQuery, [
-      year_level,
       semester,
       currentSY.rows[0].sy_code,
     ]);
@@ -94,56 +84,76 @@ const uploadScholarRenewals = async (req, res) => {
           "Error: All students for this year level, school year, and semester are already generated. No duplication allowed.",
       });
     }
+
+    // ✅ Adjust year level progression logic
+    const adjustedStudents = newStudents.map((student) => {
+      let nextYearLevel = student.yr_lvl_code;
+
+      // if we're initializing for semester 1, year level increases by 1
+      if (semester === 1) {
+        nextYearLevel = student.yr_lvl_code + 1;
+      }
+
+      return {
+        ...student,
+        next_yr_lvl_code: nextYearLevel, // store the adjusted level for insertion
+      };
+    });
+
     const insertRenewalQuery = `
   INSERT INTO renewal_scholar (
     student_id,
     batch_id,
     campus_name,
     campus_code,
-    renewal_yr_lvl_basis,
+    yr_lvl,                      -- ✅ next year level (adjusted if semester=1)
+    renewal_yr_lvl_basis,        -- ✅ always previous (original) level
     renewal_sem_basis,
     renewal_school_year_basis,
-    yr_lvl,
     semester,
     school_year,
-    initialized_by
+    initialized_by,
+    renewal_date
   )
   SELECT
     s.student_id,
     s.batch_code,
     s.campus,
     m.campus_id,
-    s.yr_lvl_code,
+    s.next_yr_lvl_code,          -- ✅ adjusted next level
+    s.yr_lvl_code,               -- ✅ original level (now available)
     s.semester_code,
     s.school_year_code,
-    $1::int,  -- year_level
-    $2::int,  -- semester
-    $3::int,  -- currentSY
-    $4::int   -- initialized_by
+    $1::int,
+    $2::int,
+    $3::int,
+    $4::timestamptz
   FROM (
     SELECT
       unnest($5::int[]) AS student_id,
       unnest($6::text[]) AS campus,
-      unnest($7::int[]) AS yr_lvl_code,
-      unnest($8::int[]) AS semester_code,
-      unnest($9::int[]) AS school_year_code,
-      unnest($10::int[]) AS batch_code
+      unnest($7::int[]) AS next_yr_lvl_code,  -- ✅ $7: adjusted next level
+      unnest($8::int[]) AS yr_lvl_code,       -- ✅ NEW: $8: original level
+      unnest($9::int[]) AS semester_code,
+      unnest($10::int[]) AS school_year_code,
+      unnest($11::int[]) AS batch_code
   ) s
   JOIN maintenance_campus m ON m.campus_name = s.campus
   RETURNING renewal_id, campus_code, campus_name
 `;
 
     const values = [
-      year_level,
       semester,
       currentSY.rows[0].sy_code,
-      user_id, // <-- pass initialized_by here
-      newStudents.map((s) => s.student_id),
-      newStudents.map((s) => s.campus),
-      newStudents.map((s) => s.yr_lvl_code),
-      newStudents.map((s) => s.semester_code),
-      newStudents.map((s) => s.school_year_code),
-      newStudents.map((s) => s.batch_code),
+      user_id,
+      renewal_date,
+      adjustedStudents.map((s) => s.student_id),
+      adjustedStudents.map((s) => s.campus),
+      adjustedStudents.map((s) => s.next_yr_lvl_code), // ✅ $7: use adjusted next level
+      adjustedStudents.map((s) => s.yr_lvl_code), // ✅ $8: original level
+      adjustedStudents.map((s) => s.semester_code),
+      adjustedStudents.map((s) => s.school_year_code),
+      adjustedStudents.map((s) => s.batch_code),
     ];
 
     const renewalResult = await client.query(insertRenewalQuery, values);
@@ -254,6 +264,14 @@ const uploadScholarRenewals = async (req, res) => {
         timestamp: new Date().toISOString(),
       });
       console.log("📡 Real-time update sent to Registrar and DO");
+    }
+    const result = await startProcess(
+      client,
+      currentSY.rows[0].sy_code,
+      semester
+    );
+    if (result.success === false) {
+      return res.status(400).json({ message: "Starting process failed" });
     }
 
     await client.query("COMMIT");
@@ -1169,7 +1187,7 @@ const getExcelRenewalReport = async (req, res) => {
 };
 
 const getInitialRenewalInfo = async (req, res) => {
-  const { school_year, semester, branch } = req.query; // ✅ added optional branch
+  const { school_year, semester, branch } = req.query; // ✅ optional branch filter
 
   if (!school_year || !semester) {
     return res
@@ -1189,7 +1207,8 @@ const getInitialRenewalInfo = async (req, res) => {
         rs.school_year,
         sy2.school_year AS school_year_text,
         rs.semester,
-        sem2.semester AS semester_text
+        sem2.semester AS semester_text,
+        MAX(rs.renewal_date) AS renewal_date  -- ✅ added renewal_date (use MAX for grouped result)
       FROM renewal_scholar rs
       LEFT JOIN maintenance_sy sy 
         ON rs.renewal_school_year_basis = sy.sy_code
@@ -1227,6 +1246,7 @@ const getInitialRenewalInfo = async (req, res) => {
           school_year_text: row.school_year_text,
           semester: row.semester,
           semester_text: row.semester_text,
+          renewal_date: row.renewal_date, // ✅ added to response
         },
       });
     } else {
