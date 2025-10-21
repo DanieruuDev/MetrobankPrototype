@@ -218,7 +218,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             }));
           }}
         />
-        ;
+
         <div
           {...getRootProps()}
           className={`w-full px-4 sm:px-6 py-6 sm:py-10 border-2 border-dashed border-gray-300 rounded-lg flex justify-center items-center bg-gray-50 hover:bg-gray-100 cursor-pointer`}

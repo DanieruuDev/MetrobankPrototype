@@ -10,6 +10,7 @@ interface SearchWithDropdownFilterProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
+  maxLength?: number;
   filters: {
     [key: string]: {
       value: string;
@@ -25,6 +26,7 @@ const SearchWithDropdownFilter: React.FC<SearchWithDropdownFilterProps> = ({
   searchValue,
   onSearchChange,
   searchPlaceholder = "Search by name or student ID...",
+  maxLength,
   filters,
   className = "",
 }) => {
@@ -54,6 +56,7 @@ const SearchWithDropdownFilter: React.FC<SearchWithDropdownFilterProps> = ({
             className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm bg-white"
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
+            maxLength={maxLength}
           />
         </div>
 

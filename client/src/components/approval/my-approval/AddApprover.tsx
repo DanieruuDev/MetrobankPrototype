@@ -583,6 +583,7 @@ function AddApprover({
                       onChange={(e) =>
                         updateApprover(approver.id, "role", e.target.value)
                       }
+                      maxLength={55}
                       className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                         hasValidRole
                           ? "border-green-300 bg-green-50"
@@ -626,6 +627,7 @@ function AddApprover({
                             }));
                           }, 200);
                         }}
+                        maxLength={255}
                         className={`border rounded-md text-[15px] px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                           hasValidEmail && !isDuplicate
                             ? "border-green-300 bg-green-50"

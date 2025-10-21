@@ -145,6 +145,7 @@ const RenewalFilterControls: React.FC<RenewalFilterControlsProps> = ({
               className="w-full bg-transparent outline-none text-slate-700 placeholder-slate-400 text-sm min-w-0"
               value={searchQuery}
               onChange={handleSearch} // ✅ Uses the filter logic
+              maxLength={100}
             />
           </div>
         </div>
