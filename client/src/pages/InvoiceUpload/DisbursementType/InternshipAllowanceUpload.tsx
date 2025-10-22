@@ -411,7 +411,7 @@ function InternshipAllowanceUpload({
             <div className="p-4 space-y-3">
               {records
                 .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                .map((r, i) => (
+                .map((r) => (
                   <div
                     key={r.disb_detail_id}
                     className="border rounded-lg p-4 bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all duration-200"
@@ -532,11 +532,11 @@ function InternshipAllowanceUpload({
                 <tbody className="text-gray-700">
                   {records
                     .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                    .map((r, i) => (
+                    .map((r, index) => (
                       <tr
                         key={r.disb_detail_id}
                         className={`${
-                          i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
                         } hover:bg-blue-50 transition-colors duration-200`}
                       >
                         <td className="px-4 py-3">
@@ -611,11 +611,11 @@ function InternshipAllowanceUpload({
                 <tbody className="text-gray-700 text-xs sm:text-sm">
                   {records
                     .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                    .map((r, i) => (
+                    .map((r, index) => (
                       <tr
                         key={r.disb_detail_id}
                         className={`${
-                          i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
                         } hover:bg-blue-50 transition-colors duration-200`}
                       >
                         <td className="px-6 py-4 font-mono">{r.student_id}</td>
@@ -869,9 +869,9 @@ function InternshipAllowanceUpload({
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-green-100">
-                            {matchedDataFiltered.map((data, i) => (
+                            {matchedDataFiltered.map((data, index) => (
                               <tr
-                                key={i}
+                                key={index}
                                 className="hover:bg-green-50 transition-colors duration-200"
                               >
                                 <td className="px-6 py-4 text-sm text-gray-900">
@@ -919,9 +919,9 @@ function InternshipAllowanceUpload({
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-orange-100">
-                            {unmatchedData.map((data, i) => (
+                            {unmatchedData.map((data, index) => (
                               <tr
-                                key={i}
+                                key={index}
                                 className="hover:bg-orange-50 transition-colors duration-200"
                               >
                                 <td className="px-6 py-4 text-sm text-gray-900">
