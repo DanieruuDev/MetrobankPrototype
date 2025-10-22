@@ -1,5 +1,4 @@
 import { Plus, Search } from "lucide-react";
-import ExcelDisbursementDownload from "../../shared/ExcelDisbursementListDownload";
 
 interface MyApprovalControlProps {
   searchQuery: string;
@@ -28,13 +27,7 @@ export default function MyApprovalControl({
         />
         <Search className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 absolute left-2 sm:left-3 top-2 sm:top-2.5 pointer-events-none" />
       </div>
-      <div className="hidden sm:block">
-        <ExcelDisbursementDownload />
-      </div>
-      {/* Mobile Download Template Icon */}
-      <div className="sm:hidden">
-        <ExcelDisbursementDownload />
-      </div>
+
       {/* Create Approval Button */}
       <button
         onClick={() => setIsModal(!isModal)}

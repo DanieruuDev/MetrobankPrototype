@@ -6,6 +6,9 @@ import { Student } from "../../../Interface/InvoiceUpload";
 import { useAuth } from "../../../context/AuthContext";
 import { StudentFile } from "../../../Interface/InvoiceUpload";
 import axios from "axios";
+import { useProcess } from "../../../context/ProcessContext";
+import { UploadStatusBE } from "./TuitionInvoiceUpload";
+import { toast } from "react-toastify";
 
 interface AcademicAwardUploadProps {
   students: Student[];
@@ -40,6 +43,13 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     id: number | null;
     name: string;
   }>({ id: null, name: "" });
+  const { processInfo, getProcessInfo } = useProcess();
+  const [uploadStatusBE, setIsUploadStatusBE] = useState<UploadStatusBE | null>(
+    null
+  );
+  const [uploadStatusHR, setIsUploadStatusHR] = useState<
+    UploadStatusBE[] | null
+  >([]);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -114,6 +124,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
 
     closeUploadModal();
   };
+
   const getHonorFromAmount = (amount: number | null | undefined): string => {
     if (!amount) return "";
     if (amount === 10000) return "Cum Laude";
@@ -210,6 +221,114 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     }
   };
 
+  const handleComplete = async () => {
+    const program_source = "STI";
+    const process_id = processInfo.process_id;
+    const branch_name = auth.info?.branch?.branch_name;
+    const disbursement_type_id = 5;
+
+    // 🔹 Validate inputs before sending
+    if (!program_source || !process_id || !branch_name) {
+      console.error("❌ Missing required data:", {
+        program_source,
+        process_id,
+        branch_name,
+      });
+      toast.error("Missing required information to complete upload status.", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    try {
+      const payload = {
+        process_id,
+        program_source,
+        branch_name,
+        disbursement_type_id,
+      };
+
+      console.log("📤 Sending completion payload:", payload);
+
+      const res = await axios.put(
+        `${VITE_BACKEND_URL}api/status/completed`,
+        payload
+      );
+
+      if (res.status === 200) {
+        toast.success("✅ Upload status successfully marked as completed!", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+        fetchStudents();
+        window.location.reload();
+        console.log("✅ Backend response:", res.data);
+      } else {
+        toast.warn("⚠️ Unexpected response from server.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error completing upload status:", error);
+      toast.error(`Failed to mark upload as completed: ${error}`, {
+        position: "top-center",
+        autoClose: 4000,
+      });
+    }
+  };
+
+  const fetchUploadStatus = async () => {
+    const program_source = "STI";
+    const process_id = processInfo.process_id;
+    const branch_name =
+      auth.info?.branch?.branch_name === null
+        ? "All"
+        : auth.info?.branch?.branch_name;
+    const disbursement_type_id = 5;
+
+    if (!process_id) {
+      return;
+    }
+    try {
+      const response = await axios.get(`${VITE_BACKEND_URL}api/status/list`, {
+        params: {
+          process_id,
+          program_source,
+          branch_name,
+          disbursement_type_id,
+        },
+      });
+
+      if (response.status === 200) {
+        console.log("fetch", response.data.data);
+        setIsUploadStatusHR(response.data.data);
+        setIsUploadStatusBE(response.data.data[0]);
+      } else {
+        toast.warn("⚠️ Unexpected response from server.");
+      }
+    } catch (error) {
+      console.error("❌ Error fetching upload status:", error);
+      toast.error(`Failed to fetch upload status: ${error}`, {
+        position: "top-center",
+        autoClose: 4000,
+      });
+    }
+  };
+
+  const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
+
+  useEffect(() => {
+    fetchUploadStatus();
+  }, [processInfo, auth]);
+
+  useEffect(() => {
+    if (sySem) {
+      getProcessInfo(sySem);
+    }
+  }, [sySem]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -246,6 +365,270 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
 
   return (
     <div className="px-4 sm:px-6 space-y-6">
+      {/* Upload Button for Role 3 */}
+      {role === 3 && (
+        <div className="mb-8">
+          {processInfo.current_stage === "Renewal" ? (
+            // 🚨 URGENT - Waiting for HR to finalize renewal
+            <div className="relative p-6 bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-red-500 shadow-lg rounded-lg">
+              {/* Urgent Badge */}
+              <div className="absolute -top-3 -right-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold tracking-wide">
+                ⏰ PENDING
+              </div>
+
+              <div className="flex items-start gap-4">
+                {/* Alert Icon */}
+                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mt-1">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-900 text-sm uppercase tracking-wide mb-2">
+                    HR Approval Pending
+                  </h3>
+                  <p className="text-sm text-red-800 leading-relaxed">
+                    <strong>Action Required:</strong> Waiting for HR to finalize
+                    the process. You can upload the invoice{" "}
+                    <strong>immediately after approval</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : uploadStatusBE?.is_completed === true ? (
+            // 🟩 COMPLETED - Process now in HR's hands
+            <div className="relative p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 border-l-4 border-emerald-600 shadow-md rounded-lg">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mt-1">
+                  <span className="text-2xl">🤝</span>
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="font-bold text-emerald-900 text-lg mb-2 leading-tight">
+                    Upload Completed
+                  </h3>
+                  <p className="text-sm text-emerald-800 leading-relaxed">
+                    🎯 All awards have been finalized and submitted
+                    successfully. The process is now{" "}
+                    <strong>ready for Approvals</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // ✅ READY - Actionable Buttons and Completion Message
+            <div className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl shadow-sm relative">
+              {/* Success Badge */}
+              <div className="absolute -top-3 -right-3 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-bold tracking-wide flex items-center gap-2">
+                ✅ READY TO UPLOAD
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mt-1">
+                  <span className="text-2xl">🎉</span>
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900 text-lg mb-3 leading-tight">
+                    Process Finalized!
+                  </h3>
+                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                    ⏰ <strong>Upload now</strong> to complete scholar award
+                    processing
+                    {filteredStudents && (
+                      <span className="ml-2 text-red-600">
+                        Remaining:{" "}
+                        <span className="text-red-700 font-semibold">
+                          {
+                            filteredStudents.filter(
+                              (s) =>
+                                !s.disbursement_files ||
+                                s.disbursement_files.length === 0
+                            ).length
+                          }
+                        </span>
+                      </span>
+                    )}
+                  </p>
+
+                  {/* Buttons Section */}
+                  <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                    {/* Finalize Button */}
+                    {filteredStudents?.filter(
+                      (s) =>
+                        !s.disbursement_files ||
+                        s.disbursement_files.length === 0
+                    ).length === 0 &&
+                      uploadStatusBE &&
+                      !uploadStatusBE.is_completed && (
+                        <button
+                          className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-emerald-700 animate-pulse"
+                          aria-label="Finalize award processing"
+                          onClick={handleComplete}
+                        >
+                          <svg
+                            className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span className="tracking-wide">Finalize</span>
+                        </button>
+                      )}
+                  </div>
+
+                  {/* Completion Message */}
+                  {filteredStudents?.filter(
+                    (s) =>
+                      !s.disbursement_files || s.disbursement_files.length === 0
+                  ).length === 0 && (
+                    <div
+                      className="p-4 bg-emerald-100 rounded-xl flex items-center gap-3 text-sm text-emerald-800 font-semibold border border-emerald-300 animate-pulse"
+                      role="alert"
+                    >
+                      <svg
+                        className="w-6 h-6 text-emerald-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>All awards uploaded successfully!</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* 🧭 HR Dashboard: Upload Progress Across Branches */}
+      {role === 7 && uploadStatusHR && uploadStatusHR.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            📊 Upload Progress by Branch
+          </h2>
+
+          {/* Check completion status */}
+          {uploadStatusHR.every((s) => s.is_completed) ? (
+            // ✅ All Completed — Ready for Approval
+            <div className="p-4 mb-6 rounded-lg border border-emerald-300 bg-emerald-50 shadow-sm flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 text-xl">
+                ✅
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-emerald-900">
+                  All Branches Completed
+                </h3>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  🎉 All branches have successfully finalized their uploads. The
+                  disbursement process is now{" "}
+                  <strong>ready for Approvals</strong>.
+                </p>
+              </div>
+            </div>
+          ) : (
+            // 🧭 Not all done — show partial progress
+            <div className="flex items-center gap-2 text-sm text-gray-700 mb-4">
+              <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                ✅ {uploadStatusHR.filter((s) => s.is_completed).length}
+              </span>
+              <span>
+                of {uploadStatusHR.length} branches have completed uploads.
+              </span>
+            </div>
+          )}
+
+          {/* Inline Grid Layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {uploadStatusHR.map((status, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-lg shadow-sm border transition-all hover:shadow-md flex flex-col justify-between ${
+                  status.is_completed
+                    ? "border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/70"
+                    : "border-red-200 bg-red-50/70 hover:bg-red-100/70"
+                }`}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
+                        status.is_completed
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {status.is_completed ? "✔" : "⚠"}
+                    </div>
+                    <h3
+                      className={`font-semibold text-sm truncate ${
+                        status.is_completed
+                          ? "text-emerald-800"
+                          : "text-red-800"
+                      }`}
+                      title={status.branch_name}
+                    >
+                      {status.branch_name}
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`px-2 py-0.5 text-[11px] font-semibold rounded-full ${
+                      status.is_completed
+                        ? "bg-emerald-600 text-white"
+                        : "bg-red-600 text-white"
+                    }`}
+                  >
+                    {status.is_completed ? "Completed" : "Pending"}
+                  </span>
+                </div>
+
+                {/* Description */}
+                <p
+                  className={`text-xs mb-1 leading-snug ${
+                    status.is_completed ? "text-emerald-700" : "text-red-700"
+                  }`}
+                >
+                  {status.is_completed
+                    ? "Finalized. Ready for Approvals."
+                    : "Awaiting branch submission."}
+                </p>
+
+                {/* Timestamps */}
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Last updated:
+                  {status.updated_at
+                    ? new Date(status.updated_at).toLocaleString("en-PH", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })
+                    : "—"}
+                </p>
+
+                {status.is_completed && status.completed_at && (
+                  <p className="text-[11px] text-gray-500">
+                    Completed:
+                    {new Date(status.completed_at).toLocaleString("en-PH", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* 🏅 Criteria */}
       <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl shadow-sm p-5 relative">
         <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -284,7 +667,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
           Awards are granted once after graduation based on semester GPA.
         </p>
 
-        {role === 3 && (
+        {role === 3 && !uploadStatusBE?.is_completed && (
           <div className="absolute top-5 right-5 flex gap-2">
             <button
               onClick={() => setShowModal(true)}
@@ -301,7 +684,6 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
           </div>
         )}
       </div>
-
       {/* 📋 Table */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-lg overflow-hidden relative z-0">
         <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 flex justify-between">
@@ -326,7 +708,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
                 <th className="px-4 py-3 text-right">Amount</th>
                 <th className="px-4 py-3 text-left">Files</th>
                 <th className="px-4 py-3 text-left">Award</th>
-                {role !== 7 ? (
+                {role !== 7 && !uploadStatusBE?.is_completed ? (
                   <th className="px-4 py-3 text-center">Action</th>
                 ) : (
                   <th></th>
@@ -373,8 +755,8 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
                     </td>
                     {/* Award Dropdown */}
                     <td className="px-4 py-3">
-                      {role === 7 ? (
-                        // 🔒 HR can only view honor (no dropdown)
+                      {role === 7 || uploadStatusBE?.is_completed ? (
+                        // 🔒 HR or completed state can only view honor (no dropdown)
                         <span className="text-gray-700">
                           {getHonorFromAmount(Number(s.disbursement_amount)) ||
                             "—"}
@@ -407,7 +789,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
 
                     {/* Action Buttons */}
                     <td className="px-4 py-3 text-center">
-                      {role !== 7 && (
+                      {role !== 7 && !uploadStatusBE?.is_completed && (
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() =>
@@ -444,74 +826,76 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
       </div>
 
       {/* Upload Modal */}
-      {showUploadModal && selectedScholar.id !== null && (
-        <div
-          ref={modalRef}
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-        >
-          <div className="bg-white p-6 rounded-lg shadow-xl w-80 relative">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                <Paperclip className="w-4 h-4" /> Upload File
-              </h3>
-              <button
-                onClick={closeUploadModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {showUploadModal &&
+        selectedScholar.id !== null &&
+        !uploadStatusBE?.is_completed && (
+          <div
+            ref={modalRef}
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          >
+            <div className="bg-white p-6 rounded-lg shadow-xl w-80 relative">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1">
+                  <Paperclip className="w-4 h-4" /> Upload File
+                </h3>
+                <button
+                  onClick={closeUploadModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-            <p className="text-xs text-gray-600 mb-2 truncate">
-              {selectedScholar.name}
-            </p>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.jpg,.png"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file && selectedScholar.id !== null) {
-                  handleFileSelect(selectedScholar.id, file);
-                }
-              }}
-              className="block w-full text-xs text-gray-600 file:px-3 file:py-1.5 file:border file:border-gray-300 file:rounded-md file:bg-gray-100 hover:file:bg-gray-200"
-            />
-
-            {awardData[safeKey(selectedScholar.id)]?.file && (
-              <p className="text-xs text-green-700 mt-2 truncate">
-                ✅ {awardData[safeKey(selectedScholar.id)]?.file?.name}
+              <p className="text-xs text-gray-600 mb-2 truncate">
+                {selectedScholar.name}
               </p>
-            )}
 
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={closeUploadModal}
-                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const file = awardData[safeKey(selectedScholar.id)]?.file;
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.png"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
                   if (file && selectedScholar.id !== null) {
-                    handleMockUploadToStudent(selectedScholar.id, file);
+                    handleFileSelect(selectedScholar.id, file);
                   }
                 }}
-                disabled={!awardData[safeKey(selectedScholar.id)]?.file}
-                className={`px-3 py-1 text-xs rounded-md text-white ${
-                  awardData[safeKey(selectedScholar.id)]?.file
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-400 cursor-not-allowed"
-                }`}
-              >
-                Upload
-              </button>
+                className="block w-full text-xs text-gray-600 file:px-3 file:py-1.5 file:border file:border-gray-300 file:rounded-md file:bg-gray-100 hover:file:bg-gray-200"
+              />
+
+              {awardData[safeKey(selectedScholar.id)]?.file && (
+                <p className="text-xs text-green-700 mt-2 truncate">
+                  ✅ {awardData[safeKey(selectedScholar.id)]?.file?.name}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={closeUploadModal}
+                  className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const file = awardData[safeKey(selectedScholar.id)]?.file;
+                    if (file && selectedScholar.id !== null) {
+                      handleMockUploadToStudent(selectedScholar.id, file);
+                    }
+                  }}
+                  disabled={!awardData[safeKey(selectedScholar.id)]?.file}
+                  className={`px-3 py-1 text-xs rounded-md text-white ${
+                    awardData[safeKey(selectedScholar.id)]?.file
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  Upload
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Add Eligible Scholar Modal */}
       <AddEligibleScholarModal

@@ -118,82 +118,8 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             />
           </div>
         </div>
-        {/* <div className="grid grid-cols-2 xs:grid-cols-1 gap-2 sm:gap-3">
-          <div className="flex gap-2 sm:gap-3">
-            {sySelectFields.map(({ name, label, options }) => (
-              <div key={name} className="relative flex-1">
-                <label
-                  htmlFor={name}
-                  className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  {label}
-                </label>
-                <select
-                  name={name}
-                  value={formData[name] as string}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      [name]: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden text-xs sm:text-sm"
-                  required
-                >
-                  <option value="" disabled>
-                    Select {label}
-                  </option>
-                  {Object.entries(options).map(([key, value]) => (
-                    <option key={key} value={key}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-2 sm:right-3 top-5 sm:top-6 flex items-center pointer-events-none text-gray-700 text-xs sm:text-sm">
-                  ⏷
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 sm:gap-3">
-            {semSelectFields.map(({ name, label, options }) => (
-              <div key={name} className="relative flex-1">
-                <label
-                  htmlFor={name}
-                  className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  {label}
-                </label>
-                <select
-                  name={name}
-                  value={formData[name] as string}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      [name]: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden text-xs sm:text-sm"
-                  required
-                >
-                  <option value="" disabled>
-                    Select {label}
-                  </option>
-                  {Object.entries(options).map(([key, value]) => (
-                    <option key={key} value={key}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-2 sm:right-3 top-5 sm:top-6 flex items-center pointer-events-none text-gray-700 text-xs sm:text-sm">
-                  ⏷
-                </div>
-              </div>
-            ))}
-          </div>
-        </div> */}
+        <div>Eligible List</div>
+
         <SySemesterValidatedDropdown
           value={validatedSY}
           onChange={(selectedValue) => {

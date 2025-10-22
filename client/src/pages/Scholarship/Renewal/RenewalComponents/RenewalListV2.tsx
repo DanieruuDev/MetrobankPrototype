@@ -14,7 +14,7 @@ import {
 import RenewalInfoSection from "../../../../components/renewal/RenewalInfoSection";
 import UploadGradesModal from "../../../../components/renewal/UploadGradesModal";
 import {
-  type RenewalRow,
+  // type RenewalRow,
   InitialRenewalInfo,
   type RenewalDetailsClone,
   type RenewalDetails,
@@ -29,7 +29,7 @@ import axios from "axios";
 import { socket } from "../../../../utils/socket";
 import ScholarshipRenewalModal from "../../../../components/renewal/ScholarshipRenewalModal";
 import GenerateReportModal from "../../../../components/renewal/GenerateReport";
-import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
+// import UploadFileRenewalModal from "../../../../components/renewal/UploadFileRenewalModal";
 import ConfirmationDialog from "../../../../components/shared/ConfirmationDialog";
 import { AuthContext } from "../../../../context/AuthContext";
 
@@ -37,14 +37,12 @@ import AuditLog from "./AuditLog";
 import RenewalFilterControls from "../../../../components/renewal/RenewalFilterControls";
 import RenewalTable from "../../../../components/renewal/RenewalTable";
 import GradeModal from "../../../../components/renewal/GradeModal";
+import { useProcess } from "../../../../context/ProcessContext";
 
 interface RenewalListV2Props {
   handleRowClick: (student_id: number, renewal_id: number) => void;
 }
-interface ProcessInfo {
-  process_id: number | null;
-  current_stage: string;
-}
+
 interface ChangedFields {
   grades?: {
     fileURL?: string;
@@ -59,6 +57,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const auth = useContext(AuthContext);
   const userId = auth?.user?.user_id;
   const role_id = auth?.user?.role_id;
+  const branch = auth?.info?.branch;
   const [sySemester, setSySemester] = useState<string>("");
   const [countPassed, setCountPassed] = useState<number>(0);
   const [countDelisted, setCountDelisted] = useState<number>(0);
@@ -67,7 +66,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     []
   );
   const [hasIncomingUpdate, setHasIncomingUpdate] = useState(false);
-
+  const { processInfo, getProcessInfo } = useProcess();
   const [gradeState, setGradeState] = useState<
     ScholarGradeDocument[] | ZipScholarGradeResult | null
   >(null);
@@ -80,10 +79,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
   const [countValidated, setCountValidated] = useState<number>(0);
   const [openUploadGrades, setIsOpenUploadGrades] = useState(false);
-  const [processInfo, setProcessInfo] = useState<ProcessInfo>({
-    process_id: null,
-    current_stage: "",
-  });
+
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [tempRenewalData, setTempRenewalData] = useState<RenewalDetailsClone[]>(
     []
@@ -106,7 +102,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [, setPendingExitEdit] = useState(false);
   const [isRenewalBtnOpen, SetIsRenewalBtnOpen] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  // const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isGnrtRprtOpen, setIsGnrtRprtOpen] = useState(false);
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -136,6 +132,11 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
   >([]);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [isFinalizeConfirmOpen, setIsFinalizeConfirmOpen] = useState(false);
+  const [finalizeActionType, setFinalizeActionType] = useState<
+    "finalize" | "revert" | null
+  >(null);
+  const [finalizeConfirmMessage, setFinalizeConfirmMessage] = useState("");
 
   const itemsPerPage = 10;
 
@@ -198,6 +199,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     });
   };
 
+  console.log(sySemester);
   const hasEdits = tempRenewalData.some((row) =>
     Object.keys(row).some(
       (key) =>
@@ -877,66 +879,66 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     );
   };
 
-  const handleFileChanges = (updatedRows: RenewalRow[]) => {
-    const newData = tempRenewalData.map((row) => {
-      const excelRow = updatedRows.find((r) => r.student_id === row.student_id);
-      if (!excelRow) return row;
+  // const handleFileChanges = (updatedRows: RenewalRow[]) => {
+  //   const newData = tempRenewalData.map((row) => {
+  //     const excelRow = updatedRows.find((r) => r.student_id === row.student_id);
+  //     if (!excelRow) return row;
 
-      const updated: RenewalDetails = { ...row, ...excelRow };
+  //     const updated: RenewalDetails = { ...row, ...excelRow };
 
-      const scholarship_status = computeScholarshipStatus(updated);
+  //     const scholarship_status = computeScholarshipStatus(updated);
 
-      const delisting_root_cause =
-        scholarship_status === "Delisted"
-          ? (() => {
-              const failedFields = Object.keys(validation)
-                .filter((k) => k !== "scholarship_status")
-                .filter((k) => updated[k as keyof RenewalDetails] === "Failed");
-              const mappedFields = failedFields.map(
-                (k) => validation[k as keyof typeof validation]
-              );
-              const result = mappedFields.join(", ");
-              return result;
-            })()
-          : scholarship_status === "Passed"
-          ? null
-          : row.delisting_root_cause;
+  //     const delisting_root_cause =
+  //       scholarship_status === "Delisted"
+  //         ? (() => {
+  //             const failedFields = Object.keys(validation)
+  //               .filter((k) => k !== "scholarship_status")
+  //               .filter((k) => updated[k as keyof RenewalDetails] === "Failed");
+  //             const mappedFields = failedFields.map(
+  //               (k) => validation[k as keyof typeof validation]
+  //             );
+  //             const result = mappedFields.join(", ");
+  //             return result;
+  //           })()
+  //         : scholarship_status === "Passed"
+  //         ? null
+  //         : row.delisting_root_cause;
 
-      const delisted_date =
-        scholarship_status === "Delisted"
-          ? new Date().toISOString()
-          : scholarship_status === "Passed"
-          ? null
-          : row.delisted_date;
+  //     const delisted_date =
+  //       scholarship_status === "Delisted"
+  //         ? new Date().toISOString()
+  //         : scholarship_status === "Passed"
+  //         ? null
+  //         : row.delisted_date;
 
-      const allPassed = Object.keys(validation)
-        .filter((k) => k !== "scholarship_status")
-        .every((k) => updated[k as keyof RenewalDetails] === "Passed");
+  //     const allPassed = Object.keys(validation)
+  //       .filter((k) => k !== "scholarship_status")
+  //       .every((k) => updated[k as keyof RenewalDetails] === "Passed");
 
-      const renewal_date = allPassed ? new Date().toISOString() : null;
+  //     const renewal_date = allPassed ? new Date().toISOString() : null;
 
-      const isEdited = Object.keys(updated).some(
-        (key) =>
-          key !== "original" &&
-          key !== "isEdited" &&
-          updated[key as keyof RenewalDetails] !==
-            row.original[key as keyof RenewalDetails]
-      );
+  //     const isEdited = Object.keys(updated).some(
+  //       (key) =>
+  //         key !== "original" &&
+  //         key !== "isEdited" &&
+  //         updated[key as keyof RenewalDetails] !==
+  //           row.original[key as keyof RenewalDetails]
+  //     );
 
-      return {
-        ...updated,
-        scholarship_status,
-        delisting_root_cause,
-        delisted_date,
-        renewal_date,
-        isEdited,
-        original: row.original,
-      };
-    });
+  //     return {
+  //       ...updated,
+  //       scholarship_status,
+  //       delisting_root_cause,
+  //       delisted_date,
+  //       renewal_date,
+  //       isEdited,
+  //       original: row.original,
+  //     };
+  //   });
 
-    setTempRenewalData(newData);
-    submitSaveChanges(newData);
-  };
+  //   setTempRenewalData(newData);
+  //   submitSaveChanges(newData);
+  // };
 
   const handleConfirmSave = () => {
     submitSaveChanges(tempRenewalData);
@@ -1049,13 +1051,13 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       );
 
       if (res.status === 200) {
-        toast.success("Renewal has been finalized successfully.", {
+        toast.success("Action succeed.", {
           position: getToastPosition(),
           autoClose: 3000,
           toastId: "finalize-success",
         });
         getInitialRenewalInfo(sySemester);
-        getProcessInfo();
+        getProcessInfo(sySemester);
       } else {
         toast.warn("Something went wrong while finalizing renewal.", {
           position: getToastPosition(),
@@ -1074,38 +1076,65 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       setIsLoading(false);
     }
   };
-
-  const getProcessInfo = useCallback(async () => {
-    // Optional: indicate loading state (if you have one)
-    // setIsLoading(true);
-    const [sy, semPart] = sySemester.split("_");
-    const school_year = sy.replace("-", "");
-    try {
-      const result = await axios.get(
-        `${VITE_BACKEND_URL}api/process/${school_year}/${semPart}`
+  const handleFinalizeConfirmation = () => {
+    if (processInfo.current_stage === "Renewal") {
+      // 🔹 Finalization warning
+      setFinalizeActionType("finalize");
+      setFinalizeConfirmMessage(
+        "⚠️ Finalizing the renewal will mark this process as complete. " +
+          "After this action, editing or modifying student records will be forbidden. " +
+          "Are you sure you want to finalize the renewal?"
       );
+    } else {
+      // 🔹 Revert warning
+      setFinalizeActionType("revert");
+      setFinalizeConfirmMessage(
+        "⚠️ Reverting a finalized renewal may cause inconsistencies in data. " +
+          "This action is generally not recommended unless absolutely necessary. " +
+          "Are you sure you want to revert this renewal process?"
+      );
+    }
+    setIsFinalizeConfirmOpen(true);
+  };
 
-      if (!result || !result.data) {
-        toast.warn("No process information found.", {
-          position: getToastPosition(),
-          autoClose: 3000,
-          toastId: "no-process-info",
-        });
-        console.warn("⚠️ Empty response received:", result);
-        return;
-      }
-
-      // 4️⃣ Update state
-      setProcessInfo(result.data.data);
-      console.log("Process info fetched:", result.data.data);
-    } catch (error) {
-      toast.error(`Error fetching process info ${error}`, {
+  const handleStatusUpload = async (action: string) => {
+    console.log("Click");
+    if (!processInfo) {
+      toast.error("No process information found.", {
         position: getToastPosition(),
         autoClose: 3000,
-        toastId: "process-info-error",
+        toastId: "no-process-info",
+      });
+      return;
+    }
+
+    try {
+      if (action === "complete") {
+        const res = await axios.post(
+          `${import.meta.env.VITE_BACKEND_URL}api/status/upload`, // ✅ use your backend route
+          { process_id: processInfo.process_id }
+        );
+        console.log(res.data);
+
+        if (res.status === 200) {
+          toast.success("Upload status successfully created!", {
+            position: getToastPosition(),
+            autoClose: 3000,
+            toastId: "upload-status-success",
+          });
+          console.log("✅ Backend response:", res.data);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error finalizing renewal:", error);
+      toast.error("Failed to initialize process.", {
+        position: getToastPosition(),
+        autoClose: 3000,
+        toastId: "process-error",
       });
     }
-  }, [VITE_BACKEND_URL, sySemester]);
+  };
+
   const handleCheckModal = (type: string) => {
     const validationFields = Object.keys(validation).filter(
       (k) =>
@@ -1295,7 +1324,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
       if (sySemester) {
         getRenewalData(sySemester);
         getInitialRenewalInfo(sySemester);
-        getProcessInfo();
+        getProcessInfo(sySemester);
       }
     });
 
@@ -1359,7 +1388,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     if (sySemester) {
       getRenewalData(sySemester);
       getInitialRenewalInfo(sySemester);
-      getProcessInfo();
+      getProcessInfo(sySemester);
     }
   }, [sySemester, getRenewalData, getInitialRenewalInfo, getProcessInfo]);
 
@@ -1464,7 +1493,8 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
     new Set(renewalData.map((item) => item.year_level))
   ).filter(Boolean);
 
-  console.log(gradeState);
+  console.log(renewalData);
+  console.log(branch);
   return (
     <>
       <div className="px-2 sm:px-4 mt-4 ">
@@ -1509,7 +1539,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
                     onClick={() => {
                       getRenewalData(sySemester);
                       getInitialRenewalInfo(sySemester);
-                      getProcessInfo();
+                      getProcessInfo(sySemester);
                       setHasIncomingUpdate(false);
                     }}
                     className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-all"
@@ -1524,7 +1554,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
             <div className="flex flex-wrap items-center gap-2">
               {!isEdit && role_id === 7 && (
                 <>
-                  {tempRenewalData.length === initialRenewalInfo?.count && (
+                  {countValidated === initialRenewalInfo?.count && (
                     <button
                       className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl cursor-pointer
     ${
@@ -1532,13 +1562,16 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
         : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
     }`}
-                      onClick={() =>
-                        handleFinalizeRenewal(
-                          processInfo.current_stage === "Renewal"
-                            ? "complete"
-                            : "rollback"
-                        )
-                      }
+                      onClick={() => {
+                        if (countValidated !== renewalData.length) {
+                          toast.warn(
+                            "Finalization is forbidden — unvalidated students remain."
+                          );
+                          return;
+                        }
+
+                        handleFinalizeConfirmation(); // 🧠 Show confirmation dialog first
+                      }}
                     >
                       {processInfo.current_stage === "Renewal" ? (
                         <>
@@ -1575,19 +1608,19 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               {/* Individual File Action Buttons */}
               {!isEdit && (
                 <>
-                  <button
+                  {/* <button
                     className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-700 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50"
                     onClick={() => setIsUploadOpen(true)}
                   >
                     <Upload className="w-4 h-4" />
                     <span className="hidden xs:inline">Upload</span>
-                  </button>
-                  <UploadFileRenewalModal
+                  </button> */}
+                  {/* <UploadFileRenewalModal
                     isOpen={isUploadOpen}
                     onClose={() => setIsUploadOpen(false)}
                     renewalData={tempRenewalData}
                     onFileChanges={handleFileChanges}
-                  />
+                  /> */}
 
                   <button
                     className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-slate-700 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium border border-white/50"
@@ -1620,16 +1653,18 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
               )}
 
               {/* Edit Mode Button */}
-              <button
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl cursor-pointer`}
-                onClick={toggleEditMode}
-              >
-                <Pencil className="w-4 h-4" />
-                <span className="hidden xs:inline">
-                  {isEdit ? "Stop Editing" : "Edit Mode"}
-                </span>
-                <span className="xs:hidden">{isEdit ? "Stop" : "Edit"}</span>
-              </button>
+              {processInfo.current_stage === "Renewal" && (
+                <button
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl cursor-pointer`}
+                  onClick={toggleEditMode}
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span className="hidden xs:inline">
+                    {isEdit ? "Stop Editing" : "Edit Mode"}
+                  </span>
+                  <span className="xs:hidden">{isEdit ? "Stop" : "Edit"}</span>
+                </button>
+              )}
 
               {/* Save Changes Button (Edit Mode) */}
               {isEdit && (
@@ -2140,6 +2175,28 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
           </div>
         </div>
       )}
+      <ConfirmationDialog
+        isOpen={isFinalizeConfirmOpen}
+        message={finalizeConfirmMessage}
+        onConfirm={() => {
+          if (finalizeActionType === "finalize") {
+            handleFinalizeRenewal("complete");
+            handleStatusUpload("complete");
+          } else if (finalizeActionType === "revert") {
+            handleFinalizeRenewal("rollback");
+          }
+          setIsFinalizeConfirmOpen(false);
+          setFinalizeActionType(null);
+        }}
+        onCancel={() => {
+          setIsFinalizeConfirmOpen(false);
+          setFinalizeActionType(null);
+        }}
+        confirmText={
+          finalizeActionType === "revert" ? "Yes, Revert" : "Yes, Finalize"
+        }
+        cancelText="Cancel"
+      />
 
       {/* Toast Container for notifications */}
       <ToastContainer
