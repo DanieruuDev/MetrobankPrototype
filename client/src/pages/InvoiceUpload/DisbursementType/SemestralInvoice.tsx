@@ -5,6 +5,8 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import ConfirmationDialog from "../../../components/shared/ConfirmationDialog";
 import { useAuth } from "../../../context/AuthContext";
+import { useProcess } from "../../../context/ProcessContext";
+import { UploadStatusBE } from "./TuitionInvoiceUpload";
 
 interface SemestralUploadProps {
   students: Student[];
@@ -47,7 +49,11 @@ function SemestralInvoice({
   const role = auth?.user?.role_id;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false); // ✅ loading state
-
+  const { processInfo, getProcessInfo } = useProcess();
+  const [uploadStatusBE, setIsUploadStatusBE] = useState<UploadStatusBE | null>(
+    null
+  );
+  const [, setIsUploadStatusHR] = useState<UploadStatusBE[] | null>([]);
   // 🎓 Extract year levels
   const availableYearLevels = Array.from(
     new Set(students.map((s) => s.year_level))
@@ -178,6 +184,110 @@ function SemestralInvoice({
     setIsDialogOpen(true);
   };
 
+  const handleComplete = async () => {
+    const program_source = "METROBANK";
+    const process_id = processInfo.process_id;
+    const branch_name = "-";
+    const disbursement_type_id = 2; // ✅ You mentioned "1" — use as fixed or dynamic as needed
+
+    // 🔹 Validate inputs before sending
+    if (!program_source || !process_id || !branch_name) {
+      console.error("❌ Missing required data:", {
+        program_source,
+        process_id,
+        branch_name,
+      });
+      toast.error("Missing required information to complete upload status.", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    try {
+      const payload = {
+        process_id,
+        program_source,
+        branch_name,
+        disbursement_type_id,
+      };
+
+      console.log("📤 Sending completion payload:", payload);
+
+      const res = await axios.put(
+        `${VITE_BACKEND_URL}api/status/completed`,
+        payload
+      );
+
+      if (res.status === 200) {
+        toast.success("✅ Upload status successfully marked as completed!", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+        fetchStudents();
+        window.location.reload();
+        console.log("✅ Backend response:", res.data);
+      } else {
+        toast.warn("⚠️ Unexpected response from server.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error completing upload status:", error);
+      toast.error(`Failed to mark upload as completed: ${error}`, {
+        position: "top-center",
+        autoClose: 4000,
+      });
+    }
+  };
+  const fetchUploadStatus = async () => {
+    const program_source = "METROBANK";
+    const process_id = processInfo.process_id;
+    const branch_name = "All";
+    const disbursement_type_id = 2;
+
+    if (!process_id) {
+      return;
+    }
+    try {
+      const response = await axios.get(`${VITE_BACKEND_URL}api/status/list`, {
+        params: {
+          process_id,
+          program_source,
+          branch_name,
+          disbursement_type_id,
+        },
+      });
+
+      if (response.status === 200) {
+        console.log("fetch", response.data.data);
+        setIsUploadStatusHR(response.data.data);
+
+        setIsUploadStatusBE(response.data.data[0]);
+      } else {
+        toast.warn("⚠️ Unexpected response from server.");
+      }
+    } catch (error) {
+      console.error("❌ Error fetching upload status:", error);
+      toast.error(`Failed to fetch upload status: ${error}`, {
+        position: "top-center",
+        autoClose: 4000,
+      });
+    }
+  };
+
+  const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
+
+  useEffect(() => {
+    fetchUploadStatus();
+  }, [processInfo, auth]);
+  useEffect(() => {
+    if (sySem) {
+      getProcessInfo(sySem);
+    }
+  }, [sySem]);
+
   if (role !== 7) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-600">
@@ -306,6 +416,46 @@ This will update all scholars under those year levels.`}
       </div>
 
       {/* Table */}
+      {filteredStudents?.filter(
+        (s) => !s.disbursement_amount || Number(s.disbursement_amount) <= 0
+      ).length === 0 &&
+        uploadStatusBE &&
+        (uploadStatusBE.is_completed ? (
+          <div className="flex items-center justify-center w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-sm font-semibold shadow-md border border-blue-700">
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="tracking-wide">✅ Ready for Approval</span>
+          </div>
+        ) : (
+          <button
+            className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-emerald-700 animate-pulse"
+            aria-label="Finalize invoice processing"
+            onClick={handleComplete}
+          >
+            <svg
+              className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="tracking-wide">Finalize</span>
+          </button>
+        ))}
+
       <DisbursementTable
         students={students}
         filteredStudents={filteredStudents.map((s) => {

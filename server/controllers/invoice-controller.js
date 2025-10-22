@@ -331,7 +331,7 @@ const uploadThesisFee = async (req, res) => {
 
 const fetchAcademicAwardEligible = async (req, res) => {
   try {
-    const { school_year, campus_name } = req.query; // e.g. ?school_year=20252026&campus_name=Manila
+    const { school_year, campus_name } = req.query;
 
     if (!school_year) {
       return res
@@ -339,51 +339,52 @@ const fetchAcademicAwardEligible = async (req, res) => {
         .json({ message: "school_year parameter is required" });
     }
 
-    // Base query — no ORDER BY yet
+    // 🧩 Build base query dynamically (no ORDER BY yet)
     let query = `
-  SELECT DISTINCT ON (combined.disbursement_id)
-    renewal_id,
-    student_id,
-    scholar_name,
-    campus,
-    program,
-    year_level,
-    semester,
-    school_year,
-    disbursement_id,
-    disbursement_type_id,
-    disbursement_label,
-    disbursement_status,
-    disbursement_amount,
+      SELECT DISTINCT ON (combined.disbursement_id)
+        renewal_id,
+        student_id,
+        scholar_name,
+        campus,
+        program,
+        year_level,
+        semester,
+        school_year,
+        disbursement_id,
+        disbursement_type_id,
+        disbursement_label,
+        disbursement_status,
+        disbursement_amount,
 
-    -- 🧩 Check if scholar already has Academic Award
-    EXISTS (
-        SELECT 1
-        FROM disbursement_detail dd
-        WHERE dd.disbursement_id = combined.disbursement_id
-          AND dd.disbursement_type_id = 5
-    ) AS has_academic_award,
+        -- 🧩 Check if scholar already has Academic Award
+        EXISTS (
+          SELECT 1
+          FROM disbursement_detail dd
+          WHERE dd.disbursement_id = combined.disbursement_id
+            AND dd.disbursement_type_id = 5
+        ) AS has_academic_award,
 
-    -- 🧠 Flag for scholars with disbursement amount
-    CASE
-        WHEN disbursement_amount IS NULL OR disbursement_amount = 0 THEN false
-        ELSE true
-    END AS is_amount_set
+        CASE
+          WHEN disbursement_amount IS NULL OR disbursement_amount = 0 THEN false
+          ELSE true
+        END AS is_amount_set
 
-  FROM public.vw_combined_eligible_scholar_invoice AS combined
-  WHERE year_level = $1
-    AND semester = $2
-    AND school_year = $3
-  ORDER BY combined.disbursement_id;
-`;
+      FROM public.vw_combined_eligible_scholar_invoice AS combined
+      WHERE year_level = $1
+        AND semester = $2
+        AND school_year = $3
+    `;
 
     const values = ["4th Year", "1st Semester", school_year];
 
-    // Optional campus filter (must go before ORDER BY)
+    // ✅ If campus_name is provided, add it before ORDER BY
     if (campus_name && campus_name.trim() !== "") {
       query += ` AND campus = $4 `;
       values.push(campus_name.trim());
     }
+
+    // ✅ Now safely add ORDER BY at the very end
+    query += ` ORDER BY combined.disbursement_id;`;
 
     const { rows } = await pool.query(query, values);
 

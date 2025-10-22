@@ -57,7 +57,7 @@ const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
   return (
     <div ref={dropdownRef} className="relative w-full">
       <label className="block mb-1 text-xs sm:text-sm font-medium text-gray-700">
-        Request Type
+        Approval Type
       </label>
 
       <div

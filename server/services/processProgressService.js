@@ -1,8 +1,6 @@
 const pool = require("../database/dbConnect.js");
 
-async function startProcess(sy_code, semester_code) {
-  const client = await pool.connect();
-
+async function startProcess(client, sy_code, semester_code) {
   try {
     await client.query("BEGIN");
 
@@ -40,8 +38,6 @@ async function startProcess(sy_code, semester_code) {
     }
 
     throw new Error(`Failed to start disbursement process: ${error.message}`);
-  } finally {
-    client.release();
   }
 }
 

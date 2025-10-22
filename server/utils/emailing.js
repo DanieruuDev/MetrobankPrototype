@@ -194,6 +194,7 @@ async function sendApproverReplacedEmail(to, workflowDetails) {
 }
 
 module.exports = {
+  sendEmail,
   sendApproverAddedEmail,
   sendItsYourTurnEmail,
   sendDeadlineReminder,

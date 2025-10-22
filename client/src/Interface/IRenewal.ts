@@ -208,6 +208,7 @@ export interface InitialRenewalInfo {
   school_year_text: string;
   semester: number;
   semester_text: string;
+  renewal_date: string;
 }
 
 //grades

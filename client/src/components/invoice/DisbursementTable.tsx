@@ -111,7 +111,6 @@ const DisbursementTable: React.FC<DisbursementTableProps> = ({
               <th className="px-4 py-3 text-left">Campus</th>
               <th className="px-4 py-3 text-left">Year Level</th>
               <th className="px-4 py-3 text-left">Disbursement Label</th>
-              <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-right">Amount</th>
               {showFiles && <th className="px-4 py-3 text-left">Files</th>}
             </tr>
@@ -160,19 +159,6 @@ const DisbursementTable: React.FC<DisbursementTableProps> = ({
                       <td className="px-4 py-3">{s.campus}</td>
                       <td className="px-4 py-3 text-center">{s.year_level}</td>
                       <td className="px-4 py-3">{s.disbursement_label}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                            s.disbursement_status === "Completed"
-                              ? "bg-green-100 text-green-700"
-                              : s.disbursement_status === "Pending"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {s.disbursement_status}
-                        </span>
-                      </td>
                       <td className="px-4 py-3 text-right font-semibold">
                         {s.disbursement_amount
                           ? `₱${Number(s.disbursement_amount).toLocaleString()}`

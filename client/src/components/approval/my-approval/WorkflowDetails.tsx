@@ -84,6 +84,32 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             }
           />
         </div>
+
+        <SySemesterValidatedDropdown
+          value={validatedSY}
+          onChange={(selectedValue) => {
+            setValidatedSY(selectedValue);
+
+            // 🧩 Parse the combined value back to school_year and semester
+            const [school_year, semester_label] = selectedValue.split("_");
+
+            // Convert semester label to a code
+            const semester_code = semester_label.toLowerCase().includes("1st")
+              ? "1"
+              : "2";
+
+            // Convert school year (e.g., "2025-2026") into code (remove dash)
+            const sy_code = school_year.replace("-", "");
+
+            // ✅ Update formData
+            setFormData((prev) => ({
+              ...prev,
+              sy_code,
+              semester_code,
+            }));
+          }}
+        />
+
         <div className="grid grid-cols-2 xs:grid-cols-1 gap-2 sm:gap-3">
           <RequestTypeDropdown
             formData={formData.approval_req_type}
@@ -118,107 +144,8 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             />
           </div>
         </div>
-        {/* <div className="grid grid-cols-2 xs:grid-cols-1 gap-2 sm:gap-3">
-          <div className="flex gap-2 sm:gap-3">
-            {sySelectFields.map(({ name, label, options }) => (
-              <div key={name} className="relative flex-1">
-                <label
-                  htmlFor={name}
-                  className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  {label}
-                </label>
-                <select
-                  name={name}
-                  value={formData[name] as string}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      [name]: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden text-xs sm:text-sm"
-                  required
-                >
-                  <option value="" disabled>
-                    Select {label}
-                  </option>
-                  {Object.entries(options).map(([key, value]) => (
-                    <option key={key} value={key}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-2 sm:right-3 top-5 sm:top-6 flex items-center pointer-events-none text-gray-700 text-xs sm:text-sm">
-                  ⏷
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 sm:gap-3">
-            {semSelectFields.map(({ name, label, options }) => (
-              <div key={name} className="relative flex-1">
-                <label
-                  htmlFor={name}
-                  className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  {label}
-                </label>
-                <select
-                  name={name}
-                  value={formData[name] as string}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      [name]: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md px-3 sm:px-4 py-2 pr-8 sm:pr-10 cursor-pointer text-gray-700 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
-          appearance-none [&::-ms-expand]:hidden [&::-webkit-select-arrow]:hidden text-xs sm:text-sm"
-                  required
-                >
-                  <option value="" disabled>
-                    Select {label}
-                  </option>
-                  {Object.entries(options).map(([key, value]) => (
-                    <option key={key} value={key}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-2 sm:right-3 top-5 sm:top-6 flex items-center pointer-events-none text-gray-700 text-xs sm:text-sm">
-                  ⏷
-                </div>
-              </div>
-            ))}
-          </div>
-        </div> */}
-        <SySemesterValidatedDropdown
-          value={validatedSY}
-          onChange={(selectedValue) => {
-            setValidatedSY(selectedValue);
+        <div>Eligible List</div>
 
-            // 🧩 Parse the combined value back to school_year and semester
-            const [school_year, semester_label] = selectedValue.split("_");
-
-            // Convert semester label to a code
-            const semester_code = semester_label.toLowerCase().includes("1st")
-              ? "1"
-              : "2";
-
-            // Convert school year (e.g., "2025-2026") into code (remove dash)
-            const sy_code = school_year.replace("-", "");
-
-            // ✅ Update formData
-            setFormData((prev) => ({
-              ...prev,
-              sy_code,
-              semester_code,
-            }));
-          }}
-        />
-        ;
         <div
           {...getRootProps()}
           className={`w-full px-4 sm:px-6 py-6 sm:py-10 border-2 border-dashed border-gray-300 rounded-lg flex justify-center items-center bg-gray-50 hover:bg-gray-100 cursor-pointer`}

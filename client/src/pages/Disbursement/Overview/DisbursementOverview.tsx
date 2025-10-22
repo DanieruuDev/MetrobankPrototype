@@ -283,6 +283,7 @@ const DisbursementOverview = () => {
             searchValue={searchTerm}
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search by name or student ID..."
+            maxLength={100}
             filters={{
               schoolYear: {
                 value: filters.schoolYear || "All",

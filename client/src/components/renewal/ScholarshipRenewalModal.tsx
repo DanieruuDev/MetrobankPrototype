@@ -8,14 +8,14 @@ interface ScholarshipRenewalModalProps {
   onClose: () => void;
   getRenewalData: (sy: string, semester: string) => void;
   sySemester: string;
-  onChangeSySemester?: (value: string) => void; // NEW
+  onChangeSySemester?: (value: string) => void;
   user_id: number;
 }
 
 export interface RenewalFormData {
   schoolYear: string;
-  yearLevel: string;
   semester: string;
+  renewalDate: string;
 }
 
 const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
@@ -33,11 +33,11 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     [sy, semCode] = sySemester.split("_");
   }
   const semesterFormatted = semCode ? `${semCode} Semester` : "";
+
   const [schoolYear, setSchoolYear] = useState<string>(sy);
-  const [yearLevel, setYearLevel] = useState<string>("");
   const [semester, setSemester] = useState<string>(semesterFormatted);
-  const [yearLevelDropdownOpen, setYearLevelDropdownOpen] =
-    useState<boolean>(false);
+  const [renewalDate, setRenewalDate] = useState<string>(""); // 🆕 Renewal Date state
+
   const [semesterDropdownOpen, setSemesterDropdownOpen] =
     useState<boolean>(false);
   const [schoolYearDropdownOpen, setSchoolYearDropdownOpen] =
@@ -48,25 +48,20 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
   const [error, setError] = useState<string>("");
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const schoolYearOptions = ["2023-2024", "2024-2025", "2025-2026"];
-  const yearLevelOptions: string[] = [
-    "1st Year",
-    "2nd Year",
-    "3rd Year",
-    "4th Year",
-  ];
+  const schoolYearOptions = ["2024-2025", "2025-2026"];
   const semesterOptions: string[] = ["1st Semester", "2nd Semester"];
+
   const handleClose = () => {
     if (!loading) {
       resetFormValues();
       onClose();
     }
   };
+
   const resetFormValues = () => {
     setSchoolYear("");
-    setYearLevel("");
     setSemester("");
-    setYearLevelDropdownOpen(false);
+    setRenewalDate("");
     setSemesterDropdownOpen(false);
     setSchoolYearDropdownOpen(false);
     setError("");
@@ -82,13 +77,11 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
   if (!isOpen) return null;
 
   const handleValidateAndShowConfirmation = () => {
-    // Validate form data
-    if (!schoolYear || !yearLevel || !semester) {
-      setError("All fields are required.");
+    if (!schoolYear || !semester || !renewalDate) {
+      setError("All fields are required, including renewal date.");
       return;
     }
 
-    // Show confirmation modal
     setError("");
     setShowConfirmation(true);
   };
@@ -106,70 +99,55 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
     let statusTimeout3: number | undefined;
 
     try {
-      // Start progress animation
       progressInterval = setInterval(() => {
         setInitProgress((prev) => {
           if (prev >= 95) {
             clearInterval(progressInterval);
-            return 95; // Stop at 95% until operation completes
+            return 95;
           }
           return prev + 1;
         });
-      }, 30); // Update every 30ms for smooth animation
+      }, 30);
 
-      // Update status messages at different progress points
-      statusTimeout1 = setTimeout(() => {
-        setInitStatus("Connecting to server...");
-      }, 500);
-
-      statusTimeout2 = setTimeout(() => {
-        setInitStatus("Processing renewal data...");
-      }, 1500);
-
-      statusTimeout3 = setTimeout(() => {
-        setInitStatus("Initializing records...");
-      }, 2500);
+      statusTimeout1 = setTimeout(
+        () => setInitStatus("Connecting to server..."),
+        500
+      );
+      statusTimeout2 = setTimeout(
+        () => setInitStatus("Processing renewal data..."),
+        1500
+      );
+      statusTimeout3 = setTimeout(
+        () => setInitStatus("Initializing records..."),
+        2500
+      );
 
       const response = await axios.post(
         `${VITE_BACKEND_URL}api/renewal/generate-renewal`,
         {
           school_year: schoolYear,
-          year_level: Number(yearLevel.substring(0, 1)),
           semester: Number(semester.substring(0, 1)),
           user_id: user_id,
+          renewal_date: renewalDate, // 🆕 Include renewal date
         }
       );
-
-      // Clear all timeouts
+      console.log(response.data);
       clearTimeout(statusTimeout1);
       clearTimeout(statusTimeout2);
       clearTimeout(statusTimeout3);
-      clearInterval(progressInterval); // Ensure interval is cleared
+      clearInterval(progressInterval);
 
-      // Complete the progress
       setInitProgress(100);
       setInitStatus("Initialization complete!");
 
-      console.log("Renewal data retrieved:", response.data);
-
-      // ✅ Construct and send new SY_Semester to parent
       const semCode = semester.startsWith("1") ? "1" : "2";
       const newSySemester = `${schoolYear}_${semCode}`;
-
       onChangeSySemester?.(newSySemester);
-      console.log(newSySemester);
-      // ✅ Trigger data refresh
       getRenewalData(newSySemester, "");
 
-      // ✅ Clean up
-      setSchoolYear("");
-      setYearLevel("");
-      setSemester("");
-      setError("");
-
+      resetFormValues();
       toast.success("Scholarship renewal initialized successfully!");
 
-      // Wait a moment to show completion, then close
       setTimeout(() => {
         setLoading(false);
         setInitProgress(0);
@@ -181,8 +159,10 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
       if (statusTimeout1 !== undefined) clearTimeout(statusTimeout1);
       if (statusTimeout2 !== undefined) clearTimeout(statusTimeout2);
       if (statusTimeout3 !== undefined) clearTimeout(statusTimeout3);
+
       console.error("Error fetching renewal data:", error);
 
+      let errorMessage = "An unexpected error occurred.";
       if (axios.isAxiosError(error)) {
         if (error.response) {
           if (
@@ -196,26 +176,17 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
             onClose();
             return;
           }
-
-          const errorMessage =
+          errorMessage =
             error.response.data.message || "Failed to retrieve renewal data.";
-          setError(errorMessage);
-          toast.error(errorMessage);
         } else if (error.request) {
-          const errorMessage =
-            "No response from server. Please try again later.";
-          setError(errorMessage);
-          toast.error(errorMessage);
+          errorMessage = "No response from server. Please try again later.";
         } else {
-          const errorMessage = "Failed to make request. Please try again.";
-          setError(errorMessage);
-          toast.error(errorMessage);
+          errorMessage = "Failed to make request. Please try again.";
         }
-      } else {
-        const errorMessage = "An unexpected error occurred.";
-        setError(errorMessage);
-        toast.error(errorMessage);
       }
+
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
       setInitProgress(0);
       setInitStatus("");
@@ -227,7 +198,6 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
       {!loading && (
         <div className="fixed inset-0 bg-[rgba(0,0,0,0.7)] flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md relative">
-            {/* Header with close button */}
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-medium text-gray-700">
                 Initialize Scholarship Renewal
@@ -240,30 +210,28 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               </button>
             </div>
 
-            {/* Error message display */}
             {error && (
               <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
                 {error}
               </div>
             )}
 
-            {/* School Year Dropdown */}
+            {/* School Year */}
             <div className="mb-3 relative">
               <div
                 className="flex bg-gray-100 rounded-md overflow-hidden cursor-pointer"
                 onClick={() => {
                   setSchoolYearDropdownOpen(!schoolYearDropdownOpen);
                   setSemesterDropdownOpen(false);
-                  setYearLevelDropdownOpen(false);
                 }}
               >
-                <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
+                <div className="py-3 px-4 text-gray-600 text-sm w-1/2">
                   School Year Renewal
                 </div>
-                <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
+                <div className="py-3 px-4 text-sm flex-grow flex justify-between items-center">
                   <div className="text-gray-700">
                     {schoolYear || (
-                      <span className="text-gray-400">Enter School Year</span>
+                      <span className="text-gray-400">Select School Year</span>
                     )}
                   </div>
                   <svg
@@ -271,7 +239,6 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
                   >
                     <path
                       strokeLinecap="round"
@@ -301,77 +268,22 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               )}
             </div>
 
-            {/* Year Level Dropdown */}
+            {/* Semester */}
             <div className="mb-3 relative">
               <div
                 className="flex bg-gray-100 rounded-md overflow-hidden cursor-pointer"
                 onClick={() => {
-                  setYearLevelDropdownOpen(!yearLevelDropdownOpen);
-                  setSchoolYearDropdownOpen(false);
-                  setSemesterDropdownOpen(false);
-                }}
-              >
-                <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
-                  Year Level Renewal
-                </div>
-                <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
-                  <div className="text-gray-700">
-                    {yearLevel || (
-                      <span className="text-gray-400">Enter Year Level</span>
-                    )}
-                  </div>
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {yearLevelDropdownOpen && (
-                <div className="absolute w-full mt-1 bg-white shadow-md rounded-md z-10 border border-gray-200">
-                  {yearLevelOptions.map((option) => (
-                    <div
-                      key={option}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                      onClick={() => {
-                        setYearLevel(option);
-                        setYearLevelDropdownOpen(false);
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Semester Dropdown */}
-            <div className="mb-4 relative">
-              <div
-                className="flex bg-gray-100 rounded-md overflow-hidden cursor-pointer"
-                onClick={() => {
                   setSemesterDropdownOpen(!semesterDropdownOpen);
-                  setYearLevelDropdownOpen(false);
                   setSchoolYearDropdownOpen(false);
                 }}
               >
-                <div className="py-3 px-4 bg-gray-100 text-gray-600 text-sm w-1/2">
+                <div className="py-3 px-4 text-gray-600 text-sm w-1/2">
                   Semester Renewal
                 </div>
-                <div className="py-3 px-4 bg-gray-100 text-sm flex-grow flex justify-between items-center">
+                <div className="py-3 px-4 text-sm flex-grow flex justify-between items-center">
                   <div className="text-gray-700">
                     {semester || (
-                      <span className="text-gray-400">Enter Semester</span>
+                      <span className="text-gray-400">Select Semester</span>
                     )}
                   </div>
                   <svg
@@ -379,7 +291,6 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
                   >
                     <path
                       strokeLinecap="round"
@@ -409,6 +320,19 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
               )}
             </div>
 
+            {/* Renewal Date Input 🆕 */}
+            <div className="mb-4">
+              <label className="block text-gray-600 text-sm mb-1">
+                Renewal Date
+              </label>
+              <input
+                type="date"
+                value={renewalDate}
+                onChange={(e) => setRenewalDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+
             {/* Generate Button */}
             <div className="flex justify-end">
               <button
@@ -425,7 +349,7 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Modal (now includes renewal date) */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998] animate-fadeIn">
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-scaleIn">
@@ -451,16 +375,19 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                     {schoolYear}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-gray-700">Year Level:</span>
-                  <span className="text-gray-900 font-semibold">
-                    {yearLevel}
-                  </span>
-                </div>
+
                 <div className="flex justify-between text-sm">
                   <span className="font-medium text-gray-700">Semester:</span>
                   <span className="text-gray-900 font-semibold">
                     {semester}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">
+                    Renewal Date:
+                  </span>
+                  <span className="text-gray-900 font-semibold">
+                    {renewalDate}
                   </span>
                 </div>
               </div>
@@ -488,18 +415,16 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
         </div>
       )}
 
-      {/* Full-Screen Loading Overlay for Initialization */}
+      {/* Loading Overlay (unchanged) */}
       {loading && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
             <div className="flex flex-col items-center">
-              {/* Circular Progress Indicator */}
               <div className="relative w-24 h-24 mb-6">
                 <svg
                   className="w-24 h-24 transform -rotate-90"
                   viewBox="0 0 100 100"
                 >
-                  {/* Background circle */}
                   <circle
                     cx="50"
                     cy="50"
@@ -508,12 +433,11 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                     strokeWidth="8"
                     fill="none"
                   />
-                  {/* Progress circle */}
                   <circle
                     cx="50"
                     cy="50"
                     r="45"
-                    stroke="#10b981" // Green color for initialization
+                    stroke="#10b981"
                     strokeWidth="8"
                     fill="none"
                     strokeLinecap="round"
@@ -524,7 +448,6 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                     className="transition-all duration-300 ease-out"
                   />
                 </svg>
-                {/* Percentage text inside circle */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-2xl font-bold text-green-600">
                     {initProgress}%
@@ -534,7 +457,6 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                   </span>
                 </div>
               </div>
-
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Initializing Renewal
               </h3>
@@ -542,7 +464,6 @@ const ScholarshipRenewalModal: React.FC<ScholarshipRenewalModalProps> = ({
                 {initStatus ||
                   "Please wait while we process the renewal records..."}
               </p>
-
               <p className="text-xs text-gray-500 mt-4 text-center">
                 This may take a few moments. Please do not close this window.
               </p>

@@ -43,6 +43,11 @@ const SySemesterValidatedDropdown: React.FC<Props> = ({ value, onChange }) => {
         );
 
         setOptions(sorted);
+
+        // ✅ Auto-select the newest (first) option if no value is already selected
+        if (sorted.length > 0 && !value) {
+          onChange(sorted[0].value);
+        }
       } catch (error) {
         console.error("❌ Error fetching validated SY-Semester:", error);
       }

@@ -11,6 +11,7 @@ import {
   validation,
   InitialRenewalInfo,
 } from "../../Interface/IRenewal";
+import { formatDate } from "../../utils/DateConvertionFormat";
 
 interface RenewalTableProps {
   isEdit: boolean;
@@ -257,6 +258,10 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                               const isValidatedField = key === "is_validated";
                               const isNoFailingGradesField =
                                 key === "no_failing_grd_validation";
+                              const isDelistedDateField =
+                                key === "delisted_date";
+                              const isDelistingRootCauseField =
+                                key === "delisting_root_cause";
 
                               return (
                                 <td
@@ -266,6 +271,8 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                       ? "sticky left-[-1px] z-10 shadow-md bg-white max-w-[150px] sm:max-w-[200px] lg:max-w-[300px] overflow-hidden"
                                       : key === "scholarship_status"
                                       ? "sticky left-[149px] sm:left-[198px] bg-white z-10 shadow-md max-w-[120px] sm:max-w-[150px] whitespace-nowrap overflow-hidden text-center"
+                                      : key === "delisting_root_cause"
+                                      ? "min-w-[300px] sm:min-w-[400px] lg:min-w-[300px] max-w-[300px] sm:max-w-[600px] lg:max-w-[700px] whitespace-normal break-words align-top"
                                       : "min-w-[120px] sm:min-w-[150px] max-w-[300px] sm:max-w-[400px] whitespace-nowrap overflow-hidden text-center"
                                   }`}
                                 >
@@ -422,7 +429,7 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                     <textarea
                                       value={value as string}
                                       disabled={renewal.is_validated === true}
-                                      rows={1}
+                                      rows={2}
                                       onChange={(e) => {
                                         const newValue = e.target.value;
                                         setTempRenewalData((prev) =>
@@ -433,7 +440,8 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                           )
                                         );
                                       }}
-                                      className="border border-gray-300 px-1 sm:px-2 py-1 rounded-sm w-full resize-none text-xs sm:text-sm"
+                                      className="border border-gray-300 px-2 py-2 rounded-md w-full resize-none text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                      placeholder="Please provide a detailed explanation for the delisting decision..."
                                     />
                                   ) : isEdit && isValidationField ? (
                                     <button
@@ -507,6 +515,35 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                         ? "X"
                                         : "Pending"}
                                     </span>
+                                  ) : isDelistedDateField ? (
+                                    <span className="text-xs text-gray-600">
+                                      {value && value !== null
+                                        ? new Date(
+                                            value as string
+                                          ).toLocaleString("en-PH", {
+                                            dateStyle: "medium",
+                                            timeStyle: "short",
+                                          })
+                                        : "—"}
+                                    </span>
+                                  ) : isDelistingRootCauseField ? (
+                                    <div className="text-xs text-gray-700 max-w-[200px] sm:max-w-[300px]">
+                                      {value &&
+                                      value !== null &&
+                                      value !== "" ? (
+                                        <div className="bg-red-50 border border-red-200 rounded-md p-2">
+                                          <div className="text-red-700 whitespace-pre-wrap break-words">
+                                            {value as string}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400 italic">
+                                          No reason provided
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : key === "renewal_date" ? (
+                                    <span>{formatDate(value as string)}</span>
                                   ) : (
                                     <span>{statusBadge(value as string)}</span>
                                   )}
@@ -602,10 +639,20 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                       </div>
                     </div>
 
+                    {/* Delisting Root Cause Display (Mobile) */}
+                    {renewal.scholarship_status === "Delisted" &&
+                      renewal.delisting_root_cause && (
+                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                          <div className="text-xs text-red-700 whitespace-pre-wrap break-words">
+                            {renewal.delisting_root_cause}
+                          </div>
+                        </div>
+                      )}
+
                     {isEdit && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="space-y-3">
-                          {/* GPA Input */}
+                          {/* GPA Input - Disabled on mobile devices */}
                           <div>
                             <label className="text-xs text-gray-500 block mb-1">
                               GPA
@@ -621,6 +668,7 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                               step="0.01"
                               min={0}
                               max={5}
+                              disabled={true}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (val === "") {
@@ -632,7 +680,8 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                 numVal = Math.floor(numVal * 100) / 100;
                                 handleGPAChange(renewal.renewal_id, numVal);
                               }}
-                              className="border border-gray-300 px-2 py-1 rounded-sm w-full text-xs"
+                              className="border border-gray-300 px-2 py-1 rounded-sm w-full text-xs bg-gray-100 cursor-not-allowed opacity-60"
+                              title="GPA editing is not available on mobile devices"
                             />
                           </div>
 
@@ -749,8 +798,8 @@ const RenewalTable: React.FC<RenewalTableProps> = ({
                                     )
                                   );
                                 }}
-                                className="border border-gray-300 px-2 py-1 rounded-sm w-full resize-none text-xs"
-                                placeholder="Enter reason for delisting..."
+                                className="border border-gray-300 px-3 py-2 rounded-md w-full resize-none text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Please provide a detailed explanation for the delisting decision..."
                               />
                             </div>
                           )}

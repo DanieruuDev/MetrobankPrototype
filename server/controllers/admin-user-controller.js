@@ -202,7 +202,8 @@ const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
       secure: false,
-      sameSite: "true",
+      sameSite: "lax",
+      domain: ".mbstrongwebapp.com",
     });
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {

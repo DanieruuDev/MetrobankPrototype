@@ -145,23 +145,24 @@ const RenewalFilterControls: React.FC<RenewalFilterControlsProps> = ({
               className="w-full bg-transparent outline-none text-slate-700 placeholder-slate-400 text-sm min-w-0"
               value={searchQuery}
               onChange={handleSearch} // ✅ Uses the filter logic
+              maxLength={100}
             />
           </div>
         </div>
 
-        {/* Additional Filters Row */}
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Left side: Filters */}
-          <div className="flex flex-col lg:flex-row gap-3 flex-1">
+        {/* Additional Filters Row - Completely redesigned for better responsiveness */}
+        <div className="space-y-4">
+          {/* Filters Grid - Better responsive design */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {/* SY & Semester */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-600 font-medium">
                 School Year & Semester:
               </label>
               <select
                 value={sySemester}
                 onChange={(e) => setSySemester(e.target.value)}
-                className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 w-full text-slate-700"
               >
                 <option value="">Select SY-Semester</option>
                 {sySemesterOptions.map((option) => (
@@ -177,14 +178,14 @@ const RenewalFilterControls: React.FC<RenewalFilterControlsProps> = ({
               (role_id === 3 || role_id === 4 || role_id === 9) &&
               Boolean(auth?.info?.branch?.branch_name)
             ) && (
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-slate-600 font-medium">
                   Branch:
                 </label>
                 <select
                   value={selectedBranchFilter}
                   onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                  className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                  className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 w-full text-slate-700"
                 >
                   <option value="All">All Branches</option>
                   {uniqueBranches.map((branch) => (
@@ -197,14 +198,14 @@ const RenewalFilterControls: React.FC<RenewalFilterControlsProps> = ({
             )}
 
             {/* Year Level Filter */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <label className="text-xs text-slate-600 font-medium sm:whitespace-nowrap">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-slate-600 font-medium">
                 Year Level:
               </label>
               <select
                 value={selectedYearLevelFilter}
                 onChange={(e) => setSelectedYearLevelFilter(e.target.value)}
-                className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[120px] text-slate-700"
+                className="px-3 py-2 bg-white/100 backdrop-blur-sm border border-white/50 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 w-full text-slate-700"
               >
                 <option value="All">All Year Levels</option>
                 {uniqueYearLevels.map((yearLevel) => (
@@ -214,26 +215,31 @@ const RenewalFilterControls: React.FC<RenewalFilterControlsProps> = ({
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Right side: Clear Filters & Audit Log */}
-          <div className="flex flex-col sm:flex-row gap-2 lg:items-end">
-            <button
-              onClick={onClearFilters}
-              className="px-3 py-2 text-xs font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm"
-            >
-              Clear Filters
-            </button>
+            {/* Action Buttons - Now part of the grid */}
+            <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1">
+              <label className="text-xs text-slate-600 font-medium">
+                Actions:
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={onClearFilters}
+                  className="px-4 py-2 text-xs font-medium bg-white/100 text-slate-600 hover:text-slate-800 hover:bg-white/80 rounded-lg transition-all duration-200 border border-white/50 backdrop-blur-sm hover:shadow-md flex-1"
+                >
+                  Clear Filters
+                </button>
 
-            {role_id === 7 && (
-              <button
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-xs font-medium border border-white/50 cursor-pointer"
-                onClick={onShowAuditLog}
-              >
-                <History className="w-4 h-4" />
-                <span>Audit Log</span>
-              </button>
-            )}
+                {role_id === 7 && (
+                  <button
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-black rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-xs font-medium border border-white/50 cursor-pointer flex-1"
+                    onClick={onShowAuditLog}
+                  >
+                    <History className="w-4 h-4" />
+                    <span>Audit Log</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
