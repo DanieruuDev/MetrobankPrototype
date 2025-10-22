@@ -84,6 +84,32 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             }
           />
         </div>
+
+        <SySemesterValidatedDropdown
+          value={validatedSY}
+          onChange={(selectedValue) => {
+            setValidatedSY(selectedValue);
+
+            // 🧩 Parse the combined value back to school_year and semester
+            const [school_year, semester_label] = selectedValue.split("_");
+
+            // Convert semester label to a code
+            const semester_code = semester_label.toLowerCase().includes("1st")
+              ? "1"
+              : "2";
+
+            // Convert school year (e.g., "2025-2026") into code (remove dash)
+            const sy_code = school_year.replace("-", "");
+
+            // ✅ Update formData
+            setFormData((prev) => ({
+              ...prev,
+              sy_code,
+              semester_code,
+            }));
+          }}
+        />
+
         <div className="grid grid-cols-2 xs:grid-cols-1 gap-2 sm:gap-3">
           <RequestTypeDropdown
             formData={formData.approval_req_type}
@@ -119,31 +145,6 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
           </div>
         </div>
         <div>Eligible List</div>
-
-        <SySemesterValidatedDropdown
-          value={validatedSY}
-          onChange={(selectedValue) => {
-            setValidatedSY(selectedValue);
-
-            // 🧩 Parse the combined value back to school_year and semester
-            const [school_year, semester_label] = selectedValue.split("_");
-
-            // Convert semester label to a code
-            const semester_code = semester_label.toLowerCase().includes("1st")
-              ? "1"
-              : "2";
-
-            // Convert school year (e.g., "2025-2026") into code (remove dash)
-            const sy_code = school_year.replace("-", "");
-
-            // ✅ Update formData
-            setFormData((prev) => ({
-              ...prev,
-              sy_code,
-              semester_code,
-            }));
-          }}
-        />
 
         <div
           {...getRootProps()}
