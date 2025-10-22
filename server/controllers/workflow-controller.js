@@ -711,21 +711,23 @@ const approveApproval = async (req, res) => {
         .json({ message: `${key} is required and cannot be empty` });
     }
   }
+
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    const requesterAndWorkflowDetails = await getRequesterAndWorkflowDetails(
+    const { workflowDetailsForEmail } = await getRequesterAndWorkflowDetails(
       client,
       workflow_id,
       requester_id
     );
 
-    const workflowDetailsForEmail =
-      requesterAndWorkflowDetails.workflowDetailsForEmail;
-
     if (response === "Approved") {
+      // ✅ First update the approver’s response
+      await updateApproverAndResponse(client, approver_id, response, comment);
+
+      // ✅ Then handle workflow progression & completion
       await handleApprovedCase(
         client,
         workflow_id,
@@ -737,56 +739,48 @@ const approveApproval = async (req, res) => {
         approver_id,
         io
       );
-      await updateApproverAndResponse(client, approver_id, response, comment);
     } else if (response === "Reject") {
-      try {
-        await client.query("BEGIN");
+      await handleReturnedCase(
+        client,
+        response_id,
+        comment,
+        user_id,
+        workflow_id,
+        requester_id,
+        approver_id,
+        io
+      );
 
-        await handleReturnedCase(
-          client,
-          response_id,
-          comment,
-          user_id,
-          workflow_id,
-          requester_id,
-          approver_id,
-          io
-        );
-
-        await client.query(
-          `
-      UPDATE approver_response
-      SET response = $1, updated_at = NOW()
-      WHERE approver_id = $2
+      await client.query(
+        `
+        UPDATE approver_response
+        SET response = 'Reject', updated_at = NOW()
+        WHERE approver_id = $1
       `,
-          ["Reject", approver_id]
-        );
+        [approver_id]
+      );
 
-        await client.query(
-          `
-      UPDATE workflow
-      SET status = 'Failed'
-      WHERE workflow_id = $1
+      await client.query(
+        `
+        UPDATE workflow
+        SET status = 'Failed'
+        WHERE workflow_id = $1
       `,
-          [workflow_id]
-        );
-
-        await client.query("COMMIT");
-      } catch (err) {
-        await client.query("ROLLBACK");
-        console.error("🚨 Error in Returned flow:", err);
-        throw err; // just bubble it up
-      }
+        [workflow_id]
+      );
     }
 
     await client.query("COMMIT");
 
-    const detailedQuery = `
+    // ✅ Return updated approver details
+    const result = await client.query(
+      `
       SELECT workflow_status, approver_response, approver_comment, approver_status, is_current
       FROM vw_approver_detailed
-      WHERE approver_id = $1;
-    `;
-    const result = await client.query(detailedQuery, [approver_id]); // Return updated status and response for frontend refresh
+      WHERE approver_id = $1
+    `,
+      [approver_id]
+    );
 
     if (result.rows.length > 0) {
       const {

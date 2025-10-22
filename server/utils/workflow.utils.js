@@ -226,8 +226,6 @@ const handleApprovedCase = async (
   let workflowCompleted = false;
 
   try {
-    await client.query("BEGIN");
-
     const updCur = await client.query(
       `
       UPDATE wf_approver
@@ -306,13 +304,15 @@ const handleApprovedCase = async (
       );
       const pendingResult = await client.query(
         `
-        SELECT COUNT(*) AS pending_count
-        FROM wf_approver
-        WHERE workflow_id = $1
-          AND status NOT IN ('Completed', 'Missed', 'Replaced')
-        `,
+  SELECT COUNT(*) AS pending_count
+  FROM wf_approver
+  WHERE workflow_id = $1
+    AND (status IS NULL OR status NOT IN ('Completed', 'Missed', 'Replaced'))
+    AND (is_reassigned IS NULL OR is_reassigned = FALSE)
+  `,
         [workflow_id]
       );
+      console.log(pendingResult);
 
       if (parseInt(pendingResult.rows[0].pending_count, 10) === 0) {
         await client.query(
@@ -420,10 +420,7 @@ const handleApprovedCase = async (
         });
       }
     }
-
-    await client.query("COMMIT");
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error("Error in handleApprovedCase (transaction rolled back):", {
       workflow_id,
       user_id,
