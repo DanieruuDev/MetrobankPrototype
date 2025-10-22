@@ -204,6 +204,61 @@ const uploadSemestralAllowance = async (req, res) => {
   }
 };
 
+// Update thesis fee amounts without file upload
+const updateThesisFeeAmounts = async (req, res) => {
+  const { data } = req.body; // expecting array of { disb_detail_id, disbursement_amount }
+  const client = await pool.connect();
+
+  try {
+    if (!data) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No disbursement data provided." });
+    }
+
+    const parsedData = JSON.parse(data);
+    if (!Array.isArray(parsedData) || parsedData.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid data format." });
+    }
+
+    await client.query("BEGIN");
+
+    let updatedCount = 0;
+
+    for (const { disb_detail_id, disbursement_amount } of parsedData) {
+      await client.query(
+        `
+        UPDATE disbursement_detail
+        SET disbursement_amount = $1
+        WHERE disb_detail_id = $2
+        `,
+        [disbursement_amount, disb_detail_id]
+      );
+      updatedCount++;
+    }
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      success: true,
+      message: "Thesis Fee amounts updated successfully.",
+      updatedCount,
+    });
+  } catch (error) {
+    console.error("❌ updateThesisFeeAmounts error:", error);
+    await client.query("ROLLBACK");
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update thesis fee amounts.",
+      error: error.message,
+    });
+  } finally {
+    client.release();
+  }
+};
+
 const uploadThesisFee = async (req, res) => {
   const file = req.file;
   const { data } = req.body; // expecting array of { disb_detail_id, disbursement_amount }
@@ -904,6 +959,7 @@ module.exports = {
   fetchEligibleScholar,
   uploadFileToDB,
   uploadSemestralAllowance,
+  updateThesisFeeAmounts,
   uploadThesisFee,
   fetchAcademicAwardEligible,
   addAcademicAwardStudent,
