@@ -6,22 +6,24 @@ import {
   WorkflowLog,
   RequesterResponse,
   ReturnFeedback,
+  EligibleScholar,
 } from "../../../Interface/IWorkflow";
 
 import {
-  Download,
-  FileText,
+  // Download,
+  // FileText,
   X,
   Check,
   ArrowLeft,
   Info,
   ChevronUp,
   ChevronDown,
+  Users,
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { formatDate } from "../../../utils/DateConvertionFormat";
-import { formatFileSize } from "../../../utils/SizeFileFormat";
+// import { formatFileSize } from "../../../utils/SizeFileFormat";
 import { AuthContext } from "../../../context/AuthContext";
 import ChangeApproverModal from "../../../components/approval/my-approval/ChangeApproverModal";
 import { useNavigate, useParams } from "react-router-dom";
@@ -29,6 +31,7 @@ import Navbar from "../../../components/shared/Navbar";
 import { useSidebar } from "../../../context/SidebarContext";
 import Sidebar from "../../../components/shared/Sidebar";
 import Loading from "../../../components/shared/Loading";
+import EligibleListModal from "../../../components/approval/EligibleListModal";
 
 function Approval() {
   const { workflow_id } = useParams();
@@ -48,6 +51,9 @@ function Approval() {
   const { collapsed } = useSidebar();
   const [newApprover, setNewApprover] = useState("");
   const [reason, setReason] = useState("");
+  const [eligibleCount, setEligibleCount] = useState<number>(0);
+  const [eligibleList, setEligibleList] = useState<EligibleScholar[]>([]);
+  const [isEligibleModalOpen, setIsEligibleModalOpen] = useState(false);
 
   const [returnedResponseFile, setReturnedResponseFile] = useState<File | null>(
     null
@@ -58,6 +64,39 @@ function Approval() {
   const [expandedApproverId, setExpandedApproverId] = useState<number | null>(
     null
   );
+  const fetchEligibleList = async (
+    semester: string,
+    school_year: string,
+    disbursement_type_id: number
+  ) => {
+    if (!semester || !school_year || !disbursement_type_id) {
+      console.log("Missing");
+      return;
+    }
+
+    try {
+      const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+      const response = await axios.get(
+        `${VITE_BACKEND_URL}api/workflow/list/eligible`,
+        {
+          params: { semester, school_year, disbursement_type_id },
+        }
+      );
+      console.log(response.data);
+      if (response.data.success) {
+        setEligibleCount(response.data.count);
+        setEligibleList(response.data.data);
+      } else {
+        setEligibleCount(0);
+        setEligibleList([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching eligible scholars:", error);
+      setEligibleCount(0);
+      setEligibleList([]);
+    }
+  };
   const fetchWorkflow = useCallback(
     async (requester_id: number, workflow_id: number) => {
       setIsLoading(true);
@@ -65,8 +104,19 @@ function Approval() {
         const response = await axios.get(
           `${VITE_BACKEND_URL}api/workflow/get-workflow/${requester_id}/${workflow_id}`
         );
-        console.log(response.data);
+
+        console.log("detailed", response.data[0]);
         setDetailedWorkflow(response.data);
+        if (response.data[0]) {
+          const wf = response.data[0];
+          if (wf.semester && wf.school_year && wf.disbursement_type_id) {
+            await fetchEligibleList(
+              wf.semester,
+              wf.school_year,
+              wf.disbursement_type_id
+            );
+          }
+        }
       } catch (error) {
         console.error("Error fetching workflow:", error);
       } finally {
@@ -170,20 +220,20 @@ function Approval() {
     }
   };
 
-  const handleDownload = () => {
-    if (!workflow?.doc_path) {
-      console.error("No file to download");
-      return;
-    }
+  // const handleDownload = () => {
+  //   if (!workflow?.doc_path) {
+  //     console.error("No file to download");
+  //     return;
+  //   }
 
-    const filePath = encodeURIComponent(workflow.doc_name); // encode special chars
-    const link = document.createElement("a");
-    link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
-    link.setAttribute("download", workflow.doc_name); // filename for browser
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  //   const filePath = encodeURIComponent(workflow.doc_name); // encode special chars
+  //   const link = document.createElement("a");
+  //   link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
+  //   link.setAttribute("download", workflow.doc_name); // filename for browser
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  // };
 
   const handleReturendResponse = async (
     return_id: number,
@@ -221,7 +271,9 @@ function Approval() {
       setIsResponseLoading(false);
     }
   };
-
+  console.log(workflow?.school_year);
+  console.log(workflow?.semester);
+  console.log(workflow?.disbursement_type_id);
   if (isLoading) {
     return (
       <div
@@ -1315,6 +1367,24 @@ function Approval() {
                       </div>
                     </div>
                   </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <Users className="w-5 h-5" />
+                      <span className="text-sm font-medium">
+                        Eligible Scholars:{" "}
+                        <b className="text-blue-900">{eligibleCount}</b>
+                      </span>
+                    </div>
+                    {eligibleCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEligibleModalOpen(true)}
+                        className="text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-all"
+                      >
+                        View List
+                      </button>
+                    )}
+                  </div>
 
                   {/* Description */}
                   <div className="px-6 py-4 bg-blue-200/10 backdrop-blur-sm border-t-3 border-white">
@@ -1325,7 +1395,7 @@ function Approval() {
                   </div>
 
                   {/* Attachments */}
-                  <div className="px-6 py-4 border-t-3 bg-blue-200/10 backdrop-blur-sm border-white">
+                  {/* <div className="px-6 py-4 border-t-3 bg-blue-200/10 backdrop-blur-sm border-white">
                     <p className="text-xs font-medium uppercase text-gray-500 mb-3">
                       Supporting Documents
                     </p>
@@ -1349,7 +1419,7 @@ function Approval() {
                       <Download className="w-4 h-4" />
                       Download File
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
@@ -1412,6 +1482,14 @@ function Approval() {
             </div>
           </div>
         </div>
+
+        <EligibleListModal
+          isOpen={isEligibleModalOpen}
+          onClose={() => setIsEligibleModalOpen(false)}
+          eligibleList={eligibleList}
+          schoolYear={workflow?.school_year || ""}
+          semesterCode={workflow?.semester || ""}
+        />
 
         {/* Change Approver Modal */}
         {showModal && selectedApprover && (

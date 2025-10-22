@@ -30,7 +30,7 @@ const insertDocument = async (client, fileMeta) => {
 
 const insertWorkflow = async (client, details) => {
   const {
-    docId,
+    // docId,
     approval_req_type,
     requester_id,
     due_date,
@@ -42,9 +42,9 @@ const insertWorkflow = async (client, details) => {
   } = details;
 
   const res = await client.query(
-    "INSERT INTO workflow(document_id, approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title, rq_type_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+    "INSERT INTO workflow( approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title, rq_type_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
     [
-      docId,
+      // docId,
       approval_req_type,
       requester_id,
       due_date,

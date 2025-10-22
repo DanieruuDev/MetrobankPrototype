@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import SYSemesterDropdown from "../../maintainables/SYSemesterDropdown";
 import ExcelDownloadButton from "../../shared/DownloadExcel";
 import { Student } from "../../../Interface/ITuitionInvoice";
+import BranchDropdown from "../../maintainables/BranchDropdown";
 
 interface StudentFilterProps {
   role: number | undefined;
@@ -12,24 +13,20 @@ interface StudentFilterProps {
   semester: string;
   setSchoolYear: (value: string) => void;
   setSemester: (value: string) => void;
-  selectedBranch: string;
-  setSelectedBranch: (value: string) => void;
+  selectedBranch: string | null; // ✅ Allow null
+  setSelectedBranch: (value: string | null) => void; // ✅ Allow null
   selectedYearLevel: string;
   setSelectedYearLevel: (value: string) => void;
   selectedProgram: string;
   setSelectedProgram: (value: string) => void;
   filtersExpanded: boolean;
   setFiltersExpanded: (value: boolean) => void;
-  branchOpen: boolean;
-  setBranchOpen: (value: boolean) => void;
   yearLevelOpen: boolean;
   setYearLevelOpen: (value: boolean) => void;
   programOpen: boolean;
   setProgramOpen: (value: boolean) => void;
-  uniqueBranches: string[];
   uniqueYearLevels: string[];
   uniquePrograms: string[];
-  branchRef: React.RefObject<HTMLDivElement | null>;
   yearLevelRef: React.RefObject<HTMLDivElement | null>;
   programRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -50,21 +47,30 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
   setSelectedProgram,
   filtersExpanded,
   setFiltersExpanded,
-  branchOpen,
-  setBranchOpen,
   yearLevelOpen,
   setYearLevelOpen,
   programOpen,
   setProgramOpen,
-  uniqueBranches,
   uniqueYearLevels,
   uniquePrograms,
-  branchRef,
   yearLevelRef,
   programRef,
 }) => {
+  const handleClearFilters = () => {
+    setSelectedBranch(null);
+    setSelectedYearLevel("all");
+    setSelectedProgram("all");
+  };
+
+  const showClearButton =
+    students.length > 0 &&
+    (selectedBranch !== "all" ||
+      selectedYearLevel !== "all" ||
+      selectedProgram !== "all");
+
   return (
     <div className="mb-6 bg-gradient-to-br from-slate-50 to-blue-50 shadow-lg rounded-2xl p-4 sm:p-6 border border-slate-200 overflow-visible relative z-10 lg:z-10">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div className="flex items-center justify-between w-full sm:w-auto">
           <h3 className="text-sm sm:text-base font-semibold text-gray-800 flex items-center gap-2">
@@ -84,7 +90,7 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
             Filter Students
           </h3>
 
-          {/* Mobile toggle button */}
+          {/* Mobile Toggle */}
           <button
             onClick={() => setFiltersExpanded(!filtersExpanded)}
             className="sm:hidden p-2 hover:bg-gray-100/50 rounded-lg transition-colors"
@@ -98,7 +104,7 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
           </button>
         </div>
 
-        {/* Right-side actions: Download only */}
+        {/* Right Side - Excel Download (HR Only) */}
         <div
           className={`flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 ${
             !filtersExpanded ? "hidden sm:flex" : ""
@@ -124,13 +130,13 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
         </div>
       </div>
 
-      {/* Filter Dropdowns - Collapsible on mobile */}
+      {/* Filters Grid */}
       <div
         className={`grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-visible transition-all duration-300 ${
           !filtersExpanded ? "hidden sm:grid" : ""
         }`}
       >
-        {/* SY-Semester Filter */}
+        {/* SY - Semester Filter */}
         <div className="group relative">
           <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
             School Year • Semester
@@ -158,75 +164,18 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
           </div>
         </div>
 
-        {/* Branch Filter - Only show when there are students */}
-        {students.length > 0 && (
-          <div ref={branchRef} className="group relative">
-            <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
-              Campus/Branch
-            </label>
-            <div className="w-full px-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:border-blue-500/50 transition-all duration-200 relative z-[60]">
-              <div
-                className="cursor-pointer flex justify-between items-center text-sm text-gray-700"
-                onClick={() => setBranchOpen(!branchOpen)}
-              >
-                <span className="truncate">
-                  {selectedBranch === "all"
-                    ? `All Campuses (${students.length})`
-                    : `${selectedBranch} (${
-                        students.filter((s) => s.campus === selectedBranch)
-                          .length
-                      })`}
-                </span>
-                <svg
-                  className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-200 ${
-                    branchOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-              {branchOpen && (
-                <div className="absolute left-0 right-0 top-full mt-2 border border-gray-200 rounded-lg max-h-60 overflow-y-auto bg-white shadow-lg z-[9999]">
-                  <div
-                    className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                      selectedBranch === "all"
-                        ? "bg-blue-50 text-blue-700 font-medium"
-                        : "hover:bg-gray-50 text-gray-700"
-                    }`}
-                    onClick={() => {
-                      setSelectedBranch("all");
-                      setBranchOpen(false);
-                    }}
-                  >
-                    All Campuses ({students.length})
-                  </div>
-                  {uniqueBranches.map((branch) => (
-                    <div
-                      key={branch}
-                      className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                        selectedBranch === branch
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "hover:bg-gray-50 text-gray-700"
-                      }`}
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        setBranchOpen(false);
-                      }}
-                    >
-                      {branch} (
-                      {students.filter((s) => s.campus === branch).length})
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Branch Dropdown */}
+        <div className="group relative">
+          <BranchDropdown
+            formData={selectedBranch}
+            handleInputChange={(value) => {
+              setSelectedBranch(value);
+            }}
+            disabled={role !== 7} // Only HR (role 7) can change
+          />
+        </div>
 
-        {/* Year Level Filter - Only show when there are students */}
+        {/* Year Level Filter */}
         {students.length > 0 && (
           <div ref={yearLevelRef} className="group relative">
             <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
@@ -299,7 +248,7 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
           </div>
         )}
 
-        {/* Program Filter - Only show when there are students */}
+        {/* Program Filter */}
         {students.length > 0 && (
           <div ref={programRef} className="group relative">
             <label className="block text-xs font-medium text-gray-700 mb-1.5 ml-1">
@@ -368,30 +317,21 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
         )}
       </div>
 
-      {/* Clear All Filters Button - Below Dropdowns, Right-aligned on Desktop */}
-      {students.length > 0 &&
-        (selectedBranch !== "all" ||
-          selectedYearLevel !== "all" ||
-          selectedProgram !== "all") && (
-          <div
-            className={`mt-4 flex justify-end ${
-              !filtersExpanded ? "hidden sm:flex" : "flex"
-            }`}
+      {/* ✅ Clear All Filters Button */}
+      {showClearButton && (
+        <div
+          className={`mt-4 flex justify-end ${
+            !filtersExpanded ? "hidden sm:flex" : "flex"
+          }`}
+        >
+          <button
+            onClick={handleClearFilters}
+            className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-lg font-medium transition-all duration-200 border border-gray-200 shadow-sm text-sm"
           >
-            <button
-              onClick={() => {
-                setSelectedBranch("all");
-                setSelectedYearLevel("all");
-                setSelectedProgram("all");
-              }}
-              className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-lg font-medium transition-all duration-200 border border-gray-200 shadow-sm text-sm"
-            >
-              Clear All Filters
-            </button>
-          </div>
-        )}
-
-      {/* Results Summary */}
+            Clear All Filters
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -270,13 +270,6 @@ const fetchUploadStatus = async (req, res) => {
     const effectiveBranchName =
       program_source === "METROBANK" ? "-" : branch_name;
 
-    console.log("🔍 Fetching upload_status for:", {
-      program_source,
-      branch_name: effectiveBranchName,
-      process_id,
-      disbursement_type_id,
-    });
-
     // 🧩 Base query
     let query = `
       SELECT 
@@ -316,20 +309,19 @@ const fetchUploadStatus = async (req, res) => {
 
     const { rows } = await client.query(query, params);
 
-    if (rows.length === 0) {
-      console.warn("⚠️ No upload status found with given filters.");
-      return res.status(404).json({
-        message: "No upload status found for given criteria.",
-        filters: {
-          program_source,
-          branch_name,
-          process_id,
-          disbursement_type_id,
-        },
-      });
-    }
+    // if (rows.length === 0) {
+    //   return res.status(404).json({
+    //     message: "No upload status found for given criteria.",
+    //     filters: {
+    //       program_source,
+    //       branch_name,
+    //       process_id,
+    //       disbursement_type_id,
+    //     },
+    //   });
+    // }
 
-    console.log(`✅ Found ${rows.length} matching record(s).`);
+    // console.log(`✅ Found ${rows.length} matching record(s).`);
     res.status(200).json({
       message: "Upload status fetched successfully.",
       count: rows.length,
@@ -345,5 +337,44 @@ const fetchUploadStatus = async (req, res) => {
     client.release();
   }
 };
+const fetchUploadSummary = async (req, res) => {
+  const { sy_code, semester_code, disbursement_type_id } = req.query;
 
-module.exports = { uploadStatus, completeStatus, fetchUploadStatus };
+  // Validate inputs
+  if (!sy_code || !semester_code || !disbursement_type_id) {
+    return res.status(400).json({ message: "Missing required fields." });
+  }
+
+  try {
+    const query = `
+      SELECT *
+      FROM vw_upload_status_summary
+      WHERE sy_code = $1 
+        AND semester_code = $2 
+        AND disbursement_type_id = $3
+    `;
+
+    const result = await pool.query(query, [
+      sy_code,
+      semester_code,
+      disbursement_type_id,
+    ]);
+
+    // ✅ Return properly formatted response
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "No records found." });
+    }
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching upload summary:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+module.exports = {
+  uploadStatus,
+  completeStatus,
+  fetchUploadStatus,
+  fetchUploadSummary,
+};

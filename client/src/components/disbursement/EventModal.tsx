@@ -65,10 +65,11 @@ function EventModal({
   const [eligibleCount, setEligibleCount] = useState<number | null>(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const handleBranchChange = (branch: string) => {
-    setBranch(branch);
-    setFormData((prev) => ({ ...prev, branch: branch }));
+  const handleBranchChange = (branch: string | null) => {
+    setBranch(branch || ""); // fallback to empty string if null
+    setFormData((prev) => ({ ...prev, branch: branch || "" }));
   };
+
   const todayDate = new Date().toISOString().split("T")[0];
 
   const handleInputChange = (

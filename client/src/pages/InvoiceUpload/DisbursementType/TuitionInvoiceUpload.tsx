@@ -60,7 +60,7 @@ interface TuitionUploadProps {
   semester: string;
   role: number | undefined;
   isLoading: boolean;
-  setSelectedBranch: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedBranch: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedYearLevel: React.Dispatch<React.SetStateAction<string>>;
   setSelectedProgram: React.Dispatch<React.SetStateAction<string>>;
   type: string;
@@ -83,9 +83,6 @@ const TuitionUpload = ({
   semester,
   role,
   isLoading,
-  setSelectedBranch,
-  setSelectedYearLevel,
-  setSelectedProgram,
 }: TuitionUploadProps) => {
   const [filter, setFilter] = useState<"all" | "matched" | "unmatched">("all");
 
@@ -572,7 +569,7 @@ const TuitionUpload = ({
                       {/* Buttons Section */}
                       <div className="flex flex-col sm:flex-row gap-3 mb-4">
                         {/* Upload Invoice Button */}
-                        {uploadStatusBE && uploadStatusBE.is_completed && (
+                        {uploadStatusBE && !uploadStatusBE.is_completed && (
                           <button
                             className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-blue-700"
                             onClick={() => setIsUploadOpen(true)}
@@ -614,7 +611,7 @@ const TuitionUpload = ({
                                   clipRule="evenodd"
                                 />
                               </svg>
-                              <span className="tracking-wide">Finalize</span>
+                              <span className="tracking-wide">Finalize tn</span>
                             </button>
                           )}
                       </div>
@@ -1305,21 +1302,8 @@ const TuitionUpload = ({
                             </div>
                             <div>
                               <p className="text-base font-semibold text-gray-800 mb-1">
-                                No Matching Students
+                                No Students
                               </p>
-                              <p className="text-sm text-gray-600 mb-3">
-                                Try adjusting your filter criteria
-                              </p>
-                              <button
-                                onClick={() => {
-                                  setSelectedBranch("all");
-                                  setSelectedYearLevel("all");
-                                  setSelectedProgram("all");
-                                }}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-all duration-200"
-                              >
-                                Clear All Filters
-                              </button>
                             </div>
                           </div>
                         </td>
@@ -1415,21 +1399,8 @@ const TuitionUpload = ({
                       </div>
                       <div>
                         <p className="text-base font-semibold text-gray-800 mb-1">
-                          No Matching Students
+                          No Students
                         </p>
-                        <p className="text-sm text-gray-600 mb-3">
-                          Try adjusting your filter criteria
-                        </p>
-                        <button
-                          onClick={() => {
-                            setSelectedBranch("all");
-                            setSelectedYearLevel("all");
-                            setSelectedProgram("all");
-                          }}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-md transition-all duration-200"
-                        >
-                          Clear All Filters
-                        </button>
                       </div>
                     </div>
                   </div>

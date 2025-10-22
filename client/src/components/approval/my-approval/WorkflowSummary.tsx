@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { WorkflowFormData } from "../../../Interface/IWorkflow";
-import { Calendar, File, User, Clock, BookOpen, School } from "lucide-react";
+import { Calendar, User, Clock, BookOpen, School } from "lucide-react";
 import axios from "axios";
 
 interface WorkflowSummaryProps {
@@ -189,7 +189,7 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
         </div>
 
         {/* Attachment Section */}
-        {formData.file && (
+        {/* {formData.file && (
           <div className="bg-gray-50 p-2 sm:p-3 border border-gray-200">
             <h2 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1 sm:gap-1.5">
               <File size={12} className="text-orange-600 sm:w-3 sm:h-3" />
@@ -212,7 +212,7 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
                 </div>
               </div>
 
-              {/* Only show "View" button if it's a new uploaded file */}
+              Only show "View" button if it's a new uploaded file
               {"size" in formData.file && (
                 <a
                   href={URL.createObjectURL(formData.file)}
@@ -225,7 +225,7 @@ function WorkflowSummary({ formData }: WorkflowSummaryProps) {
               )}
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

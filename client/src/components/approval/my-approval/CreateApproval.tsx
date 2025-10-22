@@ -43,7 +43,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     rq_title: "",
     requester_id: String(userId),
     description: "",
-    file: null,
+    // file: null,
     approvers: [],
     due_date: "",
     semester_code: "",
@@ -83,10 +83,10 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
       toast.error("Description is required.");
       return false;
     }
-    if (!data.file) {
-      toast.error("A valid file is required.");
-      return false;
-    }
+    // if (!data.file) {
+    //   toast.error("A valid file is required.");
+    //   return false;
+    // }
     return true;
   };
 
@@ -167,9 +167,9 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     sendData.append("sy_code", formData.sy_code);
     sendData.append("semester_code", formData.semester_code);
 
-    if (formData.file instanceof File) {
-      sendData.append("file", formData.file);
-    }
+    // if (formData.file instanceof File) {
+    //   sendData.append("file", formData.file);
+    // }
 
     sendData.append(
       "approvers",

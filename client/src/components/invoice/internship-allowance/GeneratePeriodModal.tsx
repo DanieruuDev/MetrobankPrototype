@@ -5,7 +5,7 @@ import { format, addDays, parse, isSaturday, isSunday } from "date-fns";
 interface GeneratePeriodModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (startDate: string, endDate: string, coveredDate: string) => void;
+  onGenerate: (coveredDate: string) => void;
   existingCoveredDates?: string[]; // ✅ from parent
 }
 
@@ -104,7 +104,7 @@ const GeneratePeriodModal: React.FC<GeneratePeriodModalProps> = ({
       alert("This date range overlaps an existing covered period.");
       return;
     }
-    onGenerate(startDate, endDate, coveredDate);
+    onGenerate(coveredDate);
     onClose();
   };
 

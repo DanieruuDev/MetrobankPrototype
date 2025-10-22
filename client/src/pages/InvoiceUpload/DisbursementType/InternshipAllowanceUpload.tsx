@@ -14,7 +14,7 @@ interface InternshipAllowanceUploadProps {
   semester: string;
   role: number | undefined;
   isLoading: boolean;
-  setSelectedBranch: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedBranch: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedYearLevel: React.Dispatch<React.SetStateAction<string>>;
   setSelectedProgram: React.Dispatch<React.SetStateAction<string>>;
   type: string;
