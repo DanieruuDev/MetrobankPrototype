@@ -207,6 +207,8 @@ const ROIandAnalytics: React.FC = () => {
     useState<number>(300000);
   const [scholarAbsorptionRate, setScholarAbsorptionRate] =
     useState<number>(0.5); // 50% default
+  const [absorptionRateDisplay, setAbsorptionRateDisplay] =
+    useState<string>("50");
   const [yearlyValueGenerated, setYearlyValueGenerated] =
     useState<number>(300000); // ₱60K per scholar per year
   // This is the POST-GRADUATION employee retention rate for hired scholars
@@ -223,6 +225,13 @@ const ROIandAnalytics: React.FC = () => {
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isBreakdownExpanded, setIsBreakdownExpanded] =
     useState<boolean>(false);
+
+  // Sync display value with absorption rate
+  useEffect(() => {
+    setAbsorptionRateDisplay(
+      Math.round(scholarAbsorptionRate * 100).toString()
+    );
+  }, [scholarAbsorptionRate]);
 
   // Fetch ROI analytics data from API
   useEffect(() => {
@@ -622,7 +631,7 @@ const ROIandAnalytics: React.FC = () => {
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                   Average costs of recruitment, onboarding, and training on job
-                  openings for the year. (Max: ₱1T)
+                  openings. (Max: ₱1T)
                 </p>
               </div>
               <div className="flex flex-col">
@@ -638,22 +647,54 @@ const ROIandAnalytics: React.FC = () => {
                 <input
                   id="absorption-input"
                   type="number"
-                  value={scholarAbsorptionRate * 100}
+                  value={absorptionRateDisplay}
                   onChange={(e) => {
                     const rawValue = e.target.value;
-                    const numericValue = parseFloat(
-                      rawValue.replace(/[^0-9.]/g, "")
-                    );
 
-                    // Allow empty input while typing
+                    // Update display value immediately
+                    setAbsorptionRateDisplay(rawValue);
+
+                    // Handle empty input
                     if (rawValue === "" || rawValue === ".") {
                       setScholarAbsorptionRate(0);
                       return;
                     }
 
-                    // Only apply validation after user stops typing
+                    // Handle leading zeros: if user types after "0", replace the "0"
+                    if (
+                      rawValue.startsWith("0") &&
+                      rawValue.length > 1 &&
+                      !rawValue.startsWith("0.")
+                    ) {
+                      const cleanValue = rawValue.replace(/^0+/, "");
+                      if (cleanValue !== "") {
+                        setAbsorptionRateDisplay(cleanValue);
+                        const cleanNumericValue = parseFloat(cleanValue);
+                        if (!isNaN(cleanNumericValue)) {
+                          const clampedValue = Math.min(
+                            Math.max(cleanNumericValue, 1),
+                            100
+                          );
+                          setScholarAbsorptionRate(
+                            Math.round(clampedValue * 100) / 10000
+                          );
+                        }
+                      }
+                      return;
+                    }
+
+                    // Process normal input
+                    const numericValue = parseFloat(
+                      rawValue.replace(/[^0-9.]/g, "")
+                    );
                     if (!isNaN(numericValue)) {
-                      setScholarAbsorptionRate(numericValue / 100);
+                      const clampedValue = Math.min(
+                        Math.max(numericValue, 1),
+                        100
+                      );
+                      setScholarAbsorptionRate(
+                        Math.round(clampedValue * 100) / 10000
+                      );
                     }
                   }}
                   onBlur={(e) => {
@@ -661,7 +702,10 @@ const ROIandAnalytics: React.FC = () => {
                       parseFloat(e.target.value.replace(/[^0-9.]/g, "")) || 0;
                     if (value <= 0) value = 1;
                     if (value > 100) value = 100;
-                    setScholarAbsorptionRate(value / 100);
+
+                    // Update both display and actual value
+                    setAbsorptionRateDisplay(value.toString());
+                    setScholarAbsorptionRate(Math.round(value * 100) / 10000);
                   }}
                   placeholder="e.g., 50"
                   className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"
@@ -702,7 +746,7 @@ const ROIandAnalytics: React.FC = () => {
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                   Annual value generated (productivity and salary of absorbed
-                  scholars + cost savings). (Max: ₱1T)
+                  scholars). (Max: ₱1T)
                 </p>
               </div>
             </div>
@@ -887,9 +931,11 @@ const ROIandAnalytics: React.FC = () => {
                         <p>
                           <strong>Actual Hired Scholars:</strong>{" "}
                           {actualHiredScholars}
-                          {` (${Math.round(47 * scholarAbsorptionRate)} at ${(
+                          {` (${Math.round(
+                            47 * scholarAbsorptionRate
+                          )} at ${Math.round(
                             scholarAbsorptionRate * 100
-                          ).toFixed(0)}% absorption)`}
+                          )}% absorption)`}
                         </p>
                       </div>
                     </div>
