@@ -1,14 +1,13 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import DisbursementTable from "../../../components/invoice/DisbursementTable";
 import { Student } from "../../../Interface/InvoiceUpload";
-import { Upload, Download, Save } from "lucide-react";
+import { Upload, Download, Save, X } from "lucide-react";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import ConfirmationDialog from "../../../components/shared/ConfirmationDialog";
 import { useAuth } from "../../../context/AuthContext";
-import { useProcess } from "../../../context/ProcessContext";
-import { UploadStatusBE } from "./TuitionInvoiceUpload";
+import UploadExcelModal from "../../../components/invoice/thesis-fee/UploadExcelModal";
 
 interface ThesisFeeUploadProps {
   students: Student[];
@@ -41,9 +40,9 @@ function ThesisFeeUpload({
   setSelectedProgram,
 }: ThesisFeeUploadProps) {
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [excelFile, setExcelFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveStatus, setSaveStatus] = useState("");
   const [uploadedData, setUploadedData] = useState<UploadedThesisFee[]>([]);
   const [displayedStudents, setDisplayedStudents] =
     useState<Student[]>(students);
@@ -55,6 +54,7 @@ function ThesisFeeUpload({
     UploadStatusBE[] | null
   >([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const auth = useAuth();
   const role = auth.info?.role_id;
 
@@ -85,59 +85,35 @@ function ThesisFeeUpload({
     toast.success("✅ Thesis Fee Excel file downloaded successfully.");
   };
 
-  // 📤 Upload Excel File — Parse and store locally
-  const handleUploadExcel = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // 📤 Handle Excel Modal Upload
+  const handleExcelModalUpload = (parsed: Record<string, unknown>[]) => {
+    const typedParsed = parsed as unknown as UploadedThesisFee[];
+    setUploadedData(typedParsed);
 
-    setExcelFile(file);
-    setUploading(true);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = e.target?.result;
-      if (!data) return;
-
-      try {
-        const workbook = XLSX.read(data, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const parsed = XLSX.utils.sheet_to_json(sheet) as UploadedThesisFee[];
-
-        setUploadedData(parsed);
-
-        // Merge uploaded data
-        const merged = students.map((student) => {
-          const found = parsed.find(
-            (p) => p.StudentID?.toString() === student.student_id?.toString()
-          );
-          if (found) {
-            return {
-              ...student,
-              disbursement_amount: found.ThesisFeeAmount || 0,
-            };
-          }
-          return student;
-        });
-
-        setDisplayedStudents(merged);
-        toast.success(
-          `✅ Excel uploaded successfully (${parsed.length} records merged).`
-        );
-      } catch (error) {
-        console.error("❌ Error reading Excel:", error);
-        toast.error("Invalid Excel file. Please check format.");
-      } finally {
-        setUploading(false);
+    // Show preview of what will be updated (without actually applying changes)
+    const preview = students.map((student) => {
+      const found = typedParsed.find(
+        (p) => p.StudentID?.toString() === student.student_id?.toString()
+      );
+      if (found) {
+        return {
+          ...student,
+          disbursement_amount: found.ThesisFeeAmount || 0,
+          _isUpdated: true, // Mark as updated for preview
+        };
       }
-    };
+      return student;
+    });
 
-    reader.readAsBinaryString(file);
+    setDisplayedStudents(preview);
+    toast.success(
+      `✅ Excel uploaded successfully (${typedParsed.length} records ready for review). Click Save to apply changes.`
+    );
   };
 
   // 💾 Confirm before saving
   const handleSaveClick = () => {
-    if (!excelFile) {
+    if (uploadedData.length === 0) {
       toast.error("Please upload an Excel file first.");
       return;
     }
@@ -161,10 +137,19 @@ function ThesisFeeUpload({
     setIsDialogOpen(true);
   };
 
+  // ❌ Cancel uploaded data
+  const handleCancelUpload = () => {
+    setUploadedData([]);
+    setDisplayedStudents(students); // Reset to original data
+    toast.info("Uploaded data cleared. Table reset to original values.");
+  };
+
   // 💾 Confirm and Save
   const handleSaveConfirmed = async () => {
     setIsDialogOpen(false);
-    setUploading(true);
+    setIsSaving(true);
+    setSaveProgress(0);
+    setSaveStatus("Preparing to save changes...");
 
     const changedStudents = displayedStudents.filter((student) => {
       const original = students.find(
@@ -182,18 +167,47 @@ function ThesisFeeUpload({
       disbursement_amount: s.disbursement_amount,
     }));
 
-    const formData = new FormData();
-    if (excelFile) formData.append("file", excelFile);
-    formData.append("data", JSON.stringify(payload));
-
     try {
-      const response = await axios.post(
-        `${VITE_BACKEND_URL}api/invoice/upload-thesis-fee`,
-        formData,
+      // Start progress animation
+      const progressInterval = setInterval(() => {
+        setSaveProgress((prev) => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return 95; // Stop at 95% until operation completes
+          }
+          return prev + 1;
+        });
+      }, 30); // Update every 30ms for smooth animation
+
+      // Update status messages at different progress points
+      const statusTimeout1 = setTimeout(() => {
+        setSaveStatus("Sending data to server...");
+      }, 500);
+
+      const statusTimeout2 = setTimeout(() => {
+        setSaveStatus("Processing response...");
+      }, 1500);
+
+      const statusTimeout3 = setTimeout(() => {
+        setSaveStatus("Refreshing data...");
+      }, 2500);
+
+      const response = await axios.put(
+        `${VITE_BACKEND_URL}api/invoice/update-thesis-fee-amounts`,
+        { data: JSON.stringify(payload) },
         {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: { "Content-Type": "application/json" },
         }
       );
+
+      // Clear timeouts and interval after successful request
+      clearTimeout(statusTimeout1);
+      clearTimeout(statusTimeout2);
+      clearTimeout(statusTimeout3);
+      clearInterval(progressInterval);
+
+      // Complete the progress animation
+      setSaveProgress(100);
 
       if (response.data.success) {
         toast.success(
@@ -201,343 +215,239 @@ function ThesisFeeUpload({
             response.data.updatedCount || payload.length
           } students updated successfully.`
         );
+        // Clear uploaded data and reset to original state
+        setUploadedData([]);
+        setDisplayedStudents(students);
         fetchStudents();
       } else {
         toast.error(response.data.message || "Upload failed.");
       }
+
+      // Add a small delay to show 100% completion before closing
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error) {
       console.error("❌ Upload error:", error);
       toast.error("An error occurred during upload.");
     } finally {
-      setUploading(false);
+      setIsSaving(false);
+      setSaveProgress(0);
+      setSaveStatus("");
     }
   };
-
-  const handleComplete = async () => {
-    const program_source = "STI";
-    const process_id = processInfo.process_id;
-    const branch_name = auth.info?.branch?.branch_name;
-    const disbursement_type_id = 3;
-
-    // 🔹 Validate inputs before sending
-    if (!program_source || !process_id || !branch_name) {
-      console.error("❌ Missing required data:", {
-        program_source,
-        process_id,
-        branch_name,
-      });
-      toast.error("Missing required information to complete upload status.", {
-        position: "top-center",
-        autoClose: 3000,
-      });
-      return;
-    }
-
-    try {
-      const payload = {
-        process_id,
-        program_source,
-        branch_name,
-        disbursement_type_id,
-      };
-
-      console.log("📤 Sending completion payload:", payload);
-
-      const res = await axios.put(
-        `${VITE_BACKEND_URL}api/status/completed`,
-        payload
-      );
-
-      if (res.status === 200) {
-        toast.success("✅ Upload status successfully marked as completed!", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-        fetchStudents();
-        window.location.reload();
-        console.log("✅ Backend response:", res.data);
-      } else {
-        toast.warn("⚠️ Unexpected response from server.", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-      }
-    } catch (error) {
-      console.error("❌ Error completing upload status:", error);
-      toast.error(`Failed to mark upload as completed: ${error}`, {
-        position: "top-center",
-        autoClose: 4000,
-      });
-    }
-  };
-
-  const fetchUploadStatus = async () => {
-    const program_source = "STI";
-    const process_id = processInfo.process_id;
-    const branch_name =
-      auth.info?.branch?.branch_name === null
-        ? "All"
-        : auth.info?.branch?.branch_name;
-    const disbursement_type_id = 3;
-
-    if (!process_id) {
-      return;
-    }
-    try {
-      const response = await axios.get(`${VITE_BACKEND_URL}api/status/list`, {
-        params: {
-          process_id,
-          program_source,
-          branch_name,
-          disbursement_type_id,
-        },
-      });
-
-      if (response.status === 200) {
-        console.log("fetch", response.data.data);
-        setIsUploadStatusHR(response.data.data);
-        setIsUploadStatusBE(response.data.data[0]);
-      } else {
-        toast.warn("⚠️ Unexpected response from server.");
-      }
-    } catch (error) {
-      console.error("❌ Error fetching upload status:", error);
-      toast.error(`Failed to fetch upload status: ${error}`, {
-        position: "top-center",
-        autoClose: 4000,
-      });
-    }
-  };
-
-  const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
-
-  useEffect(() => {
-    fetchUploadStatus();
-  }, [processInfo, auth]);
-
-  useEffect(() => {
-    if (sySem) {
-      getProcessInfo(sySem);
-    }
-  }, [sySem]);
 
   return (
-    <div className="px-4 sm:px-6 space-y-6 relative">
+    <div className="px-3 sm:px-4 lg:px-6 space-y-4 sm:space-y-6 relative">
       {/* 🧭 Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={isDialogOpen}
-        message="You are about to upload the Thesis Fee amounts. This will update disbursement records for all listed scholars."
-        confirmText={uploading ? "Saving..." : "Upload Now"}
+        message="You are about to save the Thesis Fee amounts to the database. This will permanently update disbursement records for all listed scholars. Are you sure you want to proceed?"
+        confirmText="Save Changes"
         cancelText="Cancel"
-        onConfirm={!uploading ? handleSaveConfirmed : () => {}}
-        onCancel={() => !uploading && setIsDialogOpen(false)}
+        isLoading={isSaving}
+        onConfirm={!isSaving ? handleSaveConfirmed : () => {}}
+        onCancel={() => !isSaving && setIsDialogOpen(false)}
       />
 
-      {/* 🌀 Overlay while uploading/saving */}
-      {uploading && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex flex-col items-center justify-center z-[9999] text-white">
-          <div className="animate-spin h-10 w-10 border-4 border-white border-t-transparent rounded-full mb-4"></div>
-          <p className="text-lg font-medium">Processing upload...</p>
+      {/* 📊 Excel Upload Modal */}
+      <UploadExcelModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onUpload={handleExcelModalUpload}
+      />
+
+      {/* Save Progress Overlay - RenewalListV2 Style */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[10001] animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 animate-scaleIn">
+            <div className="flex flex-col items-center">
+              {/* Circular Progress Indicator */}
+              <div className="relative w-32 h-32 mb-6">
+                {/* Animated Background Circle */}
+                <svg
+                  className="w-32 h-32 transform -rotate-90 animate-pulse"
+                  viewBox="0 0 120 120"
+                >
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="#e5e7eb"
+                    strokeWidth="8"
+                    fill="none"
+                    className="animate-pulse"
+                  />
+                  {/* Progress Circle with Animation */}
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="url(#gradient)"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 50}`}
+                    strokeDashoffset={`${
+                      2 * Math.PI * 50 * (1 - saveProgress / 100)
+                    }`}
+                    className="transition-all duration-300 ease-out animate-pulse"
+                  />
+                  {/* Gradient Definition */}
+                  <defs>
+                    <linearGradient
+                      id="gradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="0%"
+                    >
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* Percentage Text Inside Circle with Animation */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center animate-bounce">
+                    <div className="text-3xl font-bold text-green-600 animate-pulse">
+                      {Math.round(saveProgress)}%
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 animate-pulse">
+                      Complete
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rotating Ring Animation */}
+                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-300 animate-spin opacity-30"></div>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Saving Changes
+              </h3>
+              <p className="text-gray-600 text-sm text-center mb-4">
+                {saveStatus || "Processing your changes..."}
+              </p>
+
+              <p className="text-xs text-gray-500 text-center">
+                Please do not close this window
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Header Toolbar */}
-      <div className="mb-8">
-        {processInfo.current_stage === "Renewal" ? (
-          // 🚨 URGENT - Waiting for HR to finalize renewal
-          <div className="relative p-6 bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-red-500 shadow-lg rounded-lg">
-            {/* Urgent Badge */}
-            <div className="absolute -top-3 -right-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold tracking-wide">
-              ⏰ PENDING
+      <div className="flex flex-wrap justify-between items-center bg-white border border-gray-200 rounded-xl shadow-sm p-3 sm:p-4">
+        <div className="flex items-center gap-3">
+          {/* Mobile: Icon + Compact Text */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg
+                className="w-4 h-4 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
             </div>
-
-            <div className="flex items-start gap-4">
-              {/* Alert Icon */}
-              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mt-1">
-                <span className="text-2xl">⚠️</span>
-              </div>
-
-              <div className="flex-1">
-                <h3 className="font-semibold text-red-900 text-sm uppercase tracking-wide mb-2">
-                  HR Approval Pending
-                </h3>
-                <p className="text-sm text-red-800 leading-relaxed">
-                  <strong>Action Required:</strong> Waiting for HR to finalize
-                  the process. You can upload the thesis fees{" "}
-                  <strong>immediately after approval</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : uploadStatusBE?.is_completed === true ? (
-          // 🟩 COMPLETED - Process now in HR's hands
-          <div className="relative p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 border-l-4 border-emerald-600 shadow-md rounded-lg">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mt-1">
-                <span className="text-2xl">🤝</span>
-              </div>
-
-              <div className="flex-1">
-                <h3 className="font-bold text-emerald-900 text-lg mb-2 leading-tight">
-                  Upload Completed
-                </h3>
-                <p className="text-sm text-emerald-800 leading-relaxed">
-                  🎯 All thesis fees have been finalized and submitted
-                  successfully. The process is now{" "}
-                  <strong>ready for Approvals</strong>.
-                </p>
-              </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800 leading-tight">
+                Thesis Fee
+              </h2>
+              <p className="text-xs text-gray-500 leading-tight">
+                {schoolYear} | {semester}
+              </p>
             </div>
           </div>
-        ) : (
-          // ✅ READY - Actionable Buttons and Completion Message
-          <div className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl shadow-sm relative">
-            {/* Success Badge */}
-            <div className="absolute -top-3 -right-3 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-bold tracking-wide flex items-center gap-2">
-              ✅ READY TO UPLOAD
-            </div>
 
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mt-1">
-                <span className="text-2xl">🎉</span>
-              </div>
+          {/* Desktop: Full Text */}
+          <div className="hidden sm:block">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Thesis Fee Upload
+            </h2>
+            <p className="text-sm text-gray-500">
+              School Year:{" "}
+              <span className="font-medium text-gray-700">{schoolYear}</span> |{" "}
+              Semester:{" "}
+              <span className="font-medium text-gray-700">{semester}</span>
+            </p>
+          </div>
+        </div>
 
-              <div className="flex-1">
-                <h3 className="font-bold text-gray-900 text-lg mb-3 leading-tight">
-                  Process Finalized!
-                </h3>
-                <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                  ⏰ <strong>Upload now</strong> to complete scholar thesis fee
-                  processing
-                  {filteredStudents && (
-                    <span className="ml-2 text-red-600">
-                      Remaining:{" "}
-                      <span className="text-red-700 font-semibold">
-                        {
-                          filteredStudents.filter(
-                            (s) =>
-                              !s.disbursement_amount ||
-                              s.disbursement_amount === 0
-                          ).length
-                        }
-                      </span>
-                    </span>
-                  )}
-                </p>
+        {/* 🧩 Action Buttons – Visible only to Role 3 */}
+        {role === 3 && (
+          <div className="grid grid-cols-1 sm:flex sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
+            {/* Show Download and Upload buttons when NO uploaded data */}
+            {uploadedData.length === 0 && (
+              <>
+                {/* Download Template - Mobile: Icon only, Desktop: Full text */}
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center justify-center gap-1 sm:gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition shadow-sm w-full whitespace-nowrap"
+                >
+                  <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Download</span>
+                  <span className="sm:hidden">Download</span>
+                </button>
 
-                {/* Buttons Section */}
-                {role === 3 && (
-                  <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                    {/* Download Template Button */}
-                    <button
-                      className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-blue-700"
-                      onClick={handleDownloadTemplate}
-                      aria-label="Download template"
-                    >
-                      <div className="relative">
-                        <Download className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold animate-pulse">
-                          📥
-                        </span>
-                      </div>
-                      <span className="tracking-wide">Download Excel</span>
-                    </button>
+                {/* Upload Excel - Mobile: Icon only, Desktop: Full text */}
+                <button
+                  onClick={() => setIsExcelModalOpen(true)}
+                  disabled={isSaving}
+                  className={`flex items-center justify-center gap-1 sm:gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition shadow-sm w-full whitespace-nowrap ${
+                    isSaving
+                      ? "bg-blue-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                  }`}
+                >
+                  <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Upload</span>
+                  <span className="sm:hidden">Upload</span>
+                </button>
+              </>
+            )}
 
-                    {/* Upload Excel Button */}
-                    <button
-                      className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-blue-700"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      aria-label="Upload excel"
-                    >
-                      <div className="relative">
-                        <Upload className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold animate-pulse">
-                          📤
-                        </span>
-                      </div>
-                      <span className="tracking-wide">Upload Excel</span>
-                    </button>
+            {/* Show Cancel and Save buttons when there IS uploaded data */}
+            {uploadedData.length > 0 && (
+              <>
+                {/* Cancel - Mobile: Icon only, Desktop: Full text */}
+                <button
+                  onClick={handleCancelUpload}
+                  disabled={isSaving}
+                  className={`flex items-center justify-center gap-1 sm:gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition shadow-sm w-full ${
+                    isSaving
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-gray-500 hover:bg-gray-700 text-white"
+                  }`}
+                >
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Cancel</span>
+                  <span className="sm:hidden">Cancel</span>
+                </button>
 
-                    <input
-                      type="file"
-                      accept=".xlsx, .xls"
-                      ref={fileInputRef}
-                      onChange={handleUploadExcel}
-                      className="hidden"
-                    />
-
-                    {/* Save Button */}
-                    {uploadedData.length > 0 && (
-                      <button
-                        className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-blue-700 animate-pulse"
-                        onClick={handleSaveClick}
-                        disabled={uploading}
-                        aria-label="Save changes"
-                      >
-                        <div className="relative">
-                          <Save className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold animate-pulse">
-                            💾
-                          </span>
-                        </div>
-                        <span className="tracking-wide">Save</span>
-                      </button>
-                    )}
-
-                    {/* Finalize Button */}
-                    {filteredStudents?.filter(
-                      (s) =>
-                        !s.disbursement_amount || s.disbursement_amount === 0
-                    ).length === 0 &&
-                      uploadStatusBE &&
-                      !uploadStatusBE.is_completed && (
-                        <button
-                          className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-emerald-700 animate-pulse"
-                          aria-label="Finalize thesis fee processing"
-                          onClick={handleComplete}
-                        >
-                          <svg
-                            className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          <span className="tracking-wide">Finalize</span>
-                        </button>
-                      )}
-                  </div>
-                )}
-
-                {/* Completion Message */}
-                {filteredStudents?.filter(
-                  (s) => !s.disbursement_amount || s.disbursement_amount === 0
-                ).length === 0 && (
-                  <div
-                    className="p-4 bg-emerald-100 rounded-xl flex items-center gap-3 text-sm text-emerald-800 font-semibold border border-emerald-300 animate-pulse"
-                    role="alert"
-                  >
-                    <svg
-                      className="w-6 h-6 text-emerald-600"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>All thesis fees uploaded successfully!</span>
-                  </div>
-                )}
-              </div>
-            </div>
+                {/* Save - Mobile: Icon only, Desktop: Full text */}
+                <button
+                  onClick={handleSaveClick}
+                  disabled={isSaving}
+                  className={`flex items-center justify-center gap-1 sm:gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition shadow-sm w-full ${
+                    isSaving
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700 text-white"
+                  }`}
+                >
+                  <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Save</span>
+                  <span className="sm:hidden">Save</span>
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
