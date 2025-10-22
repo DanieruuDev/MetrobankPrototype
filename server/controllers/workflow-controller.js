@@ -251,7 +251,7 @@ const changeApprover = async (req, res) => {
 //Done with modular
 //done with adding notification
 const createApproval = async (req, res) => {
-  const file = req.file;
+  // const file = req.file;
   const client = await pool.connect();
 
   try {
@@ -271,7 +271,7 @@ const createApproval = async (req, res) => {
       !rq_title ||
       !rq_type_id ||
       !requester_id ||
-      !file ||
+      // !file ||
       !description ||
       !due_date ||
       !sy_code ||
@@ -302,27 +302,27 @@ const createApproval = async (req, res) => {
     }
 
     // ✅ Upload the in-memory buffer directly
-    const fileName = `${Date.now()}_${file.originalname}`;
-    const b2Result = await uploadBuffer(
-      file.buffer,
-      fileName,
-      process.env.B2_BUCKET_ID
-    );
+    // const fileName = `${Date.now()}_${file.originalname}`;
+    // const b2Result = await uploadBuffer(
+    //   file.buffer,
+    //   fileName,
+    //   process.env.B2_BUCKET_ID
+    // );
 
-    if (!b2Result || !b2Result.fileName) {
-      throw new Error("Upload to B2 failed");
-    }
+    // if (!b2Result || !b2Result.fileName) {
+    //   throw new Error("Upload to B2 failed");
+    // }
 
     // ✅ Save document metadata
-    const docId = await insertDocument(client, {
-      doc_name: b2Result.fileName,
-      path: `${process.env.B2_BUCKET_ID}/${b2Result.fileName}`,
-      size: file.size,
-      doc_type: file.mimetype,
-    });
+    // const docId = await insertDocument(client, {
+    //   doc_name: b2Result.fileName,
+    //   path: `${process.env.B2_BUCKET_ID}/${b2Result.fileName}`,
+    //   size: file.size,
+    //   doc_type: file.mimetype,
+    // });
 
     const workflowId = await insertWorkflow(client, {
-      docId,
+      // docId,
       approval_req_type,
       requester_id,
       due_date,
@@ -425,7 +425,7 @@ const createApproval = async (req, res) => {
         rq_title,
         due_date,
         status: "Pending",
-        doc_name: b2Result.fileName,
+        // doc_name: b2Result.fileName,
         current_approver:
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
@@ -1219,6 +1219,70 @@ const getEligibleListDisbursement = async (req, res) => {
   }
 };
 
+const getValidEligibleList = async (req, res) => {
+  const { semester, school_year, disbursement_type_id } = req.query;
+
+  // ✅ Validate required parameters
+  if (!semester || !school_year || !disbursement_type_id) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Missing required fields: semester, school_year, or disbursement_type_id.",
+    });
+  }
+
+  try {
+    const query = `
+      SELECT
+    renewal_id,
+	  student_id,
+	  scholar_name,
+	  campus,
+	  program,
+	  year_level,
+	  semester,
+	  school_year,
+	  scholarship_status,
+	  disb_detail_id,
+	  disbursement_type_id,
+	  disbursement_amount,
+	  disbursement_files
+      FROM public.vw_combined_eligible_scholar_invoice
+      WHERE semester = $1 
+        AND school_year = $2 
+        AND disbursement_type_id = $3
+    `;
+
+    const result = await pool.query(query, [
+      semester,
+      school_year,
+      disbursement_type_id,
+    ]);
+
+    // ✅ If no records found
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No eligible scholars found for the given parameters.",
+      });
+    }
+
+    // ✅ Return successful result
+    return res.status(200).json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching eligible scholar list:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching eligible scholar list.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   uploadFile,
   changeApprover,
@@ -1239,4 +1303,5 @@ module.exports = {
   getDataToEdit,
   EditApprovalByID,
   getEligibleListDisbursement,
+  getValidEligibleList,
 };

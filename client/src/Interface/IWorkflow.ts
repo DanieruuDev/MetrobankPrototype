@@ -74,6 +74,7 @@ export interface ApproverDetailedView {
   requester_name: string;
   requester_role: string;
   requester_role_name: string;
+  disbursement_type_id: number;
   date_started: string; // ISO string
   due_date: string; // ISO string
   school_year: string;
@@ -183,7 +184,7 @@ export interface WorkflowFormData {
   rq_title: string;
   requester_id: string;
   description: string;
-  file: File | ExistingFile | null;
+  // file: File | ExistingFile | null;
   approvers: WFApprover[]; //edit later
   due_date: string;
   sy_code: string;
@@ -227,6 +228,7 @@ export interface DetailedWorkflow {
   doc_path: string | null;
   doc_size: number | null;
   doc_uploaded_at: string | null;
+  disbursement_type_id: number;
   approvers: Approver[];
   logs: WorkflowLog[];
 }
@@ -289,4 +291,17 @@ export interface WorkflowLog {
   old_status: string | null;
   new_status: string | null;
   change_at: string;
+}
+
+export interface EligibleScholar {
+  renewal_id: number;
+  student_id: string;
+  scholar_name: string;
+  campus: string;
+  program: string;
+  year_level: string;
+  semester: string;
+  school_year: string;
+  disbursement_amount?: number | null;
+  disbursement_files?: { file_name: string }[];
 }

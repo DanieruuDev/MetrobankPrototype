@@ -30,6 +30,9 @@ const tabMap: Record<number, DisbursementTab> = {
 };
 
 const DisbursementUploadPage: React.FC = () => {
+  const auth = useAuth();
+  const role = auth?.user?.role_id;
+  const branch = auth?.info?.branch?.branch_name;
   // ✅ Load active tab from localStorage or default to 1
   const savedTab = Number(localStorage.getItem("activeTabId")) || 1;
   const [activeTabId, setActiveTabId] = useState<number>(savedTab);
@@ -40,16 +43,18 @@ const DisbursementUploadPage: React.FC = () => {
   const [semester, setSemester] = useState("1st Semester");
   const [students, setStudents] = useState<Student[]>([]);
 
-  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(
+    branch || null
+  );
+
   const [selectedYearLevel, setSelectedYearLevel] = useState<string>("all");
   const [selectedProgram, setSelectedProgram] = useState<string>("all");
 
-  const branchRef = useRef<HTMLDivElement>(null);
   const yearLevelRef = useRef<HTMLDivElement>(null);
   const programRef = useRef<HTMLDivElement>(null);
 
   const [filtersExpanded, setFiltersExpanded] = useState(true);
-  const [branchOpen, setBranchOpen] = useState(false);
+
   const [yearLevelOpen, setYearLevelOpen] = useState(false);
   const [programOpen, setProgramOpen] = useState(false);
   const [, setInitialRenewalInfo] = useState<InitialRenewalInfo | null>(null);
@@ -57,8 +62,7 @@ const DisbursementUploadPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { collapsed } = useSidebar();
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const auth = useAuth();
-  const role = auth?.user?.role_id;
+
   console.log(role);
   // ✅ Save active tab to localStorage when it changes
 
@@ -82,7 +86,7 @@ const DisbursementUploadPage: React.FC = () => {
         `${VITE_BACKEND_URL}api/invoice/list/${schoolYear}/${semester}`,
         {
           params: {
-            branch: auth?.user?.branch?.branch_name,
+            branch: branch,
             disbursement_type_id: tabId,
           },
         }
@@ -120,14 +124,16 @@ const DisbursementUploadPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchStudents(activeTabId);
-    fetchRenewalInfo();
+    if (auth) {
+      fetchStudents(activeTabId);
+      fetchRenewalInfo();
+    }
   }, [schoolYear, semester, activeTabId]);
 
   const filteredStudents = [...students]
     .filter((student) => {
       const branchMatch =
-        selectedBranch === "all" || student.campus === selectedBranch;
+        selectedBranch === null || student.campus === selectedBranch;
       const yearLevelMatch =
         selectedYearLevel === "all" || student.year_level === selectedYearLevel;
       const programMatch =
@@ -153,9 +159,6 @@ const DisbursementUploadPage: React.FC = () => {
       });
     });
 
-  const uniqueBranches = Array.from(
-    new Set(students.map((s) => s.campus))
-  ).sort();
   const uniqueYearLevels = Array.from(
     new Set(students.map((s) => s.year_level))
   ).sort();
@@ -166,11 +169,6 @@ const DisbursementUploadPage: React.FC = () => {
   // ✅ Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        branchRef.current &&
-        !branchRef.current.contains(event.target as Node)
-      )
-        setBranchOpen(false);
       if (
         yearLevelRef.current &&
         !yearLevelRef.current.contains(event.target as Node)
@@ -187,6 +185,7 @@ const DisbursementUploadPage: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  console.log("Students", filteredStudents);
   const renderActiveTab = () => {
     // Prevent unauthorized roles from seeing restricted tabs
     if (role !== 7 && (activeTabId === 2 || activeTabId === 4)) {
@@ -283,6 +282,8 @@ const DisbursementUploadPage: React.FC = () => {
     }
   };
 
+  console.log("Brnach:", selectedBranch);
+
   return (
     <div className="min-h-screen relative">
       <Sidebar />
@@ -335,16 +336,12 @@ const DisbursementUploadPage: React.FC = () => {
               setSelectedProgram={setSelectedProgram}
               filtersExpanded={filtersExpanded}
               setFiltersExpanded={setFiltersExpanded}
-              branchOpen={branchOpen}
-              setBranchOpen={setBranchOpen}
               yearLevelOpen={yearLevelOpen}
               setYearLevelOpen={setYearLevelOpen}
               programOpen={programOpen}
               setProgramOpen={setProgramOpen}
-              uniqueBranches={uniqueBranches}
               uniqueYearLevels={uniqueYearLevels}
               uniquePrograms={uniquePrograms}
-              branchRef={branchRef}
               yearLevelRef={yearLevelRef}
               programRef={programRef}
             />

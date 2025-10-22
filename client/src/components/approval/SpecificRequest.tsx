@@ -1,4 +1,4 @@
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import axios from "axios";
 import {
   ArrowLeft,
@@ -18,10 +18,14 @@ import {
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import type { ApproverDetailedView } from "../../Interface/IWorkflow";
+import type {
+  ApproverDetailedView,
+  EligibleScholar,
+} from "../../Interface/IWorkflow";
 import { approverStatusBadge } from "../../utils/StatusBadge";
 import Loading from "../shared/Loading";
 import { AuthContext } from "../../context/AuthContext";
+import EligibleListModal from "./EligibleListModal";
 
 export interface SpecificRequestProps {
   approver_id: number;
@@ -47,7 +51,9 @@ function SpecificRequest({
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [comment, setComment] = useState("");
-
+  const [eligibleCount, setEligibleCount] = useState<number>(0);
+  const [eligibleList, setEligibleList] = useState<EligibleScholar[]>([]);
+  const [isEligibleModalOpen, setIsEligibleModalOpen] = useState(false);
   // Loading states
   const [isProcessing, setIsProcessing] = useState(false);
   const [approvalProgress, setApprovalProgress] = useState(0);
@@ -56,20 +62,20 @@ function SpecificRequest({
   const userId = auth?.user?.user_id;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   console.log("approver status", specificRequest);
-  const handleDownload = () => {
-    if (!specificRequest?.doc_name) {
-      console.error("No file to download");
-      return;
-    }
+  // const handleDownload = () => {
+  //   if (!specificRequest?.doc_name) {
+  //     console.error("No file to download");
+  //     return;
+  //   }
 
-    const filePath = encodeURIComponent(specificRequest?.doc_name); // encode special chars
-    const link = document.createElement("a");
-    link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
-    link.setAttribute("download", specificRequest?.doc_name); // filename for browser
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  //   const filePath = encodeURIComponent(specificRequest?.doc_name); // encode special chars
+  //   const link = document.createElement("a");
+  //   link.href = `${VITE_BACKEND_URL}api/workflow/download/${filePath}`;
+  //   link.setAttribute("download", specificRequest?.doc_name); // filename for browser
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  // };
 
   const handleApproval = useCallback(async () => {
     setIsModalOpen(false);
@@ -162,6 +168,48 @@ function SpecificRequest({
     getRequestApprovalList,
   ]);
 
+  const fetchEligibleList = async (
+    semester: string,
+    school_year: string,
+    disbursement_type_id: number
+  ) => {
+    if (!semester || !school_year || !disbursement_type_id) {
+      console.log("Missing");
+      return;
+    }
+
+    try {
+      const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+      const response = await axios.get(
+        `${VITE_BACKEND_URL}api/workflow/list/eligible`,
+        {
+          params: { semester, school_year, disbursement_type_id },
+        }
+      );
+      console.log(response.data);
+      if (response.data.success) {
+        setEligibleCount(response.data.count);
+        setEligibleList(response.data.data);
+      } else {
+        setEligibleCount(0);
+        setEligibleList([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching eligible scholars:", error);
+      setEligibleCount(0);
+      setEligibleList([]);
+    }
+  };
+  useEffect(() => {
+    if (specificRequest) {
+      fetchEligibleList(
+        specificRequest?.semester,
+        specificRequest?.school_year,
+        specificRequest?.disbursement_type_id
+      );
+    }
+  }, [specificRequest]);
   console.log(specificRequest);
   if (!specificRequest) {
     return <Loading />;
@@ -198,6 +246,8 @@ function SpecificRequest({
   const isRejected = specificRequest.approval_progress.some(
     (approver) => approver.approval_status === "Canceled"
   );
+
+  console.log(specificRequest);
 
   return (
     <>
@@ -692,10 +742,28 @@ function SpecificRequest({
                   {specificRequest.description}
                 </p>
               </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    Eligible Scholars:{" "}
+                    <b className="text-blue-900">{eligibleCount}</b>
+                  </span>
+                </div>
+                {eligibleCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEligibleModalOpen(true)}
+                    className="text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-all"
+                  >
+                    View List
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Attachment */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
+            {/* <div className="border border-gray-200 rounded-xl overflow-hidden">
               <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
                 <h3 className="text-sm font-semibold text-gray-700">
                   Attachment
@@ -721,7 +789,7 @@ function SpecificRequest({
                   </p>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Comment section */}
             <div className="space-y-3 p-4 bg-white rounded-xl border border-gray-200">
@@ -973,6 +1041,14 @@ function SpecificRequest({
             </div>
           </div>
         )}
+
+        <EligibleListModal
+          isOpen={isEligibleModalOpen}
+          onClose={() => setIsEligibleModalOpen(false)}
+          eligibleList={eligibleList}
+          schoolYear={specificRequest?.school_year || ""}
+          semesterCode={specificRequest?.semester || ""}
+        />
       </div>
     </>
   );

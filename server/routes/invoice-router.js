@@ -28,6 +28,7 @@ invoiceRouter.post(
   upload.single("file"),
   uploadThesisFee
 );
+
 invoiceRouter.post("/add-academic-award", addAcademicAwardStudent);
 invoiceRouter.delete("/remove-academic-award", removeAcademicAwardStudent);
 invoiceRouter.post(

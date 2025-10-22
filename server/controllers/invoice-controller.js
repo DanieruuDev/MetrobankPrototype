@@ -5,40 +5,30 @@ const { v4: uuidv4 } = require("uuid");
 //Eligible for disbursement
 const fetchEligibleScholar = async (req, res) => {
   const { schoolYear, semester } = req.params;
-  const { branch, disbursement_type_id } = req.query; // ✅ optional branch filter
-  console.log("branch here", branch);
-  if (!schoolYear || !semester) {
-    return res
-      .status(400)
-      .json({ error: "School year and semester are required" });
+  const { branch, disbursement_type_id } = req.query;
+
+  let baseQuery = `
+    SELECT * FROM vw_combined_eligible_scholar_invoice
+    WHERE school_year = $1
+      AND semester = $2
+  `;
+
+  const params = [schoolYear, semester];
+  let paramIndex = 3;
+
+  if (branch && branch !== "null" && branch !== "undefined") {
+    baseQuery += ` AND campus = $${paramIndex++}`;
+    params.push(branch);
   }
 
-  try {
-    // ✅ Use a flexible WHERE condition:
-    // - Filters by branch only if it’s provided.
-    // - Otherwise, shows all.
-    const query = `
-      SELECT *
-      FROM vw_combined_eligible_scholar_invoice
-      WHERE semester = $1
-        AND school_year = $2
-        AND ($3::varchar IS NULL OR campus = $3)
-        AND disbursement_type_id = $4
-      ORDER BY scholar_name ASC
-    `;
-
-    const { rows } = await pool.query(query, [
-      semester,
-      schoolYear,
-      branch || null,
-      disbursement_type_id,
-    ]);
-
-    return res.status(200).json(rows);
-  } catch (error) {
-    console.error("Error fetching renewed scholars:", error);
-    return res.status(500).json({ error: "Internal server error" });
+  if (disbursement_type_id) {
+    baseQuery += ` AND disbursement_type_id = $${paramIndex++}`;
+    params.push(disbursement_type_id);
   }
+  console.log("branch", branch);
+
+  const result = await pool.query(baseQuery, params);
+  res.json(result.rows);
 };
 
 //tuition-invoice only
@@ -615,6 +605,7 @@ const addInternshipAllowance = async (req, res) => {
         total_inserted: 0,
       });
     }
+    console.log(ids);
 
     const insertedRows = [];
 
@@ -630,7 +621,7 @@ const addInternshipAllowance = async (req, res) => {
         `,
         [disbursement_id, coveredDate]
       );
-
+      console.log(disbursement_id);
       if (exists.rowCount === 0) {
         const insertResult = await client.query(
           `
