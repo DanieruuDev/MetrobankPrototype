@@ -1,32 +1,28 @@
 const createEventSchedule = async (client, data) => {
   const {
     event_type,
-    starting_date,
     sched_title,
     schedule_due,
     sy_code,
     semester_code,
     requester,
     description,
-    branchId,
     disbursement_type_id,
     workflow_id,
   } = data;
-  console.log("Branch id to: ", branchId);
 
   console.log(workflow_id);
   const { rows: existingDisb } = await client.query(
     `
-  SELECT ds.disb_sched_id
-  FROM disbursement_schedule ds
-  JOIN event_schedule es ON ds.sched_id = es.sched_id
-  WHERE es.sy_code = $1
-    AND es.semester_code = $2
-    AND ds.branch_code = $3
-    AND ds.disbursement_type_id = $4
-  LIMIT 1
-  `,
-    [sy_code, semester_code, branchId, disbursement_type_id]
+    SELECT ds.disb_sched_id
+    FROM disbursement_schedule ds
+    JOIN event_schedule es ON ds.sched_id = es.sched_id
+    WHERE es.sy_code = $1
+      AND es.semester_code = $2
+      AND ds.disbursement_type_id = $3
+    LIMIT 1
+    `,
+    [sy_code, semester_code, disbursement_type_id]
   );
   const countEventWithWorkflowID = await client.query(
     "SELECT COUNT(*) FROM event_schedule WHERE workflow_id = $1",
@@ -38,59 +34,48 @@ const createEventSchedule = async (client, data) => {
   }
   if (existingDisb.length > 0) {
     throw new Error(
-      `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, Branch ${branchId}, and Disbursement Type ${disbursement_type_id}.`
+      `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, and Disbursement Type ${disbursement_type_id}.`
     );
   }
 
   const { rows: students } = await client.query(
     `
-    SELECT 1
+    SELECT DISTINCT rs.renewal_id
     FROM renewal_scholar rs
     JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
     WHERE rs.school_year = $1
       AND rs.semester = $2
-      AND mc.campus_id = $3
     LIMIT 1
     `,
-    [sy_code, semester_code, branchId]
+    [sy_code, semester_code]
   );
-  console.log("Branch", branchId);
+
   if (!students.length) {
     throw new Error(
-      `No students found eligible in SY ${sy_code}, Semester ${semester_code}, Branch ${branchId} for this event.`
+      `No students found eligible in SY ${sy_code}, Semester ${semester_code}, for this event.`
     );
   }
 
   console.log("Eligible Student: ", students);
-  const today = new Date().toISOString().split("T")[0];
-  let schedule_status = "Not Started";
-  if (starting_date) {
-    const parsed = new Date(starting_date);
-    if (!isNaN(parsed)) {
-      const startDateStr = parsed.toISOString().split("T")[0];
-      if (startDateStr === today) schedule_status = "In Progress";
-    }
-  }
 
   const result = await client.query(
     `
-    INSERT INTO event_schedule (
-      event_type, sched_title, schedule_due, starting_date,
-      sy_code, semester_code, requester, description, schedule_status, workflow_id
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-    RETURNING sched_id
-    `,
+      INSERT INTO event_schedule (
+        event_type, sched_title, schedule_due,
+        sy_code, semester_code, requester, description, schedule_status, workflow_id
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      RETURNING sched_id
+      `,
     [
       event_type,
       sched_title,
       schedule_due,
-      starting_date,
       sy_code,
       semester_code,
       requester,
       description,
-      schedule_status,
+      "In Progress",
       workflow_id,
     ]
   );
@@ -99,41 +84,81 @@ const createEventSchedule = async (client, data) => {
 };
 
 const createDisbursementSched = async (client, data) => {
-  const { sched_id, sy_code, semester_code, branchId, disbursement_type_id } =
-    data;
+  let { sched_id, sy_code, semester_code, disbursement_type_id } = data;
 
+  // 🔁 Convert sy_code (e.g. 20252026 → 2025-2026)
+  if (sy_code) {
+    const syString = String(sy_code); // ✅ ensure it’s a string
+    if (/^\d{8}$/.test(syString)) {
+      sy_code = `${syString.slice(0, 4)}-${syString.slice(4)}`;
+    }
+  }
+
+  // 🔁 Convert semester_code to readable text
+  let semesterReadable;
+  switch (
+    String(semester_code) // ✅ force to string in case it’s a number
+  ) {
+    case "1":
+      semesterReadable = "1st Semester";
+      break;
+    case "2":
+      semesterReadable = "2nd Semester";
+      break;
+    case "3":
+      semesterReadable = "Midyear";
+      break;
+    default:
+      semesterReadable = semester_code; // fallback if already readable
+  }
+
+  // ✅ Fetch directly from the eligibility view using readable values
   const { rows: disbDetails } = await client.query(
     `
-  SELECT dd.disb_detail_id
-  FROM renewal_scholar rs
-  JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
-  JOIN disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
-  JOIN disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
-  WHERE rs.school_year = $1
-    AND rs.semester = $2
-    AND mc.campus_id = $3
-    AND dd.disbursement_type_id = $4
-  `,
-    [sy_code, semester_code, branchId, disbursement_type_id]
+    SELECT
+      disb_detail_id,
+      campus AS branch_name
+    FROM public.vw_combined_eligible_scholar_invoice
+    WHERE semester = $1
+      AND school_year = $2
+      AND disbursement_type_id = $3
+    `,
+    [semesterReadable, sy_code, disbursement_type_id]
   );
 
   if (!disbDetails.length) {
     throw new Error(
-      `No students found in SY ${sy_code}, Semester ${semester_code}, Branch ${branchId} for disbursement type ${disbursement_type_id}.`
+      `No eligible scholars found for SY ${sy_code}, ${semesterReadable}, and Disbursement Type ${disbursement_type_id}.`
     );
   }
 
   const insertedIds = [];
 
-  for (const { disb_detail_id } of disbDetails) {
+  // ✅ Use campus name to find branch_code (if needed)
+  for (const { disb_detail_id, branch_name } of disbDetails) {
+    const { rows: campusRows } = await client.query(
+      `SELECT campus_id FROM maintenance_campus WHERE campus_name = $1 LIMIT 1`,
+      [branch_name]
+    );
+
+    if (!campusRows.length) {
+      console.warn(`⚠️ Skipping unknown campus: ${branch_name}`);
+      continue;
+    }
+
+    const branch_code = campusRows[0].campus_id;
+
     const { rows } = await client.query(
       `
-    INSERT INTO disbursement_schedule (sched_id, disb_detail_id, branch_code, disbursement_type_id)
-    VALUES ($1, $2, $3, $4)
-    RETURNING disb_sched_id
-    `,
-      [sched_id, disb_detail_id, branchId, disbursement_type_id]
+      INSERT INTO disbursement_schedule (
+        sched_id, disb_detail_id, branch_code, disbursement_type_id
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING disb_sched_id
+      `,
+      [sched_id, disb_detail_id, branch_code, disbursement_type_id]
     );
+
     insertedIds.push(rows[0].disb_sched_id);
   }
 
