@@ -307,7 +307,8 @@ const ROIandAnalytics: React.FC = () => {
       ? 0
       : netInvestmentToRecover / totalYearlyGain;
 
-  const avgInvestmentPerScholar = totalInvestment / totalStudents; // --- 4. DATA STRUCTURES FOR CHARTS --- // Dynamic ROI Time Series for Break-Even Chart
+  const avgInvestmentPerScholar =
+    totalStudents > 0 ? totalInvestment / totalStudents : 0; // --- 4. DATA STRUCTURES FOR CHARTS --- // Dynamic ROI Time Series for Break-Even Chart
 
   const generateROISeries = (years: number) => {
     const series = []; // Initial net value is the cost of investment offset by hiring cost savings
@@ -384,7 +385,8 @@ const ROIandAnalytics: React.FC = () => {
       -totalInvestment + initialHiringSavings + cumulativeValueGenerated;
 
     // 5. Calculate ROI at year X
-    const roiAtYearX = (netValueAtYearX / totalInvestment) * 100;
+    const roiAtYearX =
+      totalInvestment > 0 ? (netValueAtYearX / totalInvestment) * 100 : 0;
 
     // 6. Break-even status
     const hasReachedBreakEven = netValueAtYearX >= 0;
