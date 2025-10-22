@@ -134,6 +134,10 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
             text: "Cumulative Net Value (₱)",
             font: { size: isMobile ? 10 : 12 },
           },
+          title: {
+            display: true,
+            text: "Cumulative Net Value (₱)",
+          },
         },
         x: {
           grid: { display: false },

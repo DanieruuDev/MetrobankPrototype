@@ -7,6 +7,7 @@ const {
   getCompletedDisbursementTotals,
   getTotalDisbursedAmount,
   getStudentBasicInfo,
+  getROIAnalyticsData,
 } = require("../controllers/disbursement-overview-controller.js");
 
 const disbursementOverview = express.Router();
@@ -27,5 +28,7 @@ disbursementOverview.get("/semester-scholars", getSemesterScholarDisbursement);
 disbursementOverview.get("/total-disbursed", getTotalDisbursedAmount);
 
 disbursementOverview.get("/student-info/:id", getStudentBasicInfo);
+
+disbursementOverview.get("/roi-analytics", getROIAnalyticsData);
 
 module.exports = disbursementOverview;
