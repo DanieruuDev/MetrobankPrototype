@@ -657,28 +657,42 @@ const ROIandAnalytics: React.FC = () => {
                   onChange={(e) => {
                     const rawValue = e.target.value;
 
-                    // Update display value immediately
-                    setAbsorptionRateDisplay(rawValue);
-
                     // Handle empty input
                     if (rawValue === "" || rawValue === ".") {
+                      setAbsorptionRateDisplay(rawValue);
                       setScholarAbsorptionRate(0);
                       return;
                     }
 
+                    // Clean the input to only allow numbers and decimal point
+                    const cleanValue = rawValue.replace(/[^0-9.]/g, "");
+
+                    // Prevent typing beyond 100
+                    const numericValue = parseFloat(cleanValue);
+                    if (!isNaN(numericValue) && numericValue > 100) {
+                      // Don't update the display if value exceeds 100
+                      return;
+                    }
+
+                    // Update display value
+                    setAbsorptionRateDisplay(cleanValue);
+
                     // Handle leading zeros: if user types after "0", replace the "0"
                     if (
-                      rawValue.startsWith("0") &&
-                      rawValue.length > 1 &&
-                      !rawValue.startsWith("0.")
+                      cleanValue.startsWith("0") &&
+                      cleanValue.length > 1 &&
+                      !cleanValue.startsWith("0.")
                     ) {
-                      const cleanValue = rawValue.replace(/^0+/, "");
-                      if (cleanValue !== "") {
-                        setAbsorptionRateDisplay(cleanValue);
-                        const cleanNumericValue = parseFloat(cleanValue);
-                        if (!isNaN(cleanNumericValue)) {
+                      const trimmedValue = cleanValue.replace(/^0+/, "");
+                      if (trimmedValue !== "") {
+                        setAbsorptionRateDisplay(trimmedValue);
+                        const trimmedNumericValue = parseFloat(trimmedValue);
+                        if (
+                          !isNaN(trimmedNumericValue) &&
+                          trimmedNumericValue <= 100
+                        ) {
                           const clampedValue = Math.min(
-                            Math.max(cleanNumericValue, 1),
+                            Math.max(trimmedNumericValue, 1),
                             100
                           );
                           setScholarAbsorptionRate(
@@ -690,10 +704,7 @@ const ROIandAnalytics: React.FC = () => {
                     }
 
                     // Process normal input
-                    const numericValue = parseFloat(
-                      rawValue.replace(/[^0-9.]/g, "")
-                    );
-                    if (!isNaN(numericValue)) {
+                    if (!isNaN(numericValue) && numericValue <= 100) {
                       const clampedValue = Math.min(
                         Math.max(numericValue, 1),
                         100
@@ -720,7 +731,7 @@ const ROIandAnalytics: React.FC = () => {
                 />
                 <p className="text-xs text-gray-600 mt-1 leading-relaxed">
                   Percentage of scholars who get hired by Metrobank after
-                  graduation.
+                  graduation. (Range: 1-100%)
                 </p>
               </div>
               <div className="flex flex-col">
