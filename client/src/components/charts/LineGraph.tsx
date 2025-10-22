@@ -130,13 +130,9 @@ const LineGraph: React.FC<LineGraphProps> = ({ data }) => {
             maxTicksLimit: isMobile ? 4 : 6,
           },
           title: {
-            display: !isMobile,
-            text: "Cumulative Net Value (₱)",
-            font: { size: isMobile ? 10 : 12 },
-          },
-          title: {
             display: true,
             text: "Cumulative Net Value (₱)",
+            font: { size: isMobile ? 10 : 12 },
           },
         },
         x: {
