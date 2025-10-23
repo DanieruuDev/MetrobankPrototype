@@ -389,6 +389,72 @@ function InternshipAllowanceUpload({
       console.log(error);
     }
   };
+  // ✅ Mark internship upload as completed
+  // ✅ Mark internship upload as completed
+  const handleCompleteInternship = async () => {
+    // 🧩 Detect program source dynamically
+    const program_source = "METROBANK"; // fallback to STI
+    const process_id = processInfo.process_id;
+    const branch_name = null;
+    const disbursement_type_id = 4; // Internship Allowance type
+    const covered_date = selectedDate;
+
+    if (
+      !program_source ||
+      !process_id ||
+      !disbursement_type_id ||
+      !covered_date
+    ) {
+      toast.error(
+        "Missing required information to complete internship upload.",
+        {
+          position: "top-center",
+          autoClose: 3000,
+        }
+      );
+      return;
+    }
+
+    try {
+      const payload = {
+        program_source,
+        branch_name,
+        process_id,
+        disbursement_type_id,
+        covered_date,
+      };
+
+      console.log("📤 Completing internship upload:", payload);
+
+      const res = await axios.put(
+        `${VITE_BACKEND_URL}api/status/completed-intern`,
+        payload
+      );
+
+      if (res.status === 200) {
+        toast.success(
+          "✅ Internship upload successfully marked as completed!",
+          {
+            position: "top-center",
+            autoClose: 3000,
+          }
+        );
+        fetchCoveredDate();
+        fetchUploadStatus();
+      } else {
+        toast.warn("⚠️ Unexpected response from server.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error completing internship upload:", error);
+      toast.error("Failed to mark internship upload as completed.", {
+        position: "top-center",
+        autoClose: 4000,
+      });
+    }
+  };
 
   useEffect(() => {
     fetchCoveredDate();
@@ -1053,6 +1119,15 @@ function InternshipAllowanceUpload({
             >
               Delete Covered Date
             </button>
+
+            {records.length > 0 && (
+              <button
+                onClick={handleCompleteInternship}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium shadow-sm animate-pulse"
+              >
+                Finalize Upload
+              </button>
+            )}
           </div>
 
           {/* Right Section - Rate Input */}

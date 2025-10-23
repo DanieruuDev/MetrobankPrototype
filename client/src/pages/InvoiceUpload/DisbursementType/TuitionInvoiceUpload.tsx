@@ -156,6 +156,7 @@ const TuitionUpload = ({
     });
   };
 
+  console.log(uploadStatusBE);
   const handleCancelEdit = (docIndex: number) => {
     if (!jobStatus?.result?.documents) return;
 
