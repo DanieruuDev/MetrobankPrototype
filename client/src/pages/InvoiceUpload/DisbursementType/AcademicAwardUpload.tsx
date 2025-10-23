@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, Trash2, Paperclip, X, Save } from "lucide-react";
 import PaginationControl from "../../../components/shared/PaginationControl";
 import AddEligibleScholarModal from "../../../components/invoice/academic-award/AddEligibleScholarModal";
@@ -25,17 +25,28 @@ interface AcademicAwardUploadProps {
 }
 
 const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
-  students,
+  students: _students, // Renamed to avoid unused variable warning
   filteredStudents,
   fetchStudents,
   schoolYear,
   semester,
   isLoading,
 }) => {
+  // Suppress unused variable warning
+  void _students;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const auth = useAuth();
   const branch_name = auth.info?.branch?.branch_name;
-  const role = auth.info?.role_id;
+  const role = auth?.user?.role_id;
+
+  // Debug logging
+  console.log("AcademicAwardUpload - Role:", role, "Auth:", auth);
+  console.log(
+    "Rendering Academic Excellence Award Criteria - Role:",
+    role,
+    "Should show:",
+    role === 3
+  );
   const [showModal, setShowModal] = useState(false);
   const [page, setPage] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -81,7 +92,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     setShowUploadModal(true);
   };
 
-  const closeUploadModal = () => {
+  const closeUploadModal = useCallback(() => {
     if (selectedScholar.id !== null) {
       setAwardData((prev) => {
         const updated = { ...prev };
@@ -94,7 +105,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
     setSelectedScholar({ id: null, name: "" });
     setShowUploadModal(false);
-  };
+  }, [selectedScholar.id]);
 
   const handleFileSelect = (disbId: number, file: File) => {
     setAwardData((prev) => ({
@@ -159,10 +170,20 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
   };
 
   const handleSaveList = async () => {
+    console.log("🔍 Debug - filteredStudents:", filteredStudents);
+    console.log("🔍 Debug - awardData:", awardData);
+
     const payload = filteredStudents
       .map((student) => {
         const key = safeKey(student.disb_detail_id);
         const award = awardData[key];
+
+        console.log(`🔍 Debug - Student ${student.scholar_name}:`, {
+          disb_detail_id: student.disb_detail_id,
+          key,
+          award,
+          hasFiles: (student.disbursement_files?.length || 0) > 0,
+        });
 
         // ✅ Get file either from awardData or student.disbursement_files
         const file =
@@ -183,6 +204,13 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
       .filter((item) => item !== null);
 
     console.log("📦 Final Payload to upload:", payload);
+
+    if (payload.length === 0) {
+      alert(
+        "⚠️ No academic award data to save. Please select awards and amounts first."
+      );
+      return;
+    }
 
     try {
       const formData = new FormData();
@@ -215,9 +243,83 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
       } else {
         alert(`⚠️ ${response.data?.message || "Failed to save awards."}`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("❌ Error saving list:", err);
-      alert(`Server error while saving awards: ${err}`);
+
+      // Show more detailed error message
+      let errorMessage = "Server error while saving awards.";
+      if (err && typeof err === "object" && "response" in err) {
+        const axiosError = err as {
+          response?: { data?: { message?: string }; status?: number };
+        };
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        } else if (axiosError.response?.status) {
+          errorMessage = `Request failed with status ${axiosError.response.status}`;
+        }
+      }
+
+      alert(`❌ ${errorMessage}`);
+    }
+  };
+
+  // 🔔 Notify HR about academic award finalization
+  const notifyHRAboutAcademicAwardFinalization = async () => {
+    try {
+      console.log(
+        "🔔 Starting HR notification for academic award finalization..."
+      );
+      const notificationPayload = {
+        type: "INVOICE_UPLOAD",
+        title: "Academic Award Process Finalized",
+        message: `The academic award process has been finalized for ${schoolYear} ${semester} by ${
+          auth.info?.branch?.branch_name || "Registrar"
+        }. The process is now ready for HR approval.`,
+        recipient_role: 7, // HR role
+        sender_role: 3, // Registrar role
+        sender_branch: auth.info?.branch?.branch_name || "Registrar",
+        school_year: schoolYear,
+        semester: semester,
+        disbursement_type: "academic_award",
+        action_required: true,
+        priority: "high",
+      };
+
+      console.log(
+        "📤 Sending finalization notification payload:",
+        notificationPayload
+      );
+
+      const response = await axios.post(
+        `${VITE_BACKEND_URL}api/notification/create`,
+        notificationPayload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      console.log("📨 Finalization notification API response:", response.data);
+      if (response.data.success) {
+        console.log("✅ HR notification for finalization sent successfully");
+        toast.success(
+          "📧 HR has been notified that academic award process is ready for approval.",
+          {
+            position: "bottom-right",
+            autoClose: 5000,
+          }
+        );
+      } else {
+        console.warn(
+          "⚠️ Failed to send HR finalization notification:",
+          response.data.message
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error sending HR finalization notification:", error);
+      // Don't show error toast for notification failure to avoid confusing the user
+      console.log(
+        "Finalization notification failed but process was successful"
+      );
     }
   };
 
@@ -235,7 +337,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
         branch_name,
       });
       toast.error("Missing required information to complete upload status.", {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 3000,
       });
       return;
@@ -258,28 +360,32 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
 
       if (res.status === 200) {
         toast.success("✅ Upload status successfully marked as completed!", {
-          position: "top-center",
+          position: "bottom-right",
           autoClose: 3000,
         });
+
+        // 🔔 Notify HR about academic award finalization
+        await notifyHRAboutAcademicAwardFinalization();
+
         fetchStudents();
         window.location.reload();
         console.log("✅ Backend response:", res.data);
       } else {
         toast.warn("⚠️ Unexpected response from server.", {
-          position: "top-center",
+          position: "bottom-right",
           autoClose: 3000,
         });
       }
     } catch (error) {
       console.error("❌ Error completing upload status:", error);
       toast.error(`Failed to mark upload as completed: ${error}`, {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 4000,
       });
     }
   };
 
-  const fetchUploadStatus = async () => {
+  const fetchUploadStatus = useCallback(async () => {
     const program_source = "STI";
     const process_id = processInfo.process_id;
     const branch_name =
@@ -311,23 +417,27 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     } catch (error) {
       console.error("❌ Error fetching upload status:", error);
       toast.error(`Failed to fetch upload status: ${error}`, {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 4000,
       });
     }
-  };
+  }, [
+    processInfo.process_id,
+    auth.info?.branch?.branch_name,
+    VITE_BACKEND_URL,
+  ]);
 
   const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
 
   useEffect(() => {
     fetchUploadStatus();
-  }, [processInfo, auth]);
+  }, [fetchUploadStatus]);
 
   useEffect(() => {
     if (sySem) {
       getProcessInfo(sySem);
     }
-  }, [sySem]);
+  }, [sySem, getProcessInfo]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -341,22 +451,23 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showUploadModal]);
+  }, [showUploadModal, closeUploadModal]);
 
   if (isLoading)
     return (
       <div className="text-center py-12 text-gray-500">Loading data...</div>
     );
 
-  if (!students.length)
-    return (
-      <div className="text-center py-16 bg-white rounded-2xl border shadow-md">
-        <p className="text-lg font-semibold text-gray-800">No Students Found</p>
-        <p className="text-sm text-gray-600">
-          No students enrolled for {schoolYear} • {semester}
-        </p>
-      </div>
-    );
+  // Comment out early return to allow criteria section to show even when no students
+  // if (!students.length)
+  //   return (
+  //     <div className="text-center py-16 bg-white rounded-2xl border shadow-md">
+  //       <p className="text-lg font-semibold text-gray-800">No Students Found</p>
+  //       <p className="text-sm text-gray-600">
+  //         No students enrolled for {schoolYear} • {semester}
+  //       </p>
+  //     </div>
+  //   );
 
   const paginated = filteredStudents.slice(
     (page - 1) * itemsPerPage,
@@ -630,59 +741,142 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
         </div>
       )}
       {/* 🏅 Criteria */}
-      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl shadow-sm p-5 relative">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          🏆 Academic Excellence Award Criteria
-        </h2>
-        <p className="text-sm text-gray-600 mt-1">
-          Scholars are granted financial incentives based on GPA:
-        </p>
-        <table className="mt-4 text-sm w-full text-gray-700">
-          <thead>
-            <tr className="bg-yellow-100 border-b border-yellow-200 text-gray-800 font-medium">
-              <th className="px-4 py-2 text-left">GPA Range</th>
-              <th className="px-4 py-2 text-left">Award Amount</th>
-              <th className="px-4 py-2 text-left">Recognition</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-yellow-100">
-              <td className="px-4 py-2">90.00 – 94.99</td>
-              <td className="px-4 py-2 font-semibold">₱10,000</td>
-              <td className="px-4 py-2">Cum Laude</td>
-            </tr>
-            <tr className="border-b border-yellow-100">
-              <td className="px-4 py-2">95.00 – 97.99</td>
-              <td className="px-4 py-2 font-semibold">₱15,000</td>
-              <td className="px-4 py-2">Magna Cum Laude</td>
-            </tr>
-            <tr>
-              <td className="px-4 py-2">98.00 – 100.00</td>
-              <td className="px-4 py-2 font-semibold">₱20,000</td>
-              <td className="px-4 py-2">Summa Cum Laude</td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl shadow-sm p-4 sm:p-5 relative">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+              🏆 Academic Excellence Award Criteria
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
+              Scholars are granted financial incentives based on GPA:
+            </p>
+          </div>
+
+          {role === 3 && (
+            <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-0">
+              <button
+                onClick={() => setShowModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition w-full sm:w-auto"
+              >
+                Get Eligible Scholars
+              </button>
+              <button
+                onClick={handleSaveList}
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition flex items-center justify-center gap-1 w-full sm:w-auto"
+              >
+                <Save className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Save List</span>
+                <span className="sm:hidden">Save</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block">
+          <table className="mt-4 text-sm w-full text-gray-700">
+            <thead>
+              <tr className="bg-yellow-100 border-b border-yellow-200 text-gray-800 font-medium">
+                <th className="px-4 py-2 text-left">GPA Range</th>
+                <th className="px-4 py-2 text-left">Award Amount</th>
+                <th className="px-4 py-2 text-left">Recognition</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-yellow-100">
+                <td className="px-4 py-2">90.00 – 94.99</td>
+                <td className="px-4 py-2 font-semibold">₱10,000</td>
+                <td className="px-4 py-2">Cum Laude</td>
+              </tr>
+              <tr className="border-b border-yellow-100">
+                <td className="px-4 py-2">95.00 – 97.99</td>
+                <td className="px-4 py-2 font-semibold">₱15,000</td>
+                <td className="px-4 py-2">Magna Cum Laude</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-2">98.00 – 100.00</td>
+                <td className="px-4 py-2 font-semibold">₱20,000</td>
+                <td className="px-4 py-2">Summa Cum Laude</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile/Tablet Cards */}
+        <div className="block md:hidden mt-4 space-y-3">
+          <div className="bg-yellow-100 rounded-lg p-3 border border-yellow-200">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">
+                GPA Range
+              </span>
+              <span className="text-xs font-semibold text-gray-800">
+                90.00 – 94.99
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">Amount</span>
+              <span className="text-xs font-bold text-green-700">₱10,000</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-gray-700">
+                Recognition
+              </span>
+              <span className="text-xs font-semibold text-gray-800">
+                Cum Laude
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-yellow-100 rounded-lg p-3 border border-yellow-200">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">
+                GPA Range
+              </span>
+              <span className="text-xs font-semibold text-gray-800">
+                95.00 – 97.99
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">Amount</span>
+              <span className="text-xs font-bold text-green-700">₱15,000</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-gray-700">
+                Recognition
+              </span>
+              <span className="text-xs font-semibold text-gray-800">
+                Magna Cum Laude
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-yellow-100 rounded-lg p-3 border border-yellow-200">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">
+                GPA Range
+              </span>
+              <span className="text-xs font-semibold text-gray-800">
+                98.00 – 100.00
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-gray-700">Amount</span>
+              <span className="text-xs font-bold text-green-700">₱20,000</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-gray-700">
+                Recognition
+              </span>
+              <span className="text-xs font-semibold text-gray-800">
+                Summa Cum Laude
+              </span>
+            </div>
+          </div>
+        </div>
+
         <p className="mt-3 text-xs text-gray-500 italic">
           Awards are granted once after graduation based on semester GPA.
         </p>
-
-        {role === 3 && !uploadStatusBE?.is_completed && (
-          <div className="absolute top-5 right-5 flex gap-2">
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-            >
-              Get Eligible Scholars
-            </button>
-            <button
-              onClick={handleSaveList}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1"
-            >
-              <Save className="w-4 h-4" /> Save List
-            </button>
-          </div>
-        )}
       </div>
       {/* 📋 Table */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-lg overflow-hidden relative z-0">
@@ -697,123 +891,431 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-sm">
-            <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left">Student ID</th>
-                <th className="px-4 py-3 text-left">Scholar Name</th>
-                <th className="px-4 py-3 text-left">Campus</th>
-                <th className="px-4 py-3 text-left">Year Level</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3 text-left">Files</th>
-                <th className="px-4 py-3 text-left">Award</th>
-                {role !== 7 && !uploadStatusBE?.is_completed ? (
-                  <th className="px-4 py-3 text-center">Action</th>
-                ) : (
-                  <th></th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="text-gray-700">
-              {paginated.map((s, i) => {
+        {/* Mobile Cards - Small screens */}
+        <div className="block md:hidden">
+          <div className="p-2.5 space-y-2">
+            {paginated.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl flex items-center justify-center">
+                  <svg
+                    className="w-10 h-10 text-blue-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  No students found
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Try adjusting your filters to see more results
+                </p>
+              </div>
+            ) : (
+              paginated.map((s) => {
                 const key = safeKey(s.disb_detail_id);
                 return (
-                  <tr
+                  <div
                     key={s.renewal_id}
-                    className={`${
-                      i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-blue-50 transition`}
+                    className="border rounded-lg p-3 transition-all duration-200 bg-white border-gray-300 shadow-sm  hover:border-blue-400 hover:shadow-sm"
                   >
-                    <td className="px-4 py-3 font-mono">{s.student_id}</td>
-                    <td className="px-4 py-3">{s.scholar_name}</td>
-                    <td className="px-4 py-3">{s.campus}</td>
-                    <td className="px-4 py-3 text-center">{s.year_level}</td>
-                    <td className="px-4 py-3 text-right font-semibold">
-                      {awardData[key]?.amount
-                        ? `₱${awardData[key]?.amount.toLocaleString()}`
-                        : s.disbursement_amount
-                        ? `₱${Number(s.disbursement_amount).toLocaleString()}`
-                        : "N/A"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {s.disbursement_files?.length ? (
-                        s.disbursement_files.map((file, i) => (
-                          <a
-                            key={i}
-                            href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-blue-600 hover:underline truncate"
-                          >
-                            📄 {file.file_name}
-                          </a>
-                        ))
-                      ) : (
-                        <span className="text-gray-400 italic">No files</span>
-                      )}
-                    </td>
-                    {/* Award Dropdown */}
-                    <td className="px-4 py-3">
-                      {role === 7 || uploadStatusBE?.is_completed ? (
-                        // 🔒 HR or completed state can only view honor (no dropdown)
-                        <span className="text-gray-700">
-                          {getHonorFromAmount(Number(s.disbursement_amount)) ||
-                            "—"}
+                    {/* Compact Header Row */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {s.student_id}
                         </span>
-                      ) : (
-                        // 👤 Other roles can modify
-                        <select
-                          className="border border-gray-300 rounded-md text-sm p-1"
-                          value={
-                            awardData[key]?.honor ||
-                            getHonorFromAmount(Number(s.disbursement_amount)) ||
-                            ""
-                          }
-                          onChange={(e) =>
-                            s.disb_detail_id &&
-                            handleHonorChange(s.disb_detail_id, e.target.value)
-                          }
-                        >
-                          <option value="">Select Honor</option>
-                          <option value="Cum Laude">Cum Laude</option>
-                          <option value="Magna Cum Laude">
-                            Magna Cum Laude
-                          </option>
-                          <option value="Summa Cum Laude">
-                            Summa Cum Laude
-                          </option>
-                        </select>
-                      )}
-                    </td>
+                        <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                          {s.year_level}
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-gray-900">
+                        {awardData[key]?.amount
+                          ? `₱${awardData[key]?.amount.toLocaleString()}`
+                          : s.disbursement_amount
+                          ? `₱${Number(s.disbursement_amount).toLocaleString()}`
+                          : "N/A"}
+                      </div>
+                    </div>
 
-                    {/* Action Buttons */}
-                    <td className="px-4 py-3 text-center">
-                      {role !== 7 && !uploadStatusBE?.is_completed && (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() =>
-                              s.disb_detail_id &&
-                              openUploadModal(s.disb_detail_id, s.scholar_name)
-                            }
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                    {/* Student Name */}
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                      {s.scholar_name}
+                    </h3>
+
+                    {/* Compact Details */}
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <div>
+                        <span className="text-gray-500">Campus:</span>
+                        <span className="ml-1 font-medium text-gray-900">
+                          {s.campus}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Award:</span>
+                        <span className="ml-1 font-medium text-gray-900">
+                          {role === 7 ? (
+                            getHonorFromAmount(Number(s.disbursement_amount)) ||
+                            "—"
+                          ) : (
+                            <select
+                              className="border border-gray-300 rounded text-xs p-1 ml-1"
+                              value={
+                                awardData[key]?.honor ||
+                                getHonorFromAmount(
+                                  Number(s.disbursement_amount)
+                                ) ||
+                                ""
+                              }
+                              onChange={(e) =>
+                                s.disb_detail_id &&
+                                handleHonorChange(
+                                  s.disb_detail_id,
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option value="">Select Honor</option>
+                              <option value="Cum Laude">Cum Laude</option>
+                              <option value="Magna Cum Laude">
+                                Magna Cum Laude
+                              </option>
+                              <option value="Summa Cum Laude">
+                                Summa Cum Laude
+                              </option>
+                            </select>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Files Section */}
+                    <div className="border-t border-gray-200 pt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600 font-medium">
+                          Files
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {s.disbursement_files?.length || 0} file(s)
+                        </span>
+                      </div>
+                      {s.disbursement_files?.length ? (
+                        <div className="space-y-1">
+                          {s.disbursement_files.map((file, i) => (
+                            <a
+                              key={i}
+                              href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                              </svg>
+                              {s.scholar_name}.pdf
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            <Upload className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(s.disb_detail_id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-xs">No files available</span>
                         </div>
                       )}
-                    </td>
-                  </tr>
+                    </div>
+
+                    {/* Action Buttons */}
+                    {role !== 7 && (
+                      <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-gray-200">
+                        <button
+                          onClick={() =>
+                            s.disb_detail_id &&
+                            openUploadModal(s.disb_detail_id, s.scholar_name)
+                          }
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                        >
+                          <Upload className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(s.disb_detail_id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-md"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
-              })}
-            </tbody>
-          </table>
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Tablet View - Medium screens */}
+        <div className="hidden md:block lg:hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-sm">
+              <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left">Student</th>
+                  <th className="px-4 py-3 text-left">Campus</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-left">Award</th>
+                  <th className="px-4 py-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700">
+                {paginated.map((s, i) => {
+                  const key = safeKey(s.disb_detail_id);
+                  return (
+                    <tr
+                      key={s.renewal_id}
+                      className={`${
+                        i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                      } hover:bg-blue-50 transition`}
+                    >
+                      <td className="px-4 py-3">
+                        <div>
+                          <div className="font-mono text-xs text-gray-500">
+                            {s.student_id}
+                          </div>
+                          <div className="font-semibold text-gray-900">
+                            {s.scholar_name}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {s.year_level}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">{s.campus}</td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        {awardData[key]?.amount
+                          ? `₱${awardData[key]?.amount.toLocaleString()}`
+                          : s.disbursement_amount
+                          ? `₱${Number(s.disbursement_amount).toLocaleString()}`
+                          : "N/A"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {role === 7 ? (
+                          <span className="text-gray-700">
+                            {getHonorFromAmount(
+                              Number(s.disbursement_amount)
+                            ) || "—"}
+                          </span>
+                        ) : (
+                          <select
+                            className="border border-gray-300 rounded-md text-xs p-1"
+                            value={
+                              awardData[key]?.honor ||
+                              getHonorFromAmount(
+                                Number(s.disbursement_amount)
+                              ) ||
+                              ""
+                            }
+                            onChange={(e) =>
+                              s.disb_detail_id &&
+                              handleHonorChange(
+                                s.disb_detail_id,
+                                e.target.value
+                              )
+                            }
+                          >
+                            <option value="">Select Honor</option>
+                            <option value="Cum Laude">Cum Laude</option>
+                            <option value="Magna Cum Laude">
+                              Magna Cum Laude
+                            </option>
+                            <option value="Summa Cum Laude">
+                              Summa Cum Laude
+                            </option>
+                          </select>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {role !== 7 && (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() =>
+                                s.disb_detail_id &&
+                                openUploadModal(
+                                  s.disb_detail_id,
+                                  s.scholar_name
+                                )
+                              }
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                            >
+                              <Upload className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(s.disb_detail_id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Desktop Table - Large screens */}
+        <div className="hidden lg:block">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-sm">
+              <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left">Student ID</th>
+                  <th className="px-4 py-3 text-left">Scholar Name</th>
+                  <th className="px-4 py-3 text-left">Campus</th>
+                  <th className="px-4 py-3 text-left">Year Level</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-left">Files</th>
+                  <th className="px-4 py-3 text-left">Award</th>
+                  {role !== 7 ? (
+                    <th className="px-4 py-3 text-center">Action</th>
+                  ) : (
+                    <th></th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="text-gray-700">
+                {paginated.map((s, i) => {
+                  const key = safeKey(s.disb_detail_id);
+                  return (
+                    <tr
+                      key={s.renewal_id}
+                      className={`${
+                        i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                      } hover:bg-blue-50 transition`}
+                    >
+                      <td className="px-4 py-3 font-mono">{s.student_id}</td>
+                      <td className="px-4 py-3">{s.scholar_name}</td>
+                      <td className="px-4 py-3">{s.campus}</td>
+                      <td className="px-4 py-3">{s.year_level}</td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        {awardData[key]?.amount
+                          ? `₱${awardData[key]?.amount.toLocaleString()}`
+                          : s.disbursement_amount
+                          ? `₱${Number(s.disbursement_amount).toLocaleString()}`
+                          : "N/A"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {s.disbursement_files?.length ? (
+                          s.disbursement_files.map((file, i) => (
+                            <a
+                              key={i}
+                              href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-blue-600 hover:underline truncate"
+                            >
+                              📄 {s.scholar_name}.pdf
+                            </a>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 italic">No files</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {role === 7 ? (
+                          <span className="text-gray-700">
+                            {getHonorFromAmount(
+                              Number(s.disbursement_amount)
+                            ) || "—"}
+                          </span>
+                        ) : (
+                          <select
+                            className="border border-gray-300 rounded-md text-sm p-1"
+                            value={
+                              awardData[key]?.honor ||
+                              getHonorFromAmount(
+                                Number(s.disbursement_amount)
+                              ) ||
+                              ""
+                            }
+                            onChange={(e) =>
+                              s.disb_detail_id &&
+                              handleHonorChange(
+                                s.disb_detail_id,
+                                e.target.value
+                              )
+                            }
+                          >
+                            <option value="">Select Honor</option>
+                            <option value="Cum Laude">Cum Laude</option>
+                            <option value="Magna Cum Laude">
+                              Magna Cum Laude
+                            </option>
+                            <option value="Summa Cum Laude">
+                              Summa Cum Laude
+                            </option>
+                          </select>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {role !== 7 && (
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() =>
+                                s.disb_detail_id &&
+                                openUploadModal(
+                                  s.disb_detail_id,
+                                  s.scholar_name
+                                )
+                              }
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                            >
+                              <Upload className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(s.disb_detail_id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-md"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="py-4 border-t border-gray-200 flex justify-center bg-gray-50">

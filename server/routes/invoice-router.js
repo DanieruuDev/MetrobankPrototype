@@ -4,6 +4,7 @@ const {
   fetchEligibleScholar,
   uploadFileToDB,
   uploadSemestralAllowance,
+  updateThesisFeeAmounts,
   uploadThesisFee,
   fetchAcademicAwardEligible,
   addAcademicAwardStudent,
@@ -28,7 +29,7 @@ invoiceRouter.post(
   upload.single("file"),
   uploadThesisFee
 );
-
+invoiceRouter.put("/update-thesis-fee-amounts", updateThesisFeeAmounts);
 invoiceRouter.post("/add-academic-award", addAcademicAwardStudent);
 invoiceRouter.delete("/remove-academic-award", removeAcademicAwardStudent);
 invoiceRouter.post(

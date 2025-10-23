@@ -30,4 +30,6 @@ disbursementOverview.get("/total-disbursed", getTotalDisbursedAmount);
 disbursementOverview.get("/student-info/:id", getStudentBasicInfo);
 disbursementOverview.get("/roi-analytics", getROIAnalyticsData);
 
+disbursementOverview.get("/roi-analytics", getROIAnalyticsData);
+
 module.exports = disbursementOverview;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Upload, CheckCircle } from "lucide-react";
 
 import Loading from "../../../components/shared/Loading";
@@ -14,44 +14,7 @@ import { useProcess } from "../../../context/ProcessContext";
 import { useAuth } from "../../../context/AuthContext";
 import axios from "axios";
 import { toast } from "react-toastify";
-
-interface StudentFile {
-  file_id: number;
-  file_name: string;
-  file_type: string;
-  size: number;
-  upload_at: string;
-  file?: File | null; // ✅ Added this so TypeScript knows we store a File object here
-}
-
-interface Student {
-  renewal_id: number;
-  student_id: number;
-  scholar_name: string;
-  campus: string;
-  program: string;
-  batch: string;
-  renewal_date: string;
-  is_initial: boolean;
-  year_level: string;
-  semester: string;
-  school_year: string;
-  initialized_by: number;
-  scholarship_status: string;
-  delisted_date: string | null;
-  delisting_root_cause: string | null;
-  validation_id: number;
-  is_validated: boolean | null;
-  role_id: number | null;
-  hr_completed_at: string | null;
-  disbursement_id: number | null;
-  disb_detail_id: number | null;
-  disbursement_type_id: number;
-  disbursement_label: string;
-  disbursement_status: string;
-  disbursement_amount: number | null;
-  disbursement_files: StudentFile[] | null;
-}
+import { Student } from "../../../Interface/ITuitionInvoice";
 interface TuitionUploadProps {
   students: Student[];
   filteredStudents: Student[];
@@ -345,6 +308,66 @@ const TuitionUpload = ({
       setSelectedSuggestionIndex((prev) => ({ ...prev, [fieldKey]: -1 }));
     }
   };
+  // 🔔 Notify HR about tuition fee finalization
+  const notifyHRAboutTuitionFeeFinalization = async () => {
+    try {
+      console.log(
+        "🔔 Starting HR notification for tuition fee finalization..."
+      );
+      const notificationPayload = {
+        type: "INVOICE_UPLOAD",
+        title: "Tuition Fee Process Finalized",
+        message: `The tuition fee process has been finalized for ${schoolYear} ${semester} by ${
+          auth.info?.branch?.branch_name || "Registrar"
+        }. The process is now ready for HR approval.`,
+        recipient_role: 7, // HR role
+        sender_role: 3, // Registrar role
+        sender_branch: auth.info?.branch?.branch_name || "Registrar",
+        school_year: schoolYear,
+        semester: semester,
+        disbursement_type: "tuition_fee",
+        action_required: true,
+        priority: "high",
+      };
+
+      console.log(
+        "📤 Sending finalization notification payload:",
+        notificationPayload
+      );
+
+      const response = await axios.post(
+        `${VITE_BACKEND_URL}api/notification/create`,
+        notificationPayload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      console.log("📨 Finalization notification API response:", response.data);
+      if (response.data.success) {
+        console.log("✅ HR notification for finalization sent successfully");
+        toast.success(
+          "📧 HR has been notified that tuition fee process is ready for approval.",
+          {
+            position: "bottom-right",
+            autoClose: 5000,
+          }
+        );
+      } else {
+        console.warn(
+          "⚠️ Failed to send HR finalization notification:",
+          response.data.message
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error sending HR finalization notification:", error);
+      // Don't show error toast for notification failure to avoid confusing the user
+      console.log(
+        "Finalization notification failed but process was successful"
+      );
+    }
+  };
+
   const handleComplete = async () => {
     const program_source = "STI";
     const process_id = processInfo.process_id;
@@ -359,7 +382,7 @@ const TuitionUpload = ({
         branch_name,
       });
       toast.error("Missing required information to complete upload status.", {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 3000,
       });
       return;
@@ -382,27 +405,31 @@ const TuitionUpload = ({
 
       if (res.status === 200) {
         toast.success("✅ Upload status successfully marked as completed!", {
-          position: "top-center",
+          position: "bottom-right",
           autoClose: 3000,
         });
+
+        // 🔔 Notify HR about tuition fee finalization
+        await notifyHRAboutTuitionFeeFinalization();
+
         fetchStudents();
         window.location.reload();
         console.log("✅ Backend response:", res.data);
       } else {
         toast.warn("⚠️ Unexpected response from server.", {
-          position: "top-center",
+          position: "bottom-right",
           autoClose: 3000,
         });
       }
     } catch (error) {
       console.error("❌ Error completing upload status:", error);
       toast.error(`Failed to mark upload as completed: ${error}`, {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 4000,
       });
     }
   };
-  const fetchUploadStatus = async () => {
+  const fetchUploadStatus = useCallback(async () => {
     const program_source = "STI";
     const process_id = processInfo.process_id;
     const branch_name =
@@ -434,22 +461,26 @@ const TuitionUpload = ({
     } catch (error) {
       console.error("❌ Error fetching upload status:", error);
       toast.error(`Failed to fetch upload status: ${error}`, {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 4000,
       });
     }
-  };
+  }, [
+    processInfo.process_id,
+    auth.info?.branch?.branch_name,
+    VITE_BACKEND_URL,
+  ]);
 
   const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
 
   useEffect(() => {
     fetchUploadStatus();
-  }, [processInfo, auth]);
+  }, [fetchUploadStatus]);
   useEffect(() => {
     if (sySem) {
       getProcessInfo(sySem);
     }
-  }, [sySem]);
+  }, [sySem, getProcessInfo]);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -531,29 +562,19 @@ const TuitionUpload = ({
                   </div>
                 </div>
               ) : (
-                // ✅ READY - Actionable Buttons and Completion Message
-                <div className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl shadow-sm relative">
-                  {/* Success Badge */}
-                  <div className="absolute -top-3 -right-3 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-bold tracking-wide flex items-center gap-2">
-                    ✅ READY TO UPLOAD
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mt-1">
-                      <span className="text-2xl">🎉</span>
-                    </div>
-
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900 text-lg mb-3 leading-tight">
-                        Process Finalized!
+                // ✅ READY - Simple Process Finalized
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        Process Finalized
                       </h3>
-                      <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                        ⏰ <strong>Upload now</strong> to complete scholar
-                        invoice processing
+                      <p className="text-sm text-gray-600">
+                        Ready to upload invoice files
                         {filteredStudents && (
                           <span className="ml-2 text-red-600">
-                            Remaining:{" "}
-                            <span className="text-red-700 font-semibold">
+                            • Remaining:{" "}
+                            <span className="font-semibold text-red-700">
                               {
                                 filteredStudents.filter(
                                   (s) =>
@@ -565,83 +586,70 @@ const TuitionUpload = ({
                           </span>
                         )}
                       </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {uploadStatusBE && !uploadStatusBE.is_completed && (
+                        <button
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                          onClick={() => setIsUploadOpen(true)}
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload
+                        </button>
+                      )}
 
-                      {/* Buttons Section */}
-                      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                        {/* Upload Invoice Button */}
-                        {uploadStatusBE && !uploadStatusBE.is_completed && (
-                          <button
-                            className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-blue-700"
-                            onClick={() => setIsUploadOpen(true)}
-                            aria-label="Upload invoice"
-                          >
-                            <div className="relative">
-                              <Upload className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold animate-pulse">
-                                📤
-                              </span>
-                            </div>
-                            <span className="tracking-wide">
-                              Upload Invoice
-                            </span>
-                          </button>
-                        )}
-
-                        {/* Finalize Button */}
-                        {filteredStudents?.filter(
-                          (s) =>
-                            !s.disbursement_files ||
-                            s.disbursement_files.length === 0
-                        ).length === 0 &&
-                          uploadStatusBE &&
-                          !uploadStatusBE.is_completed && (
-                            <button
-                              className="group w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-transparent hover:border-emerald-700 animate-pulse"
-                              aria-label="Finalize invoice processing"
-                              onClick={handleComplete}
-                            >
-                              <svg
-                                className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                              <span className="tracking-wide">Finalize tn</span>
-                            </button>
-                          )}
-                      </div>
-
-                      {/* Completion Message */}
                       {filteredStudents?.filter(
                         (s) =>
                           !s.disbursement_files ||
                           s.disbursement_files.length === 0
-                      ).length === 0 && (
-                        <div
-                          className="p-4 bg-emerald-100 rounded-xl flex items-center gap-3 text-sm text-emerald-800 font-semibold border border-emerald-300 animate-pulse"
-                          role="alert"
-                        >
-                          <svg
-                            className="w-6 h-6 text-emerald-600"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
+                      ).length === 0 &&
+                        uploadStatusBE &&
+                        !uploadStatusBE.is_completed && (
+                          <button
+                            className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors"
+                            onClick={handleComplete}
                           >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          <span>All invoices uploaded successfully!</span>
-                        </div>
-                      )}
+                            <svg
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Finalize
+                          </button>
+                        )}
                     </div>
                   </div>
+
+                  {/* Completion Message */}
+                  {filteredStudents?.filter(
+                    (s) =>
+                      !s.disbursement_files || s.disbursement_files.length === 0
+                  ).length === 0 && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <span className="text-sm font-medium">
+                          All invoices uploaded successfully!
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

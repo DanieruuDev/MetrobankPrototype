@@ -30,7 +30,7 @@ export const ProcessProvider: React.FC<{ children: React.ReactNode }> = ({
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const getToastPosition = () => {
-    return window.innerWidth < 768 ? "top-center" : "top-right";
+    return window.innerWidth < 768 ? "bottom-center" : "bottom-right";
   };
 
   // 🧩 Function to fetch process info

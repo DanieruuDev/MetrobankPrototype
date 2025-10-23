@@ -1334,7 +1334,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
       if (notification.type === "success") {
         toast.success(notification.message, {
-          position: notification.position || "top-right",
+          position: notification.position || "bottom-right",
           autoClose: notification.duration || 5000,
           hideProgressBar: false,
           closeOnClick: true,
@@ -1343,7 +1343,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         });
       } else if (notification.type === "info") {
         toast.info(notification.message, {
-          position: notification.position || "top-right",
+          position: notification.position || "bottom-right",
           autoClose: notification.duration || 5000,
           hideProgressBar: false,
           closeOnClick: true,
@@ -1352,7 +1352,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         });
       } else if (notification.type === "warning") {
         toast.warning(notification.message, {
-          position: notification.position || "top-right",
+          position: notification.position || "bottom-right",
           autoClose: notification.duration || 5000,
           hideProgressBar: false,
           closeOnClick: true,
@@ -1361,7 +1361,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
         });
       } else if (notification.type === "error") {
         toast.error(notification.message, {
-          position: notification.position || "top-right",
+          position: notification.position || "bottom-right",
           autoClose: notification.duration || 5000,
           hideProgressBar: false,
           closeOnClick: true,
@@ -2200,7 +2200,7 @@ function RenewalListV2({ handleRowClick }: RenewalListV2Props) {
 
       {/* Toast Container for notifications */}
       <ToastContainer
-        position="top-right"
+        position="bottom-right"
         autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}

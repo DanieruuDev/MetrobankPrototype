@@ -369,12 +369,24 @@ const createApproval = async (req, res) => {
         req.io
       );
 
+      const firstApprover = approverQueries[0].approvers;
+
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
-        [approverQueries[0].approvers.approver_id]
+        [firstApprover.approver_id] // Use the correctly defined variable
       );
 
-      const firstApprover = approverQueries[0].approvers;
+      try {
+        await sendItsYourTurnEmail(
+          firstApprover.user_email,
+          workflowDetailsForEmail
+        );
+      } catch (e) {
+        console.error(
+          "Failed to send 'Its Your Turn' email for new workflow:",
+          e
+        );
+      }
 
       await createNotification(
         {
@@ -770,7 +782,7 @@ const approveApproval = async (req, res) => {
       );
     }
 
-    await client.query("COMMIT");
+    await client.query("COMMIT"); // Main COMMIT
 
     // ✅ Return updated approver details
     const result = await client.query(
@@ -1126,7 +1138,7 @@ const archiveApproval = async (req, res) => {
 
     return res.status(200).json({
       message: "Workflow archived successfully and approvers notified",
-      workflow: archivedWorkflow,
+      workflow: archivedWorkflow, // <-- Fix
     });
   } catch (error) {
     await client.query("ROLLBACK");

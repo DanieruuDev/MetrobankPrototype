@@ -67,7 +67,24 @@ const getValidSYSem = async (req, res) => {
       ORDER BY COALESCE(substring(sy.school_year FROM '^[0-9]{4}')::int, 0) DESC,
                v.semester_code DESC
     `);
-    res.json(result.rows);
+
+    // Format the labels to remove underscores and make them user-friendly
+    const formattedRows = result.rows.map((row) => {
+      const semesterMap = {
+        1: "1st Semester",
+        2: "2nd Semester",
+        3: "Summer",
+      };
+
+      const formattedLabel = `${row.school_year} ${semesterMap[row.semester_code] || "1st Semester"}`;
+
+      return {
+        ...row,
+        label: formattedLabel,
+      };
+    });
+
+    res.json(formattedRows);
   } catch (error) {
     console.error("Error fetching SY-Semester:", error);
     res.status(500).json({ error: "Failed to fetch SY-Semester" });

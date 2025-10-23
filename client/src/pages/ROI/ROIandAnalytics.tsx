@@ -573,6 +573,35 @@ const ROIandAnalytics: React.FC = () => {
     );
   }
 
+  // Show error state
+  if (error) {
+    return (
+      <div
+        className={`min-h-screen bg-white ${
+          collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
+        } transition-all duration-300 overflow-x-hidden`}
+      >
+        <Navbar pageName="Scholarship Analytics" />
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-600 text-6xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Error Loading Data
+            </h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`min-h-screen bg-white ${
@@ -701,14 +730,53 @@ const ROIandAnalytics: React.FC = () => {
                     }
                   }}
                   onBlur={(e) => {
-                    let value =
-                      parseFloat(e.target.value.replace(/[^0-9.]/g, "")) || 0;
-                    if (value <= 0) value = 1;
-                    if (value > 100) value = 100;
+                    const rawValue = e.target.value;
 
-                    // Update both display and actual value
-                    setAbsorptionRateDisplay(value.toString());
-                    setScholarAbsorptionRate(Math.round(value * 100) / 10000);
+                    // Update display value immediately
+                    setAbsorptionRateDisplay(rawValue);
+
+                    // Handle empty input
+                    if (rawValue === "" || rawValue === ".") {
+                      setScholarAbsorptionRate(0);
+                      return;
+                    }
+
+                    // Handle leading zeros: if user types after "0", replace the "0"
+                    if (
+                      rawValue.startsWith("0") &&
+                      rawValue.length > 1 &&
+                      !rawValue.startsWith("0.")
+                    ) {
+                      const cleanValue = rawValue.replace(/^0+/, "");
+                      if (cleanValue !== "") {
+                        setAbsorptionRateDisplay(cleanValue);
+                        const cleanNumericValue = parseFloat(cleanValue);
+                        if (!isNaN(cleanNumericValue)) {
+                          const clampedValue = Math.min(
+                            Math.max(cleanNumericValue, 1),
+                            100
+                          );
+                          setScholarAbsorptionRate(
+                            Math.round(clampedValue * 100) / 10000
+                          );
+                        }
+                      }
+                      return;
+                    }
+
+                    // Process normal input
+                    const numericValue = parseFloat(
+                      rawValue.replace(/[^0-9.]/g, "")
+                    );
+                    if (!isNaN(numericValue)) {
+                      const clampedValue = Math.min(
+                        Math.max(numericValue, 1),
+                        100
+                      );
+                      setScholarAbsorptionRate(
+                        Math.round(clampedValue * 100) / 10000
+                      );
+                    }
                   }}
                   placeholder="e.g., 50"
                   className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"

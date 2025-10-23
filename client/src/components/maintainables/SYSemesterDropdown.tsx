@@ -25,6 +25,18 @@ const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
   const [options, setOptions] = useState<Option[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+  // Helper function to format display text without underscores
+  const formatDisplayText = (val: string) => {
+    if (!val) return "Select SY-Semester";
+    const [schoolYear, semesterCode] = val.split("_");
+    const semesterMap: Record<string, string> = {
+      "1": "1st Semester",
+      "2": "2nd Semester",
+      "3": "Summer",
+    };
+    return `${schoolYear} ${semesterMap[semesterCode] || "1st Semester"}`;
+  };
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -84,7 +96,7 @@ const SYSemesterDropdown: React.FC<Props> = ({ value, onChange }) => {
         onClick={() => setOpen(!open)}
       >
         <span className="truncate">
-          {selectedOption?.label || "Select SY-Semester"}
+          {selectedOption?.label || formatDisplayText(value || "")}
         </span>
 
         <svg
