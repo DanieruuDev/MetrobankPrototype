@@ -26,7 +26,8 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
   const fetchEligibleList = async (
     semester_code: string,
     sy_code: string,
-    disbursement_type_id: number
+    disbursement_type_id: number,
+    covered_date?: string
   ) => {
     if (!semester_code || !sy_code || !disbursement_type_id) return;
 
@@ -38,7 +39,12 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
       const response = await axios.get(
         `${VITE_BACKEND_URL}api/workflow/list/eligible`,
         {
-          params: { semester, school_year, disbursement_type_id },
+          params: {
+            semester,
+            school_year,
+            disbursement_type_id,
+            ...(covered_date ? { covered_date } : {}),
+          },
         }
       );
 
@@ -59,30 +65,38 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
   const handleRequestTypeChange = (
     value: string,
     id: string,
-    disbursement_type_id: number
+    disbursement_type_id: number,
+    covered_date?: string
   ) => {
     setFormData((prev) => ({
       ...prev,
       approval_req_type: value,
       rq_type_id: id,
+      covered_date: covered_date ?? undefined, // ✅ handles internship covered date
     }));
     setDisbTypeId(disbursement_type_id);
   };
 
   useEffect(() => {
-    fetchEligibleList(formData.semester_code, formData.sy_code, disbTypeId);
-  }, [formData.semester_code, formData.sy_code, disbTypeId]);
+    fetchEligibleList(
+      formData.semester_code,
+      formData.sy_code,
+      disbTypeId,
+      formData.covered_date
+    );
+  }, [
+    formData.semester_code,
+    formData.sy_code,
+    disbTypeId,
+    formData.covered_date,
+  ]);
 
-  /** 🔽 Main Render */
   return (
     <div>
       <form className="space-y-3 sm:space-y-4">
         {/* --- Request Title --- */}
         <div>
-          <label
-            htmlFor="rq_title"
-            className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
-          >
+          <label className="block mb-1 text-xs sm:text-sm font-medium text-gray-700">
             Approval Request Title
           </label>
           <input
@@ -99,28 +113,29 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
           />
         </div>
 
-        {/* --- SY & Semester --- */}
-        <SySemesterValidatedDropdown
-          value={validatedSY}
-          onChange={(selectedValue) => {
-            setValidatedSY(selectedValue);
-            const [school_year, semester_label] = selectedValue.split("_");
-            const semester_code = semester_label.toLowerCase().includes("1st")
-              ? "1"
-              : "2";
-            const sy_code = school_year.replace("-", "");
-            setFormData((prev) => ({ ...prev, sy_code, semester_code }));
-          }}
-        />
-
-        {/* --- Request Type + Due Date --- */}
         <div className="grid grid-cols-2 gap-3">
-          <RequestTypeValidatedDropDown
-            formData={formData.approval_req_type}
-            handleInputChange={handleRequestTypeChange}
-            sy_code={Number(formData.sy_code)}
-            semester_code={Number(formData.semester_code)}
-          />
+          <div>
+            <label
+              htmlFor="due_date"
+              className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
+            >
+              School Year - Semester
+            </label>
+            <SySemesterValidatedDropdown
+              value={validatedSY}
+              onChange={(selectedValue) => {
+                setValidatedSY(selectedValue);
+                const [school_year, semester_label] = selectedValue.split("_");
+                const semester_code = semester_label
+                  .toLowerCase()
+                  .includes("1st")
+                  ? "1"
+                  : "2";
+                const sy_code = school_year.replace("-", "");
+                setFormData((prev) => ({ ...prev, sy_code, semester_code }));
+              }}
+            />
+          </div>
 
           <div
             className="relative"
@@ -146,6 +161,15 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
             <Calendar className="absolute right-3 top-9 text-gray-700 w-5 h-5 pointer-events-none" />
           </div>
         </div>
+        {/* --- SY & Semester --- */}
+
+        <RequestTypeValidatedDropDown
+          formData={formData.approval_req_type}
+          handleInputChange={handleRequestTypeChange}
+          sy_code={Number(formData.sy_code)}
+          semester_code={Number(formData.semester_code)}
+        />
+        {/* --- Request Type + Due Date --- */}
 
         {/* --- Eligible Scholars Count --- */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
@@ -169,17 +193,14 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
 
         {/* --- Description --- */}
         <div>
-          <label
-            htmlFor="description"
-            className="block mb-1 text-xs sm:text-sm font-medium text-gray-700"
-          >
+          <label className="block mb-1 text-xs sm:text-sm font-medium text-gray-700">
             Additional Details
           </label>
           <textarea
             maxLength={300}
             rows={2}
             id="description"
-            placeholder="Enter additional details for the approval request..."
+            placeholder="Enter additional details..."
             className="w-full rounded-md border border-gray-300 focus:ring-1 focus:ring-blue-500 p-2 text-xs sm:text-[15px] resize-none"
             value={formData.description}
             onChange={(e) =>
@@ -192,7 +213,7 @@ function WorkflowDetails({ formData, setFormData }: WorkflowDetailsProps) {
         </div>
       </form>
 
-      {/* ✅ Use the separate modal here */}
+      {/* ✅ Eligible Scholars Modal */}
       <EligibleListModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

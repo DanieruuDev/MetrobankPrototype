@@ -50,8 +50,10 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     sy_code: "",
     rq_type_id: "",
     approval_req_type: "",
+    covered_date: "",
   });
 
+  console.log(formData);
   const steps = [
     { number: 1, label: "Workflow Details" },
     { number: 2, label: "Add Approvers" },
@@ -166,6 +168,7 @@ function CreateApproval({ setIsModal, fetchWorkflows }: CreateApproval2Props) {
     sendData.append("due_date", formData.due_date);
     sendData.append("sy_code", formData.sy_code);
     sendData.append("semester_code", formData.semester_code);
+    sendData.append("covered_date", formData.covered_date || "");
 
     // if (formData.file instanceof File) {
     //   sendData.append("file", formData.file);

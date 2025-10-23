@@ -9,13 +9,24 @@ const checkWorkflowExists = async (
   client,
   approval_req_type,
   sy_code,
-  semester_code
+  semester_code,
+  covered_date = null
 ) => {
-  const res = await client.query(
-    "SELECT * FROM workflow WHERE approval_req_type = $1 AND sy_code = $2 AND semester_code = $3 AND is_archived = FALSE",
-    [approval_req_type, sy_code, semester_code]
-  );
+  let query = `
+    SELECT * FROM workflow 
+    WHERE approval_req_type = $1 
+      AND sy_code = $2 
+      AND semester_code = $3 
+      AND is_archived = FALSE
+  `;
+  const values = [approval_req_type, sy_code, semester_code];
 
+  if (approval_req_type.toLowerCase().includes("internship")) {
+    query += " AND covered_date = $4";
+    values.push(covered_date || null);
+  }
+
+  const res = await client.query(query, values);
   return res.rows.length > 0;
 };
 
@@ -27,10 +38,8 @@ const insertDocument = async (client, fileMeta) => {
 
   return res.rows[0].doc_id;
 };
-
 const insertWorkflow = async (client, details) => {
   const {
-    // docId,
     approval_req_type,
     requester_id,
     due_date,
@@ -39,12 +48,17 @@ const insertWorkflow = async (client, details) => {
     description,
     rq_title,
     rq_type_id,
+    covered_date, // ✅ added
   } = details;
 
   const res = await client.query(
-    "INSERT INTO workflow( approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title, rq_type_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+    `INSERT INTO workflow(
+        approval_req_type, requester_id, due_date, sy_code, semester_code,
+        description, rq_title, rq_type_id, covered_date
+     ) 
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     RETURNING workflow_id`,
     [
-      // docId,
       approval_req_type,
       requester_id,
       due_date,
@@ -53,6 +67,7 @@ const insertWorkflow = async (client, details) => {
       description,
       rq_title,
       rq_type_id,
+      covered_date || null,
     ]
   );
 
