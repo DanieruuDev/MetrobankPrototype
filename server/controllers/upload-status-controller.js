@@ -12,6 +12,7 @@ const uploadStatus = async (req, res) => {
     await client.query("BEGIN");
 
     console.log("id", process_id);
+
     // 1️⃣ Get process details (school_year, semester)
     const process = await client.query(
       `
@@ -22,26 +23,17 @@ const uploadStatus = async (req, res) => {
       [process_id]
     );
 
-    console.log("rows", process.rows[0]);
     if (process.rows.length === 0) {
       await client.query("ROLLBACK");
       return res
         .status(404)
         .json({ error: `Process ID ${process_id} not found.` });
     }
-    const formatSchoolYear = (syCode) => {
-      const syString = syCode.toString(); // Convert to string if not already
-      if (syString.length !== 8) {
-        return syString; // Return as-is if not 8 digits
-      }
-      const startYear = syString.slice(0, 4); // First 4 digits
-      const endYear = syString.slice(4); // Last 4 digits
-      return `${startYear}-${endYear}`; // Join with hyphen
-    };
-    const { sy_code, semester_code } = process.rows[0];
-    console.log(sy_code, semester_code);
-    // 2️⃣ Get all STI branches for this SY/Sem
 
+    const { sy_code, semester_code } = process.rows[0];
+    console.log("Process Info:", sy_code, semester_code);
+
+    // 2️⃣ Get all STI branches for this SY/Sem
     const { rows: stiBranches } = await client.query(
       `
         SELECT DISTINCT rs.campus_name AS branch_name
@@ -51,11 +43,13 @@ const uploadStatus = async (req, res) => {
       `,
       [sy_code, semester_code]
     );
-    console.log(stiBranches);
+
+    console.log("STI Branches:", stiBranches);
 
     // 3️⃣ Define disbursement types
     const stiDisbursementTypes = [1, 3, 5];
-    const metrobankDisbursementTypes = [2, 4];
+    // ⚠️ Exclude 4 here
+    const metrobankDisbursementTypes = [2]; // ✅ Removed 4
 
     const created = [];
     const skipped = [];
@@ -85,17 +79,18 @@ const uploadStatus = async (req, res) => {
 
         await client.query(
           `
-            INSERT INTO upload_status (
-              program_source,
-              branch_name,
-              process_id,
-              disbursement_type_id,
-              is_completed,
-              completed_at,
-              updated_at
-            )
-            VALUES ('STI', $1, $2, $3, FALSE, NULL, NOW())
-          `,
+    INSERT INTO upload_status (
+      program_source,
+      branch_name,
+      process_id,
+      disbursement_type_id,
+      is_completed,
+      completed_at,
+      updated_at,
+      covered_date
+    )
+    VALUES ('STI', $1, $2, $3, FALSE, NULL, NOW(), '-')
+  `,
           [branch_name, process_id, disbursement_type_id]
         );
 
@@ -107,7 +102,7 @@ const uploadStatus = async (req, res) => {
       }
     }
 
-    // 5️⃣ Handle METROBANK records
+    // 5️⃣ Handle METROBANK records (no type 4)
     for (const disbursement_type_id of metrobankDisbursementTypes) {
       const { rowCount: exists } = await client.query(
         `
@@ -131,17 +126,18 @@ const uploadStatus = async (req, res) => {
 
       await client.query(
         `
-          INSERT INTO upload_status (
-            program_source,
-            branch_name,
-            process_id,
-            disbursement_type_id,
-            is_completed,
-            completed_at,
-            updated_at
-          )
-          VALUES ('METROBANK', '-', $1, $2, FALSE, NULL, NOW())
-        `,
+    INSERT INTO upload_status (
+      program_source,
+      branch_name,
+      process_id,
+      disbursement_type_id,
+      is_completed,
+      completed_at,
+      updated_at,
+      covered_date
+    )
+    VALUES ('METROBANK', '-', $1, $2, FALSE, NULL, NOW(), '-')
+  `,
         [process_id, disbursement_type_id]
       );
 
@@ -175,6 +171,7 @@ const uploadStatus = async (req, res) => {
     client.release();
   }
 };
+
 const completeStatus = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -270,13 +267,6 @@ const fetchUploadStatus = async (req, res) => {
     const effectiveBranchName =
       program_source === "METROBANK" ? "-" : branch_name;
 
-    console.log("🔍 Fetching upload_status for:", {
-      program_source,
-      branch_name: effectiveBranchName,
-      process_id,
-      disbursement_type_id,
-    });
-
     // 🧩 Base query
     let query = `
       SELECT 
@@ -316,20 +306,19 @@ const fetchUploadStatus = async (req, res) => {
 
     const { rows } = await client.query(query, params);
 
-    if (rows.length === 0) {
-      console.warn("⚠️ No upload status found with given filters.");
-      return res.status(404).json({
-        message: "No upload status found for given criteria.",
-        filters: {
-          program_source,
-          branch_name,
-          process_id,
-          disbursement_type_id,
-        },
-      });
-    }
+    // if (rows.length === 0) {
+    //   return res.status(404).json({
+    //     message: "No upload status found for given criteria.",
+    //     filters: {
+    //       program_source,
+    //       branch_name,
+    //       process_id,
+    //       disbursement_type_id,
+    //     },
+    //   });
+    // }
 
-    console.log(`✅ Found ${rows.length} matching record(s).`);
+    // console.log(`✅ Found ${rows.length} matching record(s).`);
     res.status(200).json({
       message: "Upload status fetched successfully.",
       count: rows.length,
@@ -345,5 +334,264 @@ const fetchUploadStatus = async (req, res) => {
     client.release();
   }
 };
+const fetchUploadSummary = async (req, res) => {
+  const { sy_code, semester_code, disbursement_type_id } = req.query;
 
-module.exports = { uploadStatus, completeStatus, fetchUploadStatus };
+  // Validate inputs
+  if (!sy_code || !semester_code || !disbursement_type_id) {
+    return res.status(400).json({ message: "Missing required fields." });
+  }
+
+  try {
+    const query = `
+      SELECT *
+      FROM vw_upload_status_summary
+      WHERE sy_code = $1 
+        AND semester_code = $2 
+        AND disbursement_type_id = $3
+    `;
+
+    const result = await pool.query(query, [
+      sy_code,
+      semester_code,
+      disbursement_type_id,
+    ]);
+
+    // ✅ Return properly formatted response
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "No records found." });
+    }
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching upload summary:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+const createInternshipUpload = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { process_id, covered_date } = req.body;
+
+    if (!process_id) {
+      return res.status(400).json({ error: "process_id is required." });
+    }
+
+    if (!covered_date) {
+      return res.status(400).json({ error: "covered_date is required." });
+    }
+
+    await client.query("BEGIN");
+
+    console.log(
+      `📦 Creating Internship Upload Record for Process ID: ${process_id}`
+    );
+
+    // 1️⃣ Check if process exists
+    const process = await client.query(
+      `
+        SELECT sy_code, semester_code
+        FROM disbursement_process
+        WHERE process_id = $1
+      `,
+      [process_id]
+    );
+
+    if (process.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ error: `Process ID ${process_id} not found.` });
+    }
+
+    // 2️⃣ Define Internship Upload Info
+    const program_source = "METROBANK";
+    const branch_name = "-"; // Metrobank uploads are not per-branch
+    const disbursement_type_id = 4;
+
+    // 3️⃣ Check if record already exists (including covered_date)
+    const { rowCount: exists } = await client.query(
+      `
+        SELECT 1 FROM upload_status
+        WHERE program_source = $1
+          AND branch_name = $2
+          AND process_id = $3
+          AND disbursement_type_id = $4
+          AND covered_date = $5
+      `,
+      [
+        program_source,
+        branch_name,
+        process_id,
+        disbursement_type_id,
+        covered_date,
+      ]
+    );
+
+    if (exists > 0) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: `⚠️ Internship upload already exists for process_id: ${process_id} and covered_date: ${covered_date}.`,
+      });
+    }
+
+    // 4️⃣ Insert new Internship upload record
+    const insertQuery = `
+      INSERT INTO upload_status (
+        program_source,
+        branch_name,
+        process_id,
+        disbursement_type_id,
+        is_completed,
+        completed_at,
+        updated_at,
+        covered_date
+      )
+      VALUES ($1, $2, $3, $4, FALSE, NULL, NOW(), $5)
+      RETURNING program_source, disbursement_type_id, covered_date, process_id;
+    `;
+
+    const { rows: inserted } = await client.query(insertQuery, [
+      program_source,
+      branch_name,
+      process_id,
+      disbursement_type_id,
+      covered_date,
+    ]);
+
+    await client.query("COMMIT");
+
+    console.log(`✅ Internship Upload Created for Process ID: ${process_id}`);
+
+    return res.status(201).json({
+      message: "✅ Internship upload successfully created.",
+      created: inserted[0],
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("❌ Error in createInternshipUpload:", error);
+    return res.status(500).json({
+      error: "An error occurred while creating internship upload.",
+      details: error.message,
+    });
+  } finally {
+    client.release();
+  }
+};
+
+const completeInternshipStatus = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const {
+      program_source,
+      branch_name,
+      process_id,
+      disbursement_type_id,
+      covered_date,
+    } = req.body;
+
+    // 🧩 Validate required fields
+    if (
+      !program_source ||
+      !process_id ||
+      !disbursement_type_id ||
+      !covered_date
+    ) {
+      return res.status(400).json({
+        error:
+          "Missing required fields: program_source, process_id, disbursement_type_id, or covered_date",
+      });
+    }
+
+    // 🧩 Handle branch_name logic
+    let effectiveBranchName = branch_name;
+
+    if (program_source === "METROBANK") {
+      // Metrobank doesn’t use branches — use placeholder
+      effectiveBranchName = "-";
+    } else if (!branch_name) {
+      // STI must have branch_name
+      return res.status(400).json({
+        error: "branch_name is required for STI internship records.",
+      });
+    }
+
+    console.log(
+      `🔹 Completing internship upload status for: ${program_source} | ${effectiveBranchName} | Process ID: ${process_id} | Disbursement Type: ${disbursement_type_id} | Covered Date: ${covered_date}`
+    );
+
+    await client.query("BEGIN");
+
+    // ✅ Update upload_status record
+    const result = await client.query(
+      `
+      UPDATE upload_status
+      SET is_completed = TRUE,
+          completed_at = NOW(),
+          updated_at = NOW(),
+          covered_date = $5
+      WHERE program_source = $1
+        AND branch_name = $2
+        AND process_id = $3
+        AND disbursement_type_id = $4
+      RETURNING *;
+      `,
+      [
+        program_source,
+        effectiveBranchName,
+        process_id,
+        disbursement_type_id,
+        covered_date,
+      ]
+    );
+
+    // 🚨 No matching record found
+    if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      console.warn("⚠️ No matching internship upload record found.");
+      return res.status(404).json({
+        error:
+          "No matching internship upload status found for provided details.",
+        details: {
+          program_source,
+          branch_name: effectiveBranchName,
+          process_id,
+          disbursement_type_id,
+          covered_date,
+        },
+      });
+    }
+
+    await client.query("COMMIT");
+
+    console.log(
+      "✅ Internship upload status marked as completed:",
+      result.rows[0]
+    );
+    return res.status(200).json({
+      message: "Internship upload status successfully marked as completed.",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("❌ Error completing internship upload status:", error);
+    return res.status(500).json({
+      error: "Failed to mark internship upload status as completed.",
+      details: error.message,
+    });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = {
+  uploadStatus,
+  completeStatus,
+  fetchUploadStatus,
+  fetchUploadSummary,
+  createInternshipUpload,
+  completeInternshipStatus,
+};

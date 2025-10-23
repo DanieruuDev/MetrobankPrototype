@@ -5,6 +5,7 @@ import LineGraph from "../../components/charts/LineGraph";
 // DonutChartROI import removed as requested
 import MetricCard from "../../components/shared/MetricCard";
 import { useSidebar } from "../../context/SidebarContext";
+import axios from "axios";
 
 interface ROIAnalyticsData {
   totalDisbursed: number;
@@ -199,7 +200,7 @@ const RetentionProjectionCard: React.FC<RetentionProjectionProps> = ({
   );
 };
 // ⚠️ END of Retention Projection Card Component
-
+const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const ROIandAnalytics: React.FC = () => {
   const { collapsed } = useSidebar(); // --- 1. STATE FOR USER INPUTS --- // ⚠️ CHANGE: Updated initial values based on your request
 
@@ -238,19 +239,23 @@ const ROIandAnalytics: React.FC = () => {
     const fetchROIData = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/analytics/roi-analytics");
-        if (!response.ok) {
-          throw new Error("Failed to fetch ROI analytics data");
-        }
-        const result = await response.json();
-        if (result.success) {
-          setRoiData(result.data);
+        const response = await axios.get(
+          `${VITE_BACKEND_URL}api/disbursement/overview/roi-analytics`
+        );
+
+        // Axios automatically parses JSON, so use response.data
+        if (response.data?.success) {
+          setRoiData(response.data.data);
         } else {
-          throw new Error(result.message || "Failed to fetch data");
+          throw new Error(
+            response.data?.message || "Failed to fetch ROI analytics data"
+          );
         }
       } catch (err) {
         console.error("Error fetching ROI data:", err);
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(
+          err instanceof Error ? err.message : "An unexpected error occurred"
+        );
       } finally {
         setLoading(false);
       }
@@ -578,6 +583,35 @@ const ROIandAnalytics: React.FC = () => {
     );
   }
 
+  // Show error state
+  if (error) {
+    return (
+      <div
+        className={`min-h-screen bg-white ${
+          collapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-[250px]"
+        } transition-all duration-300 overflow-x-hidden`}
+      >
+        <Navbar pageName="Scholarship Analytics" />
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-600 text-6xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Error Loading Data
+            </h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`min-h-screen bg-white ${
@@ -659,42 +693,28 @@ const ROIandAnalytics: React.FC = () => {
                   onChange={(e) => {
                     const rawValue = e.target.value;
 
+                    // Update display value immediately
+                    setAbsorptionRateDisplay(rawValue);
+
                     // Handle empty input
                     if (rawValue === "" || rawValue === ".") {
-                      setAbsorptionRateDisplay(rawValue);
                       setScholarAbsorptionRate(0);
                       return;
                     }
 
-                    // Clean the input to only allow numbers and decimal point
-                    const cleanValue = rawValue.replace(/[^0-9.]/g, "");
-
-                    // Prevent typing beyond 100
-                    const numericValue = parseFloat(cleanValue);
-                    if (!isNaN(numericValue) && numericValue > 100) {
-                      // Don't update the display if value exceeds 100
-                      return;
-                    }
-
-                    // Update display value
-                    setAbsorptionRateDisplay(cleanValue);
-
                     // Handle leading zeros: if user types after "0", replace the "0"
                     if (
-                      cleanValue.startsWith("0") &&
-                      cleanValue.length > 1 &&
-                      !cleanValue.startsWith("0.")
+                      rawValue.startsWith("0") &&
+                      rawValue.length > 1 &&
+                      !rawValue.startsWith("0.")
                     ) {
-                      const trimmedValue = cleanValue.replace(/^0+/, "");
-                      if (trimmedValue !== "") {
-                        setAbsorptionRateDisplay(trimmedValue);
-                        const trimmedNumericValue = parseFloat(trimmedValue);
-                        if (
-                          !isNaN(trimmedNumericValue) &&
-                          trimmedNumericValue <= 100
-                        ) {
+                      const cleanValue = rawValue.replace(/^0+/, "");
+                      if (cleanValue !== "") {
+                        setAbsorptionRateDisplay(cleanValue);
+                        const cleanNumericValue = parseFloat(cleanValue);
+                        if (!isNaN(cleanNumericValue)) {
                           const clampedValue = Math.min(
-                            Math.max(trimmedNumericValue, 1),
+                            Math.max(cleanNumericValue, 1),
                             100
                           );
                           setScholarAbsorptionRate(
@@ -706,7 +726,10 @@ const ROIandAnalytics: React.FC = () => {
                     }
 
                     // Process normal input
-                    if (!isNaN(numericValue) && numericValue <= 100) {
+                    const numericValue = parseFloat(
+                      rawValue.replace(/[^0-9.]/g, "")
+                    );
+                    if (!isNaN(numericValue)) {
                       const clampedValue = Math.min(
                         Math.max(numericValue, 1),
                         100
@@ -717,14 +740,53 @@ const ROIandAnalytics: React.FC = () => {
                     }
                   }}
                   onBlur={(e) => {
-                    let value =
-                      parseFloat(e.target.value.replace(/[^0-9.]/g, "")) || 0;
-                    if (value <= 0) value = 1;
-                    if (value > 100) value = 100;
+                    const rawValue = e.target.value;
 
-                    // Update both display and actual value
-                    setAbsorptionRateDisplay(value.toString());
-                    setScholarAbsorptionRate(Math.round(value * 100) / 10000);
+                    // Update display value immediately
+                    setAbsorptionRateDisplay(rawValue);
+
+                    // Handle empty input
+                    if (rawValue === "" || rawValue === ".") {
+                      setScholarAbsorptionRate(0);
+                      return;
+                    }
+
+                    // Handle leading zeros: if user types after "0", replace the "0"
+                    if (
+                      rawValue.startsWith("0") &&
+                      rawValue.length > 1 &&
+                      !rawValue.startsWith("0.")
+                    ) {
+                      const cleanValue = rawValue.replace(/^0+/, "");
+                      if (cleanValue !== "") {
+                        setAbsorptionRateDisplay(cleanValue);
+                        const cleanNumericValue = parseFloat(cleanValue);
+                        if (!isNaN(cleanNumericValue)) {
+                          const clampedValue = Math.min(
+                            Math.max(cleanNumericValue, 1),
+                            100
+                          );
+                          setScholarAbsorptionRate(
+                            Math.round(clampedValue * 100) / 10000
+                          );
+                        }
+                      }
+                      return;
+                    }
+
+                    // Process normal input
+                    const numericValue = parseFloat(
+                      rawValue.replace(/[^0-9.]/g, "")
+                    );
+                    if (!isNaN(numericValue)) {
+                      const clampedValue = Math.min(
+                        Math.max(numericValue, 1),
+                        100
+                      );
+                      setScholarAbsorptionRate(
+                        Math.round(clampedValue * 100) / 10000
+                      );
+                    }
                   }}
                   placeholder="e.g., 50"
                   className="p-2 sm:p-3 border border-blue-300/50 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-sm sm:text-base"

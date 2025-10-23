@@ -281,7 +281,6 @@ const getStudentBasicInfo = async (req, res) => {
   }
 };
 
-// Get ROI Analytics Data
 const getROIAnalyticsData = async (req, res) => {
   try {
     // Get total disbursed amount and total active scholars
@@ -390,5 +389,6 @@ module.exports = {
   getCompletedDisbursementTotals,
   getTotalDisbursedAmount,
   getStudentBasicInfo,
+  getROIAnalyticsData,
   getROIAnalyticsData,
 };

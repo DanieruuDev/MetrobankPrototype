@@ -5,6 +5,10 @@ import GeneratePeriodModal from "../../../components/invoice/internship-allowanc
 import PaginationControl from "../../../components/shared/PaginationControl";
 import { Student } from "../../../Interface/ITuitionInvoice";
 import { X } from "lucide-react";
+import { useProcess } from "../../../context/ProcessContext";
+import { toast } from "react-toastify";
+import { UploadStatusBE } from "./TuitionInvoiceUpload";
+import { useAuth } from "../../../context/AuthContext";
 
 interface InternshipAllowanceUploadProps {
   students: Student[];
@@ -14,7 +18,7 @@ interface InternshipAllowanceUploadProps {
   semester: string;
   role: number | undefined;
   isLoading: boolean;
-  setSelectedBranch: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedBranch: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedYearLevel: React.Dispatch<React.SetStateAction<string>>;
   setSelectedProgram: React.Dispatch<React.SetStateAction<string>>;
   type: string;
@@ -49,6 +53,7 @@ function InternshipAllowanceUpload({
   semester,
 }: InternshipAllowanceUploadProps) {
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const { processInfo, getProcessInfo } = useProcess();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false); // New state for match modal
@@ -68,6 +73,11 @@ function InternshipAllowanceUpload({
   const itemsPerPage = 10;
   const totalPages = Math.ceil(records.length / itemsPerPage) || 1;
   const handlePageChange = (newPage: number) => setPage(newPage);
+  const [uploadStatusBE, setIsUploadStatusBE] = useState<UploadStatusBE | null>(
+    null
+  );
+  const [, setIsUploadStatusHR] = useState<UploadStatusBE[] | null>([]);
+  const auth = useAuth();
 
   // ✅ Fetch Internship Allowance Records for a specific covered date
   const fetchEligibleInternshipAllowance = async (coveredDate: string) => {
@@ -89,6 +99,54 @@ function InternshipAllowanceUpload({
       setIsLoading(false);
     }
   };
+  const fetchUploadStatus = async () => {
+    const program_source = "STI";
+    const process_id = processInfo.process_id;
+    const branch_name =
+      auth.info?.branch?.branch_name === null
+        ? "All"
+        : auth.info?.branch?.branch_name;
+    const disbursement_type_id = 1;
+
+    if (!process_id) {
+      return;
+    }
+    try {
+      const response = await axios.get(`${VITE_BACKEND_URL}api/status/list`, {
+        params: {
+          process_id,
+          program_source,
+          branch_name,
+          disbursement_type_id,
+        },
+      });
+
+      if (response.status === 200) {
+        console.log("fetch", response.data.data);
+        setIsUploadStatusHR(response.data.data);
+        setIsUploadStatusBE(response.data.data[0]);
+      } else {
+        toast.warn("⚠️ Unexpected response from server.");
+      }
+    } catch (error) {
+      console.error("❌ Error fetching upload status:", error);
+      toast.error(`Failed to fetch upload status: ${error}`, {
+        position: "top-center",
+        autoClose: 4000,
+      });
+    }
+  };
+
+  const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
+
+  useEffect(() => {
+    fetchUploadStatus();
+  }, [processInfo, auth]);
+  useEffect(() => {
+    if (sySem) {
+      getProcessInfo(sySem);
+    }
+  }, [sySem]);
 
   // ✅ Fetch Covered Dates
   const fetchCoveredDate = async () => {
@@ -316,19 +374,85 @@ function InternshipAllowanceUpload({
     }
   };
 
-  const handleGenerate = async (coveredDate: string) => {
+  const handleGenerate = async (covered_date: string) => {
     try {
       const response = await axios.post(
         `${VITE_BACKEND_URL}api/invoice/add-internship-allowance`,
         {
-          coveredDate,
-          schoolYear,
+          process_id: uploadStatusBE?.process_id, // <-- get this from dropdown or context
+          covered_date,
         }
       );
       console.log(response.data);
       await fetchCoveredDate();
     } catch (error) {
       console.log(error);
+    }
+  };
+  // ✅ Mark internship upload as completed
+  // ✅ Mark internship upload as completed
+  const handleCompleteInternship = async () => {
+    // 🧩 Detect program source dynamically
+    const program_source = "METROBANK"; // fallback to STI
+    const process_id = processInfo.process_id;
+    const branch_name = null;
+    const disbursement_type_id = 4; // Internship Allowance type
+    const covered_date = selectedDate;
+
+    if (
+      !program_source ||
+      !process_id ||
+      !disbursement_type_id ||
+      !covered_date
+    ) {
+      toast.error(
+        "Missing required information to complete internship upload.",
+        {
+          position: "top-center",
+          autoClose: 3000,
+        }
+      );
+      return;
+    }
+
+    try {
+      const payload = {
+        program_source,
+        branch_name,
+        process_id,
+        disbursement_type_id,
+        covered_date,
+      };
+
+      console.log("📤 Completing internship upload:", payload);
+
+      const res = await axios.put(
+        `${VITE_BACKEND_URL}api/status/completed-intern`,
+        payload
+      );
+
+      if (res.status === 200) {
+        toast.success(
+          "✅ Internship upload successfully marked as completed!",
+          {
+            position: "top-center",
+            autoClose: 3000,
+          }
+        );
+        fetchCoveredDate();
+        fetchUploadStatus();
+      } else {
+        toast.warn("⚠️ Unexpected response from server.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Error completing internship upload:", error);
+      toast.error("Failed to mark internship upload as completed.", {
+        position: "top-center",
+        autoClose: 4000,
+      });
     }
   };
 
@@ -995,6 +1119,15 @@ function InternshipAllowanceUpload({
             >
               Delete Covered Date
             </button>
+
+            {records.length > 0 && (
+              <button
+                onClick={handleCompleteInternship}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium shadow-sm animate-pulse"
+              >
+                Finalize Upload
+              </button>
+            )}
           </div>
 
           {/* Right Section - Rate Input */}

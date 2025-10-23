@@ -1,44 +1,37 @@
 const pool = require("../database/dbConnect.js");
 const { uploadBuffer } = require("../utils/b2");
 const { v4: uuidv4 } = require("uuid");
+const {
+  createInternshipUpload,
+} = require("../services/createInternShipUpload.js");
 
 //Eligible for disbursement
 const fetchEligibleScholar = async (req, res) => {
   const { schoolYear, semester } = req.params;
-  const { branch, disbursement_type_id } = req.query; // ✅ optional branch filter
-  console.log("branch here", branch);
-  if (!schoolYear || !semester) {
-    return res
-      .status(400)
-      .json({ error: "School year and semester are required" });
+  const { branch, disbursement_type_id } = req.query;
+
+  let baseQuery = `
+    SELECT * FROM vw_combined_eligible_scholar_invoice
+    WHERE school_year = $1
+      AND semester = $2
+  `;
+
+  const params = [schoolYear, semester];
+  let paramIndex = 3;
+
+  if (branch && branch !== "null" && branch !== "undefined") {
+    baseQuery += ` AND campus = $${paramIndex++}`;
+    params.push(branch);
   }
 
-  try {
-    // ✅ Use a flexible WHERE condition:
-    // - Filters by branch only if it’s provided.
-    // - Otherwise, shows all.
-    const query = `
-      SELECT *
-      FROM vw_combined_eligible_scholar_invoice
-      WHERE semester = $1
-        AND school_year = $2
-        AND ($3::varchar IS NULL OR campus = $3)
-        AND disbursement_type_id = $4
-      ORDER BY scholar_name ASC
-    `;
-
-    const { rows } = await pool.query(query, [
-      semester,
-      schoolYear,
-      branch || null,
-      disbursement_type_id,
-    ]);
-
-    return res.status(200).json(rows);
-  } catch (error) {
-    console.error("Error fetching renewed scholars:", error);
-    return res.status(500).json({ error: "Internal server error" });
+  if (disbursement_type_id) {
+    baseQuery += ` AND disbursement_type_id = $${paramIndex++}`;
+    params.push(disbursement_type_id);
   }
+  console.log("branch", branch);
+
+  const result = await pool.query(baseQuery, params);
+  res.json(result.rows);
 };
 
 //tuition-invoice only
@@ -558,9 +551,9 @@ const uploadAcademicAward = async (req, res) => {
     console.log("🧾 Body:", req.body);
     console.log("📂 Files:", files);
 
-    if (!disb_detail_ids.length || !files.length) {
+    if (!disb_detail_ids.length) {
       return res.status(400).json({
-        message: "No records or files received.",
+        message: "No records received.",
       });
     }
 
@@ -626,23 +619,27 @@ const uploadAcademicAward = async (req, res) => {
 };
 
 const addInternshipAllowance = async (req, res) => {
-  const { coveredDate, schoolYear } = req.body;
+  const { process_id, covered_date } = req.body;
   const client = await pool.connect();
 
   try {
-    // 🧩 Validate input first
-    if (!coveredDate || !schoolYear) {
+    if (!process_id || !covered_date) {
       return res.status(400).json({
-        message: "Missing required fields: coveredDate or schoolYear",
+        message: "Missing required fields: process_id or covered_date",
       });
     }
 
-    console.log("🟢 Adding internship allowance for:", {
-      coveredDate,
-      schoolYear,
+    await client.query("BEGIN");
+
+    // ✅ 1️⃣ Create Internship Upload Record (Service)
+    const { created, schoolYear } = await createInternshipUpload(client, {
+      process_id,
+      covered_date,
     });
 
-    // 1️⃣ Fetch eligible disbursement IDs
+    console.log("🟢 Internship upload created for:", created);
+
+    // ✅ 2️⃣ Fetch eligible disbursement IDs
     const query = `
       SELECT DISTINCT ON (combined.disbursement_id)
         combined.disbursement_id
@@ -661,9 +658,8 @@ const addInternshipAllowance = async (req, res) => {
 
     const ids = findEligible.rows;
 
-    // 🛑 If no eligible scholars found, stop right away
     if (ids.length === 0) {
-      console.warn("⚠️ No eligible disbursement IDs found.");
+      await client.query("ROLLBACK");
       return res.status(404).json({
         message:
           "No eligible students found for internship allowance generation.",
@@ -671,63 +667,56 @@ const addInternshipAllowance = async (req, res) => {
       });
     }
 
+    // ✅ 3️⃣ Insert into disbursement_detail
     const insertedRows = [];
-
-    // 2️⃣ Insert only if record doesn’t exist
     for (const { disbursement_id } of ids) {
       const exists = await client.query(
         `
-        SELECT 1 FROM disbursement_detail 
-        WHERE disbursement_id = $1 
-          AND disbursement_type_id = 4 
+        SELECT 1 FROM disbursement_detail
+        WHERE disbursement_id = $1
+          AND disbursement_type_id = 4
           AND covered_date = $2
         LIMIT 1;
         `,
-        [disbursement_id, coveredDate]
+        [disbursement_id, covered_date]
       );
 
       if (exists.rowCount === 0) {
         const insertResult = await client.query(
           `
-          INSERT INTO disbursement_detail 
+          INSERT INTO disbursement_detail
             (disbursement_id, disbursement_type_id, covered_date)
           VALUES ($1, 4, $2)
           RETURNING disb_detail_id, disbursement_id, covered_date;
           `,
-          [disbursement_id, coveredDate]
+          [disbursement_id, covered_date]
         );
-
         insertedRows.push(insertResult.rows[0]);
       }
     }
 
-    // 🛑 If none were inserted (already existing or no valid ones)
-    if (insertedRows.length === 0) {
-      console.warn("⚠️ No new internship allowance records were inserted.");
-      return res.status(409).json({
-        message:
-          "No new records were added. All eligible students already have entries for this covered date.",
-        total_inserted: 0,
-      });
-    }
+    await client.query("COMMIT");
 
-    // ✅ Success
-    return res.status(200).json({
-      message: "Internship Allowance entries added successfully.",
+    return res.status(201).json({
+      message: "✅ Internship upload and allowance added successfully.",
+      upload_status: created,
       total_inserted: insertedRows.length,
       details: insertedRows,
     });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("❌ Error adding internship allowance:", error);
-    return res.status(500).json({ message: "Server error", error });
+    return res.status(500).json({
+      message: "Server error while adding internship allowance.",
+      error: error.message,
+    });
   } finally {
     client.release();
   }
 };
 
 const deleteInternshipAllowance = async (req, res) => {
-  const { coveredDate } = req.body; // expects array of disb_detail_id values
-  console.log(coveredDate);
+  const { coveredDate } = req.body; // expects the specific covered date
   const client = await pool.connect();
 
   try {
@@ -735,28 +724,47 @@ const deleteInternshipAllowance = async (req, res) => {
       return res.status(400).json({ message: "No coveredDate provided." });
     }
 
-    // Delete only internship allowance entries (type_id = 4)
-    const deleteQuery = `
+    await client.query("BEGIN"); // ✅ start transaction
+
+    // 1️⃣ Delete internship allowance entries
+    const deleteDisbursementQuery = `
       DELETE FROM disbursement_detail
       WHERE covered_date = $1
-      AND disbursement_type_id = 4
+        AND disbursement_type_id = 4
       RETURNING disb_detail_id, disbursement_id, covered_date;
     `;
 
-    const result = await client.query(deleteQuery, [coveredDate]);
+    const result = await client.query(deleteDisbursementQuery, [coveredDate]);
 
-    if (result.rows.length === 0) {
+    // 2️⃣ Also delete internship upload record from upload_status
+    const deleteUploadQuery = `
+      DELETE FROM upload_status
+      WHERE disbursement_type_id = 4
+        AND program_source = 'METROBANK'
+        AND branch_name = '-'
+        AND covered_date = $1
+      RETURNING process_id, covered_date;
+    `;
+
+    const uploadResult = await client.query(deleteUploadQuery, [coveredDate]);
+
+    await client.query("COMMIT"); // ✅ commit both deletions
+
+    if (result.rows.length === 0 && uploadResult.rows.length === 0) {
       return res.status(404).json({
-        message: result.rows,
+        message: "No internship records found for deletion.",
       });
     }
 
     return res.status(200).json({
-      message: "Internship allowance entries deleted successfully.",
-      total_deleted: result.rows.length,
+      message: "Internship allowance and upload entries deleted successfully.",
+      total_deleted_allowance: result.rows.length,
+      total_deleted_upload: uploadResult.rows.length,
       deleted_details: result.rows,
+      deleted_uploads: uploadResult.rows,
     });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error deleting internship allowance:", error);
     return res.status(500).json({ message: "Server error", error });
   } finally {

@@ -16,14 +16,13 @@ const createDisbursementSchedule = async (req, res) => {
     disbursement_type_id,
     sched_title,
     schedule_due,
-    starting_date,
     sy_code,
     semester_code,
-    branch_code,
     requester,
     required_hours,
     description,
     workflow_id,
+    covered_date, // ✅ NEW
   } = req.body;
 
   const client = await pool.connect();
@@ -36,10 +35,8 @@ const createDisbursementSchedule = async (req, res) => {
       !disbursement_type_id ||
       !sched_title ||
       !schedule_due ||
-      !starting_date ||
       !sy_code ||
       !semester_code ||
-      !branch_code ||
       !requester ||
       !description ||
       !workflow_id
@@ -49,24 +46,17 @@ const createDisbursementSchedule = async (req, res) => {
 
     let scheduledCount, disb_sched_id;
 
-    const branchIdResult = await client.query(
-      "SELECT campus_id FROM maintenance_campus WHERE campus_name = $1",
-      [branch_code]
-    );
-    let branchId = branchIdResult.rows[0].campus_id;
-
     const sched_id = await createEventSchedule(client, {
       event_type,
-      starting_date,
       sched_title,
       schedule_due,
       sy_code,
       semester_code,
       requester,
       description,
-      branchId,
       disbursement_type_id,
       workflow_id,
+      covered_date, // ✅ pass along
     });
 
     if (!sched_id) {
@@ -78,8 +68,8 @@ const createDisbursementSchedule = async (req, res) => {
         sched_id,
         sy_code,
         semester_code,
-        branchId,
         disbursement_type_id,
+        covered_date, // ✅ pass along
       });
 
       if (!disb_sched_id || disb_sched_id.length === 0) {
@@ -118,9 +108,10 @@ const createDisbursementSchedule = async (req, res) => {
 const getEligibleScholarCount = async (req, res) => {
   try {
     const { yr_lvl_code, semester_code, sy_code } = req.params;
-    const { disbursement_type, disbursement_id, branch } = req.query;
+    const { disbursement_type, disbursement_id } = req.query;
 
-    if (!yr_lvl_code || !semester_code || !sy_code || !branch) {
+    // Validate required params
+    if (!semester_code || !sy_code) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
     if (!disbursement_type && !disbursement_id) {
@@ -129,31 +120,32 @@ const getEligibleScholarCount = async (req, res) => {
         .json({ message: "Missing disbursement_type or disbursement_id." });
     }
 
+    // ✅ Base query — no campus filter (includes all branches)
     let query = `
-      SELECT COUNT(*) 
-     FROM vw_scholar_disbursement
-      WHERE semester = $1 AND school_year = $2 AND campus_name = $3 disbursement_status = "Not Started"
+      SELECT COUNT(*) AS eligible_count
+      FROM vw_scholar_disbursement
+      WHERE semester = $1
+        AND school_year = $2
+        AND disbursement_status = 'Not Started'
     `;
 
-    const values = [semester_code, sy_code, branch];
+    const values = [semester_code, sy_code];
 
+    // ✅ Add disbursement filter dynamically
     if (disbursement_type) {
-      query += ` AND disbursement_label = $4`;
+      query += ` AND disbursement_label = $3`;
       values.push(disbursement_type);
     } else if (disbursement_id) {
-      query += ` AND disbursement_type_id = $4`;
+      query += ` AND disbursement_type_id = $3`;
       values.push(disbursement_id);
     }
 
-    values.push(branch); // always $5
-
     const result = await pool.query(query, values);
 
-    if (result.rows.length > 0) {
-      return res.status(200).json({ count: result.rows[0] });
-    } else {
-      return res.status(200).json({ count: 0 });
-    }
+    // ✅ Return clean count result
+    const count = parseInt(result.rows[0]?.eligible_count || "0", 10);
+
+    return res.status(200).json({ count });
   } catch (error) {
     console.error("Error fetching scholar count:", error);
     res.status(500).json({ message: "Server error" });
@@ -436,35 +428,41 @@ const updateDisbursementSchedule = async (req, res) => {
 // Simple eligible-count without year level (aligns with create logic)
 const getEligibleScholarCountSimple = async (req, res) => {
   try {
-    const { sy_code, semester_code, branch, disbursement_type_id } = req.query;
+    const {
+      school_year,
+      semester,
+      disbursement_type_id,
+      covered_date, // ✅ optional param
+    } = req.query;
 
-    if (!sy_code || !semester_code || !branch || !disbursement_type_id) {
+    if (!school_year || !semester || !disbursement_type_id) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
 
-    const query = `
-      SELECT COUNT(dd.disb_detail_id) AS count
-      FROM renewal_scholar rs
-      JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
-      JOIN disbursement_tracking dt ON dt.renewal_id = rs.renewal_id
-      JOIN disbursement_detail dd ON dd.disbursement_id = dt.disbursement_id
-      WHERE rs.school_year = $1
-        AND rs.semester = $2
-        AND mc.campus_name = $3
-        AND dd.disbursement_type_id = $4
+    let query = `
+      SELECT COUNT(*)::int AS count
+      FROM public.vw_combined_eligible_scholar_invoice
+      WHERE semester = $1
+        AND school_year = $2
+        AND disbursement_type_id = $3
     `;
+    const params = [semester, school_year, disbursement_type_id];
 
-    const { rows } = await pool.query(query, [
-      sy_code,
-      semester_code,
-      branch,
-      disbursement_type_id,
-    ]);
-    const count = rows?.[0]?.count ? Number(rows[0].count) : 0;
+    // ✅ Include covered_date only if provided
+    if (covered_date) {
+      query += ` AND covered_date = $4`;
+      params.push(covered_date);
+    }
+
+    const { rows } = await pool.query(query, params);
+    const count = rows?.[0]?.count ?? 0;
+
     return res.status(200).json({ count });
   } catch (error) {
-    console.error("Error fetching simple eligible count:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error fetching simple eligible count:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while counting eligible scholars." });
   }
 };
 

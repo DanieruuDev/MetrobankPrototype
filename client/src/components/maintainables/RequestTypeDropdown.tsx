@@ -8,6 +8,20 @@ interface RequestType {
   rq_type_id: string;
   rq_title: string;
 }
+export interface UploadStatusSummary {
+  program_source: string; // 'STI' | 'METROBANK'
+  process_id: number; // Foreign key to disbursement_process
+  sy_code: number; // School year code (FK to maintenance_sy)
+  semester_code: number; // Semester code (FK to maintenance_semester)
+  disbursement_type_id: number; // ID of disbursement type
+
+  is_fully_completed: boolean; // TRUE if all branches completed
+  total_branches: number; // Total branch count
+  completed_branches: number; // Count of completed branches
+
+  last_completed_at: string | null; // ISO timestamp or null
+  last_updated_at: string | null; // ISO timestamp or null
+}
 
 interface RequestTypeDropdownProps {
   formData: string;
@@ -22,6 +36,7 @@ const RequestTypeDropdown: React.FC<RequestTypeDropdownProps> = ({
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
   useEffect(() => {
     const fetchData = async () => {
       try {

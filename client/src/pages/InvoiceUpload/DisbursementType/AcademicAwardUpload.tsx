@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Upload, Trash2, Paperclip, X, Save } from "lucide-react";
 import PaginationControl from "../../../components/shared/PaginationControl";
 import AddEligibleScholarModal from "../../../components/invoice/academic-award/AddEligibleScholarModal";
@@ -18,24 +18,35 @@ interface AcademicAwardUploadProps {
   semester: string;
   role: number | undefined;
   isLoading: boolean;
-  setSelectedBranch: React.Dispatch<React.SetStateAction<string>>;
+  setSelectedBranch: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedYearLevel: React.Dispatch<React.SetStateAction<string>>;
   setSelectedProgram: React.Dispatch<React.SetStateAction<string>>;
   type: string;
 }
 
 const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
-  students,
+  students: _students, // Renamed to avoid unused variable warning
   filteredStudents,
   fetchStudents,
   schoolYear,
   semester,
   isLoading,
 }) => {
+  // Suppress unused variable warning
+  void _students;
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const auth = useAuth();
   const branch_name = auth.info?.branch?.branch_name;
-  const role = auth.info?.role_id;
+  const role = auth?.user?.role_id;
+
+  // Debug logging
+  console.log("AcademicAwardUpload - Role:", role, "Auth:", auth);
+  console.log(
+    "Rendering Academic Excellence Award Criteria - Role:",
+    role,
+    "Should show:",
+    role === 3
+  );
   const [showModal, setShowModal] = useState(false);
   const [page, setPage] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -81,7 +92,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     setShowUploadModal(true);
   };
 
-  const closeUploadModal = () => {
+  const closeUploadModal = useCallback(() => {
     if (selectedScholar.id !== null) {
       setAwardData((prev) => {
         const updated = { ...prev };
@@ -94,7 +105,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
     setSelectedScholar({ id: null, name: "" });
     setShowUploadModal(false);
-  };
+  }, [selectedScholar.id]);
 
   const handleFileSelect = (disbId: number, file: File) => {
     setAwardData((prev) => ({
@@ -159,10 +170,20 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
   };
 
   const handleSaveList = async () => {
+    console.log("🔍 Debug - filteredStudents:", filteredStudents);
+    console.log("🔍 Debug - awardData:", awardData);
+
     const payload = filteredStudents
       .map((student) => {
         const key = safeKey(student.disb_detail_id);
         const award = awardData[key];
+
+        console.log(`🔍 Debug - Student ${student.scholar_name}:`, {
+          disb_detail_id: student.disb_detail_id,
+          key,
+          award,
+          hasFiles: (student.disbursement_files?.length || 0) > 0,
+        });
 
         // ✅ Get file either from awardData or student.disbursement_files
         const file =
@@ -183,6 +204,13 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
       .filter((item) => item !== null);
 
     console.log("📦 Final Payload to upload:", payload);
+
+    if (payload.length === 0) {
+      alert(
+        "⚠️ No academic award data to save. Please select awards and amounts first."
+      );
+      return;
+    }
 
     try {
       const formData = new FormData();
@@ -215,9 +243,83 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
       } else {
         alert(`⚠️ ${response.data?.message || "Failed to save awards."}`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("❌ Error saving list:", err);
-      alert(`Server error while saving awards: ${err}`);
+
+      // Show more detailed error message
+      let errorMessage = "Server error while saving awards.";
+      if (err && typeof err === "object" && "response" in err) {
+        const axiosError = err as {
+          response?: { data?: { message?: string }; status?: number };
+        };
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        } else if (axiosError.response?.status) {
+          errorMessage = `Request failed with status ${axiosError.response.status}`;
+        }
+      }
+
+      alert(`❌ ${errorMessage}`);
+    }
+  };
+
+  // 🔔 Notify HR about academic award finalization
+  const notifyHRAboutAcademicAwardFinalization = async () => {
+    try {
+      console.log(
+        "🔔 Starting HR notification for academic award finalization..."
+      );
+      const notificationPayload = {
+        type: "INVOICE_UPLOAD",
+        title: "Academic Award Process Finalized",
+        message: `The academic award process has been finalized for ${schoolYear} ${semester} by ${
+          auth.info?.branch?.branch_name || "Registrar"
+        }. The process is now ready for HR approval.`,
+        recipient_role: 7, // HR role
+        sender_role: 3, // Registrar role
+        sender_branch: auth.info?.branch?.branch_name || "Registrar",
+        school_year: schoolYear,
+        semester: semester,
+        disbursement_type: "academic_award",
+        action_required: true,
+        priority: "high",
+      };
+
+      console.log(
+        "📤 Sending finalization notification payload:",
+        notificationPayload
+      );
+
+      const response = await axios.post(
+        `${VITE_BACKEND_URL}api/notification/create`,
+        notificationPayload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      console.log("📨 Finalization notification API response:", response.data);
+      if (response.data.success) {
+        console.log("✅ HR notification for finalization sent successfully");
+        toast.success(
+          "📧 HR has been notified that academic award process is ready for approval.",
+          {
+            position: "bottom-right",
+            autoClose: 5000,
+          }
+        );
+      } else {
+        console.warn(
+          "⚠️ Failed to send HR finalization notification:",
+          response.data.message
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error sending HR finalization notification:", error);
+      // Don't show error toast for notification failure to avoid confusing the user
+      console.log(
+        "Finalization notification failed but process was successful"
+      );
     }
   };
 
@@ -235,7 +337,7 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
         branch_name,
       });
       toast.error("Missing required information to complete upload status.", {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 3000,
       });
       return;
@@ -258,28 +360,32 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
 
       if (res.status === 200) {
         toast.success("✅ Upload status successfully marked as completed!", {
-          position: "top-center",
+          position: "bottom-right",
           autoClose: 3000,
         });
+
+        // 🔔 Notify HR about academic award finalization
+        await notifyHRAboutAcademicAwardFinalization();
+
         fetchStudents();
         window.location.reload();
         console.log("✅ Backend response:", res.data);
       } else {
         toast.warn("⚠️ Unexpected response from server.", {
-          position: "top-center",
+          position: "bottom-right",
           autoClose: 3000,
         });
       }
     } catch (error) {
       console.error("❌ Error completing upload status:", error);
       toast.error(`Failed to mark upload as completed: ${error}`, {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 4000,
       });
     }
   };
 
-  const fetchUploadStatus = async () => {
+  const fetchUploadStatus = useCallback(async () => {
     const program_source = "STI";
     const process_id = processInfo.process_id;
     const branch_name =
@@ -311,23 +417,27 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     } catch (error) {
       console.error("❌ Error fetching upload status:", error);
       toast.error(`Failed to fetch upload status: ${error}`, {
-        position: "top-center",
+        position: "bottom-right",
         autoClose: 4000,
       });
     }
-  };
+  }, [
+    processInfo.process_id,
+    auth.info?.branch?.branch_name,
+    VITE_BACKEND_URL,
+  ]);
 
   const sySem = `${schoolYear}_${semester.substring(0, 1)}`;
 
   useEffect(() => {
     fetchUploadStatus();
-  }, [processInfo, auth]);
+  }, [fetchUploadStatus]);
 
   useEffect(() => {
     if (sySem) {
       getProcessInfo(sySem);
     }
-  }, [sySem]);
+  }, [sySem, getProcessInfo]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -341,22 +451,23 @@ const AcademicAwardUpload: React.FC<AcademicAwardUploadProps> = ({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showUploadModal]);
+  }, [showUploadModal, closeUploadModal]);
 
   if (isLoading)
     return (
       <div className="text-center py-12 text-gray-500">Loading data...</div>
     );
 
-  if (!students.length)
-    return (
-      <div className="text-center py-16 bg-white rounded-2xl border shadow-md">
-        <p className="text-lg font-semibold text-gray-800">No Students Found</p>
-        <p className="text-sm text-gray-600">
-          No students enrolled for {schoolYear} • {semester}
-        </p>
-      </div>
-    );
+  // Comment out early return to allow criteria section to show even when no students
+  // if (!students.length)
+  //   return (
+  //     <div className="text-center py-16 bg-white rounded-2xl border shadow-md">
+  //       <p className="text-lg font-semibold text-gray-800">No Students Found</p>
+  //       <p className="text-sm text-gray-600">
+  //         No students enrolled for {schoolYear} • {semester}
+  //       </p>
+  //     </div>
+  //   );
 
   const paginated = filteredStudents.slice(
     (page - 1) * itemsPerPage,

@@ -12,13 +12,24 @@ const checkWorkflowExists = async (
   client,
   approval_req_type,
   sy_code,
-  semester_code
+  semester_code,
+  covered_date = null
 ) => {
-  const res = await client.query(
-    "SELECT * FROM workflow WHERE approval_req_type = $1 AND sy_code = $2 AND semester_code = $3 AND is_archived = FALSE",
-    [approval_req_type, sy_code, semester_code]
-  );
+  let query = `
+    SELECT * FROM workflow 
+    WHERE approval_req_type = $1 
+      AND sy_code = $2 
+      AND semester_code = $3 
+      AND is_archived = FALSE
+  `;
+  const values = [approval_req_type, sy_code, semester_code];
 
+  if (approval_req_type.toLowerCase().includes("internship")) {
+    query += " AND covered_date = $4";
+    values.push(covered_date || null);
+  }
+
+  const res = await client.query(query, values);
   return res.rows.length > 0;
 };
 
@@ -30,10 +41,8 @@ const insertDocument = async (client, fileMeta) => {
 
   return res.rows[0].doc_id;
 };
-
 const insertWorkflow = async (client, details) => {
   const {
-    docId,
     approval_req_type,
     requester_id,
     due_date,
@@ -42,12 +51,17 @@ const insertWorkflow = async (client, details) => {
     description,
     rq_title,
     rq_type_id,
+    covered_date, // ✅ added
   } = details;
 
   const res = await client.query(
-    "INSERT INTO workflow(document_id, approval_req_type, requester_id, due_date, sy_code, semester_code, description, rq_title, rq_type_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+    `INSERT INTO workflow(
+        approval_req_type, requester_id, due_date, sy_code, semester_code,
+        description, rq_title, rq_type_id, covered_date
+     ) 
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     RETURNING workflow_id`,
     [
-      docId,
       approval_req_type,
       requester_id,
       due_date,
@@ -56,6 +70,7 @@ const insertWorkflow = async (client, details) => {
       description,
       rq_title,
       rq_type_id,
+      covered_date || null,
     ]
   );
 
@@ -248,8 +263,6 @@ const handleApprovedCase = async (
   let workflowCompleted = false;
 
   try {
-    await client.query("BEGIN");
-
     const updCur = await client.query(
       `
       UPDATE wf_approver
@@ -328,13 +341,15 @@ const handleApprovedCase = async (
       );
       const pendingResult = await client.query(
         `
-        SELECT COUNT(*) AS pending_count
-        FROM wf_approver
-        WHERE workflow_id = $1
-          AND status NOT IN ('Completed', 'Missed', 'Replaced')
-        `,
+  SELECT COUNT(*) AS pending_count
+  FROM wf_approver
+  WHERE workflow_id = $1
+    AND (status IS NULL OR status NOT IN ('Completed', 'Missed', 'Replaced'))
+    AND (is_reassigned IS NULL OR is_reassigned = FALSE)
+  `,
         [workflow_id]
       );
+      console.log(pendingResult);
 
       if (parseInt(pendingResult.rows[0].pending_count, 10) === 0) {
         await client.query(
@@ -442,10 +457,7 @@ const handleApprovedCase = async (
         });
       }
     }
-
-    await client.query("COMMIT");
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error("Error in handleApprovedCase (transaction rolled back):", {
       workflow_id,
       user_id,

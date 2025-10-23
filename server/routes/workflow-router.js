@@ -20,6 +20,7 @@ const {
   archiveApproval,
   getDataToEdit,
   getEligibleListDisbursement,
+  getValidEligibleList,
 } = require("../controllers/workflow-controller.js");
 const { authenticateToken, authorizeRoles } = require("../middlewares/auth.js");
 
@@ -71,5 +72,7 @@ workflowRouter.get(
   "/list/:disbursement_type_id/:school_year/:semester",
   getEligibleListDisbursement
 );
+
+workflowRouter.get("/list/eligible", getValidEligibleList);
 
 module.exports = workflowRouter;

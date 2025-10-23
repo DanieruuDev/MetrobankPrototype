@@ -249,9 +249,7 @@ const changeApprover = async (req, res) => {
 
 //create approval
 //Done with modular
-//done with adding notification
 const createApproval = async (req, res) => {
-  const file = req.file;
   const client = await pool.connect();
 
   try {
@@ -265,20 +263,25 @@ const createApproval = async (req, res) => {
       semester_code,
       approvers,
       rq_type_id,
+      covered_date, // ✅ new
     } = req.body;
 
+    // ✅ Validation (require covered_date for internship)
     if (
       !rq_title ||
       !rq_type_id ||
       !requester_id ||
-      !file ||
       !description ||
       !due_date ||
       !sy_code ||
       !semester_code ||
-      !approvers
+      !approvers ||
+      (approval_req_type.toLowerCase().includes("internship") && !covered_date)
     ) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        message:
+          "All fields are required, including covered date for Internship workflows.",
+      });
     }
 
     let appr;
@@ -290,39 +293,21 @@ const createApproval = async (req, res) => {
 
     await client.query("BEGIN");
 
+    // ✅ Prevent duplicates (include covered_date for internship)
     if (
       await checkWorkflowExists(
         client,
         approval_req_type,
         sy_code,
-        semester_code
+        semester_code,
+        covered_date
       )
     ) {
       return res.status(400).json({ message: "Workflow already exists" });
     }
 
-    // ✅ Upload the in-memory buffer directly
-    const fileName = `${Date.now()}_${file.originalname}`;
-    const b2Result = await uploadBuffer(
-      file.buffer,
-      fileName,
-      process.env.B2_BUCKET_ID
-    );
-
-    if (!b2Result || !b2Result.fileName) {
-      throw new Error("Upload to B2 failed");
-    }
-
-    // ✅ Save document metadata
-    const docId = await insertDocument(client, {
-      doc_name: b2Result.fileName,
-      path: `${process.env.B2_BUCKET_ID}/${b2Result.fileName}`,
-      size: file.size,
-      doc_type: file.mimetype,
-    });
-
+    // ✅ Insert workflow
     const workflowId = await insertWorkflow(client, {
-      docId,
       approval_req_type,
       requester_id,
       due_date,
@@ -331,13 +316,11 @@ const createApproval = async (req, res) => {
       description,
       rq_title,
       rq_type_id,
+      covered_date, // ✅ added
     });
 
-    // Fetch requester info
-    const { admin_name, admin_email } = await fetchRequester(
-      client,
-      requester_id
-    );
+    // ✅ Fetch requester info
+    const { admin_name } = await fetchRequester(client, requester_id);
 
     const workflowDetailsForEmail = {
       rq_title,
@@ -347,7 +330,7 @@ const createApproval = async (req, res) => {
       workflow_id: workflowId,
     };
 
-    // Insert approvers
+    // ✅ Insert approvers
     const approverQueries = await insertApprovers(
       client,
       appr,
@@ -369,24 +352,13 @@ const createApproval = async (req, res) => {
         req.io
       );
 
-      const firstApprover = approverQueries[0].approvers;
-
+      // ✅ Mark first approver as current
       await client.query(
         "UPDATE wf_approver SET is_current = true WHERE approver_id = $1",
-        [firstApprover.approver_id] // Use the correctly defined variable
+        [approverQueries[0].approvers.approver_id]
       );
 
-      try {
-        await sendItsYourTurnEmail(
-          firstApprover.user_email,
-          workflowDetailsForEmail
-        );
-      } catch (e) {
-        console.error(
-          "Failed to send 'Its Your Turn' email for new workflow:",
-          e
-        );
-      }
+      const firstApprover = approverQueries[0].approvers;
 
       await createNotification(
         {
@@ -404,6 +376,7 @@ const createApproval = async (req, res) => {
       );
     }
 
+    // ✅ Notify requester
     await createNotification(
       {
         type: "APPROVAL",
@@ -417,6 +390,7 @@ const createApproval = async (req, res) => {
       req.io
     );
 
+    // ✅ Add workflow log
     await client.query(
       "INSERT INTO workflow_log (workflow_id, actor_id, actor_type, action, comments) VALUES ($1, $2, $3, $4, $5)",
       [
@@ -424,7 +398,9 @@ const createApproval = async (req, res) => {
         requester_id,
         "Requester",
         "Created",
-        `Created workflow for ${rq_title} ${semester_code}`,
+        `Created workflow for ${rq_title} ${semester_code} ${
+          covered_date ? `(${covered_date})` : ""
+        }`,
       ]
     );
 
@@ -437,18 +413,21 @@ const createApproval = async (req, res) => {
         rq_title,
         due_date,
         status: "Pending",
-        doc_name: b2Result.fileName,
         current_approver:
           approverQueries.length > 0
             ? approverQueries[0].approvers.user_email
             : "N/A",
-        school_details: `${rq_title} - ${semester_code}`,
+        school_details: `${rq_title} - ${semester_code}${
+          covered_date ? ` (${covered_date})` : ""
+        }`,
       },
     });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error:", error);
-    res.status(500).json({ message: error.message || "File upload failed" });
+    res
+      .status(500)
+      .json({ message: error.message || "Workflow creation failed" });
   } finally {
     client.release();
   }
@@ -723,21 +702,23 @@ const approveApproval = async (req, res) => {
         .json({ message: `${key} is required and cannot be empty` });
     }
   }
+
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    const requesterAndWorkflowDetails = await getRequesterAndWorkflowDetails(
+    const { workflowDetailsForEmail } = await getRequesterAndWorkflowDetails(
       client,
       workflow_id,
       requester_id
     );
 
-    const workflowDetailsForEmail =
-      requesterAndWorkflowDetails.workflowDetailsForEmail;
-
     if (response === "Approved") {
+      // ✅ First update the approver’s response
+      await updateApproverAndResponse(client, approver_id, response, comment);
+
+      // ✅ Then handle workflow progression & completion
       await handleApprovedCase(
         client,
         workflow_id,
@@ -749,56 +730,48 @@ const approveApproval = async (req, res) => {
         approver_id,
         io
       );
-      await updateApproverAndResponse(client, approver_id, response, comment);
     } else if (response === "Reject") {
-      try {
-        await client.query("BEGIN");
+      await handleReturnedCase(
+        client,
+        response_id,
+        comment,
+        user_id,
+        workflow_id,
+        requester_id,
+        approver_id,
+        io
+      );
 
-        await handleReturnedCase(
-          client,
-          response_id,
-          comment,
-          user_id,
-          workflow_id,
-          requester_id,
-          approver_id,
-          io
-        );
-
-        await client.query(
-          `
-      UPDATE approver_response
-      SET response = $1, updated_at = NOW()
-      WHERE approver_id = $2
+      await client.query(
+        `
+        UPDATE approver_response
+        SET response = 'Reject', updated_at = NOW()
+        WHERE approver_id = $1
       `,
-          ["Reject", approver_id]
-        );
+        [approver_id]
+      );
 
-        await client.query(
-          `
-      UPDATE workflow
-      SET status = 'Failed'
-      WHERE workflow_id = $1
+      await client.query(
+        `
+        UPDATE workflow
+        SET status = 'Failed'
+        WHERE workflow_id = $1
       `,
-          [workflow_id]
-        );
-
-        await client.query("COMMIT");
-      } catch (err) {
-        await client.query("ROLLBACK");
-        console.error("🚨 Error in Returned flow:", err);
-        throw err; // just bubble it up
-      }
+        [workflow_id]
+      );
     }
 
-    await client.query("COMMIT"); // Main COMMIT
+    await client.query("COMMIT");
 
-    const detailedQuery = `
+    // ✅ Return updated approver details
+    const result = await client.query(
+      `
       SELECT workflow_status, approver_response, approver_comment, approver_status, is_current
       FROM vw_approver_detailed
-      WHERE approver_id = $1;
-    `;
-    const result = await client.query(detailedQuery, [approver_id]); // Return updated status and response for frontend refresh
+      WHERE approver_id = $1
+    `,
+      [approver_id]
+    );
 
     if (result.rows.length > 0) {
       const {
@@ -1144,7 +1117,7 @@ const archiveApproval = async (req, res) => {
 
     return res.status(200).json({
       message: "Workflow archived successfully and approvers notified",
-      workflow: archivedWorkflow, // <-- Fix
+      workflow: archivedWorkflow,
     });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -1231,6 +1204,80 @@ const getEligibleListDisbursement = async (req, res) => {
   }
 };
 
+const getValidEligibleList = async (req, res) => {
+  try {
+    const { semester, school_year, disbursement_type_id, covered_date } =
+      req.query;
+
+    // ✅ Validate required parameters
+    if (!semester || !school_year || !disbursement_type_id) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: semester, school_year, or disbursement_type_id.",
+      });
+    }
+
+    // ✅ Base query
+    let query = `
+      SELECT DISTINCT ON (student_id, campus, COALESCE(covered_date, ''))
+        renewal_id,
+        student_id,
+        scholar_name,
+        campus,
+        program,
+        year_level,
+        semester,
+        school_year,
+        scholarship_status,
+        disb_detail_id,
+        disbursement_type_id,
+        disbursement_amount,
+        disbursement_files,
+        covered_date
+      FROM public.vw_combined_eligible_scholar_invoice
+      WHERE semester = $1 
+        AND school_year = $2 
+        AND disbursement_type_id = $3
+    `;
+
+    const params = [semester, school_year, disbursement_type_id];
+    let paramIndex = 4;
+
+    // ✅ Add covered_date filter only for Internship Allowance (type 4)
+    if (Number(disbursement_type_id) === 4 && covered_date) {
+      query += ` AND covered_date = $${paramIndex++}`;
+      params.push(covered_date);
+    }
+
+    query += ` ORDER BY student_id, campus, COALESCE(covered_date, '') ASC`;
+
+    const result = await pool.query(query, params);
+
+    // ✅ If no records found
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No eligible scholars found for the given parameters.",
+      });
+    }
+
+    // ✅ Return successful result
+    return res.status(200).json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching eligible scholar list:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching eligible scholar list.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   uploadFile,
   changeApprover,
@@ -1251,4 +1298,5 @@ module.exports = {
   getDataToEdit,
   EditApprovalByID,
   getEligibleListDisbursement,
+  getValidEligibleList,
 };

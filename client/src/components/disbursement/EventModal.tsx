@@ -2,7 +2,7 @@ import axios from "axios";
 import { X } from "lucide-react";
 import { useState, FormEvent, ChangeEvent, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
-import BranchDropdown from "../maintainables/BranchDropdown";
+
 import { toast } from "react-toastify";
 
 interface EventModalProps {
@@ -24,14 +24,13 @@ interface ApprovedWorkflow {
   school_year_text: string;
   disbursement_type_id: number;
   request_type_text: string;
+  covered_date: string;
 }
 
 interface FormData {
   title: string;
   schedule_due: Date | null;
-  starting_date: Date | null;
   semester: SemesterType;
-  branch: string;
   schoolYear: SchoolYearType;
   disbursementType: DisbursementType;
   description: string;
@@ -48,13 +47,11 @@ function EventModal({
     title: "",
     schedule_due: selectedDate,
     semester: "",
-    branch: "",
     schoolYear: "",
     disbursementType: "",
     description: "",
-    starting_date: null,
   });
-  const [branch, setBranch] = useState<string>("");
+
   const [loading, setLoading] = useState(false);
   const [approvedWorkflows, setApprovedWorkflows] = useState<
     ApprovedWorkflow[]
@@ -65,10 +62,6 @@ function EventModal({
   const [eligibleCount, setEligibleCount] = useState<number | null>(null);
   const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  const handleBranchChange = (branch: string) => {
-    setBranch(branch);
-    setFormData((prev) => ({ ...prev, branch: branch }));
-  };
   const todayDate = new Date().toISOString().split("T")[0];
 
   const handleInputChange = (
@@ -78,13 +71,9 @@ function EventModal({
 
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        name === "schedule_due" || name === "starting_date"
-          ? new Date(value)
-          : value,
+      [name]: name === "schedule_due" ? new Date(value) : value,
     }));
   };
-  console.log(formData.branch);
 
   useEffect(() => {
     if (selectedDate) {
@@ -113,26 +102,37 @@ function EventModal({
     const checkEligible = async () => {
       try {
         setEligibleCount(null);
-        if (!selectedWorkflow || !formData.branch) return;
+
+        if (!selectedWorkflow) return;
+
+        // ✅ prepare query parameters
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const params: Record<string, any> = {
+          school_year: selectedWorkflow.school_year_text,
+          semester: selectedWorkflow.semester_text,
+          disbursement_type_id: selectedWorkflow.disbursement_type_id,
+        };
+
+        // ✅ only include covered_date for internship allowance (or if exists)
+        if (selectedWorkflow.covered_date) {
+          params.covered_date = selectedWorkflow.covered_date;
+        }
+
         const res = await axios.get(
           `${VITE_BACKEND_URL}api/disbursement/eligible-count`,
-          {
-            params: {
-              sy_code: selectedWorkflow.sy_code,
-              semester_code: selectedWorkflow.semester_code,
-              branch: formData.branch,
-              disbursement_type_id: selectedWorkflow.disbursement_type_id,
-            },
-          }
+          { params }
         );
-        setEligibleCount(Number(res.data?.count ?? 0));
+
+        const count = Number(res.data?.count ?? 0);
+        setEligibleCount(count);
       } catch (err) {
-        console.error("eligible-count failed", err);
+        console.error("❌ Eligible count failed:", err);
         setEligibleCount(0);
       }
     };
+
     checkEligible();
-  }, [selectedWorkflow, formData.branch]);
+  }, [selectedWorkflow]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -148,14 +148,9 @@ function EventModal({
         alert("Please enter a title.");
         return;
       }
-      if (!formData.branch) {
-        alert("Please select a branch.");
-        return;
-      }
-      const effectiveStartingDate =
-        formData.starting_date || formData.schedule_due;
-      if (!effectiveStartingDate) {
-        alert("Please select a starting and due date.");
+
+      if (!formData.schedule_due) {
+        alert("Please select a due date.");
         return;
       }
       if (!formData.description) {
@@ -170,16 +165,21 @@ function EventModal({
           schedule_due: formData.schedule_due
             ? formatDateForInput(new Date(formData.schedule_due))
             : null,
-          starting_date: formatDateForInput(new Date(effectiveStartingDate)),
           sched_title: formData.title,
-          branch_code: formData.branch,
           semester_code: Number(selectedWorkflow.semester_code),
           sy_code: Number(selectedWorkflow.sy_code),
           disbursement_type_id: Number(selectedWorkflow.disbursement_type_id),
           description: formData.description,
           workflow_id: Number(selectedWorkflow.id),
+
+          // ✅ NEW: include covered_date if internship
+          covered_date:
+            Number(selectedWorkflow.disbursement_type_id) === 4
+              ? selectedWorkflow.covered_date
+              : null,
         }
       );
+
       toast.success("Event created successfully", {
         position: "top-center",
         autoClose: 3000,
@@ -192,12 +192,10 @@ function EventModal({
       setFormData({
         title: "",
         schedule_due: null,
-        branch: "",
         semester: "",
         schoolYear: "",
         disbursementType: "",
         description: "",
-        starting_date: null,
       });
       setSelectedWorkflow(null);
     } catch (error) {
@@ -340,6 +338,7 @@ function EventModal({
                       <X className="h-5 w-5" />
                     </button>
                   </div>
+
                   <div className="space-y-1 text-sm text-gray-600">
                     <p className="flex justify-between">
                       <span className="font-medium">School Year:</span>
@@ -353,6 +352,14 @@ function EventModal({
                       <span className="font-medium">Type:</span>
                       <span>{selectedWorkflow.request_type_text}</span>
                     </p>
+
+                    {/* ✅ Only show covered_date if available (e.g. Internship Allowance) */}
+                    {selectedWorkflow.covered_date && (
+                      <p className="flex justify-between text-blue-700">
+                        <span className="font-medium">Covered Date:</span>
+                        <span>{selectedWorkflow.covered_date}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -376,28 +383,7 @@ function EventModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label
-                    htmlFor="date"
-                    className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Starting Date
-                  </label>
-                  <input
-                    id="starting_date"
-                    type="date"
-                    name="starting_date"
-                    min={todayDate}
-                    value={
-                      formData.starting_date
-                        ? formatDateForInput(new Date(formData.starting_date))
-                        : ""
-                    }
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-2">
                 <div>
                   <label
                     htmlFor="date"
@@ -421,14 +407,7 @@ function EventModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <BranchDropdown
-                  formData={branch}
-                  handleInputChange={handleBranchChange}
-                />
-              </div>
-
-              {selectedWorkflow && formData.branch && (
+              {selectedWorkflow && (
                 <div className="text-sm text-gray-600">
                   Eligible recipients: {eligibleCount ?? "…"}
                 </div>
@@ -528,10 +507,19 @@ function EventModal({
                   {approvedWorkflows.map((wf) => (
                     <div
                       key={wf.id}
-                      className="p-3 border-b cursor-pointer hover:bg-gray-100"
+                      className="p-3 border-b cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => selectWorkflow(wf)}
                     >
-                      {`${wf.title} (${wf.school_year_text} - ${wf.semester_text} - ${wf.request_type_text})`}
+                      <p className="font-medium text-gray-800">{wf.title}</p>
+                      <p className="text-sm text-gray-600">
+                        {`${wf.school_year_text} - ${wf.semester_text} - ${wf.request_type_text}`}
+                        {wf.covered_date && (
+                          <span className="text-blue-700 font-medium">
+                            {" "}
+                            — {wf.covered_date}
+                          </span>
+                        )}
+                      </p>
                     </div>
                   ))}
                 </div>

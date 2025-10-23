@@ -91,7 +91,7 @@ function EditApproval({
     rq_title: "",
     requester_id: String(userId),
     description: "",
-    file: null,
+    // file: null,
     approvers: [],
     due_date: "",
     semester_code: "",
@@ -116,13 +116,13 @@ function EditApproval({
           rq_title: workflowData.rq_title || "",
           requester_id: String(userId),
           description: workflowData.description || "",
-          file: workflowData.doc_id
-            ? {
-                doc_id: workflowData.doc_id,
-                doc_name: workflowData.doc_name,
-                doc_path: workflowData.doc_path,
-              }
-            : null, // File will need to be re-uploaded if changed
+          // file: workflowData.doc_id
+          //   ? {
+          //       doc_id: workflowData.doc_id,
+          //       doc_name: workflowData.doc_name,
+          //       doc_path: workflowData.doc_path,
+          //     }
+          //   : null, // File will need to be re-uploaded if changed
           approvers:
             workflowData.approvers?.map((approver: WFApprover) => ({
               email: approver.email,
@@ -268,13 +268,13 @@ function EditApproval({
       // --- skip nulls ---
       if (currentValue == null) return;
 
-      // --- handle file ---
-      if (key === "file") {
-        if (currentValue instanceof File) {
-          sendData.append("file", currentValue);
-        }
-        return;
-      }
+      // // --- handle file ---
+      // if (key === "file") {
+      //   if (currentValue instanceof File) {
+      //     sendData.append("file", currentValue);
+      //   }
+      //   return;
+      // }
 
       // --- handle approvers ---
       if (key === "approvers") {
