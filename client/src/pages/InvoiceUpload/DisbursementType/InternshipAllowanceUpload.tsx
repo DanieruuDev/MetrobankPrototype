@@ -418,110 +418,321 @@ function InternshipAllowanceUpload({
       );
 
     return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 flex justify-between items-center gap-4">
-          <p className="text-sm font-semibold text-gray-800">
-            {schoolYear} • {semester} • {selectedDate || "No date selected"}
-          </p>
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="excel-upload"
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium shadow-sm cursor-pointer"
-            >
-              Upload Excel
-            </label>
-            <input
-              id="excel-upload"
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleExcelUpload}
-              className="hidden"
-              disabled={ratePerHour === ""}
-            />
-            {uploadError && (
-              <span className="text-sm text-red-600">{uploadError}</span>
-            )}
-            <span className="text-sm text-gray-700">
-              Total: <b>{records.length}</b>
-            </span>
+      <div className="space-y-4">
+        {/* Table Header with Upload Controls */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Period Information */}
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <p className="text-sm font-semibold text-gray-800">
+                {schoolYear} • {semester} • {selectedDate || "No date selected"}
+              </p>
+            </div>
+
+            {/* Upload Controls */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="excel-upload"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm cursor-pointer transition-colors ${
+                    ratePerHour === ""
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
+                >
+                  Upload Excel
+                </label>
+                <input
+                  id="excel-upload"
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={handleExcelUpload}
+                  className="hidden"
+                  disabled={ratePerHour === ""}
+                />
+                <span className="text-sm text-gray-700">
+                  Total: <b>{records.length}</b>
+                </span>
+              </div>
+              {uploadError && (
+                <span className="text-sm text-red-600">{uploadError}</span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse">
-            <thead className="bg-gray-50 text-gray-700 text-xs sm:text-sm font-semibold border-b">
-              <tr>
-                <th className="px-6 py-3 text-left">Student ID</th>
-                <th className="px-6 py-3 text-left">Scholar Name</th>
-                <th className="px-6 py-3 text-left">Program</th>
-                <th className="px-6 py-3 text-left">Campus</th>
-                <th className="px-6 py-3 text-left">Covered Date</th>
-                <th className="px-6 py-3 text-right">Amount (₱)</th>
-                <th className="px-6 py-3 text-left">File(s)</th>
-              </tr>
-            </thead>
-
-            <tbody className="text-gray-700 text-xs sm:text-sm">
+        {/* Table Container */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Mobile Cards - Small screens */}
+          <div className="block md:hidden">
+            <div className="p-4 space-y-3">
               {records
                 .slice((page - 1) * itemsPerPage, page * itemsPerPage)
-                .map((r, i) => (
-                  <tr
+                .map((r) => (
+                  <div
                     key={r.disb_detail_id}
-                    className={`${
-                      i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    } hover:bg-blue-50 transition-colors duration-200`}
+                    className="border rounded-lg p-4 bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all duration-200"
                   >
-                    <td className="px-6 py-4 font-mono">{r.student_id}</td>
-                    <td className="px-6 py-4">{r.scholar_name}</td>
-                    <td className="px-6 py-4">{r.program}</td>
-                    <td className="px-6 py-4">{r.campus}</td>
-                    <td className="px-6 py-4 font-semibold text-blue-700">
-                      {r.covered_date}
-                    </td>
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {r.student_id}
+                        </span>
+                        <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">
+                          {r.program}
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-gray-900">
+                        {r.disbursement_amount
+                          ? `₱${r.disbursement_amount.toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                            })}`
+                          : "—"}
+                      </div>
+                    </div>
 
-                    {/* 💰 Amount */}
-                    <td className="px-6 py-4 text-right font-semibold text-gray-800">
-                      {r.disbursement_amount
-                        ? `₱${r.disbursement_amount.toLocaleString("en-PH", {
-                            minimumFractionDigits: 2,
-                          })}`
-                        : "—"}
-                    </td>
+                    {/* Student Name */}
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                      {r.scholar_name}
+                    </h3>
 
-                    {/* 📎 File(s) */}
-                    <td className="px-6 py-4 space-y-1">
+                    {/* Details */}
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <div>
+                        <span className="text-gray-500">Campus:</span>
+                        <span className="ml-1 font-medium text-gray-900">
+                          {r.campus}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Date:</span>
+                        <span className="ml-1 font-medium text-blue-700">
+                          {r.covered_date}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Files */}
+                    <div className="border-t border-gray-200 pt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600 font-medium">
+                          Files
+                        </span>
+                      </div>
                       {r.disbursement_files &&
                       r.disbursement_files.length > 0 ? (
-                        r.disbursement_files.map((file) => (
-                          <a
-                            key={file.file_id}
-                            href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-blue-600 hover:underline truncate max-w-[180px]"
-                            title={file.file_name}
-                          >
-                            {file.file_name}
-                          </a>
-                        ))
+                        <div className="space-y-1">
+                          {r.disbursement_files.map((file) => (
+                            <a
+                              key={file.file_id}
+                              href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                              </svg>
+                              {file.file_name}
+                            </a>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-gray-400 italic">No file</span>
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-xs">No files</span>
+                        </div>
                       )}
-                    </td>
-
-                    {/* 🟢 Status */}
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
 
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border-t border-gray-200 flex justify-center">
-          <PaginationControl
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          {/* Tablet View - Medium screens */}
+          <div className="hidden md:block lg:hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse text-sm">
+                <thead className="bg-gray-50 text-gray-700 font-semibold border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Student</th>
+                    <th className="px-4 py-3 text-left">Program</th>
+                    <th className="px-4 py-3 text-left">Campus</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-left">Files</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700">
+                  {records
+                    .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+                    .map((r, index) => (
+                      <tr
+                        key={r.disb_detail_id}
+                        className={`${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        } hover:bg-blue-50 transition-colors duration-200`}
+                      >
+                        <td className="px-4 py-3">
+                          <div>
+                            <div className="font-mono text-xs text-gray-500">
+                              {r.student_id}
+                            </div>
+                            <div className="font-semibold text-gray-900">
+                              {r.scholar_name}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{r.program}</td>
+                        <td className="px-4 py-3">{r.campus}</td>
+                        <td className="px-4 py-3 font-semibold text-blue-700">
+                          {r.covered_date}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-800">
+                          {r.disbursement_amount
+                            ? `₱${r.disbursement_amount.toLocaleString(
+                                "en-PH",
+                                {
+                                  minimumFractionDigits: 2,
+                                }
+                              )}`
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {r.disbursement_files &&
+                          r.disbursement_files.length > 0 ? (
+                            r.disbursement_files.map((file) => (
+                              <a
+                                key={file.file_id}
+                                href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-blue-600 hover:underline truncate max-w-[120px] text-xs"
+                                title={file.file_name}
+                              >
+                                {file.file_name}
+                              </a>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 italic text-xs">
+                              No file
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Desktop Table - Large screens */}
+          <div className="hidden lg:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse">
+                <thead className="bg-gray-50 text-gray-700 text-xs sm:text-sm font-semibold border-b">
+                  <tr>
+                    <th className="px-6 py-3 text-left">Student ID</th>
+                    <th className="px-6 py-3 text-left">Scholar Name</th>
+                    <th className="px-6 py-3 text-left">Program</th>
+                    <th className="px-6 py-3 text-left">Campus</th>
+                    <th className="px-6 py-3 text-left">Covered Date</th>
+                    <th className="px-6 py-3 text-right">Amount (₱)</th>
+                    <th className="px-6 py-3 text-left">File(s)</th>
+                  </tr>
+                </thead>
+
+                <tbody className="text-gray-700 text-xs sm:text-sm">
+                  {records
+                    .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+                    .map((r, index) => (
+                      <tr
+                        key={r.disb_detail_id}
+                        className={`${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        } hover:bg-blue-50 transition-colors duration-200`}
+                      >
+                        <td className="px-6 py-4 font-mono">{r.student_id}</td>
+                        <td className="px-6 py-4">{r.scholar_name}</td>
+                        <td className="px-6 py-4">{r.program}</td>
+                        <td className="px-6 py-4">{r.campus}</td>
+                        <td className="px-6 py-4 font-semibold text-blue-700">
+                          {r.covered_date}
+                        </td>
+
+                        {/* 💰 Amount */}
+                        <td className="px-6 py-4 text-right font-semibold text-gray-800">
+                          {r.disbursement_amount
+                            ? `₱${r.disbursement_amount.toLocaleString(
+                                "en-PH",
+                                {
+                                  minimumFractionDigits: 2,
+                                }
+                              )}`
+                            : "—"}
+                        </td>
+
+                        {/* 📎 File(s) */}
+                        <td className="px-6 py-4 space-y-1">
+                          {r.disbursement_files &&
+                          r.disbursement_files.length > 0 ? (
+                            r.disbursement_files.map((file) => (
+                              <a
+                                key={file.file_id}
+                                href={`${VITE_BACKEND_URL}api/document/download/${file.file_name}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-blue-600 hover:underline truncate max-w-[180px]"
+                                title={file.file_name}
+                              >
+                                {file.file_name}
+                              </a>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 italic">
+                              No file
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          <div className="px-4 sm:px-6 py-4 bg-gray-50/50 border-t border-gray-200 flex justify-center">
+            <PaginationControl
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
       </div>
     );
@@ -716,9 +927,9 @@ function InternshipAllowanceUpload({
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-green-100">
-                            {matchedDataFiltered.map((data, i) => (
+                            {matchedDataFiltered.map((data, index) => (
                               <tr
-                                key={i}
+                                key={index}
                                 className="hover:bg-green-50 transition-colors duration-200"
                               >
                                 <td className="px-6 py-4 text-sm text-gray-900">
@@ -766,9 +977,9 @@ function InternshipAllowanceUpload({
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-orange-100">
-                            {unmatchedData.map((data, i) => (
+                            {unmatchedData.map((data, index) => (
                               <tr
-                                key={i}
+                                key={index}
                                 className="hover:bg-orange-50 transition-colors duration-200"
                               >
                                 <td className="px-6 py-4 text-sm text-gray-900">
@@ -823,44 +1034,81 @@ function InternshipAllowanceUpload({
   // 🔽 Main Render
   return (
     <div className="px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Generate and Delete buttons */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
-        <div className="flex gap-4">
-          {coveredDates.length < 4 && (
+      {/* Header Toolbar */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6">
+          {/* Left Section - Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            {coveredDates.length < 4 && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+              >
+                Generate 15-Day Period
+              </button>
+            )}
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm"
             >
-              Generate 15-Day Period
+              Delete Covered Date
             </button>
-          )}
-          <button
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm"
-          >
-            Delete Covered Date
-          </button>
+          </div>
+
+          {/* Right Section - Rate Input */}
+          <div className="flex items-center gap-3">
+            <label
+              htmlFor="rate-per-hour"
+              className="text-sm font-medium text-gray-700 whitespace-nowrap"
+            >
+              Rate/Hour (₱):
+            </label>
+            <input
+              id="rate-per-hour"
+              type="text"
+              inputMode="decimal"
+              value={ratePerHour}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                // ✅ Allow only digits and one decimal point
+                if (!/^\d*\.?\d*$/.test(value)) return;
+
+                // ✅ Limit to 7 digits before decimal and 2 after
+                if (/^\d{0,7}(\.\d{0,2})?$/.test(value)) {
+                  const numeric = parseFloat(value);
+                  if (value === "" || isNaN(numeric) || numeric <= 1000000) {
+                    setRatePerHour(value);
+                  }
+                }
+              }}
+              maxLength={10} // Safety net: 7 digits + "." + 2 decimals
+              placeholder="0.00"
+              className="w-24 p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right"
+              autoComplete="off"
+            />
+          </div>
         </div>
 
-        {/* ✅ Covered Date Tabs */}
-        {coveredDates.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {coveredDates.map((date) => (
-              <button
-                key={date}
-                onClick={() => fetchEligibleInternshipAllowance(date)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  selectedDate === date
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {date}
-              </button>
-            ))}
+        {/* Covered Date Tabs */}
+        {coveredDates.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap gap-2">
+              {coveredDates.map((date) => (
+                <button
+                  key={date}
+                  onClick={() => fetchEligibleInternshipAllowance(date)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    selectedDate === date
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {date}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          <p className="text-sm text-gray-500">No covered dates available.</p>
         )}
       </div>
 
@@ -872,36 +1120,7 @@ function InternshipAllowanceUpload({
       />
       <DeleteModal />
       <MatchModal />
-      {/* Inline Table */}
-      <div className="flex items-center gap-2">
-        <label htmlFor="rate-per-hour" className="text-sm text-gray-700">
-          Rate/Hour (₱):
-        </label>
-        <input
-          id="rate-per-hour"
-          type="text"
-          inputMode="decimal"
-          value={ratePerHour}
-          onChange={(e) => {
-            const value = e.target.value;
 
-            // ✅ Allow only digits and one decimal point
-            if (!/^\d*\.?\d*$/.test(value)) return;
-
-            // ✅ Limit to 7 digits before decimal and 2 after
-            if (/^\d{0,7}(\.\d{0,2})?$/.test(value)) {
-              const numeric = parseFloat(value);
-              if (value === "" || isNaN(numeric) || numeric <= 1000000) {
-                setRatePerHour(value);
-              }
-            }
-          }}
-          maxLength={10} // Safety net: 7 digits + "." + 2 decimals
-          placeholder="0.00"
-          className="w-24 p-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
-          autoComplete="off"
-        />
-      </div>
       <InternshipTable />
     </div>
   );

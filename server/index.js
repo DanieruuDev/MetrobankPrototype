@@ -53,6 +53,18 @@ io.on("connection", (socket) => {
     socket.join(`user_${userId}`);
     socket.join("renewal_updates");
     console.log(`✅ User ${userId} joined user_${userId} & renewal_updates`);
+
+    // Send a test notification to verify connection
+    if (userId === 7) {
+      console.log(`🧪 Sending test notification to HR user ${userId}`);
+      socket.emit("new_notification", {
+        id: Date.now(),
+        title: "Connection Test",
+        message: "Socket.io connection established successfully!",
+        type: "CONNECTION_TEST",
+        created_at: new Date(),
+      });
+    }
   });
 
   socket.on("disconnect", () => {

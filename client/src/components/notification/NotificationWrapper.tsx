@@ -47,16 +47,51 @@ const NotificationWrapper: React.FC<NotificationWrapperProps> = ({
   useEffect(() => {
     if (!userId) return;
 
+    // Check socket connection status
+    console.log(`🔌 Socket connected: ${socket.connected}`);
+    console.log(`🔌 Socket ID: ${socket.id}`);
+
+    // Force connection if not connected
+    if (!socket.connected) {
+      console.log("🔄 Attempting to reconnect socket...");
+      socket.connect();
+    }
+
     socket.emit("register_user", userId);
     console.log(`✅ Registered user_${userId} for notifications`);
 
     socket.on("new_notification", (notif) => {
-      console.log("🔔 New real-time notification:", notif);
+      console.log("🔔 New real-time notification received:", notif);
       setNotifications((prev) => [notif, ...prev]);
+
+      // Show toast for new notifications
+      if (notif.title !== "Connection Test") {
+        toast.info(`🔔 ${notif.title}: ${notif.message}`, {
+          position: "bottom-right",
+          autoClose: 5000,
+        });
+      }
+    });
+
+    // Add connection event listeners for debugging
+    socket.on("connect", () => {
+      console.log("🔌 Socket connected to server");
+      console.log(`🔌 Socket ID after connect: ${socket.id}`);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("🔌 Socket disconnected from server");
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("❌ Socket connection error:", error);
     });
 
     return () => {
       socket.off("new_notification");
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
     };
   }, [userId]);
 

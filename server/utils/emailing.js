@@ -1,35 +1,37 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend"); // 👈 NEW: Import Resend
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
 
-// Debug logs
-console.log("DEBUG: GMAIL_USER =", process.env.GMAIL_USER);
-console.log(
-  "DEBUG: GMAIL_PASS =",
-  process.env.GMAIL_PASS ? "Loaded" : "Missing"
-);
+// ⚠️ IMPORTANT: Set this environment variable in your .env file
+// RESEND_API_KEY="re_xxxxxxxxxxxxxxx"
+// EMAIL_SENDER="Verified Sender Name <onboarding@yourdomain.com>"
 
-// Configure transporter
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
+// ❌ REMOVED: Nodemailer and Gmail related setup/debugging
+
+// Configure Resend client
+const resend = new Resend(process.env.RESEND_API_KEY); // 👈 NEW: Initialize Resend
+
+// Define sender email from environment variable (Must be a verified domain in Resend)
+const EMAIL_SENDER =
+  process.env.EMAIL_SENDER || "STRONG Notifier <onboarding@yourdomain.com>";
 
 // Generic sendEmail function to be used by all other functions
 async function sendEmail(to, subject, html) {
   try {
-    const mailOptions = {
-      from: `"STRONG Notifier" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    };
-    let info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent:", info.messageId);
-    return info;
+    // 👈 NEW: Use Resend client to send email
+    const { data, error } = await resend.emails.send({
+      from: EMAIL_SENDER,
+      to: [to], // Resend expects an array for 'to'
+      subject: subject,
+      html: html,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    console.log("✅ Email sent:", data.id);
+    return data;
   } catch (error) {
     console.error("❌ Error sending email:", error);
     throw error;
@@ -40,7 +42,6 @@ async function sendEmail(to, subject, html) {
 // 1. You have been added as an approver (but not active yet)
 // -----------------------------------------------------------
 async function sendApproverAddedEmail(to, workflowDetails) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `You have been added as an approver for "${workflowDetails.rq_title}"`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -63,7 +64,6 @@ async function sendApproverAddedEmail(to, workflowDetails) {
 // 2. It is now your turn to act as an approver
 // -----------------------------------------------------------
 async function sendItsYourTurnEmail(to, workflowDetails) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `Action Required: Your approval is needed for "${workflowDetails.rq_title}"`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -86,7 +86,6 @@ async function sendItsYourTurnEmail(to, workflowDetails) {
 // 3. Deadline is close (for approver and requester)
 // -----------------------------------------------------------
 async function sendDeadlineReminder(to, workflowDetails, userRole) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `Reminder: Deadline is approaching for "${workflowDetails.rq_title}"`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -110,7 +109,6 @@ async function sendDeadlineReminder(to, workflowDetails, userRole) {
 // 4. Workflow has been rejected
 // -----------------------------------------------------------
 async function sendWorkflowRejectedEmail(to, workflowDetails, rejectComment) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `Workflow Rejected: "${workflowDetails.rq_title}"`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -132,7 +130,6 @@ async function sendWorkflowRejectedEmail(to, workflowDetails, rejectComment) {
 // 5. Workflow has been completed
 // -----------------------------------------------------------
 async function sendWorkflowCompletedEmail(to, workflowDetails) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `Workflow Completed: "${workflowDetails.rq_title}"`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -154,7 +151,6 @@ async function sendWorkflowCompletedEmail(to, workflowDetails) {
 // 6. Workflow has moved forward
 // -----------------------------------------------------------
 async function sendWorkflowMovedForward(to, workflowDetails) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `Workflow Update: "${workflowDetails.rq_title}" has moved forward`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -167,7 +163,7 @@ async function sendWorkflowMovedForward(to, workflowDetails) {
       </div>
       <p style="margin-top: 20px;">You can check the progress on your dashboard.</p>
       <p>The STRONG System Team</p>
-    </div>
+      </div>
   `;
   await sendEmail(to, subject, htmlTemplate);
 }
@@ -176,7 +172,6 @@ async function sendWorkflowMovedForward(to, workflowDetails) {
 // 7. You have been replaced as an approver
 // -----------------------------------------------------------
 async function sendApproverReplacedEmail(to, workflowDetails) {
-  // CORRECTED: changed workflowDetails.request_title to workflowDetails.rq_title
   const subject = `Workflow Update: You have been replaced as an approver for "${workflowDetails.rq_title}"`;
   const htmlTemplate = `
     <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">

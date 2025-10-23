@@ -390,4 +390,5 @@ module.exports = {
   getTotalDisbursedAmount,
   getStudentBasicInfo,
   getROIAnalyticsData,
+  getROIAnalyticsData,
 };

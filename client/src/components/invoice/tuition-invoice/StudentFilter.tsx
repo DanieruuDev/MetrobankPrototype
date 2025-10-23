@@ -57,7 +57,10 @@ const StudentFilter: React.FC<StudentFilterProps> = ({
   programRef,
 }) => {
   const handleClearFilters = () => {
-    setSelectedBranch(null);
+    // Don't clear branch for registrars (role 3) - they have specific branches
+    if (role !== 3) {
+      setSelectedBranch(null);
+    }
     setSelectedYearLevel("all");
     setSelectedProgram("all");
   };

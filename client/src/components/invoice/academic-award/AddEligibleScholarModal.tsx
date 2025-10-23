@@ -116,23 +116,27 @@ const AddEligibleScholarModal: React.FC<AddEligibleScholarModalProps> = ({
   if (!showModal) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998]">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl p-6 relative">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998] p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] p-4 sm:p-6 relative overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex justify-between items-center border-b pb-3">
-          <h2 className="text-lg font-semibold text-blue-800 flex items-center gap-2">
-            <span>🎓</span> Eligible Scholars for Academic Excellence Award
+        <div className="flex justify-between items-center border-b pb-3 flex-shrink-0">
+          <h2 className="text-base sm:text-lg font-semibold text-blue-800 flex items-center gap-2">
+            <span>🎓</span>
+            <span className="hidden sm:inline">
+              Eligible Scholars for Academic Excellence Award
+            </span>
+            <span className="sm:hidden">Eligible Scholars</span>
           </h2>
           <button
             onClick={() => setShowModal(false)}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 p-1"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Search */}
-        <div className="mt-4 relative">
+        <div className="mt-4 relative flex-shrink-0">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -144,122 +148,146 @@ const AddEligibleScholarModal: React.FC<AddEligibleScholarModalProps> = ({
         </div>
 
         {/* Table */}
-        <div className="mt-4 max-h-[420px] overflow-y-auto border border-gray-200 rounded-lg">
-          {loading ? (
-            <div className="text-center py-6 text-gray-500 flex items-center justify-center gap-2">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-              Loading eligible scholars...
-            </div>
-          ) : filteredScholars.length === 0 ? (
-            <div className="text-center py-6 text-gray-500">
-              No eligible scholars found.
-            </div>
-          ) : (
-            <table className="min-w-full border-collapse text-sm text-gray-700">
-              <thead className="bg-yellow-50 sticky top-0">
-                <tr>
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      onChange={(e) =>
-                        setSelected(
-                          e.target.checked
-                            ? filteredScholars
-                                .filter((s) => !s.has_academic_award)
-                                .map((s) => s.disbursement_id)
-                            : []
-                        )
-                      }
-                      checked={
-                        selected.length > 0 &&
-                        selected.length ===
-                          filteredScholars.filter((s) => !s.has_academic_award)
-                            .length
-                      }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    ID
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    Scholar Name
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    Course
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    Year Level
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    School Year / Semester
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    Campus
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-800">
-                    Academic Award
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredScholars.map((s, index) => (
-                  <tr
-                    key={s.disbursement_id}
-                    className={`border-b hover:bg-gray-50 transition ${
-                      index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    }`}
-                  >
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(s.disbursement_id)}
-                        onChange={() => toggleSelect(s.disbursement_id)}
-                        disabled={s.has_academic_award}
-                        className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                          s.has_academic_award
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
+        <div className="mt-4 flex-1 overflow-hidden border border-gray-200 rounded-lg">
+          <div className="h-full overflow-y-auto">
+            {loading ? (
+              <div className="text-center py-6 text-gray-500 flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                Loading eligible scholars...
+              </div>
+            ) : filteredScholars.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                No eligible scholars found.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm text-gray-700">
+                  <thead className="bg-yellow-50 sticky top-0">
+                    <tr>
+                      <th className="px-2 sm:px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          onChange={(e) =>
+                            setSelected(
+                              e.target.checked
+                                ? filteredScholars
+                                    .filter((s) => !s.has_academic_award)
+                                    .map((s) => s.disbursement_id)
+                                : []
+                            )
+                          }
+                          checked={
+                            selected.length > 0 &&
+                            selected.length ===
+                              filteredScholars.filter(
+                                (s) => !s.has_academic_award
+                              ).length
+                          }
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[60px]">
+                        ID
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[120px]">
+                        Scholar Name
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[100px] hidden sm:table-cell">
+                        Course
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[80px] hidden md:table-cell">
+                        Year Level
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[120px] hidden lg:table-cell">
+                        School Year / Semester
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[100px] hidden xl:table-cell">
+                        Campus
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left font-medium text-gray-800 min-w-[100px]">
+                        Academic Award
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredScholars.map((s, index) => (
+                      <tr
+                        key={s.disbursement_id}
+                        className={`border-b hover:bg-gray-50 transition ${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
                         }`}
-                      />
-                    </td>
-                    <td className="px-4 py-3">{s.student_id}</td>
-                    <td className="px-4 py-3">{s.scholar_name}</td>
-                    <td className="px-4 py-3">{s.program}</td>
-                    <td className="px-4 py-3">{s.year_level}</td>
-                    <td className="px-4 py-3">{`${s.school_year} / ${s.semester}`}</td>
-                    <td className="px-4 py-3">{s.campus}</td>
-
-                    <td className="px-4 py-3">
-                      {s.has_academic_award ? (
-                        <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium">
-                          ✅ Added
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">
-                          ⏳ Not Yet
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                      >
+                        <td className="px-2 sm:px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(s.disbursement_id)}
+                            onChange={() => toggleSelect(s.disbursement_id)}
+                            disabled={s.has_academic_award}
+                            className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                              s.has_academic_award
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 font-mono text-xs">
+                          {s.student_id}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3">
+                          <div className="truncate max-w-[120px]">
+                            {s.scholar_name}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 hidden sm:table-cell">
+                          <div className="truncate max-w-[100px] text-xs">
+                            {s.program}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 hidden md:table-cell text-xs">
+                          {s.year_level}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 hidden lg:table-cell text-xs">
+                          <div className="truncate max-w-[120px]">
+                            {`${s.school_year} / ${s.semester}`}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 hidden xl:table-cell">
+                          <div className="truncate max-w-[100px] text-xs">
+                            {s.campus}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-3">
+                          {s.has_academic_award ? (
+                            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium">
+                              ✅ Added
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">
+                              ⏳ Not Yet
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4 flex-shrink-0">
           <button
             onClick={() => setShowModal(false)}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition w-full sm:w-auto"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={selected.length === 0}
-            className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition w-full sm:w-auto ${
               selected.length === 0
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700"
