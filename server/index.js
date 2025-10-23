@@ -21,6 +21,8 @@ require("./utils/scheduler.js");
 const processProgressRouter = require("./routes/process-progress-controller.js");
 const uploadStatus = require("./routes/upload-status-router.js");
 const analyticsRouter = require("./routes/analytics-router.js");
+const emailTestRouter = require("./routes/email-test-router.js");
+const approvalTestRouter = require("./routes/approval-test-router.js");
 require("dotenv").config();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -93,6 +95,8 @@ app.use("/api/invoice", invoiceRouter);
 app.use("/api/process", processProgressRouter);
 app.use("/api/status", uploadStatus);
 app.use("/api/analytics", analyticsRouter);
+app.use("/api/email-test", emailTestRouter);
+app.use("/api/approval-test", approvalTestRouter);
 
 app.use("/", async (req, res) => {
   res.send("Hello World");
