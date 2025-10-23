@@ -127,9 +127,8 @@ const loginUser = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
-      domain: ".mbstrongwebapp.com",
-      path: "/", // ✅ ensures it’s accessible and clearable globally
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      domain: ".mbstrongwebapp.com",
     });
 
     return res.status(200).json({ email: user.admin_email, accessToken });
@@ -203,13 +202,10 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     res.clearCookie("refreshToken", {
-      httpOnly: true,
       secure: true,
       sameSite: "lax",
       domain: ".mbstrongwebapp.com",
-      path: "/", // ✅ must match exactly
     });
-
     return res.status(200).json({ message: "Logout successfully" });
   } catch (error) {
     console.error("Error logout:", error);

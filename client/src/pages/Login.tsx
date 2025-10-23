@@ -16,26 +16,21 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
   const auth = useAuth();
-  const { setToken, token, user } = auth; // ✅ include user here
-
-  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
+  const { setToken, token } = auth;
   useEffect(() => {
-    if (token && user) {
+    if (token) {
       const lastPage = sessionStorage.getItem("lastPage");
 
       if (lastPage) {
         navigate(lastPage, { replace: true });
         sessionStorage.removeItem("lastPage");
-      }
-      // ✅ Role-based landing logic
-      else if (user.role_id === 3 || user.role_id === 9) {
-        navigate("/workflow-approval/request", { replace: true });
       } else {
         navigate("/workflow-approval", { replace: true });
       }
     }
-  }, [token, user, navigate]);
+  }, [token, navigate]);
+
+  const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const validate = (): boolean => {
     const newErrors: LoginErrors = {};
@@ -69,16 +64,16 @@ const LoginPage: React.FC = () => {
         { email, password },
         { withCredentials: true }
       );
-
+      console.log("API response:", response.data);
       const { accessToken } = response.data;
 
       if (!accessToken || typeof accessToken !== "string") {
         throw new Error("Invalid or missing token in API response");
       }
 
-      setToken(accessToken); // Updates token & user
+      setToken(accessToken); // Updates token and user state
       toast.success("Login successful!");
-      // ✅ No immediate navigate — redirect will happen inside useEffect
+      navigate("/workflow-approval");
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
       const errorMessage =
