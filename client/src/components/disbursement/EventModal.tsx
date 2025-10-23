@@ -24,6 +24,7 @@ interface ApprovedWorkflow {
   school_year_text: string;
   disbursement_type_id: number;
   request_type_text: string;
+  covered_date: string;
 }
 
 interface FormData {
@@ -101,24 +102,35 @@ function EventModal({
     const checkEligible = async () => {
       try {
         setEligibleCount(null);
+
         if (!selectedWorkflow) return;
+
+        // ✅ prepare query parameters
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const params: Record<string, any> = {
+          school_year: selectedWorkflow.school_year_text,
+          semester: selectedWorkflow.semester_text,
+          disbursement_type_id: selectedWorkflow.disbursement_type_id,
+        };
+
+        // ✅ only include covered_date for internship allowance (or if exists)
+        if (selectedWorkflow.covered_date) {
+          params.covered_date = selectedWorkflow.covered_date;
+        }
 
         const res = await axios.get(
           `${VITE_BACKEND_URL}api/disbursement/eligible-count`,
-          {
-            params: {
-              school_year: selectedWorkflow.school_year_text,
-              semester: selectedWorkflow.semester_text,
-              disbursement_type_id: selectedWorkflow.disbursement_type_id,
-            },
-          }
+          { params }
         );
-        setEligibleCount(Number(res.data?.count ?? 0));
+
+        const count = Number(res.data?.count ?? 0);
+        setEligibleCount(count);
       } catch (err) {
-        console.error("eligible-count failed", err);
+        console.error("❌ Eligible count failed:", err);
         setEligibleCount(0);
       }
     };
+
     checkEligible();
   }, [selectedWorkflow]);
 
@@ -159,8 +171,15 @@ function EventModal({
           disbursement_type_id: Number(selectedWorkflow.disbursement_type_id),
           description: formData.description,
           workflow_id: Number(selectedWorkflow.id),
+
+          // ✅ NEW: include covered_date if internship
+          covered_date:
+            Number(selectedWorkflow.disbursement_type_id) === 4
+              ? selectedWorkflow.covered_date
+              : null,
         }
       );
+
       toast.success("Event created successfully", {
         position: "top-center",
         autoClose: 3000,
@@ -319,6 +338,7 @@ function EventModal({
                       <X className="h-5 w-5" />
                     </button>
                   </div>
+
                   <div className="space-y-1 text-sm text-gray-600">
                     <p className="flex justify-between">
                       <span className="font-medium">School Year:</span>
@@ -332,6 +352,14 @@ function EventModal({
                       <span className="font-medium">Type:</span>
                       <span>{selectedWorkflow.request_type_text}</span>
                     </p>
+
+                    {/* ✅ Only show covered_date if available (e.g. Internship Allowance) */}
+                    {selectedWorkflow.covered_date && (
+                      <p className="flex justify-between text-blue-700">
+                        <span className="font-medium">Covered Date:</span>
+                        <span>{selectedWorkflow.covered_date}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -479,10 +507,19 @@ function EventModal({
                   {approvedWorkflows.map((wf) => (
                     <div
                       key={wf.id}
-                      className="p-3 border-b cursor-pointer hover:bg-gray-100"
+                      className="p-3 border-b cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => selectWorkflow(wf)}
                     >
-                      {`${wf.title} (${wf.school_year_text} - ${wf.semester_text} - ${wf.request_type_text})`}
+                      <p className="font-medium text-gray-800">{wf.title}</p>
+                      <p className="text-sm text-gray-600">
+                        {`${wf.school_year_text} - ${wf.semester_text} - ${wf.request_type_text}`}
+                        {wf.covered_date && (
+                          <span className="text-blue-700 font-medium">
+                            {" "}
+                            — {wf.covered_date}
+                          </span>
+                        )}
+                      </p>
                     </div>
                   ))}
                 </div>

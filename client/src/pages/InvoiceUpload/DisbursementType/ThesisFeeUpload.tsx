@@ -343,7 +343,7 @@ function ThesisFeeUpload({
 
       {/* Header Toolbar */}
       <div className="mb-8">
-        {processInfo.current_stage === "Renewal" ? (
+        {role === 3 && processInfo.current_stage === "Renewal" ? (
           // 🚨 URGENT - Waiting for HR to finalize renewal
           <div className="relative p-6 bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-red-500 shadow-lg rounded-lg">
             {/* Urgent Badge */}
@@ -369,7 +369,7 @@ function ThesisFeeUpload({
               </div>
             </div>
           </div>
-        ) : uploadStatusBE?.is_completed === true ? (
+        ) : role === 3 && uploadStatusBE?.is_completed === true ? (
           // 🟩 COMPLETED - Process now in HR's hands
           <div className="relative p-6 bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 border-l-4 border-emerald-600 shadow-md rounded-lg">
             <div className="flex items-start gap-4">
@@ -389,7 +389,7 @@ function ThesisFeeUpload({
               </div>
             </div>
           </div>
-        ) : (
+        ) : role === 3 ? (
           // ✅ READY - Actionable Buttons and Completion Message
           <div className="p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-xl shadow-sm relative">
             {/* Success Badge */}
@@ -539,7 +539,7 @@ function ThesisFeeUpload({
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* 🧭 HR Dashboard: Upload Progress Across Branches */}
