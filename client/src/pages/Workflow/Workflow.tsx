@@ -248,20 +248,32 @@ function Workflow() {
           <div className="mb-4 sm:mb-6">
             <div className="flex items-center gap-1 sm:gap-2 p-1 bg-gray-100 rounded-full w-fit overflow-x-auto">
               {/* ✅ Hide "My Workflows" tab for Registrar (3) and Discipline (9) */}
-              {auth.user?.role_id !== 3 && auth.user?.role_id !== 9 && (
-                <NavLink
-                  to={"/workflow-approval"}
-                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all cursor-pointer bg-[#024FA8] text-white shadow-md whitespace-nowrap`}
-                >
-                  <ClipboardList size={14} className="sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">My Workflows</span>
-                  <span className="xs:hidden">Workflows</span>
-                </NavLink>
-              )}
 
               <NavLink
-                to={"/workflow-approval/request"}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all cursor-pointer text-gray-600 hover:bg-gray-200 whitespace-nowrap`}
+                to="/workflow-approval"
+                className={({ isActive }) =>
+                  `flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#024FA8] text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-200"
+                  }`
+                }
+                end
+              >
+                <ClipboardList size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">My Workflows</span>
+                <span className="xs:hidden">Workflows</span>
+              </NavLink>
+
+              <NavLink
+                to="/workflow-approval/request"
+                className={({ isActive }) =>
+                  `flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#024FA8] text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-200"
+                  }`
+                }
               >
                 <CheckSquare size={14} className="sm:w-4 sm:h-4" />
                 <span className="hidden xs:inline">Approval Requests</span>
