@@ -128,6 +128,7 @@ const loginUser = async (req, res) => {
       secure: true,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      domain: ".mbstrongwebapp.com",
     });
 
     return res.status(200).json({ email: user.admin_email, accessToken });
