@@ -22,6 +22,7 @@ const createDisbursementSchedule = async (req, res) => {
     required_hours,
     description,
     workflow_id,
+    covered_date, // ✅ NEW
   } = req.body;
 
   const client = await pool.connect();
@@ -55,6 +56,7 @@ const createDisbursementSchedule = async (req, res) => {
       description,
       disbursement_type_id,
       workflow_id,
+      covered_date, // ✅ pass along
     });
 
     if (!sched_id) {
@@ -67,6 +69,7 @@ const createDisbursementSchedule = async (req, res) => {
         sy_code,
         semester_code,
         disbursement_type_id,
+        covered_date, // ✅ pass along
       });
 
       if (!disb_sched_id || disb_sched_id.length === 0) {
@@ -426,34 +429,40 @@ const updateDisbursementSchedule = async (req, res) => {
 const getEligibleScholarCountSimple = async (req, res) => {
   try {
     const {
-      school_year: school_year,
-      semester: semester,
+      school_year,
+      semester,
       disbursement_type_id,
+      covered_date, // ✅ optional param
     } = req.query;
 
     if (!school_year || !semester || !disbursement_type_id) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
 
-    const query = `
+    let query = `
       SELECT COUNT(*)::int AS count
       FROM public.vw_combined_eligible_scholar_invoice
       WHERE semester = $1
         AND school_year = $2
         AND disbursement_type_id = $3
     `;
+    const params = [semester, school_year, disbursement_type_id];
 
-    const { rows } = await pool.query(query, [
-      semester,
-      school_year,
-      disbursement_type_id,
-    ]);
+    // ✅ Include covered_date only if provided
+    if (covered_date) {
+      query += ` AND covered_date = $4`;
+      params.push(covered_date);
+    }
+
+    const { rows } = await pool.query(query, params);
     const count = rows?.[0]?.count ?? 0;
 
     return res.status(200).json({ count });
   } catch (error) {
-    console.error("Error fetching simple eligible count:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error fetching simple eligible count:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while counting eligible scholars." });
   }
 };
 

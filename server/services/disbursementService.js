@@ -9,64 +9,62 @@ const createEventSchedule = async (client, data) => {
     description,
     disbursement_type_id,
     workflow_id,
+    covered_date, // ✅ added
   } = data;
 
-  console.log(workflow_id);
-  const { rows: existingDisb } = await client.query(
-    `
-    SELECT ds.disb_sched_id
+  // ✅ Existing disbursement lookup (add covered_date logic)
+  const baseQuery = `
+    SELECT ds.disb_sched_id, w.covered_date
     FROM disbursement_schedule ds
     JOIN event_schedule es ON ds.sched_id = es.sched_id
+    JOIN workflow w ON ds.workflow_id = w.workflow_id
     WHERE es.sy_code = $1
       AND es.semester_code = $2
       AND ds.disbursement_type_id = $3
-    LIMIT 1
-    `,
-    [sy_code, semester_code, disbursement_type_id]
-  );
-  const countEventWithWorkflowID = await client.query(
-    "SELECT COUNT(*) FROM event_schedule WHERE workflow_id = $1",
-    [workflow_id]
-  );
+  `;
 
-  if (countEventWithWorkflowID.rows[0].count > 0) {
-    throw new Error(`A event schedule already exists for this Workflow.`);
-  }
-  if (existingDisb.length > 0) {
+  const { rows: existingDisb } = await client.query(baseQuery, [
+    sy_code,
+    semester_code,
+    disbursement_type_id,
+  ]);
+
+  // ✅ Prevent duplicate internship schedules for same covered_date
+  if (disbursement_type_id === 4 && existingDisb.length > 0) {
+    const hasSameCoveredDate = existingDisb.some(
+      (row) => row.covered_date === covered_date
+    );
+    if (hasSameCoveredDate) {
+      throw new Error(
+        `An internship disbursement already exists for ${covered_date}.`
+      );
+    }
+  } else if (disbursement_type_id !== 4 && existingDisb.length > 0) {
     throw new Error(
       `A disbursement schedule already exists for SY ${sy_code}, Semester ${semester_code}, and Disbursement Type ${disbursement_type_id}.`
     );
   }
 
-  const { rows: students } = await client.query(
-    `
-    SELECT DISTINCT rs.renewal_id
-    FROM renewal_scholar rs
-    JOIN maintenance_campus mc ON rs.campus_name = mc.campus_name
-    WHERE rs.school_year = $1
-      AND rs.semester = $2
-    LIMIT 1
-    `,
-    [sy_code, semester_code]
+  // ✅ Avoid duplicate event per workflow
+  const { rows: workflowCheck } = await client.query(
+    "SELECT COUNT(*) FROM event_schedule WHERE workflow_id = $1",
+    [workflow_id]
   );
 
-  if (!students.length) {
-    throw new Error(
-      `No students found eligible in SY ${sy_code}, Semester ${semester_code}, for this event.`
-    );
+  if (workflowCheck[0].count > 0) {
+    throw new Error("An event schedule already exists for this workflow.");
   }
 
-  console.log("Eligible Student: ", students);
-
+  // ✅ Proceed with normal insert
   const result = await client.query(
     `
-      INSERT INTO event_schedule (
-        event_type, sched_title, schedule_due,
-        sy_code, semester_code, requester, description, schedule_status, workflow_id
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      RETURNING sched_id
-      `,
+    INSERT INTO event_schedule (
+      event_type, sched_title, schedule_due,
+      sy_code, semester_code, requester, description, schedule_status, workflow_id
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    RETURNING sched_id
+    `,
     [
       event_type,
       sched_title,
@@ -84,21 +82,20 @@ const createEventSchedule = async (client, data) => {
 };
 
 const createDisbursementSched = async (client, data) => {
-  let { sched_id, sy_code, semester_code, disbursement_type_id } = data;
+  let { sched_id, sy_code, semester_code, disbursement_type_id, covered_date } =
+    data;
 
-  // 🔁 Convert sy_code (e.g. 20252026 → 2025-2026)
+  // 🔁 Format SY code (e.g., 20252026 → 2025-2026)
   if (sy_code) {
-    const syString = String(sy_code); // ✅ ensure it’s a string
+    const syString = String(sy_code);
     if (/^\d{8}$/.test(syString)) {
       sy_code = `${syString.slice(0, 4)}-${syString.slice(4)}`;
     }
   }
 
-  // 🔁 Convert semester_code to readable text
+  // 🔁 Convert semester code to readable format
   let semesterReadable;
-  switch (
-    String(semester_code) // ✅ force to string in case it’s a number
-  ) {
+  switch (String(semester_code)) {
     case "1":
       semesterReadable = "1st Semester";
       break;
@@ -109,12 +106,11 @@ const createDisbursementSched = async (client, data) => {
       semesterReadable = "Midyear";
       break;
     default:
-      semesterReadable = semester_code; // fallback if already readable
+      semesterReadable = semester_code;
   }
 
-  // ✅ Fetch directly from the eligibility view using readable values
-  const { rows: disbDetails } = await client.query(
-    `
+  // ✅ Base query for eligible scholars
+  let query = `
     SELECT
       disb_detail_id,
       campus AS branch_name
@@ -122,19 +118,30 @@ const createDisbursementSched = async (client, data) => {
     WHERE semester = $1
       AND school_year = $2
       AND disbursement_type_id = $3
-    `,
-    [semesterReadable, sy_code, disbursement_type_id]
-  );
+  `;
+  const params = [semesterReadable, sy_code, disbursement_type_id];
+
+  // ✅ Filter internship (disbursement_type_id = 4) by covered_date
+  if (disbursement_type_id === 4) {
+    if (!covered_date) {
+      throw new Error(
+        "Internship allowance disbursement requires a covered_date."
+      );
+    }
+    query += ` AND covered_date = $4`;
+    params.push(covered_date);
+  }
+
+  const { rows: disbDetails } = await client.query(query, params);
 
   if (!disbDetails.length) {
     throw new Error(
-      `No eligible scholars found for SY ${sy_code}, ${semesterReadable}, and Disbursement Type ${disbursement_type_id}.`
+      `No eligible scholars found for SY ${sy_code}, ${semesterReadable}, type ${disbursement_type_id}${covered_date ? ` (${covered_date})` : ""}.`
     );
   }
 
   const insertedIds = [];
 
-  // ✅ Use campus name to find branch_code (if needed)
   for (const { disb_detail_id, branch_name } of disbDetails) {
     const { rows: campusRows } = await client.query(
       `SELECT campus_id FROM maintenance_campus WHERE campus_name = $1 LIMIT 1`,
@@ -151,12 +158,18 @@ const createDisbursementSched = async (client, data) => {
     const { rows } = await client.query(
       `
       INSERT INTO disbursement_schedule (
-        sched_id, disb_detail_id, branch_code, disbursement_type_id
+        sched_id, disb_detail_id, branch_code, disbursement_type_id, workflow_id
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING disb_sched_id
       `,
-      [sched_id, disb_detail_id, branch_code, disbursement_type_id]
+      [
+        sched_id,
+        disb_detail_id,
+        branch_code,
+        disbursement_type_id,
+        data.workflow_id,
+      ]
     );
 
     insertedIds.push(rows[0].disb_sched_id);

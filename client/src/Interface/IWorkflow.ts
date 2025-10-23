@@ -65,6 +65,7 @@ export interface ApproverDetailedView {
   approver_order: number;
   approver_status: string; // Pending | Completed | Missed | Replaced
   workflow_status: string;
+  covered_date: string;
   completed_at: string;
   description: string;
   approver_due_date: string; // ISO string
@@ -191,6 +192,7 @@ export interface WorkflowFormData {
   semester_code: string;
   rq_type_id: string;
   approval_req_type: string;
+  covered_date?: string;
 }
 export interface WFApprover {
   email: string;
@@ -221,6 +223,7 @@ export interface DetailedWorkflow {
   semester: string;
   scholar_level: string; // ⚠️ double-check: this isn’t in the SQL yet
   due_date: string;
+  covered_date: string;
   status: "Not Started" | "In Progress" | "Completed" | "Missed" | "Failed"; // include all enum options from DB
   doc_id: number | null;
   doc_name: string | null;

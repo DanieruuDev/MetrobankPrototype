@@ -67,7 +67,8 @@ function Approval() {
   const fetchEligibleList = async (
     semester: string,
     school_year: string,
-    disbursement_type_id: number
+    disbursement_type_id: number,
+    covered_date: string
   ) => {
     if (!semester || !school_year || !disbursement_type_id) {
       console.log("Missing");
@@ -80,7 +81,7 @@ function Approval() {
       const response = await axios.get(
         `${VITE_BACKEND_URL}api/workflow/list/eligible`,
         {
-          params: { semester, school_year, disbursement_type_id },
+          params: { semester, school_year, disbursement_type_id, covered_date },
         }
       );
       console.log(response.data);
@@ -113,7 +114,8 @@ function Approval() {
             await fetchEligibleList(
               wf.semester,
               wf.school_year,
-              wf.disbursement_type_id
+              wf.disbursement_type_id,
+              wf.covered_date
             );
           }
         }
