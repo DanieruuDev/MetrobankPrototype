@@ -102,6 +102,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     setToken(null);
     setInfo(null);
+    sessionStorage.clear();
+    localStorage.clear();
   }, [VITE_BACKEND_URL]);
 
   useEffect(() => {
