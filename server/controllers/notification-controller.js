@@ -1,5 +1,10 @@
 const pool = require("../database/dbConnect.js");
 const { createNotification } = require("../services/notificationService.js");
+const {
+  sendTuitionFeeProcessFinalizedEmail,
+  sendAcademicAwardProcessFinalizedEmail,
+  sendThesisFeeUploadCompleteEmail,
+} = require("../utils/emailing.js");
 
 // Get all notifications for a user (with actor info)
 const getUserNotifications = async (req, res) => {

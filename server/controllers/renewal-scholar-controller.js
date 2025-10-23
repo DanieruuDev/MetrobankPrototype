@@ -5,7 +5,12 @@ const { uploadBuffer, getUniqueFileName } = require("../utils/b2.js");
 const { startProcess } = require("../services/processProgressService.js");
 const { computeScholarshipStatus } = require("../services/renewalService.js");
 const { createNotification } = require("../services/notificationService.js");
-const { sendEmail } = require("../utils/emailing.js");
+const {
+  sendEmail,
+  sendRenewalInitializedEmail,
+  sendBranchValidationCompleteEmail,
+  sendNewRenewalProcessEmail,
+} = require("../utils/emailing.js");
 
 //MASS UPLOAD INITIAL LIST AFTER IDENTIFYING SCHOLAR APPLICANTS
 //Functionality to update masterlist scholarship
@@ -1665,14 +1670,14 @@ const checkAndNotifyHRValidationComplete = async (client, io, triggeredBy) => {
             io
           );
 
-          // Send email
+          // Send email using new template
           try {
-            const emailMessage = `${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester, Year Level ${year_level}, ${branch.campus_name} is All validated and ready for review.`;
-
-            await sendEmail(
+            await sendBranchValidationCompleteEmail(
               hrUsers[0].admin_email,
-              "Branch Validation Complete",
-              emailMessage
+              school_year,
+              semester,
+              year_level,
+              branch.campus_name
             );
           } catch (emailError) {
             console.error("❌ Email sending failed:", emailError);
@@ -1746,12 +1751,13 @@ const notifyRenewalInitialization = async (
           io
         );
 
-        // Send email to HR
+        // Send email to HR using new template
         try {
-          await sendEmail(
+          await sendRenewalInitializedEmail(
             hrUser.admin_email,
-            "Renewal Process Initialized",
-            `${initiatorName} has initialized the renewal process for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester.`
+            initiatorName,
+            school_year,
+            semester
           );
         } catch (emailError) {
           console.error("❌ Email sending failed:", emailError);
@@ -1781,12 +1787,14 @@ const notifyRenewalInitialization = async (
         io
       );
 
-      // Send email notification to each DO user
+      // Send email notification to each DO user using new template
       try {
-        await sendEmail(
+        await sendNewRenewalProcessEmail(
           doUser.admin_email,
-          "New Renewal Process Initialized",
-          `Dear ${doUser.admin_name},\n\n${initiatorName} has initialized a new renewal process for ${school_year} - ${semester === 1 ? "1st" : "2nd"} Semester.\n\nPlease log in to the system to begin your validation process.\n\nBest regards,\nMetrobank Scholarship System`
+          initiatorName,
+          school_year,
+          semester,
+          "DO"
         );
         console.log(
           `✅ Email sent to DO: ${doUser.admin_name} (${doUser.admin_email})`
